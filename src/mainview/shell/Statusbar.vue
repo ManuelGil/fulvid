@@ -88,6 +88,18 @@ const readingCount = computed(() => {
 });
 
 const indicators = computed(() => settings.value.appearance.statusbar.indicators);
+
+const showDocumentGroup = computed(
+  () =>
+    Boolean(indicators.value.document && documentStatus.value) ||
+    Boolean(indicators.value.language && activeLanguage.value),
+);
+const showModeGroup = computed(() => indicators.value.linkMode);
+const showFormatGroup = computed(() => Boolean(indicators.value.eol && eolLabel.value));
+const showStatsGroup = computed(
+  () => Boolean(readingCount.value) || Boolean(indicators.value.characters && characterCount.value),
+);
+const showContextGroup = computed(() => indicators.value.workspace);
 </script>
 
 <template>
@@ -98,60 +110,87 @@ const indicators = computed(() => settings.value.appearance.statusbar.indicators
     aria-live="off"
     :aria-label="t('status.label')"
   >
-    <span class="statusbar__group">
-      <span
-        v-if="indicators.document && documentStatus"
-        class="statusbar__item statusbar__item--primary"
-        :aria-label="t('status.document', { status: documentStatus })"
-      >
-        {{ documentStatus }}
+    <span v-if="showDocumentGroup || showModeGroup" class="statusbar__cluster">
+      <span v-if="showDocumentGroup" class="statusbar__group">
+        <span
+          v-if="indicators.document && documentStatus"
+          class="statusbar__item statusbar__item--primary"
+          :aria-label="t('status.document', { status: documentStatus })"
+        >
+          {{ documentStatus }}
+        </span>
+        <span
+          v-if="indicators.language && activeLanguage"
+          class="statusbar__item"
+          :title="t('status.language', { language: activeLanguageLabel })"
+          :aria-label="t('status.language', { language: activeLanguageLabel })"
+        >
+          {{ activeLanguageLabel }}
+        </span>
       </span>
       <span
-        v-if="indicators.language && activeLanguage"
-        class="statusbar__item"
-        :aria-label="t('status.language', { language: activeLanguageLabel })"
-      >
-        {{ activeLanguageLabel }}
+        v-if="showDocumentGroup && showModeGroup"
+        class="statusbar__divider"
+        aria-hidden="true"
+      />
+      <span v-if="showModeGroup" class="statusbar__group">
+        <button
+          class="statusbar__item statusbar__action"
+          type="button"
+          :title="t('status.openLinkSettings')"
+          :aria-label="t('status.linkMode', { mode: linkModeLabel })"
+          @click="router.push({ name: APP_ROUTE_NAMES.settings, query: { section: 'markdown' } })"
+        >
+          {{ t("status.linkMode", { mode: linkModeLabel }) }}
+        </button>
       </span>
-      <button
-        v-if="indicators.linkMode"
-        class="statusbar__item statusbar__link-mode"
-        type="button"
-        :title="t('status.openLinkSettings')"
-        :aria-label="t('status.linkMode', { mode: linkModeLabel })"
-        @click="router.push({ name: APP_ROUTE_NAMES.settings, query: { section: 'markdown' } })"
-      >
-        {{ t("status.linkMode", { mode: linkModeLabel }) }}
-      </button>
     </span>
-    <span class="statusbar__group statusbar__group--secondary">
-      <span
-        v-if="indicators.workspace"
-        class="statusbar__item"
-        :aria-label="t('status.workspace', { workspace: workspaceStatus })"
-      >
-        {{ workspaceStatus }}
+    <span
+      v-if="showFormatGroup || showStatsGroup || showContextGroup"
+      class="statusbar__cluster statusbar__cluster--secondary"
+    >
+      <span v-if="showFormatGroup" class="statusbar__group">
+        <button
+          class="statusbar__item statusbar__action statusbar__token"
+          type="button"
+          :title="t('status.changeEol')"
+          :aria-label="t('status.eol', { eol: eolLabel })"
+          @click="activeBuffer && cycleDocumentEol(activeBuffer)"
+        >
+          {{ eolLabel }}
+        </button>
       </span>
       <span
-        v-if="indicators.characters && characterCount"
-        class="statusbar__item"
-        :aria-label="characterCount"
-      >
-        {{ characterCount }}
+        v-if="showFormatGroup && (showStatsGroup || showContextGroup)"
+        class="statusbar__divider"
+        aria-hidden="true"
+      />
+      <span v-if="showStatsGroup" class="statusbar__group">
+        <span v-if="readingCount" class="statusbar__item" :aria-label="readingCount">
+          {{ readingCount }}
+        </span>
+        <span
+          v-if="indicators.characters && characterCount"
+          class="statusbar__item"
+          :aria-label="characterCount"
+        >
+          {{ characterCount }}
+        </span>
       </span>
-      <span v-if="readingCount" class="statusbar__item" :aria-label="readingCount">
-        {{ readingCount }}
+      <span
+        v-if="showStatsGroup && showContextGroup"
+        class="statusbar__divider"
+        aria-hidden="true"
+      />
+      <span v-if="showContextGroup" class="statusbar__group">
+        <span
+          class="statusbar__item"
+          :title="t('status.workspace', { workspace: workspaceStatus })"
+          :aria-label="t('status.workspace', { workspace: workspaceStatus })"
+        >
+          {{ workspaceStatus }}
+        </span>
       </span>
-      <button
-        v-if="indicators.eol && eolLabel"
-        class="statusbar__item statusbar__link-mode"
-        type="button"
-        :title="t('status.changeEol')"
-        :aria-label="t('status.eol', { eol: eolLabel })"
-        @click="activeBuffer && cycleDocumentEol(activeBuffer)"
-      >
-        {{ eolLabel }}
-      </button>
     </span>
   </footer>
 </template>
@@ -178,6 +217,24 @@ const indicators = computed(() => settings.value.appearance.statusbar.indicators
   font-variant-numeric: tabular-nums;
 }
 
+.statusbar__cluster {
+  display: flex;
+  align-items: center;
+  gap: $space-compact;
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+}
+
+.statusbar__cluster--secondary {
+  margin-inline-start: auto;
+}
+
+.statusbar__cluster + .statusbar__cluster {
+  padding-inline-start: $space-block;
+  border-inline-start: 1px solid $border-subtle;
+}
+
 .statusbar__group {
   display: flex;
   align-items: center;
@@ -187,16 +244,14 @@ const indicators = computed(() => settings.value.appearance.statusbar.indicators
   overflow: hidden;
 }
 
-.statusbar__group + .statusbar__group {
-  padding-inline-start: $space-block;
-  border-inline-start: 1px solid $border-subtle;
+.statusbar__divider {
+  width: 1px;
+  height: $space-5;
+  flex: 0 0 auto;
+  background: $border-subtle;
 }
 
-.statusbar__group--secondary {
-  margin-inline-start: auto;
-}
-
-.statusbar__group--secondary .statusbar__item {
+.statusbar__cluster--secondary .statusbar__item {
   max-width: 16rem;
 }
 
@@ -212,7 +267,7 @@ const indicators = computed(() => settings.value.appearance.statusbar.indicators
   font-weight: 600;
 }
 
-.statusbar__link-mode {
+.statusbar__action {
   min-height: $hit-min;
   padding: 0 $space-tight;
   border: 0;
@@ -232,6 +287,10 @@ const indicators = computed(() => settings.value.appearance.statusbar.indicators
   }
 }
 
+.statusbar__token {
+  font-family: $font-mono;
+}
+
 @media (max-width: 600px) {
   .statusbar {
     min-height: $control-height-small;
@@ -243,7 +302,7 @@ const indicators = computed(() => settings.value.appearance.statusbar.indicators
     gap: $space-related;
   }
 
-  .statusbar__group--secondary {
+  .statusbar__cluster--secondary {
     display: none;
   }
 }
