@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { chmod, mkdir, mkdtemp, rm, symlink, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
@@ -91,47 +91,125 @@ describe("scan limits", () => {
  * removed by a sync client or a checkout between listing and analysis. Either
  * used to throw out of the scan, so one bad entry cost the person the whole
  * folder. These hold the partial-but-usable behaviour, and its reporting.
+ *
+ * The property is multiplatform. The way an access error is provoked is not:
+ * Windows does not treat chmod(000) as POSIX denial, so the always-on cases
+ * inject the same skippable errno at the existing walk/analysis catch. chmod
+ * stays as extra coverage only where the kernel enforces Unix mode bits.
  */
+function permissionDenied(syscall: string, target: string): NodeJS.ErrnoException {
+  const error = new Error(
+    `EACCES: permission denied, ${syscall} '${target}'`,
+  ) as NodeJS.ErrnoException;
+  error.code = "EACCES";
+  return error;
+}
+
+const posixModeBitsDenyAccess = process.platform !== "win32";
+
 describe("scanning a hostile or live folder", () => {
   test("an unreadable subdirectory is skipped, not fatal", async () => {
     const root = await makeWorkspace();
-    const denied = join(root, "denied");
+    const denied = resolve(join(root, "denied"));
 
     try {
       await writeFile(join(root, "readable.md"), "# Readable\n");
       await mkdir(denied);
       await writeFile(join(denied, "hidden.md"), "# Hidden\n");
-      await chmod(denied, 0o000);
 
-      const scan = await scanWorkspace(root, { linkMode: "markdown" });
+      const scan = await scanWorkspace(
+        root,
+        { linkMode: "markdown" },
+        {
+          beforeReadDirectory: (directory) => {
+            if (resolve(directory) === denied) {
+              throw permissionDenied("scandir", directory);
+            }
+          },
+        },
+      );
 
       expect(scan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
       // Skipping is reported, so a partial folder is never silent.
       expect(scan.skipped).toBeGreaterThan(0);
     } finally {
-      await chmod(denied, 0o755).catch(() => {});
       await rm(root, { recursive: true, force: true });
     }
   });
 
+  test.skipIf(!posixModeBitsDenyAccess)(
+    "an unreadable subdirectory is skipped, not fatal (POSIX mode bits)",
+    async () => {
+      const root = await makeWorkspace();
+      const denied = join(root, "denied");
+
+      try {
+        await writeFile(join(root, "readable.md"), "# Readable\n");
+        await mkdir(denied);
+        await writeFile(join(denied, "hidden.md"), "# Hidden\n");
+        // Extra real-FS check: Unix mode bits deny readdir. Windows ignores this.
+        await chmod(denied, 0o000);
+
+        const scan = await scanWorkspace(root, { linkMode: "markdown" });
+
+        expect(scan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
+        expect(scan.skipped).toBeGreaterThan(0);
+      } finally {
+        await chmod(denied, 0o755).catch(() => {});
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
   test("a document that becomes unreadable mid-scan is skipped, not fatal", async () => {
     const root = await makeWorkspace();
+    const locked = resolve(join(root, "locked.md"));
 
     try {
       await writeFile(join(root, "readable.md"), "# Readable\n");
-      await writeFile(join(root, "locked.md"), "# Locked\n");
-      // Listed by the walk, then refused by the analysis pass.
-      await chmod(join(root, "locked.md"), 0o000);
+      await writeFile(locked, "# Locked\n");
 
-      const scan = await scanWorkspace(root, { linkMode: "markdown" });
+      const scan = await scanWorkspace(
+        root,
+        { linkMode: "markdown" },
+        {
+          beforeAnalyzeFile: async (filePath) => {
+            if (resolve(filePath) === locked) {
+              // Listed by the walk, then gone before analysis — the F-03 condition.
+              await unlink(locked);
+            }
+          },
+        },
+      );
 
       expect(scan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
       expect(scan.skipped).toBe(1);
     } finally {
-      await chmod(join(root, "locked.md"), 0o644).catch(() => {});
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  test.skipIf(!posixModeBitsDenyAccess)(
+    "a document that becomes unreadable mid-scan is skipped, not fatal (POSIX mode bits)",
+    async () => {
+      const root = await makeWorkspace();
+
+      try {
+        await writeFile(join(root, "readable.md"), "# Readable\n");
+        await writeFile(join(root, "locked.md"), "# Locked\n");
+        // Extra real-FS check: Unix mode bits deny analysis. Windows ignores this.
+        await chmod(join(root, "locked.md"), 0o000);
+
+        const scan = await scanWorkspace(root, { linkMode: "markdown" });
+
+        expect(scan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
+        expect(scan.skipped).toBe(1);
+      } finally {
+        await chmod(join(root, "locked.md"), 0o644).catch(() => {});
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   test("documents removed while the folder is scanned never fail the scan", async () => {
     const root = await makeWorkspace();

@@ -131,6 +131,7 @@ async function walkForMarkdownPaths(
   depth: number,
   collection: MarkdownPathCollection,
   includeHidden: boolean,
+  beforeReadDirectory?: (directory: string) => void | Promise<void>,
 ): Promise<void> {
   if (scanLimitReached(collection) || depth > MAX_SCAN_DEPTH) {
     markScanTruncated(collection);
@@ -139,6 +140,10 @@ async function walkForMarkdownPaths(
 
   let entries;
   try {
+    // Integration tests inject a skippable fault here. Windows mode bits do
+    // not reproduce POSIX EACCES, and `readdir` is bound at module load so a
+    // spy cannot reach this catch.
+    await beforeReadDirectory?.(directory);
     entries = await readdir(directory, { withFileTypes: true });
   } catch (error) {
     if (!isSkippableScanError(error)) {
@@ -159,7 +164,13 @@ async function walkForMarkdownPaths(
     // invisible to scan/list; document I/O still resolves them through
     // `assertCanonicallyContained` so a link cannot escape the folder.
     if (entry.isDirectory()) {
-      await walkForMarkdownPaths(entryPath, depth + 1, collection, includeHidden);
+      await walkForMarkdownPaths(
+        entryPath,
+        depth + 1,
+        collection,
+        includeHidden,
+        beforeReadDirectory,
+      );
       if (scanLimitReached(collection)) {
         markScanTruncated(collection);
         return;
@@ -188,10 +199,11 @@ function compareDocumentPaths(pathA: string, pathB: string): number {
 async function collectMarkdownPaths(
   rootPath: string,
   includeHidden: boolean,
+  beforeReadDirectory?: (directory: string) => void | Promise<void>,
 ): Promise<MarkdownPathCollection> {
   const collection: MarkdownPathCollection = { paths: [], truncated: false, skipped: 0 };
 
-  await walkForMarkdownPaths(rootPath, 0, collection, includeHidden);
+  await walkForMarkdownPaths(rootPath, 0, collection, includeHidden, beforeReadDirectory);
   collection.paths.sort(compareDocumentPaths);
   return collection;
 }
@@ -203,15 +215,24 @@ async function collectMarkdownPaths(
 export async function scanWorkspace(
   rootPath: string,
   options: ScanOptions = {},
+  testFaults?: {
+    beforeReadDirectory?: (directory: string) => void | Promise<void>;
+    beforeAnalyzeFile?: (filePath: string) => void | Promise<void>;
+  },
 ): Promise<{ scannedNotes: ScannedNote[]; truncated: boolean; skipped: number }> {
   const includeHidden = Boolean(options.includeHidden);
   const linkMode = options.linkMode ?? "markdown";
-  const collected = await collectMarkdownPaths(rootPath, includeHidden);
+  const collected = await collectMarkdownPaths(
+    rootPath,
+    includeHidden,
+    testFaults?.beforeReadDirectory,
+  );
   const scannedNotes: ScannedNote[] = [];
   let skipped = collected.skipped;
 
   for (const entryPath of collected.paths) {
     try {
+      await testFaults?.beforeAnalyzeFile?.(entryPath);
       scannedNotes.push(await scannedNoteFromFile(rootPath, entryPath, linkMode));
     } catch (error) {
       if (!isSkippableScanError(error)) {
