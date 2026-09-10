@@ -49,7 +49,7 @@ Priority: optional
 Architecture: amd64
 Maintainer: Manuel Gil <support@imgil.dev>
 Installed-Size: ${installed_size}
-Depends: libwebkit2gtk-4.1-0, libgtk-3-0, libsoup-3.0-0, libdbusmenu-gtk3-4
+Depends: $(linux_runtime_depends)
 Homepage: https://github.com/ManuelGil/fulvid
 Description: standalone desktop editor for Markdown and MDX
  Fulvid is a standalone desktop editor for Markdown and MDX.

@@ -32,6 +32,15 @@ package_version() {
   json_string "$ROOT/package.json" version
 }
 
+linux_runtime_depends() {
+  awk '$1 !~ /^#/ && NF == 2 { packages[++n] = $2 }
+       END {
+         for (i = 1; i <= n; i++) {
+           printf "%s%s", packages[i], (i < n ? ", " : "")
+         }
+       }' "$ROOT/packaging/linux/runtime-libraries.tsv"
+}
+
 electrobun_app_version() {
   awk -F'"' '/version:[[:space:]]*"/ {print $2; exit}' "$ROOT/electrobun.config.ts"
 }

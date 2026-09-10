@@ -22,7 +22,9 @@ A green compile is not a supported OS. A missing CI image is not a claim that th
 
 ## Linux (Debian-based x64)
 
-Runtime needs the system webview: WebKitGTK 4.1, GTK 3, soup-3, JavaScriptCore 4.1, and Ayatana/dbusmenu. Those are the Debian `Depends` of the `.deb`. Ubuntu 20.04 and Debian 11 do not ship WebKitGTK 4.1 in a form we can use. They are unsupported.
+Runtime needs the system libraries Electrobun 2.0.1 `libNativeWrapper.so` links: WebKitGTK 4.1, GTK 3, soup-3, JavaScriptCore 4.1, Ayatana AppIndicator 3, and dbusmenu. The Debian `Depends` and `bun run doctor` read the same list: [packaging/linux/runtime-libraries.tsv](../packaging/linux/runtime-libraries.tsv). Ubuntu 20.04 and Debian 11 do not ship WebKitGTK 4.1 in a form we can use. They are unsupported.
+
+Electrobun's CLI (`electrobun.cjs`) and Vite's CLI start with `#!/usr/bin/env node` and declare Node >= 18. That is a build-host requirement. The packaged app does not need Node. `debian:13` has no `node`; the Debian compatibility job installs Node 20. Ubuntu runners already provide it.
 
 | Image | Role |
 | --- | --- |
@@ -74,7 +76,7 @@ No Apple signing secrets on these jobs.
 
 1. The Vite shell in `dist/` is present
 2. The real filesystem loop creates, reads, writes, and scans a temporary folder
-3. When `FULVID_SMOKE_LAUNCH=1`, the packaged binary starts and stays loaded long enough to observe, then is stopped. On Linux the build-tree `launcher` is Electrobun's self-extractor; the smoke requires the installed runtime (`fulvid.imgil.dev`) to remain alive if the extractor exits.
+3. When `FULVID_SMOKE_LAUNCH=1`, the packaged binary starts and stays loaded long enough to observe, then is stopped. On Linux and Windows the build-tree `launcher` is Electrobun's self-extractor; the smoke requires the installed runtime (`fulvid.imgil.dev`) to remain alive if the extractor exits. `Fulvid-Setup.exe` is not the runtime.
 
 It is not UI automation. It does not click the GTK file dialog.
 

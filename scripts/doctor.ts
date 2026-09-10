@@ -6,8 +6,9 @@
  *
  * Run with: bun run doctor
  */
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { join } from "node:path";
 
 type Status = "ok" | "warn" | "fail";
 
@@ -21,13 +22,29 @@ type Check = {
 /** Bun version used by the release and validate workflows. */
 const EXPECTED_BUN = "1.4.0";
 
-/** Shared libraries the Linux webview binds at launch. */
-const LINUX_LIBRARIES = [
-  { file: "libwebkit2gtk-4.1.so.0", package: "libwebkit2gtk-4.1-0" },
-  { file: "libgtk-3.so.0", package: "libgtk-3-0" },
-  { file: "libsoup-3.0.so.0", package: "libsoup-3.0-0" },
-  { file: "libdbusmenu-gtk3.so.4", package: "libdbusmenu-gtk3-4" },
-];
+type LinuxLibrary = { file: string; package: string };
+
+/** Shared libraries Electrobun 2.0.1 libNativeWrapper.so needs from the OS. */
+function linuxRuntimeLibraries(): LinuxLibrary[] {
+  const path = join(import.meta.dir, "..", "packaging/linux/runtime-libraries.tsv");
+  const libraries = readFileSync(path, "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .map((line) => {
+      const [file, debianPackage] = line.split(/\s+/);
+      if (!file || !debianPackage) {
+        throw new Error(`invalid runtime library row in ${path}: ${line}`);
+      }
+      return { file, package: debianPackage };
+    });
+
+  if (libraries.length === 0) {
+    throw new Error(`no runtime libraries listed in ${path}`);
+  }
+
+  return libraries;
+}
 
 const checks: Check[] = [];
 
@@ -151,7 +168,7 @@ function checkLinuxLibraries(): void {
     "/lib",
   ];
 
-  const missing = LINUX_LIBRARIES.filter(({ file }) => {
+  const missing = linuxRuntimeLibraries().filter(({ file }) => {
     if (linkerCache.includes(file)) {
       return false;
     }

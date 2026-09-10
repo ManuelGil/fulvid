@@ -1,0 +1,11 @@
+# soname	debian-package
+# Shared libraries Electrobun 2.0.1 libNativeWrapper.so links that a
+# minimal Debian/Ubuntu image does not already ship via libc.
+# libasar.so is next to the wrapper. gdk/cairo/pixbuf/glib/gio come with GTK.
+# librsvg2 is not a NEEDED of the wrapper; do not add it here.
+libwebkit2gtk-4.1.so.0	libwebkit2gtk-4.1-0
+libgtk-3.so.0	libgtk-3-0
+libsoup-3.0.so.0	libsoup-3.0-0
+libjavascriptcoregtk-4.1.so.0	libjavascriptcoregtk-4.1-0
+libayatana-appindicator3.so.1	libayatana-appindicator3-1
+libdbusmenu-gtk3.so.4	libdbusmenu-gtk3-4

@@ -169,10 +169,12 @@ GitHub Releases is the public download channel. There is not a published release
 
 When a release is published, download it from [GitHub Releases](https://github.com/ManuelGil/fulvid/releases) and pick the file for your platform. Until then, use the steps below.
 
-You need [Bun](https://bun.sh) 1.4.0 or newer. On Linux you also need GTK 3 and WebKitGTK 4.1:
+You need [Bun](https://bun.sh) 1.4.0 or newer. Electrobun's and Vite's CLIs also need [Node](https://nodejs.org/) 18 or newer on `PATH` (`#!/usr/bin/env node`). The packaged app does not use Node.
+
+On Linux you also need the WebKitGTK stack Electrobun links, including Ayatana AppIndicator:
 
 ```bash
-sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libsoup-3.0-0 libdbusmenu-gtk3-4
+sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libsoup-3.0-0 libjavascriptcoregtk-4.1-0 libayatana-appindicator3-1 libdbusmenu-gtk3-4
 ```
 
 ```bash

@@ -6,14 +6,15 @@
  *   2. Run the real filesystem editing loop (create, read, write, scan)
  *
  * When FULVID_SMOKE_LAUNCH=1:
- *   3. Start the packaged Electrobun binary
+ *   3. Start the packaged Electrobun binary for this platform
  *   4. Confirm the runtime stays loaded (same process or a live child)
  *   5. Stop the process tree
  *
- * On Linux the file under build/.../bin/launcher is Electrobun's self-extractor.
- * It installs to $XDG_DATA_HOME/fulvid.imgil.dev/stable/app and may exit 0.
+ * Linux and Windows ship a self-extractor as the build-tree launcher.
+ * It may install under the Electrobun per-user data dir and exit 0.
  * Exit 0 is not success unless a Fulvid process remains, or the installed
  * launcher itself stays up when started from its own directory.
+ * Fulvid-Setup.exe is the installer artifact, not the runtime.
  *
  * bun run smoke:compatibility
  */
@@ -25,6 +26,11 @@ import { dirname, join } from "node:path";
 const root = join(import.meta.dir, "..");
 const launchRequested = process.env.FULVID_SMOKE_LAUNCH === "1";
 const launchMs = Number.parseInt(process.env.FULVID_SMOKE_LAUNCH_MS ?? "8000", 10);
+
+type RuntimeTarget = {
+  binary: string;
+  installedBinary: string | null;
+};
 
 function run(command: string, args: string[]): void {
   execFileSync(command, args, { cwd: root, stdio: "inherit" });
@@ -73,52 +79,92 @@ function walkFiles(directory: string, into: string[], depth = 0): void {
   }
 }
 
-function resolveAppBinary(): string {
+function firstExisting(paths: string[]): string | null {
+  return paths.find((path) => existsSync(path)) ?? null;
+}
+
+function linuxInstalledLauncher(): string | null {
+  const dataHome = process.env.XDG_DATA_HOME || join(homedir(), ".local/share");
+  return firstExisting([join(dataHome, "fulvid.imgil.dev", "stable", "app", "bin", "launcher")]);
+}
+
+function windowsInstalledLauncher(): string | null {
+  const localAppData = process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
+  const appRoot = join(localAppData, "fulvid.imgil.dev", "stable", "app");
+  return firstExisting([join(appRoot, "bin", "launcher.exe"), join(appRoot, "launcher.exe")]);
+}
+
+function isWindowsSetupArtifact(normalized: string): boolean {
+  return /Fulvid-Setup\.exe$/i.test(normalized);
+}
+
+function isPackagedRuntime(normalized: string): boolean {
+  if (isWindowsSetupArtifact(normalized)) {
+    return false;
+  }
+
+  return (
+    normalized.endsWith("/bin/launcher") ||
+    /\/bin\/launcher\.exe$/i.test(normalized) ||
+    /\/Contents\/MacOS\/[^/]+$/.test(normalized)
+  );
+}
+
+function knownBuildBinaries(): string[] {
+  if (process.platform === "win32") {
+    return [
+      "build/stable-win-x64/Fulvid/bin/launcher.exe",
+      "build/stable-win-x64/Fulvid/launcher.exe",
+    ];
+  }
+
+  if (process.platform === "darwin") {
+    return [
+      "build/stable-macos-arm64/Fulvid.app/Contents/MacOS/Fulvid",
+      "build/stable-macos-x64/Fulvid.app/Contents/MacOS/Fulvid",
+    ];
+  }
+
+  return ["build/stable-linux-x64/Fulvid/bin/launcher"];
+}
+
+function installedRuntimeForPlatform(): string | null {
+  if (process.platform === "win32") {
+    return windowsInstalledLauncher();
+  }
+
+  if (process.platform === "linux") {
+    return linuxInstalledLauncher();
+  }
+
+  return null;
+}
+
+function resolveRuntimeForPlatform(): RuntimeTarget {
   const override = process.env.FULVID_SMOKE_BIN;
   if (override) {
     if (!existsSync(override)) {
       throw new Error(`FULVID_SMOKE_BIN does not exist: ${override}`);
     }
-    return override;
+    return { binary: override, installedBinary: installedRuntimeForPlatform() };
   }
 
-  const known = [
-    "build/stable-linux-x64/Fulvid/bin/launcher",
-    "build/stable-win-x64/Fulvid/Fulvid.exe",
-    "build/stable-win-x64/Fulvid/bin/Fulvid.exe",
-    "build/stable-macos-arm64/Fulvid.app/Contents/MacOS/Fulvid",
-    "build/stable-macos-x64/Fulvid.app/Contents/MacOS/Fulvid",
-  ];
-
-  for (const relative of known) {
+  for (const relative of knownBuildBinaries()) {
     const path = join(root, relative);
     if (existsSync(path)) {
-      return path;
+      return { binary: path, installedBinary: installedRuntimeForPlatform() };
     }
   }
 
   const found: string[] = [];
   walkFiles(join(root, "build"), found);
-  const match = found.find((path) => {
-    const normalized = path.replaceAll("\\", "/");
-    return (
-      normalized.endsWith("/bin/launcher") ||
-      /\/Contents\/MacOS\/[^/]+$/.test(normalized) ||
-      /\/Fulvid\.exe$/i.test(normalized)
-    );
-  });
+  const match = found.find((path) => isPackagedRuntime(path.replaceAll("\\", "/")));
 
   if (!match) {
     throw new Error("No packaged Fulvid binary under build/. Compatibility CI must package first.");
   }
 
-  return match;
-}
-
-function linuxInstalledLauncher(): string | null {
-  const dataHome = process.env.XDG_DATA_HOME || join(homedir(), ".local/share");
-  const path = join(dataHome, "fulvid.imgil.dev", "stable", "app", "bin", "launcher");
-  return existsSync(path) ? path : null;
+  return { binary: match, installedBinary: installedRuntimeForPlatform() };
 }
 
 function isRuntimeLine(line: string): boolean {
@@ -126,11 +172,14 @@ function isRuntimeLine(line: string): boolean {
     return false;
   }
 
+  if (isWindowsSetupArtifact(line.replaceAll("\\", "/"))) {
+    return false;
+  }
+
   return (
     /fulvid\.imgil\.dev/i.test(line) ||
-    /\/Resources\/main\.js/.test(line) ||
-    /Fulvid\.exe/i.test(line) ||
-    /\/launcher(\s|$)/.test(line)
+    /Resources[/\\]main\.js/.test(line) ||
+    /[/\\]launcher(\.exe)?(\s|$)/i.test(line)
   );
 }
 
@@ -142,7 +191,19 @@ function leftoverProcesses(): string[] {
         [
           "-NoProfile",
           "-Command",
-          "Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'Fulvid|launcher' } | ForEach-Object { $_.ProcessId.ToString() + ' ' + $_.Name }",
+          [
+            "Get-CimInstance Win32_Process |",
+            "Where-Object {",
+            "  $name = [string]$_.Name;",
+            "  $command = [string]$_.CommandLine;",
+            "  if ($command -match 'compatibilitySmoke|smoke:compatibility') { return $false };",
+            "  if ($name -match '^Fulvid-Setup\\.exe$') { return $false };",
+            "  if ($name -match '^(launcher|Fulvid)\\.exe$') { return $true };",
+            "  if ($name -eq 'bun.exe' -and $command -match 'fulvid\\.imgil\\.dev|Resources\\\\main\\.js') { return $true };",
+            "  $command -match 'fulvid\\.imgil\\.dev'",
+            "} |",
+            "ForEach-Object { $_.ProcessId.ToString() + ' ' + $_.Name + ' ' + $_.CommandLine }",
+          ].join(" "),
         ],
         { encoding: "utf8" },
       );
@@ -218,7 +279,7 @@ function dumpOutput(stdout: string, stderr: string): string {
 }
 
 async function launchPackagedApp(): Promise<void> {
-  const binary = resolveAppBinary();
+  const { binary, installedBinary } = resolveRuntimeForPlatform();
   console.log(`  launching ${binary}\n`);
 
   const first = await observeBinary(binary);
@@ -241,10 +302,9 @@ async function launchPackagedApp(): Promise<void> {
     return;
   }
 
-  const installed = process.platform === "linux" ? linuxInstalledLauncher() : null;
-  if (installed && installed !== binary) {
-    console.log(`  extractor exited 0; launching installed runtime ${installed}\n`);
-    const second = await observeBinary(installed);
+  if (installedBinary && installedBinary !== binary) {
+    console.log(`  extractor exited 0; launching installed runtime ${installedBinary}\n`);
+    const second = await observeBinary(installedBinary);
     if (second.stayedUp) {
       console.log("  installed runtime stayed up and was stopped.\n");
       return;
