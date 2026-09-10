@@ -9,6 +9,10 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+### Added
+
+- Opening a folder (including an external folder request) loads it only when the scan finds Markdown or MDX, or when the scan was partial. A finished scan with neither kind of document is reported in the reader's language and does not become the open folder.
+
 ### Changed
 
 - Documented the standing security and resilience contract. The 2026-09-09 adversarial review is kept as historical evidence.

@@ -1,6 +1,7 @@
 /**
  * Workspace state - the open workspace, its active context root, and the
- * recent-workspace history. The single owner of workspace loading.
+ * recent-workspace history. The single owner of workspace loading, including
+ * whether a finished scan found documents Fulvid can edit.
  */
 import { computed, ref, watch } from "vue";
 
@@ -27,6 +28,7 @@ import {
   scanWorkspace,
 } from "../modules/workspace/filesystem/workspaceScanner";
 import type { ScannedNote, WorkspaceScan } from "../modules/workspace/filesystem/workspaceTypes";
+import { folderDocumentPreflight, shouldLoadFolderWorkspace } from "./folderPreflight";
 import { settings } from "../modules/settings/settingsStore";
 import { notify } from "./notify";
 import { closeRightSidebar } from "./layoutStore";
@@ -204,7 +206,10 @@ async function readWorkspaceFromDisk(path: string): Promise<WorkspaceScan> {
   setLoadingStatus(i18n.global.t("workspace.loadingDocuments"));
   const scan = await scanWorkspace(path, includeHidden, settings.value.links.linkMode);
   if (scan.scannedNotes.length === 0) {
-    setLoadingStatus(i18n.global.t("workspace.noDocuments"));
+    // A partial walk cannot claim the folder has no documents.
+    setLoadingStatus(
+      i18n.global.t(scan.truncated || scan.skipped ? "workspace.looking" : "workspace.noDocuments"),
+    );
   } else {
     setLoadingStatus(
       i18n.global.t(
@@ -339,6 +344,10 @@ async function loadWorkspace(path: string): Promise<void> {
   try {
     const scan = await readWorkspaceFromDisk(path);
     if (isStaleWorkspaceRequest(requestGeneration)) {
+      return;
+    }
+    if (!shouldLoadFolderWorkspace(folderDocumentPreflight(scan))) {
+      errorMessage.value = i18n.global.t("workspace.noCompatibleDocuments");
       return;
     }
     const previousWorkspacePath = workspace.value?.path ?? null;

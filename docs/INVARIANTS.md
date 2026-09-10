@@ -20,6 +20,7 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Semantic rename | F2 renames a heading or fragment in document text. It never renames a file or document ID |
 | Preview and Export | Preview and Export HTML share `renderMarkdownPreview`. Save writes source. Export writes `.html` |
 | Folder startup | `workspaceStartup` is `none` or `last`. Untitled is available in both cases |
+| Folder preflight | Opening a folder loads it only when the scan found `.md` / `.markdown` / `.mdx`, or when the scan was partial. A complete scan with none of those files is said out loud and does not become the open folder. Preflight does not grant access, execute MDX, or walk the tree a second time |
 
 ## Graph
 

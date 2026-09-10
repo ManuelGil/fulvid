@@ -80,7 +80,7 @@ Fields outside the contract are dropped during parsing. `command`, `trusted`,
 | Folder access | `authorizeChosenWorkspaceRoot` | Unchanged. The Folder dialog's own path |
 | Containment | `workspacePaths` | Unchanged, and applies to everything inside an opened folder |
 | Document lifecycle | `openOrActivate` | Pairs Focus through `selectDocument` |
-| Folder lifecycle | `selectRecentWorkspace` → `loadWorkspace` | Same scan ceilings and partial-scan reporting |
+| Folder lifecycle | `selectRecentWorkspace` → `loadWorkspace` | Same scan, same preflight (Markdown/MDX present, or a partial scan), same ceilings |
 
 **Filesystem authority does not move.** There is no second authority, no
 "external" grant kind, and no path in this layer that skips a check. A request

@@ -193,6 +193,7 @@ export default {
     listing: "Cargando carpetas...",
     loadingDocuments: "Buscando documentos...",
     noDocuments: "No se encontraron documentos Markdown.",
+    noCompatibleDocuments: "Fulvid no encontró documentos Markdown o MDX que pueda abrir aquí.",
     openingOne: "Abriendo {count} documento...",
     openingMany: "Abriendo {count} documentos...",
     openFirst: "Abre una carpeta para explorar archivos",

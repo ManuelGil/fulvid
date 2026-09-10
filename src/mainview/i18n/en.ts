@@ -191,6 +191,7 @@ export default {
     listing: "Listing folders...",
     loadingDocuments: "Looking for documents...",
     noDocuments: "No Markdown documents found.",
+    noCompatibleDocuments: "Fulvid didn't find any Markdown or MDX documents it can open here.",
     openingOne: "Opening {count} document...",
     openingMany: "Opening {count} documents...",
     openFirst: "Open a folder to browse files",

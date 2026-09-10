@@ -8,6 +8,8 @@ Ownership: [ARCHITECTURE.md](./ARCHITECTURE.md). Rules: [INVARIANTS.md](./INVARI
 
 Open a document, edit, save, open another. Writing comes first. Folder browsing, Search, Context, and Graph are optional. The editor works without a folder. Graph and Document Context need an open folder and a focused in-folder document.
 
+Opening a folder looks recursively for `.md`, `.markdown`, and `.mdx`. If the scan finishes and finds none, Fulvid says so and does not load that folder. A partial scan never claims the folder is empty of documents. Finding an `.mdx` file does not run MDX.
+
 Fulvid does not run MDX or document HTML. It does not score notes, infer links, or use embeddings. There is no Command Palette or Quick Open. Monaco is the only editor. Preview and Export HTML share one inert renderer.
 
 ## Vocabulary

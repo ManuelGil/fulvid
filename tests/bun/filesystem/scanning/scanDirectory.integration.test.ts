@@ -237,6 +237,52 @@ describe("scanning a hostile or live folder", () => {
     }
   });
 
+  test("a folder with only other files is a complete scan of zero documents", async () => {
+    const root = await makeWorkspace();
+
+    try {
+      await writeFile(join(root, "readme.txt"), "not a document\n");
+      await mkdir(join(root, "images"));
+      await writeFile(join(root, "images", "photo.png"), "png\n");
+
+      const scan = await scanWorkspace(root, { linkMode: "markdown" });
+
+      expect(scan.scannedNotes).toEqual([]);
+      expect(scan.skipped).toBe(0);
+      expect(scan.truncated).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("a skipped subtree with no other documents is not a complete empty scan", async () => {
+    const root = await makeWorkspace();
+    const denied = resolve(join(root, "denied"));
+
+    try {
+      await mkdir(denied);
+      await writeFile(join(denied, "hidden.md"), "# Hidden\n");
+
+      const scan = await scanWorkspace(
+        root,
+        { linkMode: "markdown" },
+        {
+          beforeReadDirectory: (directory) => {
+            if (resolve(directory) === denied) {
+              throw permissionDenied("scandir", directory);
+            }
+          },
+        },
+      );
+
+      expect(scan.scannedNotes).toEqual([]);
+      expect(scan.skipped).toBeGreaterThan(0);
+      expect(scan.truncated).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("a healthy folder reports nothing skipped", async () => {
     const root = await makeWorkspace();
 
@@ -244,10 +290,15 @@ describe("scanning a hostile or live folder", () => {
       await writeFile(join(root, "a.md"), "# A\n");
       await mkdir(join(root, "sub"));
       await writeFile(join(root, "sub", "b.md"), "# B\n");
+      await writeFile(join(root, "sub", "c.mdx"), "# C\n");
 
       const scan = await scanWorkspace(root, { linkMode: "markdown" });
 
-      expect(scan.scannedNotes).toHaveLength(2);
+      expect(scan.scannedNotes.map((item) => item.path).sort()).toEqual([
+        "a.md",
+        "sub/b.md",
+        "sub/c.mdx",
+      ]);
       expect(scan.skipped).toBe(0);
       expect(scan.truncated).toBe(false);
     } finally {
