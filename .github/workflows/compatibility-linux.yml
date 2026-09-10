@@ -133,6 +133,7 @@ jobs:
             git \
             unzip \
             xvfb \
+            xauth \
             dbus \
             dpkg \
             procps
@@ -203,6 +204,13 @@ jobs:
 
       - name: Doctor
         run: bun run doctor
+
+      - name: Verify Xvfb tools
+        run: |
+          set -euo pipefail
+          command -v dbus-run-session
+          command -v xvfb-run
+          command -v xauth
 
       - name: Compatibility smoke
         run: dbus-run-session -- xvfb-run -a bun run smoke:compatibility
