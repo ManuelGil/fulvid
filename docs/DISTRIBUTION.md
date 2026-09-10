@@ -2,7 +2,7 @@
 
 GitHub Releases is the only public download channel. No version is published yet. Until then, run Fulvid from source (see the README).
 
-Release notes for a tag live under [releases/](./releases/) and are copied onto that GitHub Release by hand. There is no `CHANGELOG.md`.
+Release notes for a tag live under [releases/](./releases/) and are copied onto that GitHub Release by hand. The chronological list of user-facing changes is [CHANGELOG.md](../CHANGELOG.md).
 
 ## Identity
 

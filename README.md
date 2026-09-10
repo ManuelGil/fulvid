@@ -223,6 +223,7 @@ The README is the public introduction. These documents go deeper when you need t
 - [Contributing](CONTRIBUTING.md) - how to work in the repo
 - [Distribution](docs/DISTRIBUTION.md) - packaging and GitHub Releases
 - [Compatibility](docs/compatibility.md) - tested OS images versus supported targets
+- [Changelog](CHANGELOG.md) - history of user-facing changes
 - [Security](SECURITY.md) - how to report a vulnerability
 
 ## License
