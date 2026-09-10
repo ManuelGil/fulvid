@@ -7,14 +7,20 @@
  *
  * When FULVID_SMOKE_LAUNCH=1:
  *   3. Start the packaged Electrobun binary
- *   4. Confirm it stays up or hands off to a child
+ *   4. Confirm the runtime stays loaded (same process or a live child)
  *   5. Stop the process tree
+ *
+ * On Linux the file under build/.../bin/launcher is Electrobun's self-extractor.
+ * It installs to $XDG_DATA_HOME/fulvid.imgil.dev/stable/app and may exit 0.
+ * Exit 0 is not success unless a Fulvid process remains, or the installed
+ * launcher itself stays up when started from its own directory.
  *
  * bun run smoke:compatibility
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 
 const root = join(import.meta.dir, "..");
 const launchRequested = process.env.FULVID_SMOKE_LAUNCH === "1";
@@ -109,6 +115,25 @@ function resolveAppBinary(): string {
   return match;
 }
 
+function linuxInstalledLauncher(): string | null {
+  const dataHome = process.env.XDG_DATA_HOME || join(homedir(), ".local/share");
+  const path = join(dataHome, "fulvid.imgil.dev", "stable", "app", "bin", "launcher");
+  return existsSync(path) ? path : null;
+}
+
+function isRuntimeLine(line: string): boolean {
+  if (line.includes("compatibilitySmoke") || line.includes("smoke:compatibility")) {
+    return false;
+  }
+
+  return (
+    /fulvid\.imgil\.dev/i.test(line) ||
+    /\/Resources\/main\.js/.test(line) ||
+    /Fulvid\.exe/i.test(line) ||
+    /\/launcher(\s|$)/.test(line)
+  );
+}
+
 function leftoverProcesses(): string[] {
   try {
     if (process.platform === "win32") {
@@ -131,9 +156,7 @@ function leftoverProcesses(): string[] {
     return output
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .filter(
-        (line) => /Fulvid|\/launcher(\s|$)/i.test(line) && !line.includes("compatibilitySmoke"),
-      );
+      .filter((line) => isRuntimeLine(line));
   } catch {
     return [];
   }
@@ -153,49 +176,102 @@ function stopLeftovers(lines: string[]): void {
   }
 }
 
-async function launchPackagedApp(): Promise<void> {
-  const binary = resolveAppBinary();
-  console.log(`  launching ${binary}\n`);
-
+async function observeBinary(binary: string): Promise<{
+  stayedUp: boolean;
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+}> {
   const env = {
     ...process.env,
     WEBKIT_DISABLE_COMPOSITING_MODE: process.env.WEBKIT_DISABLE_COMPOSITING_MODE ?? "1",
   };
 
   const proc = Bun.spawn([binary], {
-    cwd: root,
+    cwd: dirname(binary),
     env,
     stdout: "pipe",
     stderr: "pipe",
   });
 
+  const stdoutText = new Response(proc.stdout).text();
+  const stderrText = new Response(proc.stderr).text();
+
   await Bun.sleep(Number.isFinite(launchMs) ? Math.max(launchMs, 2000) : 8000);
 
-  const stillRunning = proc.exitCode === null;
-  if (stillRunning) {
+  const stayedUp = proc.exitCode === null;
+  if (stayedUp) {
     proc.kill();
-    const code = await proc.exited;
-    console.log(`  process stayed up and stopped (exit ${code ?? "signal"}).\n`);
+    await proc.exited;
+  }
+
+  const [stdout, stderr] = await Promise.all([stdoutText, stderrText]);
+  return { stayedUp, exitCode: proc.exitCode, stdout, stderr };
+}
+
+function dumpOutput(stdout: string, stderr: string): string {
+  const parts = [
+    stderr.trim() ? `stderr:\n${stderr.slice(0, 4000)}` : "",
+    stdout.trim() ? `stdout:\n${stdout.slice(0, 4000)}` : "",
+  ].filter(Boolean);
+  return parts.length > 0 ? `\n${parts.join("\n")}` : "";
+}
+
+async function launchPackagedApp(): Promise<void> {
+  const binary = resolveAppBinary();
+  console.log(`  launching ${binary}\n`);
+
+  const first = await observeBinary(binary);
+  if (first.stayedUp) {
+    console.log("  process stayed up and was stopped.\n");
     return;
   }
 
-  if (proc.exitCode !== 0) {
-    const stderr = await new Response(proc.stderr).text();
+  if (first.exitCode !== 0) {
     throw new Error(
-      `Packaged Fulvid exited ${proc.exitCode} before the smoke window elapsed.\n${stderr.slice(0, 4000)}`,
+      `Packaged Fulvid exited ${first.exitCode} before the smoke window elapsed.${dumpOutput(first.stdout, first.stderr)}`,
     );
   }
 
   const leftovers = leftoverProcesses();
-  if (leftovers.length === 0) {
+  if (leftovers.length > 0) {
+    console.log("  launcher handed off to a child process; stopping leftovers.\n");
+    stopLeftovers(leftovers);
+    await Bun.sleep(500);
+    return;
+  }
+
+  const installed = process.platform === "linux" ? linuxInstalledLauncher() : null;
+  if (installed && installed !== binary) {
+    console.log(`  extractor exited 0; launching installed runtime ${installed}\n`);
+    const second = await observeBinary(installed);
+    if (second.stayedUp) {
+      console.log("  installed runtime stayed up and was stopped.\n");
+      return;
+    }
+
+    if (second.exitCode !== 0) {
+      throw new Error(
+        `Installed Fulvid launcher exited ${second.exitCode} before the smoke window elapsed.${dumpOutput(second.stdout, second.stderr)}`,
+      );
+    }
+
+    const installedLeftovers = leftoverProcesses();
+    if (installedLeftovers.length > 0) {
+      console.log("  installed launcher handed off to a child process; stopping leftovers.\n");
+      stopLeftovers(installedLeftovers);
+      await Bun.sleep(500);
+      return;
+    }
+
     throw new Error(
-      "Launcher exited 0 immediately and no Fulvid child remained. The runtime did not stay loaded.",
+      `Installed launcher exited ${second.exitCode} and no Fulvid child remained.${dumpOutput(second.stdout, second.stderr)}`,
     );
   }
 
-  console.log("  launcher handed off to a child process; stopping leftovers.\n");
-  stopLeftovers(leftovers);
-  await Bun.sleep(500);
+  throw new Error(
+    `Launcher exited 0 immediately and no Fulvid child remained. The runtime did not stay loaded.${dumpOutput(first.stdout, first.stderr)}`,
+  );
 }
 
 console.log("\nFulvid compatibility smoke\n");

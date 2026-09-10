@@ -33,8 +33,6 @@ jobs:
         include:
           - os: ubuntu-24.04
             release: "24.04"
-          - os: ubuntu-22.04
-            release: "22.04"
     defaults:
       run:
         shell: bash
@@ -50,6 +48,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
+            dbus \
             libwebkit2gtk-4.1-0 \
             libgtk-3-0 \
             libsoup-3.0-0 \
@@ -64,7 +63,8 @@ jobs:
             echo "## Ubuntu ${{ matrix.release }} native stack"
             echo
             echo '```text'
-            ldd --version | head -n 1
+            ldd_version="$(ldd --version)"
+            printf '%s\n' "${ldd_version%%$'\n'*}"
             dpkg-query -W \
               libwebkit2gtk-4.1-0 \
               libgtk-3-0 \
@@ -105,7 +105,7 @@ jobs:
         run: bun run doctor
 
       - name: Compatibility smoke
-        run: xvfb-run -a bun run smoke:compatibility
+        run: dbus-run-session -- xvfb-run -a bun run smoke:compatibility
 
       - name: Upload diagnostics
         if: failure()
@@ -139,6 +139,7 @@ jobs:
             git \
             unzip \
             xvfb \
+            dbus \
             dpkg \
             procps \
             libwebkit2gtk-4.1-0 \
@@ -155,7 +156,8 @@ jobs:
             echo
             echo '```text'
             cat /etc/os-release
-            ldd --version | head -n 1
+            ldd_version="$(ldd --version)"
+            printf '%s\n' "${ldd_version%%$'\n'*}"
             dpkg-query -W \
               libwebkit2gtk-4.1-0 \
               libgtk-3-0 \
@@ -201,7 +203,7 @@ jobs:
         run: bun run doctor
 
       - name: Compatibility smoke
-        run: xvfb-run -a bun run smoke:compatibility
+        run: dbus-run-session -- xvfb-run -a bun run smoke:compatibility
 
       - name: Upload diagnostics
         if: failure()

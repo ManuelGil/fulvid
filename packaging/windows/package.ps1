@@ -68,11 +68,13 @@ function Assert-ExactFiles([string[]] $Expected) {
 function Move-Canonical([string] $Dest, [string] $Filter) {
   $destPath = Join-Path $Artifacts $Dest
   if (Test-Path $destPath) { return }
-  $matches = Get-ChildItem -Path $Artifacts -File -Filter $Filter
-  if ($matches.Count -ne 1) {
-    Fail "expected exactly one artifacts/$Filter (found $($matches.Count))"
+  # StrictMode: a single FileInfo has no .Count. @() is always an array:
+  # zero files -> Length 0, one file -> Length 1, several -> Length N.
+  $found = @(Get-ChildItem -Path $Artifacts -File -Filter $Filter)
+  if ($found.Length -ne 1) {
+    Fail "expected exactly one artifacts/$Filter (found $($found.Length))"
   }
-  Move-Item -Force $matches[0].FullName $destPath
+  Move-Item -Force $found[0].FullName $destPath
 }
 
 function Rewrite-UpdateJson([string] $JsonName, [string] $Bundle, [string] $Version) {

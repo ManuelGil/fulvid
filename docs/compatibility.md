@@ -27,9 +27,9 @@ Runtime needs the system webview: WebKitGTK 4.1, GTK 3, soup-3, JavaScriptCore 4
 | Image | Role |
 | --- | --- |
 | Ubuntu 24.04 (`ubuntu-24.04`) | Tested. Build, `.deb`, launch under Xvfb, filesystem smoke |
-| Ubuntu 22.04 (`ubuntu-22.04`) | Tested. Same checks. Previous LTS that still has WebKitGTK 4.1. The GitHub image starts deprecation in September 2026 |
 | Debian 13 (`debian:13` container) | Tested separately from Ubuntu. Same checks |
 | Ubuntu 26.04 | Current Ubuntu LTS. Supported as a WebKitGTK 4.1 host. **Not tested** here: the GitHub runner image is still preview |
+| Ubuntu 22.04, Debian 12 | Unsupported. Electrobun 2.0.1 ships Cottontail 0.5.0 (`GLIBC_2.38`, `GLIBCXX_3.4.32`) and `libNativeWrapper.so` (`GLIBC_2.38`, `GLIBCXX_3.4.32`). Ubuntu 22.04 is glibc 2.35; Debian 12 is glibc 2.36 |
 | Ubuntu 20.04, Debian 11, 32-bit | Unsupported |
 
 Build compatibility (Electrobun + Vite + Bun 1.4.0) and runtime compatibility (those shared libraries present at launch) are different. The Linux jobs install the libraries, then package, then launch.
@@ -74,7 +74,7 @@ No Apple signing secrets on these jobs.
 
 1. The Vite shell in `dist/` is present
 2. The real filesystem loop creates, reads, writes, and scans a temporary folder
-3. When `FULVID_SMOKE_LAUNCH=1`, the packaged binary starts and is then stopped
+3. When `FULVID_SMOKE_LAUNCH=1`, the packaged binary starts and stays loaded long enough to observe, then is stopped. On Linux the build-tree `launcher` is Electrobun's self-extractor; the smoke requires the installed runtime (`fulvid.imgil.dev`) to remain alive if the extractor exits.
 
 It is not UI automation. It does not click the GTK file dialog.
 
