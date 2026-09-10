@@ -52,7 +52,7 @@ FULVID_RELEASE_SIGN=0 make release
 bash packaging/linux/verify.sh --allow-unsigned
 ```
 
-A signed set for `0.1.0` includes the `.deb`, the `-Setup.tar.gz` archive, their `.asc` files when signed, the update pair, `SHA256SUMS`, and `SHA256SUMS.asc`. Artifact names: [DISTRIBUTION.md](./DISTRIBUTION.md#artifacts).
+A signed set includes the `.deb`, the `-Setup.tar.gz` archive, their `.asc` files when signed, the update pair, `SHA256SUMS`, and `SHA256SUMS.asc`. Artifact names use the version in `package.json`: [DISTRIBUTION.md](./DISTRIBUTION.md#artifacts).
 
 ```bash
 make verify-release
@@ -61,4 +61,4 @@ gpg --verify artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
 (cd artifacts && sha256sum -c SHA256SUMS)
 ```
 
-Copy the files you need onto a GitHub Release yourself. For `v0.1.0`, use [releases/v0.1.0.md](./releases/v0.1.0.md) as the body.
+Copy the files you need onto a GitHub Release yourself. Use the matching file under [releases/](./releases/) as the body (`v0.2.0.md` for this version).
