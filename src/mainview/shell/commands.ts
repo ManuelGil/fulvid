@@ -83,6 +83,7 @@ export type CommandIcon =
   | "save"
   | "close-all"
   | "preview"
+  | "focus"
   | "outline"
   | "search"
   | "undo"
@@ -202,6 +203,14 @@ export const quickActions: readonly QuickActionDefinition[] = [
     id: "togglePreview",
     label: "actions.preview",
     icon: "preview",
+    group: "fulvid",
+    tier: "secondary",
+  },
+  {
+    id: "toggleWritingFocus",
+    label: "actions.focusMode",
+    shortcut: "Ctrl/Cmd+Shift+F",
+    icon: "focus",
     group: "fulvid",
     tier: "secondary",
   },

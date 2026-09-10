@@ -2,6 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { restoreUsableFocus } from "../app/usableFocusTarget";
 import { placeContextMenu, type MenuAnchor, type MenuPlacement } from "./contextMenuPosition";
 
 export interface ContextMenuAction {
@@ -268,9 +269,9 @@ watch(
       previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       focusFirst();
       void updateMenuPosition();
-    } else if (restoreFocusOnClose && previousFocus && document.contains(previousFocus)) {
+    } else if (restoreFocusOnClose) {
       removeDocumentListeners();
-      previousFocus.focus({ preventScroll: true });
+      restoreUsableFocus(previousFocus);
       previousFocus = null;
     } else {
       removeDocumentListeners();

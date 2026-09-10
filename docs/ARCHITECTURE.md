@@ -12,7 +12,7 @@ Every user-visible behavior has **one owner**. Pages and the shell choose what i
 | --- | --- |
 | Document Session | Open documents and `activeId` |
 | Document buffers | Monaco models, dirty/`savedVersionId`, virtual vs persisted identity, grants, `selectDocument`, `openOrActivate` |
-| Editor | Commands, Preview split, Outline, Monaco host |
+| Editor | Commands, Preview split, Outline, Monaco host, Writing Focus chrome overlay |
 | Explorer | Folder file tree in the right sidebar |
 | Search | `/search` and Search sidebar options |
 | Graph | Focus-scoped visualization of resolved links |
@@ -42,7 +42,7 @@ HTML Export is a separate dialog that writes `.html` only, using the Preview ren
 
 ## Shell
 
-`/editor` fills the main slot. The shell owns the application menu, Quick Actions, left sidebar (navigation and Folder lifecycle), right sidebar, and optional Statusbar. Those regions are siblings.
+`/editor` fills the main slot. The shell owns the application menu, Quick Actions, left sidebar (navigation and Folder lifecycle), right sidebar, and optional Statusbar. Those regions are siblings. On the editor route, Writing Focus hides shell chrome without mutating layout or settings persistence. Native Full Screen is owned by the Bun host `BrowserWindow`, not by the shell.
 
 The right sidebar shows one panel: Explorer, Search options (on `/search`), Document Context, or Outline. Search, Graph, and Settings are pages. Sidebars do not own `activeId`.
 

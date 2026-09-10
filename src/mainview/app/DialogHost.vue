@@ -3,6 +3,7 @@ import { nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import { activeDialog, cancelDialog, submitConfirm, submitFilename } from "./dialogs";
+import { restoreUsableFocus } from "./usableFocusTarget";
 
 const { t } = useI18n();
 const dialogHostRef = ref<HTMLElement | null>(null);
@@ -16,9 +17,7 @@ watch(
   async (dialog) => {
     if (!dialog) {
       await nextTick();
-      if (previousFocus?.isConnected) {
-        previousFocus.focus({ preventScroll: true });
-      }
+      restoreUsableFocus(previousFocus);
       previousFocus = null;
       return;
     }

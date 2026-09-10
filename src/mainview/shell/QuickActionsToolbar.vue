@@ -6,6 +6,7 @@ import AppIcon from "./AppIcon.vue";
 import ContextMenu, { type ContextMenuAction } from "./ContextMenu.vue";
 import { editorCommandState } from "../modules/editor/editorCommandState";
 import { activeBuffer } from "../modules/editor/document/documentBuffers";
+import { writingFocusActive } from "../modules/editor/writingFocus";
 import {
   quickActionGroupOrder,
   quickActions,
@@ -93,6 +94,9 @@ function localizedLabel(action: QuickActionDefinition): string {
   if (action.id === "togglePreview") {
     return t(settings.value.preview.enabled ? "actions.hidePreview" : "actions.preview");
   }
+  if (action.id === "toggleWritingFocus") {
+    return t(writingFocusActive.value ? "actions.exitFocusMode" : "actions.focusMode");
+  }
   return t(action.label);
 }
 
@@ -121,6 +125,9 @@ function isDisabled(action: QuickActionDefinition): boolean {
 function ariaPressed(action: QuickActionDefinition): boolean | undefined {
   if (action.id === "togglePreview") {
     return settings.value.preview.enabled;
+  }
+  if (action.id === "toggleWritingFocus") {
+    return writingFocusActive.value;
   }
   if (action.id === "openExplorer") {
     return props.explorerOpen;

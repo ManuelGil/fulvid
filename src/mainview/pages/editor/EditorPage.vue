@@ -78,7 +78,11 @@ import {
   PREVIEW_RATIO_LIMITS,
 } from "../../app/layoutStore";
 import { editorCommandState } from "../../modules/editor/editorCommandState";
-import { writingFocusActive } from "../../modules/editor/writingFocus";
+import {
+  writingFocusActive,
+  writingFocusKeepsFocusTarget,
+  writingFocusLeaveEditorTarget,
+} from "../../modules/editor/writingFocus";
 import { registerCommandHandler } from "../../shell/commands";
 import {
   attachDocumentBuffer,
@@ -336,12 +340,31 @@ async function exportEditorDocumentHtml(): Promise<void> {
 }
 
 function leaveEditor(): void {
-  editorTabsRef.value?.focusActiveTab();
+  const target = writingFocusLeaveEditorTarget(openBuffers.value.length > 0);
+  if (target === "monaco") {
+    monacoHostRef.value?.focus();
+    return;
+  }
+  if (target === "tabs") {
+    editorTabsRef.value?.focusActiveTab();
+    return;
+  }
+  const emptyAction = document.querySelector<HTMLElement>(".editor-empty-workspace button");
+  if (emptyAction) {
+    emptyAction.focus({ preventScroll: true });
+    return;
+  }
+  document.getElementById("main-content")?.focus({ preventScroll: true });
 }
 
 function restoreEditorChromeFocus(): void {
   void nextTick(() => {
-    if (openBuffers.value.length > 0) {
+    const target = writingFocusLeaveEditorTarget(openBuffers.value.length > 0);
+    if (target === "monaco") {
+      monacoHostRef.value?.focus();
+      return;
+    }
+    if (target === "tabs") {
       editorTabsRef.value?.focusActiveTab();
       return;
     }
@@ -353,6 +376,21 @@ function restoreEditorChromeFocus(): void {
     document.getElementById("main-content")?.focus({ preventScroll: true });
   });
 }
+
+watch(writingFocusActive, (active) => {
+  if (!active) {
+    return;
+  }
+  const current = document.activeElement;
+  if (writingFocusKeepsFocusTarget(current)) {
+    return;
+  }
+  if (activeBuffer.value) {
+    monacoHostRef.value?.focus();
+    return;
+  }
+  restoreEditorChromeFocus();
+});
 
 function togglePreview(): void {
   patchSettings({
@@ -763,10 +801,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <PageShell :title="pageTitle" fill rhythm="immediate">
+  <PageShell
+    :title="pageTitle"
+    fill
+    rhythm="immediate"
+    :class="{ 'editor-page-shell--writing-focus': writingFocusActive }"
+  >
     <template #header>
       <button
-        v-if="workspace"
+        v-if="workspace && !writingFocusActive"
         class="editor-page__path"
         type="button"
         :title="t('workspace.rightClickActions')"
@@ -860,16 +903,18 @@ onBeforeUnmount(() => {
         >
           {{ loadingStatus ?? t("workspace.looking") }}
         </p>
-        <EditorTabs
-          v-if="openBuffers.length > 0"
-          ref="editorTabsRef"
-          :buffers="openBuffers"
-          :active-id="activeId"
-          @activate="selectDocument"
-          @close="closeEditorDocument"
-          @new="createNewDocument"
-          @close-others="closeOtherDocuments"
-        />
+        <div :hidden="writingFocusActive" :inert="writingFocusActive">
+          <EditorTabs
+            v-if="openBuffers.length > 0"
+            ref="editorTabsRef"
+            :buffers="openBuffers"
+            :active-id="activeId"
+            @activate="selectDocument"
+            @close="closeEditorDocument"
+            @new="createNewDocument"
+            @close-others="closeOtherDocuments"
+          />
+        </div>
 
         <EditorToolbar
           v-if="settings.editor.showMarkdownFormatBar && activeBuffer && !writingFocusActive"
@@ -1182,5 +1227,11 @@ onBeforeUnmount(() => {
   font-family: $font-mono;
   font-size: $font-caption;
   overflow-wrap: anywhere;
+}
+</style>
+
+<style lang="scss">
+.editor-page-shell--writing-focus > .page-shell__header {
+  display: none;
 }
 </style>

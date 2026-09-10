@@ -7,6 +7,8 @@ import {
 } from "../../../src/mainview/desktop/electrobunApplicationMenu.ts";
 import {
   menuItemEnabled,
+  presentApplicationMenu,
+  presentedMenuAction,
   type ApplicationMenuState,
 } from "../../../src/mainview/shell/applicationMenu/applicationMenuModel.ts";
 
@@ -61,5 +63,20 @@ describe("application menu", () => {
     );
     expect(electrobunNativeApplicationMenuSupported("darwin")).toBe(true);
     expect(electrobunNativeApplicationMenuSupported("win32")).toBe(true);
+  });
+
+  test("exposes Full Screen as an explicit command, not a native maximize role", () => {
+    const menus = presentApplicationMenu("win32", idleState, (key) => key);
+    const view = menus.find((menu) => menu.id === "view");
+    const fullscreen = view?.items.find(
+      (item) => item.type === "command" && item.id === "toggleFullscreen",
+    );
+    expect(fullscreen?.type).toBe("command");
+    if (fullscreen?.type === "command") {
+      expect(presentedMenuAction(fullscreen)).toBe("toggleFullscreen");
+    }
+    expect(view?.items.some((item) => item.type === "role" && item.id === "toggleFullScreen")).toBe(
+      false,
+    );
   });
 });

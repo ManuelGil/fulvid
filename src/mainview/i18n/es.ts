@@ -592,6 +592,7 @@ export default {
     statusbarEolHint:
       "LF o CRLF del documento activo. Púlsalo en la barra de estado para cambiarlo.",
     shortcutFocus: "Activar o desactivar el modo foco",
+    shortcutFullscreen: "Activar o desactivar pantalla completa",
     workspace: "Carpeta",
     showHidden: "Mostrar archivos ocultos",
     showHiddenHint:

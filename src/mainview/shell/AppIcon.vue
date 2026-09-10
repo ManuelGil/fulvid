@@ -23,6 +23,7 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  Focus,
   FoldVertical,
   Heading,
   House,
@@ -78,6 +79,7 @@ export type IconName =
   | "save"
   | "close-all"
   | "preview"
+  | "focus"
   | "dirty"
   | "chevron-down"
   | "chevron-right"
@@ -125,6 +127,7 @@ const icons: Record<IconName, FunctionalComponent> = {
   save: Save,
   "close-all": CopyX,
   preview: Eye,
+  focus: Focus,
   dirty: Circle,
   "chevron-down": ChevronDown,
   "chevron-right": ChevronRight,

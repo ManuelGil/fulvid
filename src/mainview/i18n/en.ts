@@ -578,6 +578,7 @@ export default {
     statusbarEol: "Line endings",
     statusbarEolHint: "LF or CRLF for the active document. Click it on the statusbar to change.",
     shortcutFocus: "Turn Focus mode on or off",
+    shortcutFullscreen: "Turn Full Screen on or off",
     workspace: "Folder",
     showHidden: "Show hidden files",
     showHiddenHint:

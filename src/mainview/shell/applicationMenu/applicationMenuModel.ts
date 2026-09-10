@@ -31,8 +31,7 @@ export type ApplicationMenuRole =
   | "paste"
   | "pasteAndMatchStyle"
   | "delete"
-  | "selectAll"
-  | "toggleFullScreen";
+  | "selectAll";
 
 export type ApplicationMenuState = {
   hasActiveDocument: boolean;
@@ -524,11 +523,12 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
         },
         { type: "separator", id: "view-separator-3" },
         {
-          type: "role",
-          id: "toggleFullScreen",
-          role: "toggleFullScreen",
+          type: "command",
+          id: "toggleFullscreen",
           label: "menu.fullscreen",
-          fallbackCommand: "toggleFullscreen",
+          shortcut: platform === "darwin" ? "Ctrl+Cmd+F" : "F11",
+          accelerator: platform === "darwin" ? undefined : "F11",
+          availability: "always",
         },
       ],
     },

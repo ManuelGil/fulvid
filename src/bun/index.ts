@@ -15,6 +15,7 @@ import { enqueueExternalOpenRequest, takePendingExternalOpens } from "./external
 import { externalOpenRequestsFromArguments } from "./external/startupArguments";
 import { configureWorkspaceApprovals } from "./workspaceGrants";
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
+import { canPersistWindowFrame, toggleNativeFullScreen } from "./windowFullScreen";
 
 // Folder approvals are host state: which folders a person picked in a dialog.
 // Configuring the store here keeps the approval rules free of the runtime.
@@ -38,6 +39,10 @@ async function getMainViewUrl(): Promise<string> {
   return "views://mainview/index.html";
 }
 
+const mainWindowHolder: {
+  window?: InstanceType<typeof BrowserWindow>;
+} = {};
+
 const mainRPC = BrowserView.defineRPC<DesktopRPC>({
   maxRequestTime: 50_000,
   handlers: {
@@ -47,6 +52,8 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
       setApplicationMenu: ({ items }) => setNativeApplicationMenu(items),
       getApplicationMenuSupport: () => applicationMenuSupport(),
       quitApplication: () => quitApplication(),
+      toggleWindowFullScreen: () =>
+        mainWindowHolder.window ? toggleNativeFullScreen(mainWindowHolder.window) : false,
     },
     messages: {},
   },
@@ -66,7 +73,7 @@ installNativeApplicationMenu((action) => {
 });
 const frame = loadWindowFrame();
 
-const mainWindow = new BrowserWindow({
+mainWindowHolder.window = new BrowserWindow({
   title: "Fulvid",
   url,
   frame,
@@ -75,7 +82,10 @@ const mainWindow = new BrowserWindow({
 
 setInterval(() => {
   try {
-    saveWindowFrame(mainWindow.getFrame());
+    const mainWindow = mainWindowHolder.window;
+    if (mainWindow && canPersistWindowFrame(mainWindow.isFullScreen())) {
+      saveWindowFrame(mainWindow.getFrame());
+    }
   } catch {
     // Window may be closing.
   }

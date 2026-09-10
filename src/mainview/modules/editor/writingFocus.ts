@@ -7,6 +7,48 @@ export function toggleWritingFocus(): void {
   writingFocusActive.value = !writingFocusActive.value;
 }
 
+/** Focus chrome overlay applies only on the editor route. */
+export function writingFocusHidesEditorChrome(routeName: unknown): boolean {
+  return writingFocusActive.value && routeName === "editor";
+}
+
+/**
+ * Where to send keyboard focus when leaving Monaco or restoring editor chrome.
+ * Focus mode must not target hidden tabs.
+ */
+export function writingFocusLeaveEditorTarget(
+  hasOpenDocument: boolean,
+): "monaco" | "tabs" | "empty-or-main" {
+  if (writingFocusActive.value) {
+    return hasOpenDocument ? "monaco" : "empty-or-main";
+  }
+  return hasOpenDocument ? "tabs" : "empty-or-main";
+}
+
+/** Regions that stay usable while Focus hides editor chrome. */
+export function writingFocusKeepsFocusTarget(element: EventTarget | null): boolean {
+  if (!(element instanceof Element)) {
+    return false;
+  }
+  return Boolean(
+    element.closest(
+      [
+        ".monaco-editor",
+        ".editor-empty-workspace",
+        ".markdown-preview",
+        "[data-application-menu]",
+        ".quick-actions",
+        ".skip-link",
+        "#main-content",
+        ".dialog-host",
+        ".context-menu",
+        ".toast-host",
+        ".app-shell__panel",
+      ].join(", "),
+    ),
+  );
+}
+
 /**
  * Monaco option overlay for writing focus. Session-only; does not patch
  * settingsStore. Typewriter padding is skipped when reduced-motion is on or

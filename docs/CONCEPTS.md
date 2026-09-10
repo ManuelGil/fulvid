@@ -35,7 +35,7 @@ Product copy uses **Folder**, never Workspace. Host code may still use `workspac
 | **Focus** | Folder-scoped target for Graph and Document Context |
 | **Peek** | Read another document in Context without changing Focus |
 | **Context root** | Folder that limits facts and link resolution |
-| **Focus mode** | Session writing overlay (typewriter, hide minimap). Not Graph Focus |
+| **Focus mode** | Session writing overlay: hide editor chrome, typewriter, hide minimap. Not Graph Focus. Independent of native Full Screen |
 
 Settings choose one `linkMode`: `"markdown"` (default) or `"wikilink"`. That mode governs scan, resolution, editor providers, Preview, references, rename, and Graph.
 

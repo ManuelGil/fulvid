@@ -80,9 +80,14 @@ import {
   presentApplicationMenu,
   type ApplicationMenuState,
 } from "../shell/applicationMenu/applicationMenuModel";
-import { onApplicationMenuClicked } from "../desktop/electrobunClient";
+import { desktopRequest, onApplicationMenuClicked } from "../desktop/electrobunClient";
 import { editorCommandState } from "../modules/editor/editorCommandState";
-import { toggleWritingFocus, writingFocusActive } from "../modules/editor/writingFocus";
+import {
+  toggleWritingFocus,
+  writingFocusActive,
+  writingFocusHidesEditorChrome,
+} from "../modules/editor/writingFocus";
+import { isUsableFocusTarget } from "./usableFocusTarget";
 import {
   renderDocumentTemplate,
   type DocumentTemplateId,
@@ -140,19 +145,24 @@ const activeRightPanel = computed<RightSidebar>(() => {
   return null;
 });
 
+const editorFocusChrome = computed(() => writingFocusHidesEditorChrome(route.name));
+
+/** Narrow overlays. Focus hides the left sidebar, so it must not count as an overlay. */
 const overlayOpen = computed(
-  () => narrowViewport.value && (leftSidebarOpen.value || Boolean(activeRightPanel.value)),
+  () =>
+    narrowViewport.value &&
+    (Boolean(activeRightPanel.value) || (!editorFocusChrome.value && leftSidebarOpen.value)),
 );
 let leftSidebarReturnFocus: HTMLElement | null = null;
 let rightPanelReturnFocus: HTMLElement | null = null;
 let contextualResizeCleanup: (() => void) | null = null;
 
 function focusOrReturnToMain(element: HTMLElement | null): void {
-  if (element?.isConnected && !element.matches(":disabled")) {
+  if (isUsableFocusTarget(element)) {
     element.focus({ preventScroll: true });
-  } else {
-    document.getElementById("main-content")?.focus({ preventScroll: true });
+    return;
   }
+  document.getElementById("main-content")?.focus({ preventScroll: true });
 }
 
 watch(
@@ -518,6 +528,23 @@ function onAppKeydown(event: KeyboardEvent): void {
     return;
   }
 
+  if (event.key === "F11" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+    event.preventDefault();
+    void runCommand("toggleFullscreen");
+    return;
+  }
+  if (
+    event.key.toLowerCase() === "f" &&
+    event.ctrlKey &&
+    event.metaKey &&
+    !event.shiftKey &&
+    !event.altKey
+  ) {
+    event.preventDefault();
+    void runCommand("toggleFullscreen");
+    return;
+  }
+
   const insideMonaco =
     event.target instanceof Element && Boolean(event.target.closest(".monaco-editor"));
   if (handleModifierShortcut(event, insideMonaco)) {
@@ -609,6 +636,15 @@ const routeAnnouncement = computed(() => {
 
   return [documentLabel, routeLabel.value, workspaceLabel].filter(Boolean).join(" · ");
 });
+
+const focusModeAnnouncement = ref("");
+watch(writingFocusActive, (active) => {
+  focusModeAnnouncement.value = active ? t("actions.focusMode") : t("actions.exitFocusMode");
+});
+
+const liveAnnouncement = computed(() =>
+  [routeAnnouncement.value, focusModeAnnouncement.value].filter(Boolean).join(" · "),
+);
 
 async function createNewDocument(content?: string): Promise<void> {
   try {
@@ -761,12 +797,12 @@ function activeDocumentPath(): string | null {
   return null;
 }
 
-function toggleFullscreen(): void {
-  if (document.fullscreenElement) {
-    void document.exitFullscreen();
-    return;
+async function toggleFullscreen(): Promise<void> {
+  try {
+    await desktopRequest().toggleWindowFullScreen({});
+  } catch {
+    // Native toggle failed. Stay windowed; do not use web fullscreen.
   }
-  void document.documentElement.requestFullscreen();
 }
 
 const applicationMenuState = computed<ApplicationMenuState>(() => {
@@ -941,14 +977,15 @@ onBeforeUnmount(() => {
       'app-shell--search': route.name === APP_ROUTE_NAMES.search,
       'app-shell--graph': route.name === APP_ROUTE_NAMES.graph,
       'app-shell--settings': route.name === APP_ROUTE_NAMES.settings,
+      'app-shell--writing-focus': editorFocusChrome,
     }"
   >
     <a class="skip-link" href="#main-content">{{ t("app.skipToContent") }}</a>
     <div class="sr-only" aria-live="polite" aria-atomic="true">
-      {{ routeAnnouncement }}
+      {{ liveAnnouncement }}
     </div>
 
-    <header class="app-shell__chrome" :inert="overlayOpen">
+    <header class="app-shell__chrome">
       <div
         v-if="usesHtmlApplicationMenuFallback()"
         class="app-shell__menu-row"
@@ -956,7 +993,7 @@ onBeforeUnmount(() => {
       >
         <ApplicationMenu :menus="presentedApplicationMenus" @command="runCommand" />
       </div>
-      <div class="app-shell__actions-row">
+      <div class="app-shell__actions-row" :inert="overlayOpen">
         <QuickActionsToolbar
           :explorer-open="activeRightPanel === 'explorer'"
           :run-command="runCommand"
@@ -968,10 +1005,11 @@ onBeforeUnmount(() => {
       <AppSidebar
         :compact="!leftSidebarOpen"
         :overlay="narrowViewport && leftSidebarOpen"
-        :inert="overlayOpen && !leftSidebarOpen"
+        :hidden="editorFocusChrome"
+        :inert="editorFocusChrome || (overlayOpen && !leftSidebarOpen)"
       />
       <button
-        v-if="leftSidebarOpen"
+        v-if="leftSidebarOpen && !editorFocusChrome"
         class="app-shell__scrim app-shell__scrim--left"
         type="button"
         :aria-label="t('actions.hideLeftSidebar')"
@@ -981,7 +1019,9 @@ onBeforeUnmount(() => {
         id="main-content"
         class="app-shell__main"
         tabindex="-1"
-        :inert="narrowViewport && (leftSidebarOpen || Boolean(activeRightPanel))"
+        :inert="
+          narrowViewport && (Boolean(activeRightPanel) || (!editorFocusChrome && leftSidebarOpen))
+        "
       >
         <div class="app-shell__stage">
           <div class="app-shell__page">
@@ -1040,7 +1080,7 @@ onBeforeUnmount(() => {
         </div>
       </aside>
       <aside
-        v-if="!activeRightPanel && compactRightPanels.length > 0"
+        v-if="!activeRightPanel && compactRightPanels.length > 0 && !editorFocusChrome"
         class="app-shell__right-rail"
         :aria-label="t('app.rightSidebar')"
         :inert="overlayOpen"
@@ -1059,7 +1099,9 @@ onBeforeUnmount(() => {
       </aside>
     </div>
 
-    <Statusbar />
+    <div :hidden="editorFocusChrome" :inert="editorFocusChrome">
+      <Statusbar />
+    </div>
     <ToastHost />
     <DialogHost />
   </div>

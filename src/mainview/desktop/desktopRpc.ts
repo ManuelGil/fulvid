@@ -1,6 +1,7 @@
 /**
  * Combined renderer↔host RPC. Filesystem requests stay owned by FilesystemRPC;
- * this file only adds Application Menu transport on the same Electrobun channel.
+ * this file adds Application Menu transport and one window capability on the
+ * same Electrobun channel.
  */
 import type { RPCSchema } from "electrobun";
 
@@ -61,9 +62,19 @@ type ApplicationMenuRequests = {
   };
 };
 
+type WindowRequests = {
+  toggleWindowFullScreen: {
+    params: Record<string, never>;
+    response: boolean;
+  };
+};
+
 export type DesktopRPC = {
   bun: RPCSchema<{
-    requests: FilesystemRPC["bun"]["requests"] & ApplicationMenuRequests & ExternalOpenRequests;
+    requests: FilesystemRPC["bun"]["requests"] &
+      ApplicationMenuRequests &
+      ExternalOpenRequests &
+      WindowRequests;
     messages: FilesystemRPC["bun"]["messages"];
   }>;
   webview: RPCSchema<{

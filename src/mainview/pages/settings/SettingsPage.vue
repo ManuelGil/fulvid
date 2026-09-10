@@ -191,9 +191,10 @@ onBeforeUnmount(() => {
   compactCategoryNavMedia = null;
 });
 
-const primaryModifier = computed(() =>
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl",
+const isApplePlatform = computed(
+  () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform),
 );
+const primaryModifier = computed(() => (isApplePlatform.value ? "⌘" : "Ctrl"));
 
 function setAppearance<K extends keyof FulvidSettings["appearance"]>(
   key: K,
@@ -1288,6 +1289,11 @@ function setLocale(locale: FulvidSettings["locale"]): void {
                   ><kbd>Shift</kbd><kbd>F</kbd>
                 </dt>
                 <dd>{{ t("settings.shortcutFocus") }}</dd>
+              </div>
+              <div class="settings-shortcuts__row">
+                <dt v-if="isApplePlatform"><kbd>Ctrl</kbd><kbd>⌘</kbd><kbd>F</kbd></dt>
+                <dt v-else><kbd>F11</kbd></dt>
+                <dd>{{ t("settings.shortcutFullscreen") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
                 <dt>
