@@ -133,20 +133,75 @@ function resolveNotePath(target: string, notesByStem: Map<string, ScannedNote[]>
   return exact?.path ?? candidates[0].path;
 }
 
-function buildNotesByStem(notes: ScannedNote[]): Map<string, ScannedNote[]> {
-  const map = new Map<string, ScannedNote[]>();
+/**
+ * Lookup tables for one set of scanned notes.
+ *
+ * Resolution used to scan the whole note list per link - once for an exact
+ * path, once more to rebuild the stem map, then again for aliases and titles.
+ * That made every link O(notes), and a folder-wide pass O(notes^2): 2000 notes
+ * took over ten seconds, and the scanner allows 5000.
+ *
+ * The maps keep the previous semantics exactly: first note wins, in scan order.
+ */
+type NoteIndex = {
+  byPath: Map<string, ScannedNote>;
+  byStem: Map<string, ScannedNote[]>;
+  byAlias: Map<string, ScannedNote>;
+  byTitle: Map<string, ScannedNote>;
+};
 
-  function add(key: string, note: ScannedNote): void {
-    const existing = map.get(key) ?? [];
-    existing.push(note);
-    map.set(key, existing);
-  }
+/**
+ * Keyed on the array identity a scan produces, so a rescan indexes afresh and
+ * nothing has to be invalidated by hand.
+ */
+const noteIndexes = new WeakMap<ScannedNote[], NoteIndex>();
+
+function buildNoteIndex(notes: ScannedNote[]): NoteIndex {
+  const byPath = new Map<string, ScannedNote>();
+  const byStem = new Map<string, ScannedNote[]>();
+  const byAlias = new Map<string, ScannedNote>();
+  const byTitle = new Map<string, ScannedNote>();
 
   for (const note of notes) {
-    add(normalizeTarget(note.name).toLowerCase(), note);
+    const pathKey = normalizeTarget(note.path).toLowerCase();
+    if (!byPath.has(pathKey)) {
+      byPath.set(pathKey, note);
+    }
+
+    const stemKey = normalizeTarget(note.name).toLowerCase();
+    const stemGroup = byStem.get(stemKey);
+    if (stemGroup) {
+      stemGroup.push(note);
+    } else {
+      byStem.set(stemKey, [note]);
+    }
+
+    // Empty keys are indexed too: `notes.find` matched them before, and this
+    // has to resolve identically, not merely sensibly.
+    for (const alias of note.aliases) {
+      const aliasKey = normalizeLinkText(alias);
+      if (!byAlias.has(aliasKey)) {
+        byAlias.set(aliasKey, note);
+      }
+    }
+
+    const titleKey = normalizeLinkText(note.title);
+    if (!byTitle.has(titleKey)) {
+      byTitle.set(titleKey, note);
+    }
   }
 
-  return map;
+  return { byPath, byStem, byAlias, byTitle };
+}
+
+function noteIndex(notes: ScannedNote[]): NoteIndex {
+  const cached = noteIndexes.get(notes);
+  if (cached) {
+    return cached;
+  }
+  const index = buildNoteIndex(notes);
+  noteIndexes.set(notes, index);
+  return index;
 }
 
 export type DocumentResolutionReason = "exact-path" | "stem" | "alias" | "title" | null;
@@ -184,31 +239,28 @@ export function resolveDocumentPath(
     targetWithoutDecorators.includes("\\") ||
     /\.(md|markdown|mdx)$/i.test(targetWithoutDecorators);
 
+  const index = noteIndex(notes);
+
   if (resolution !== "stem" && hasPathHint) {
-    const exactPath = notes.find(
-      (note) => normalizeTarget(note.path).toLowerCase() === normalizedTarget,
-    );
+    const exactPath = index.byPath.get(normalizedTarget);
     if (exactPath) {
       return { path: exactPath.path, reason: "exact-path" };
     }
   }
 
   if (resolution !== "path") {
-    const notesByStem = buildNotesByStem(notes);
-    const stemPath = resolveNotePath(target, notesByStem);
+    const stemPath = resolveNotePath(target, index.byStem);
     if (stemPath) {
       return { path: stemPath, reason: "stem" };
     }
 
     const normalizedLink = normalizeLinkText(target);
-    const aliasMatch = notes.find((note) =>
-      note.aliases.some((alias) => normalizeLinkText(alias) === normalizedLink),
-    );
+    const aliasMatch = index.byAlias.get(normalizedLink);
     if (aliasMatch) {
       return { path: aliasMatch.path, reason: "alias" };
     }
 
-    const titleMatch = notes.find((note) => normalizeLinkText(note.title) === normalizedLink);
+    const titleMatch = index.byTitle.get(normalizedLink);
     if (titleMatch) {
       return { path: titleMatch.path, reason: "title" };
     }

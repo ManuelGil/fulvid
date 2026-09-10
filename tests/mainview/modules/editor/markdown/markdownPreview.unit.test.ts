@@ -3,6 +3,9 @@ import { describe, expect, test } from "bun:test";
 import type { DocumentLink } from "../../../../../src/mainview/modules/document/links/documentLink";
 import type { ScannedNote } from "../../../../../src/mainview/modules/workspace/filesystem/workspaceTypes.ts";
 import {
+  countInlineMarkup,
+  PREVIEW_INLINE_MARKUP_LIMIT,
+  PREVIEW_RENDER_CHAR_LIMIT,
   renderMarkdownPreview,
   exportMarkdownPreviewDocument,
 } from "../../../../../src/mainview/modules/editor/markdown/markdownPreview.ts";
@@ -152,5 +155,73 @@ describe("markdown preview", () => {
     expect(mdx.preview.hasUnsupportedMdx).toBe(true);
     expect(mdx.html).not.toContain("<Note");
     expect(mdx.html).toContain("markdown-preview__inert");
+  });
+});
+
+/**
+ * marked's inline lexer is quadratic in the number of inline constructs. A
+ * document inside the character cap can still hold tens of thousands of them,
+ * which took over a minute to render and froze the renderer. These lock the
+ * ceiling that bounds it, and the headroom that keeps prose out of it.
+ */
+describe("inline markup density", () => {
+  const notes = [note("n0.md")];
+
+  test("a document dense with inline markup renders inert instead of blocking", () => {
+    for (const unit of ["[l](n0.md) ", "[l](https://e.example) ", "https://e.example ", "*x* "]) {
+      const source = unit.repeat(Math.floor(PREVIEW_RENDER_CHAR_LIMIT / unit.length));
+
+      const started = performance.now();
+      const result = renderMarkdownPreview(source, notes, "markdown", undefined, "cur.md");
+      const elapsed = performance.now() - started;
+
+      expect(result.dense).toBe(true);
+      expect(result.failed).toBe(false);
+      // The text is still shown, and still escaped.
+      expect(result.html.startsWith("<pre>")).toBe(true);
+      expect(result.html).not.toContain("<a ");
+      // The point of the ceiling: bounded work, not merely a flag.
+      expect(elapsed).toBeLessThan(2_000);
+    }
+  });
+
+  test("Export HTML is bounded by the same ceiling", () => {
+    // Export reaches this renderer even when the Preview pane is closed.
+    const source = "[l](n0.md) ".repeat(18_000);
+
+    const started = performance.now();
+    const exported = exportMarkdownPreviewDocument(source, notes, "markdown", {
+      title: "dense",
+      sourcePath: "cur.md",
+    });
+
+    expect(exported.preview.dense).toBe(true);
+    expect(performance.now() - started).toBeLessThan(2_000);
+    expect(exported.html).toContain("<pre>");
+  });
+
+  test("ordinary prose keeps rendering, with room to spare", () => {
+    const prose =
+      "# Heading\n\nSome **bold** and *italic* prose with a [link](n0.md) and `code`.\n\n".repeat(
+        50,
+      );
+
+    const result = renderMarkdownPreview(prose, notes, "markdown", undefined, "cur.md");
+
+    expect(result.dense).toBe(false);
+    expect(result.html).toContain("<h1");
+    expect(result.html).toContain("<strong>");
+    // Real documents sit far below the ceiling; this asserts the margin.
+    expect(countInlineMarkup(prose)).toBeLessThan(PREVIEW_INLINE_MARKUP_LIMIT / 2);
+  });
+
+  test("counting stops early instead of walking a hostile document twice", () => {
+    const source = "*x* ".repeat(200_000);
+
+    const started = performance.now();
+    const count = countInlineMarkup(source);
+
+    expect(count).toBeGreaterThan(PREVIEW_INLINE_MARKUP_LIMIT);
+    expect(performance.now() - started).toBeLessThan(250);
   });
 });

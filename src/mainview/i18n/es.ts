@@ -222,6 +222,7 @@ export default {
       "{name} cambió en el disco desde que lo abriste. Tus cambios siguen aquí: usa Guardar como para conservarlos en un archivo nuevo.",
     needsSaveAs: "Usa Guardar como para elegir dónde se guarda este documento.",
     scanTimeout: "Abrir esta carpeta tardó demasiado.",
+    skippedEntries: "Fulvid no pudo leer {count} elemento(s) de esta carpeta y los omitió.",
     partialScan:
       "Esta carpeta tiene más documentos de los que se pueden cargar de una vez. Fulvid abrió los primeros {count}.",
     hiddenEnabled: "Los archivos ocultos ahora son visibles",
@@ -667,6 +668,8 @@ export default {
     spanish: "Español",
   },
   preview: {
+    dense:
+      "Este documento tiene más Markdown en línea del que la vista previa renderiza de una vez (más de {count} marcas de enlaces, énfasis y código). Se muestra el código fuente.",
     label: "Vista previa",
     limited: "La vista previa se limita a los primeros {count} caracteres.",
     aria: "Vista previa Markdown",

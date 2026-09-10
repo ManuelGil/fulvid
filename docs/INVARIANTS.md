@@ -44,7 +44,7 @@ Export HTML uses this same renderer and the same source-size cap.
 
 ## Trust boundary
 
-The renderer is untrusted. It may ask for a document inside a folder the person opened, or for a grant this host issued. It may never name an arbitrary filesystem target. Every rule below is enforced in the Bun host, in `src/bun/filesystem/`, regardless of what the UI already checked.
+The renderer is untrusted. It may ask for a document inside a folder the person opened, or for a grant this host issued. It may never name an arbitrary filesystem target. Every rule below is enforced in the Bun host, in `src/bun/filesystem/`, regardless of what the UI already checked. Standing review of these properties: [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md).
 
 | Rule | Meaning |
 | --- | --- |

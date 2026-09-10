@@ -9,6 +9,10 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+### Changed
+
+- Documented the standing security and resilience contract. The 2026-09-09 adversarial review is kept as historical evidence.
+
 ## [0.1.0] - 2026-09-09
 
 First release of Fulvid, a standalone desktop editor for Markdown and MDX.

@@ -92,7 +92,31 @@ const MAX_SCAN_DEPTH = 24;
 type MarkdownPathCollection = {
   paths: string[];
   truncated: boolean;
+  /** Entries the scan could not read: denied, vanished, or not a directory. */
+  skipped: number;
 };
+
+/**
+ * A folder is a live filesystem, not a snapshot.
+ *
+ * A subtree can be unreadable (permissions, a stale mount) and a file can be
+ * removed by a sync client or a checkout between listing and analysis. Those
+ * are ordinary conditions, so they skip that entry instead of failing the whole
+ * scan and leaving the person with no folder at all.
+ */
+function isSkippableScanError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code;
+  return (
+    code === "EACCES" ||
+    code === "EPERM" ||
+    code === "ENOENT" ||
+    code === "ENOTDIR" ||
+    code === "ELOOP" ||
+    code === "EMFILE" ||
+    code === "ENFILE" ||
+    code === "EIO"
+  );
+}
 
 function scanLimitReached(collection: MarkdownPathCollection): boolean {
   return collection.paths.length >= MAX_SCANNED_DOCUMENTS;
@@ -113,7 +137,16 @@ async function walkForMarkdownPaths(
     return;
   }
 
-  const entries = await readdir(directory, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (!isSkippableScanError(error)) {
+      throw error;
+    }
+    collection.skipped += 1;
+    return;
+  }
 
   for (const entry of entries) {
     if (isExcludedEntry(entry.name, includeHidden)) {
@@ -156,7 +189,7 @@ async function collectMarkdownPaths(
   rootPath: string,
   includeHidden: boolean,
 ): Promise<MarkdownPathCollection> {
-  const collection: MarkdownPathCollection = { paths: [], truncated: false };
+  const collection: MarkdownPathCollection = { paths: [], truncated: false, skipped: 0 };
 
   await walkForMarkdownPaths(rootPath, 0, collection, includeHidden);
   collection.paths.sort(compareDocumentPaths);
@@ -170,17 +203,27 @@ async function collectMarkdownPaths(
 export async function scanWorkspace(
   rootPath: string,
   options: ScanOptions = {},
-): Promise<{ scannedNotes: ScannedNote[]; truncated: boolean }> {
+): Promise<{ scannedNotes: ScannedNote[]; truncated: boolean; skipped: number }> {
   const includeHidden = Boolean(options.includeHidden);
   const linkMode = options.linkMode ?? "markdown";
-  const { paths: filePaths, truncated } = await collectMarkdownPaths(rootPath, includeHidden);
+  const collected = await collectMarkdownPaths(rootPath, includeHidden);
   const scannedNotes: ScannedNote[] = [];
+  let skipped = collected.skipped;
 
-  for (const entryPath of filePaths) {
-    scannedNotes.push(await scannedNoteFromFile(rootPath, entryPath, linkMode));
+  for (const entryPath of collected.paths) {
+    try {
+      scannedNotes.push(await scannedNoteFromFile(rootPath, entryPath, linkMode));
+    } catch (error) {
+      if (!isSkippableScanError(error)) {
+        throw error;
+      }
+      // Listed a moment ago, gone or unreadable now. The rest of the folder is
+      // still worth opening.
+      skipped += 1;
+    }
   }
 
-  return { scannedNotes, truncated };
+  return { scannedNotes, truncated: collected.truncated, skipped };
 }
 
 /** List the supported filesystem entries directly under a workspace folder. */

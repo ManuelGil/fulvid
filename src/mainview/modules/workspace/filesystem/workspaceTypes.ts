@@ -57,6 +57,8 @@ export interface WorkspaceScan {
   scannedNotes: ScannedNote[];
   /** True when the folder held more documents than one scan may load. */
   truncated?: boolean;
+  /** Entries skipped because they could not be read while scanning. */
+  skipped?: number;
 }
 
 export interface DocumentSnapshot {

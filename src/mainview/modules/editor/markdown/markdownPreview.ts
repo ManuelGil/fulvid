@@ -23,10 +23,47 @@ export type MarkdownPreviewResult = {
   frontmatter: PreviewFrontmatterState;
   hasUnsupportedMdx: boolean;
   failed: boolean;
+  /** True when inline markup density forced the inert fallback. */
+  dense: boolean;
 };
 
 /** Same cap Preview uses so Export HTML represents the same truncated source. */
 export const PREVIEW_RENDER_CHAR_LIMIT = 200_000;
+
+/**
+ * Ceiling on inline markup constructs in one render.
+ *
+ * marked's inline lexer is quadratic in the number of inline constructs, so a
+ * document can be inside the character cap and still take a minute to render -
+ * long enough to freeze the renderer, which is single-threaded. The character
+ * cap measures the wrong dimension for that cost, so density is capped too.
+ *
+ * Prose does not reach this: the limit is about link/emphasis/code markers, and
+ * a document with thousands of them is a generated index or a hostile file, not
+ * writing. Over the ceiling, Preview and Export show the source inert instead of
+ * blocking, the same way the character cap degrades.
+ */
+export const PREVIEW_INLINE_MARKUP_LIMIT = 2_000;
+
+/**
+ * Count inline constructs whose cost is superlinear upstream.
+ *
+ * One linear pass over the source. Deliberately approximate: it needs to bound
+ * work before marked runs, not to agree with marked's tokenizer.
+ */
+const INLINE_MARKUP_RE = /!?\[|\]\(|`|~~|\bhttps?:\/\/|[*_]{1,2}(?=[^\s*_])/g;
+
+export function countInlineMarkup(source: string): number {
+  INLINE_MARKUP_RE.lastIndex = 0;
+  let count = 0;
+  while (INLINE_MARKUP_RE.exec(source) !== null) {
+    count += 1;
+    if (count > PREVIEW_INLINE_MARKUP_LIMIT) {
+      return count;
+    }
+  }
+  return count;
+}
 
 export type MarkdownPreviewDocument = {
   html: string;
@@ -147,6 +184,7 @@ function emptyResult(
     frontmatter,
     hasUnsupportedMdx,
     failed: false,
+    dense: false,
   };
 }
 
@@ -169,6 +207,19 @@ export function renderMarkdownPreview(
   const unsupportedMdx = hasUnsupportedMdx(source);
   if (source.trim().length === 0) {
     return emptyResult(previewSource.frontmatter, unsupportedMdx);
+  }
+
+  if (countInlineMarkup(source) > PREVIEW_INLINE_MARKUP_LIMIT) {
+    // Show the document rather than blocking on it. Escaped, so the inert
+    // fallback is exactly as safe as the rendered path.
+    return {
+      html: `<pre>${escapeHtml(source)}</pre>`,
+      empty: false,
+      frontmatter: previewSource.frontmatter,
+      hasUnsupportedMdx: unsupportedMdx,
+      failed: false,
+      dense: true,
+    };
   }
 
   const links = parseDocumentLinks(source, linkMode).filter((link) => link.syntax === "markdown");
@@ -258,6 +309,7 @@ export function renderMarkdownPreview(
       frontmatter: previewSource.frontmatter,
       hasUnsupportedMdx: unsupportedMdx,
       failed: false,
+      dense: false,
     };
   } catch {
     return {
@@ -266,6 +318,7 @@ export function renderMarkdownPreview(
       frontmatter: previewSource.frontmatter,
       hasUnsupportedMdx: unsupportedMdx,
       failed: true,
+      dense: false,
     };
   }
 }

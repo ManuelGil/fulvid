@@ -171,6 +171,7 @@ export const filesystemRpcHandlers = {
       path: rootPath,
       scannedNotes: scan.scannedNotes,
       truncated: scan.truncated,
+      skipped: scan.skipped,
     };
   }),
   listDirectory: contained("listDirectory", async (params: unknown) =>

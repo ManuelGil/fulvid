@@ -25,6 +25,7 @@ Keep pull requests focused.
 - UI wording: [docs/I18N.md](docs/I18N.md). Settings hints should say what changes, when it applies, and give a concrete example.
 - Releases: [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). Actions is the main path. The Linux Makefile is a local helper.
 - User-facing changes: add an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) in the same change. When a version is released, move those entries under that version and open a new `Unreleased` section. Do not reconstruct a version from git history at the last minute, log every commit, or rewrite a published version except to fix a factual error.
+- Trust, filesystem, Preview, CSP, and packaging: [docs/SECURITY-AND-RESILIENCE.md](docs/SECURITY-AND-RESILIENCE.md). Update that document when a listed review trigger fires. Report vulnerabilities via [SECURITY.md](SECURITY.md).
 
 ## Desktop toolchain
 

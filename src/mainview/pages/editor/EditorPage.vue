@@ -55,6 +55,7 @@ import { findMarkdownHeading } from "../../modules/editor/markdown/markdownStruc
 import {
   escapeHtml,
   exportMarkdownPreviewDocument,
+  PREVIEW_INLINE_MARKUP_LIMIT,
 } from "../../modules/editor/markdown/markdownPreview";
 import {
   MARKDOWN_COMMANDS,
@@ -320,7 +321,13 @@ async function exportEditorDocumentHtml(): Promise<void> {
     }
     if (result.status === "saved") {
       editorError.value = null;
-      notify(t("workspace.exported"));
+      // Say so when the export carries the inert source rather than rendered
+      // HTML, so a degraded export is never a silent one.
+      notify(
+        exported.preview.dense
+          ? t("preview.dense", { count: PREVIEW_INLINE_MARKUP_LIMIT.toLocaleString() })
+          : t("workspace.exported"),
+      );
     }
   } catch (error) {
     editorError.value = describeFilesystemError(error, "workspace.exportError");

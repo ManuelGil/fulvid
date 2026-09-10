@@ -224,14 +224,22 @@ async function readWorkspaceFromDisk(path: string): Promise<WorkspaceScan> {
  * quietly start lying.
  */
 function notifyPartialScan(scan: WorkspaceScan): void {
-  if (!scan.truncated) {
-    return;
+  if (scan.truncated) {
+    notify(
+      i18n.global.t("workspace.partialScan", {
+        count: scan.scannedNotes.length.toLocaleString(i18n.global.locale.value),
+      }),
+    );
   }
-  notify(
-    i18n.global.t("workspace.partialScan", {
-      count: scan.scannedNotes.length.toLocaleString(i18n.global.locale.value),
-    }),
-  );
+  if (scan.skipped) {
+    // Unreadable or vanished entries no longer fail the whole folder, so the
+    // count has to be said out loud instead.
+    notify(
+      i18n.global.t("workspace.skippedEntries", {
+        count: scan.skipped.toLocaleString(i18n.global.locale.value),
+      }),
+    );
+  }
 }
 
 export const hasCustomContext = computed(

@@ -225,6 +225,7 @@ The README is the public introduction. These documents go deeper when you need t
 - [Compatibility](docs/compatibility.md) - tested OS images versus supported targets
 - [Changelog](CHANGELOG.md) - history of user-facing changes
 - [Security](SECURITY.md) - how to report a vulnerability
+- [Security and resilience](docs/SECURITY-AND-RESILIENCE.md) - properties Fulvid is designed to keep true
 
 ## License
 

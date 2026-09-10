@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -84,4 +84,96 @@ describe("scan limits", () => {
       await rm(root, { recursive: true, force: true });
     }
   }, 60_000);
+});
+
+/**
+ * A folder is a live filesystem. A subtree can be unreadable and a file can be
+ * removed by a sync client or a checkout between listing and analysis. Either
+ * used to throw out of the scan, so one bad entry cost the person the whole
+ * folder. These hold the partial-but-usable behaviour, and its reporting.
+ */
+describe("scanning a hostile or live folder", () => {
+  test("an unreadable subdirectory is skipped, not fatal", async () => {
+    const root = await makeWorkspace();
+    const denied = join(root, "denied");
+
+    try {
+      await writeFile(join(root, "readable.md"), "# Readable\n");
+      await mkdir(denied);
+      await writeFile(join(denied, "hidden.md"), "# Hidden\n");
+      await chmod(denied, 0o000);
+
+      const scan = await scanWorkspace(root, { linkMode: "markdown" });
+
+      expect(scan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
+      // Skipping is reported, so a partial folder is never silent.
+      expect(scan.skipped).toBeGreaterThan(0);
+    } finally {
+      await chmod(denied, 0o755).catch(() => {});
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("a document that becomes unreadable mid-scan is skipped, not fatal", async () => {
+    const root = await makeWorkspace();
+
+    try {
+      await writeFile(join(root, "readable.md"), "# Readable\n");
+      await writeFile(join(root, "locked.md"), "# Locked\n");
+      // Listed by the walk, then refused by the analysis pass.
+      await chmod(join(root, "locked.md"), 0o000);
+
+      const scan = await scanWorkspace(root, { linkMode: "markdown" });
+
+      expect(scan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
+      expect(scan.skipped).toBe(1);
+    } finally {
+      await chmod(join(root, "locked.md"), 0o644).catch(() => {});
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("documents removed while the folder is scanned never fail the scan", async () => {
+    const root = await makeWorkspace();
+
+    try {
+      for (let index = 0; index < 60; index += 1) {
+        await writeFile(join(root, `note-${index}.md`), "# Note\n");
+      }
+
+      const scanning = scanWorkspace(root, { linkMode: "markdown" });
+      for (let index = 0; index < 60; index += 2) {
+        void unlink(join(root, `note-${index}.md`)).catch(() => {});
+      }
+      const scan = await scanning;
+
+      // Deletions racing the walk mean the totals are not fixed; what is
+      // guaranteed is that the scan returns a usable folder instead of throwing.
+      expect(scan.scannedNotes.length).toBeGreaterThan(0);
+      expect(scan.scannedNotes.length + scan.skipped).toBeLessThanOrEqual(60);
+      for (const note of scan.scannedNotes) {
+        expect(note.path).toMatch(/^note-\d+\.md$/);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("a healthy folder reports nothing skipped", async () => {
+    const root = await makeWorkspace();
+
+    try {
+      await writeFile(join(root, "a.md"), "# A\n");
+      await mkdir(join(root, "sub"));
+      await writeFile(join(root, "sub", "b.md"), "# B\n");
+
+      const scan = await scanWorkspace(root, { linkMode: "markdown" });
+
+      expect(scan.scannedNotes).toHaveLength(2);
+      expect(scan.skipped).toBe(0);
+      expect(scan.truncated).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

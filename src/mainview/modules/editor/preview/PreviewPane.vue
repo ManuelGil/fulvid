@@ -8,6 +8,7 @@ import { settings } from "../../settings/settingsStore";
 import { findMarkdownHeading } from "../markdown/markdownStructure";
 import {
   escapeHtml,
+  PREVIEW_INLINE_MARKUP_LIMIT,
   PREVIEW_RENDER_CHAR_LIMIT,
   renderMarkdownPreview,
 } from "../markdown/markdownPreview";
@@ -33,6 +34,7 @@ const renderedHtml = ref("");
 const isEmpty = ref(false);
 const isCapped = ref(false);
 const isFailed = ref(false);
+const isDense = ref(false);
 const hasUnsupportedMdx = ref(false);
 const frontmatterIncomplete = ref(false);
 let renderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -54,6 +56,7 @@ function renderNow(): void {
   renderedHtml.value = result.html;
   isEmpty.value = result.empty;
   isFailed.value = result.failed;
+  isDense.value = result.dense;
   hasUnsupportedMdx.value = result.hasUnsupportedMdx;
   frontmatterIncomplete.value = result.frontmatter === "unclosed";
   isCapped.value = props.content.length > PREVIEW_RENDER_CHAR_LIMIT;
@@ -181,6 +184,9 @@ onBeforeUnmount(() => {
           count: PREVIEW_RENDER_CHAR_LIMIT.toLocaleString(),
         })
       }}
+    </p>
+    <p v-if="isDense" class="preview-pane__notice" role="status">
+      {{ t("preview.dense", { count: PREVIEW_INLINE_MARKUP_LIMIT.toLocaleString() }) }}
     </p>
     <p v-if="isFailed" class="preview-pane__notice" role="status">{{ t("preview.failed") }}</p>
     <p v-else-if="frontmatterIncomplete" class="preview-pane__notice" role="status">

@@ -17,6 +17,10 @@ app_tree="$ROOT/build/stable-linux-x64/Fulvid"
 stage="$(mktemp -d)"
 cleanup() { rm -rf -- "$stage"; }
 trap cleanup EXIT
+# mktemp -d is 0700, and dpkg-deb records the staging root as the package's
+# "./" entry. Without this the artifact carries the build machine's private
+# mode, so extracting the package yields a root only its owner can enter.
+chmod 755 "$stage"
 
 install -d "$stage/opt/fulvid"
 cp -a "$app_tree/." "$stage/opt/fulvid/"

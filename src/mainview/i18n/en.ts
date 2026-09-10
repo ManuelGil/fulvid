@@ -220,6 +220,7 @@ export default {
       "{name} changed on disk since you opened it. Your changes are still here - use Save As to keep them in a new file.",
     needsSaveAs: "Use Save As to choose where this document is saved.",
     scanTimeout: "Opening this folder took too long.",
+    skippedEntries: "Fulvid could not read {count} item(s) in this folder and skipped them.",
     partialScan:
       "This folder holds more documents than one scan can load. Fulvid opened the first {count}.",
     hiddenEnabled: "Hidden files are now visible",
@@ -654,6 +655,8 @@ export default {
     spanish: "Spanish",
   },
   preview: {
+    dense:
+      "This document has more inline Markdown than Preview renders at once (over {count} links, emphasis and code markers). Showing the source instead.",
     label: "Preview",
     limited: "Preview is limited to the first {count} characters.",
     aria: "Markdown preview",
