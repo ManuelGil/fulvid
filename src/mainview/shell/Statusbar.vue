@@ -7,7 +7,11 @@ import {
   documentReadingStats,
   readingStatisticsLabelKind,
 } from "../modules/document/facts/documentReadingStats";
-import { activeBuffer, isDocumentDirty } from "../modules/editor/document/documentBuffers";
+import {
+  activeBuffer,
+  isDocumentDirty,
+  cycleDocumentEol,
+} from "../modules/editor/document/documentBuffers";
 import { settings } from "../modules/settings/settingsStore";
 import { workspace, workspaceName } from "../app/workspaceState";
 import { APP_ROUTE_NAMES } from "../app/router";
@@ -51,6 +55,15 @@ const characterCount = computed(() => {
   return t("status.characters", {
     count: buffer.model.getValue().length.toLocaleString(locale.value),
   });
+});
+
+const eolLabel = computed(() => {
+  const buffer = activeBuffer.value;
+  if (!buffer) {
+    return null;
+  }
+  void buffer.changeVersion.value;
+  return buffer.model.getEOL() === "\r\n" ? "CRLF" : "LF";
 });
 
 const readingCount = computed(() => {
@@ -129,6 +142,16 @@ const indicators = computed(() => settings.value.appearance.statusbar.indicators
       <span v-if="readingCount" class="statusbar__item" :aria-label="readingCount">
         {{ readingCount }}
       </span>
+      <button
+        v-if="indicators.eol && eolLabel"
+        class="statusbar__item statusbar__link-mode"
+        type="button"
+        :title="t('status.changeEol')"
+        :aria-label="t('status.eol', { eol: eolLabel })"
+        @click="activeBuffer && cycleDocumentEol(activeBuffer)"
+      >
+        {{ eolLabel }}
+      </button>
     </span>
   </footer>
 </template>

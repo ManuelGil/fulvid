@@ -451,6 +451,11 @@ export default {
     editorTabSize: "Tab size",
     editorTabSizeHint:
       "How many columns one indent level occupies (2, 4, or 8). With Insert spaces, Tab inserts that many spaces.",
+    editorDefaultEol: "New document line endings",
+    editorDefaultEolHint:
+      "Used for Untitled documents and for files that have no line break yet. Open files that already use LF or CRLF keep that ending. This is not taken from the operating system.\n\nSave writes the active document's current ending. Change it from the statusbar.",
+    editorDefaultEolLf: "LF",
+    editorDefaultEolCrlf: "CRLF",
     editorInsertSpaces: "Insert spaces",
     editorInsertSpacesHint:
       "Tab inserts spaces instead of a tab character. Tab size still controls how wide that indent is.",
@@ -570,6 +575,8 @@ export default {
     statusbarWorkspaceHint: "Standalone when no folder is open; otherwise the folder name.",
     statusbarCharacters: "Characters",
     statusbarCharactersHint: "Character count of the current editor text, including spaces.",
+    statusbarEol: "Line endings",
+    statusbarEolHint: "LF or CRLF for the active document. Click it on the statusbar to change.",
     shortcutFocus: "Turn Focus mode on or off",
     workspace: "Folder",
     showHidden: "Show hidden files",
@@ -686,6 +693,8 @@ export default {
     reading: "{count} words · {minutes} min read",
     linkMode: "{mode} links",
     openLinkSettings: "Change link mode in Settings",
+    eol: "{eol} line endings",
+    changeEol: "Switch between LF and CRLF. Save to write the file.",
   },
   outline: {
     title: "Outline",

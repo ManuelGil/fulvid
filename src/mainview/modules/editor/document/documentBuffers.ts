@@ -54,6 +54,45 @@ import type {
 } from "../../workspace/filesystem/workspaceTypes";
 
 type MonacoModel = monaco.editor.ITextModel;
+type MonacoEndOfLineSequence = monaco.editor.EndOfLineSequence;
+
+function contentHasLineBreak(content: string): boolean {
+  return content.includes("\n") || content.includes("\r");
+}
+
+function configuredDefaultEol(api: typeof monaco): MonacoEndOfLineSequence {
+  return settings.value.editor.defaultEol === "crlf"
+    ? api.editor.EndOfLineSequence.CRLF
+    : api.editor.EndOfLineSequence.LF;
+}
+
+/** Silent: does not dirty the buffer. Used when creating a model, not for user toggles. */
+function setModelEol(model: MonacoModel, eol: MonacoEndOfLineSequence): void {
+  if (model.getEndOfLineSequence() !== eol) {
+    model.setEOL(eol);
+  }
+}
+
+function applyConfiguredDefaultEol(model: MonacoModel): void {
+  setModelEol(model, configuredDefaultEol(initializeMonaco()));
+}
+
+/** Keep the live model's EOL when recreating a model (Save As / rename). */
+function preserveModelEol(model: MonacoModel, previous: MonacoEndOfLineSequence): void {
+  setModelEol(model, previous);
+}
+
+/**
+ * Toggle LF ↔ CRLF on the live model. Undoable, marks dirty, writes only on Save.
+ */
+export function cycleDocumentEol(buffer: DocumentBuffer): void {
+  const api = initializeMonaco();
+  const next =
+    buffer.model.getEndOfLineSequence() === api.editor.EndOfLineSequence.LF
+      ? api.editor.EndOfLineSequence.CRLF
+      : api.editor.EndOfLineSequence.LF;
+  buffer.model.pushEOL(next);
+}
 
 /**
  * One open editor tab and its Monaco model.
@@ -156,6 +195,9 @@ function createPersistedBuffer(options: {
     languageForPath(modelPath),
     api.Uri.file(options.absolutePath),
   );
+  if (!contentHasLineBreak(options.content)) {
+    applyConfiguredDefaultEol(model);
+  }
   const changeVersion = ref(0);
   const buffer: DocumentBuffer = {
     id: `file:${options.absolutePath}`,
@@ -185,6 +227,7 @@ export function createUntitledDocument(content = ""): DocumentBuffer {
   const api = initializeMonaco();
   const id = nextUntitledId();
   const model = api.editor.createModel(content, languageForPath("untitled.mdx"), api.Uri.parse(id));
+  applyConfiguredDefaultEol(model);
   const changeVersion = ref(0);
   const buffer: DocumentBuffer = {
     id,
@@ -493,6 +536,7 @@ function reidentifyAsPersisted(
       throw new LocalizedError(i18n.global.t("workspace.saveConflict"));
     }
     existing.model.setValue(buffer.model.getValue());
+    preserveModelEol(existing.model, buffer.model.getEndOfLineSequence());
     existing.savedVersionId = isCurrentVersionSaved ? existing.model.getAlternativeVersionId() : -1;
     existing.mtimeMs = mtimeMs;
     existing.grantToken = grantToken;
@@ -505,11 +549,13 @@ function reidentifyAsPersisted(
   }
 
   const api = initializeMonaco();
+  const previousEol = buffer.model.getEndOfLineSequence();
   const model = api.editor.createModel(
     buffer.model.getValue(),
     languageForPath(absolutePath),
     api.Uri.file(absolutePath),
   );
+  preserveModelEol(model, previousEol);
   const changeVersion = buffer.changeVersion;
   const contentDisposable = model.onDidChangeContent(() => {
     changeVersion.value += 1;
@@ -662,12 +708,14 @@ export function renameDocumentBuffer(
     return;
   }
   const wasDirty = isDocumentDirty(buffer);
+  const previousEol = buffer.model.getEndOfLineSequence();
   const absolutePath = `${buffer.rootPath.replace(/[\\/]+$/, "")}/${nextPath.replace(/\\/g, "/")}`;
   const model = api.editor.createModel(
     buffer.model.getValue(),
     languageForPath(nextPath),
     api.Uri.file(absolutePath),
   );
+  preserveModelEol(model, previousEol);
   const changeVersion = buffer.changeVersion;
   const contentDisposable = model.onDidChangeContent(() => {
     changeVersion.value += 1;

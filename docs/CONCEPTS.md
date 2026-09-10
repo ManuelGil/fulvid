@@ -57,3 +57,5 @@ Title, aliases, tags, and links come from the document body and optional frontma
 ## Settings
 
 Groups: General, Editor, Appearance, Markdown, Preview, Folder, Accessibility, Keyboard. Interface scale never changes Monaco document typography.
+
+Line endings (LF or CRLF) belong to the document, not to the operating system. Opening a file keeps its endings. Untitled documents use Settings → New document line endings (LF by default). The statusbar shows the active document's ending; click to switch. Save writes that ending. Changing it does not write until Save.

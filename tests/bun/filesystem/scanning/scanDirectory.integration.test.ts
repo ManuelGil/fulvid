@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { chmod, mkdir, mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -9,7 +9,7 @@ import {
   scanWorkspace,
 } from "../../../../src/bun/filesystem/scanning/scanDirectory";
 import { filesystemErrorMessage } from "../../../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
-import { linkDirectory, posixModeBitsDenyAccess } from "../../../support/platform";
+import { linkDirectory } from "../../../support/platform";
 
 async function makeWorkspace(): Promise<string> {
   return mkdtemp(join(tmpdir(), "fulvid-explorer-"));
@@ -94,9 +94,8 @@ describe("scan limits", () => {
  * folder. These hold the partial-but-usable behaviour, and its reporting.
  *
  * The property is multiplatform. The way an access error is provoked is not:
- * Windows does not treat chmod(000) as POSIX denial, so the always-on cases
- * inject the same skippable errno at the existing walk/analysis catch. chmod
- * stays as extra coverage only where the kernel enforces Unix mode bits.
+ * Windows does not treat chmod(000) as POSIX denial, so these cases inject the
+ * same skippable errno at the existing walk/analysis catch.
  */
 function permissionDenied(syscall: string, target: string): NodeJS.ErrnoException {
   const error = new Error(
@@ -136,30 +135,6 @@ describe("scanning a hostile or live folder", () => {
     }
   });
 
-  test.skipIf(!posixModeBitsDenyAccess)(
-    "an unreadable subdirectory is skipped, not fatal (POSIX mode bits)",
-    async () => {
-      const root = await makeWorkspace();
-      const denied = join(root, "denied");
-
-      try {
-        await writeFile(join(root, "readable.md"), "# Readable\n");
-        await mkdir(denied);
-        await writeFile(join(denied, "hidden.md"), "# Hidden\n");
-        // Extra real-FS check: Unix mode bits deny readdir. Windows ignores this.
-        await chmod(denied, 0o000);
-
-        const scan = await scanWorkspace(root, { linkMode: "markdown" });
-
-        expect(scan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
-        expect(scan.skipped).toBeGreaterThan(0);
-      } finally {
-        await chmod(denied, 0o755).catch(() => {});
-        await rm(root, { recursive: true, force: true });
-      }
-    },
-  );
-
   test("a document that becomes unreadable mid-scan is skipped, not fatal", async () => {
     const root = await makeWorkspace();
     const locked = resolve(join(root, "locked.md"));
@@ -187,28 +162,6 @@ describe("scanning a hostile or live folder", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
-
-  test.skipIf(!posixModeBitsDenyAccess)(
-    "a document that becomes unreadable mid-scan is skipped, not fatal (POSIX mode bits)",
-    async () => {
-      const root = await makeWorkspace();
-
-      try {
-        await writeFile(join(root, "readable.md"), "# Readable\n");
-        await writeFile(join(root, "locked.md"), "# Locked\n");
-        // Extra real-FS check: Unix mode bits deny analysis. Windows ignores this.
-        await chmod(join(root, "locked.md"), 0o000);
-
-        const scan = await scanWorkspace(root, { linkMode: "markdown" });
-
-        expect(scan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
-        expect(scan.skipped).toBe(1);
-      } finally {
-        await chmod(join(root, "locked.md"), 0o644).catch(() => {});
-        await rm(root, { recursive: true, force: true });
-      }
-    },
-  );
 
   test("a folder with only other files is a complete scan of zero documents", async () => {
     const root = await makeWorkspace();

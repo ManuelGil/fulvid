@@ -44,6 +44,7 @@ describe("settings migration", () => {
     expect(settings.editor.fontFamily).toBe("monospace");
     expect(settings.editor.lineHeight).toBe("auto");
     expect(settings.editor.tabSize).toBe(2);
+    expect(settings.editor.defaultEol).toBe("lf");
     expect(settings.editor.insertSpaces).toBe(true);
     expect(settings.editor.wordWrap).toBe("on");
     expect(settings.editor.autoIndent).toBe(true);
@@ -84,11 +85,11 @@ describe("settings migration", () => {
     const defaults = sanitizeSettings({});
     expect(defaults.editor.readingStatistics).toBe("wordsAndTime");
     expect(defaults.editor.typewriterScrolling).toBe(true);
+    expect(defaults.editor.defaultEol).toBe("lf");
     expect(defaults.links.showIncomingLinks).toBe(true);
     expect(defaults).not.toHaveProperty("templates");
-    expect(
-      sanitizeSettings({ editor: { readingStatistics: "wpm" } }).editor.readingStatistics,
-    ).toBe("wordsAndTime");
+    expect(sanitizeSettings({ editor: { defaultEol: "crlf" } }).editor.defaultEol).toBe("crlf");
+    expect(sanitizeSettings({ editor: { defaultEol: "native" } }).editor.defaultEol).toBe("lf");
 
     const honored = sanitizeSettings({
       editor: { readingStatistics: "words", typewriterScrolling: false },

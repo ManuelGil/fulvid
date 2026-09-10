@@ -18,11 +18,13 @@ import {
 export type Locale = "en" | "es";
 export type LinkMode = LinkSyntax;
 export type WorkspaceStartup = "none" | "last";
-export type StatusbarIndicator = "document" | "language" | "linkMode" | "workspace" | "characters";
+export type StatusbarIndicator =
+  "document" | "language" | "linkMode" | "workspace" | "characters" | "eol";
 export type ReadingStatisticsMode = "off" | "words" | "wordsAndTime";
 export type EditorFontFamily = "monospace" | "system" | "serif";
 export type EditorLineHeight = "auto" | "compact" | "comfortable";
 export type EditorTabSize = 2 | 4 | 8;
+export type EditorDefaultEol = "lf" | "crlf";
 export type EditorWordWrap = "on" | "off" | "bounded";
 export type EditorRenderWhitespace = "none" | "selection" | "all";
 export type InterfaceTextScale = "small" | "normal" | "large";
@@ -39,6 +41,12 @@ export interface EditorSettings {
   fontFamily: EditorFontFamily;
   lineHeight: EditorLineHeight;
   tabSize: EditorTabSize;
+  /**
+   * Line endings for Untitled documents, and for opened files that have none
+   * yet. Existing documents with LF or CRLF keep that document's ending.
+   * Independent of the operating system.
+   */
+  defaultEol: EditorDefaultEol;
   insertSpaces: boolean;
   wordWrap: EditorWordWrap;
   /**
@@ -108,6 +116,7 @@ const DEFAULT_SETTINGS: FulvidSettings = {
         linkMode: true,
         workspace: true,
         characters: true,
+        eol: true,
       },
     },
   },
@@ -116,6 +125,7 @@ const DEFAULT_SETTINGS: FulvidSettings = {
     fontFamily: "monospace",
     lineHeight: "auto",
     tabSize: 2,
+    defaultEol: "lf",
     insertSpaces: true,
     wordWrap: "on",
     autoIndent: true,
@@ -151,6 +161,7 @@ const VALID_LOCALES = new Set<Locale>(["en", "es"]);
 const VALID_EDITOR_FONT_FAMILIES = new Set<EditorFontFamily>(["monospace", "system", "serif"]);
 const VALID_EDITOR_LINE_HEIGHTS = new Set<EditorLineHeight>(["auto", "compact", "comfortable"]);
 const VALID_EDITOR_TAB_SIZES = new Set<EditorTabSize>([2, 4, 8]);
+const VALID_EDITOR_DEFAULT_EOL = new Set<EditorDefaultEol>(["lf", "crlf"]);
 const VALID_EDITOR_WORD_WRAP = new Set<EditorWordWrap>(["on", "off", "bounded"]);
 const VALID_EDITOR_RENDER_WHITESPACE = new Set<EditorRenderWhitespace>([
   "none",
@@ -279,6 +290,10 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
             typeof statusbarIndicators.characters === "boolean"
               ? statusbarIndicators.characters
               : DEFAULT_SETTINGS.appearance.statusbar.indicators.characters,
+          eol:
+            typeof statusbarIndicators.eol === "boolean"
+              ? statusbarIndicators.eol
+              : DEFAULT_SETTINGS.appearance.statusbar.indicators.eol,
         },
       },
     },
@@ -296,6 +311,9 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
       tabSize: VALID_EDITOR_TAB_SIZES.has(editor.tabSize as EditorTabSize)
         ? (editor.tabSize as EditorTabSize)
         : DEFAULT_SETTINGS.editor.tabSize,
+      defaultEol: VALID_EDITOR_DEFAULT_EOL.has(editor.defaultEol as EditorDefaultEol)
+        ? (editor.defaultEol as EditorDefaultEol)
+        : DEFAULT_SETTINGS.editor.defaultEol,
       insertSpaces:
         typeof editor.insertSpaces === "boolean"
           ? editor.insertSpaces

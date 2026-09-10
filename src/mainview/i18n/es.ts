@@ -458,6 +458,11 @@ export default {
     editorTabSize: "Tamaño de tabulación",
     editorTabSizeHint:
       "Cuántas columnas ocupa un nivel de sangría (2, 4 u 8). Con Insertar espacios, Tab inserta esa cantidad de espacios.",
+    editorDefaultEol: "Finales de línea en documentos nuevos",
+    editorDefaultEolHint:
+      "Se usa en documentos Sin título y en archivos que aún no tienen un salto de línea. Los archivos abiertos que ya usan LF o CRLF conservan ese final. No se toma del sistema operativo.\n\nGuardar escribe el final actual del documento activo. Cámbialo desde la barra de estado.",
+    editorDefaultEolLf: "LF",
+    editorDefaultEolCrlf: "CRLF",
     editorInsertSpaces: "Insertar espacios",
     editorInsertSpacesHint:
       "Tab inserta espacios en lugar de un tabulador. El tamaño de tabulación sigue controlando el ancho de esa sangría.",
@@ -583,6 +588,9 @@ export default {
     statusbarCharacters: "Caracteres",
     statusbarCharactersHint:
       "Cantidad de caracteres del texto actual del editor, incluidos los espacios.",
+    statusbarEol: "Finales de línea",
+    statusbarEolHint:
+      "LF o CRLF del documento activo. Púlsalo en la barra de estado para cambiarlo.",
     shortcutFocus: "Activar o desactivar el modo foco",
     workspace: "Carpeta",
     showHidden: "Mostrar archivos ocultos",
@@ -699,6 +707,8 @@ export default {
     reading: "{count} palabras · {minutes} min de lectura",
     linkMode: "Enlaces {mode}",
     openLinkSettings: "Cambiar el modo de enlaces en Ajustes",
+    eol: "Finales de línea {eol}",
+    changeEol: "Cambiar entre LF y CRLF. Guarda para escribirlo en el archivo.",
   },
   outline: {
     title: "Esquema",

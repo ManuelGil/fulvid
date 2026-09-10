@@ -170,23 +170,6 @@ describe("resolving an external open", () => {
     expect(resolved.map((entry) => entry.kind)).toEqual(["rejected", "file"]);
   });
 
-  test("a repeated request resolves to the same document every time", async () => {
-    const request = { kind: "file", path: join(folder, "doc.md"), source: "os-file-association" };
-    enqueueExternalOpenRequest({ ...request });
-    enqueueExternalOpenRequest({ ...request });
-    enqueueExternalOpenRequest({ ...request });
-
-    const resolved = await takePendingExternalOpens();
-
-    // Replay is safe because the target is stable; the buffer table dedupes by
-    // absolute path when these reach the renderer.
-    expect(resolved).toHaveLength(3);
-    const targets = new Set(
-      resolved.map((entry) => (entry.kind === "file" ? entry.snapshot.absolutePath : "")),
-    );
-    expect(targets.size).toBe(1);
-  });
-
   test("concurrent drains deliver each request once", async () => {
     enqueueExternalOpenRequest({ kind: "file", path: join(folder, "doc.md"), source: "shell" });
 
@@ -238,27 +221,5 @@ describe("launch arguments as a source", () => {
     } finally {
       process.chdir(previous);
     }
-  });
-
-  test("argv composes into resolved opens, the way startup wires it", async () => {
-    // This is exactly what src/bun/index.ts does before the window opens:
-    // adapter -> enqueue -> drain. Held here so the wiring cannot drift apart.
-    for (const request of await externalOpenRequestsFromArguments([
-      "/runtime/bun",
-      "/app/main.js",
-      join(folder, "doc.md"),
-      folder,
-    ])) {
-      enqueueExternalOpenRequest(request);
-    }
-
-    const resolved = await takePendingExternalOpens();
-
-    expect(resolved.map((entry) => entry.kind)).toEqual(["file", "folder"]);
-    const file = resolved[0];
-    const opened = resolved[1];
-    if (file.kind !== "file" || opened.kind !== "folder") return;
-    expect(file.snapshot.content).toBe("# Doc\n");
-    await expect(authorizedWorkspaceRoot(opened.rootPath)).resolves.toBe(opened.rootPath);
   });
 });

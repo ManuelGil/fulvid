@@ -12,6 +12,7 @@ This file is updated as part of the change, not reconstructed when a version is 
 ### Added
 
 - Opening a folder (including an external folder request) loads it only when the scan finds Markdown or MDX, or when the scan was partial. A finished scan with neither kind of document is reported in the reader's language and does not become the open folder.
+- Line endings: LF and CRLF belong to the document. Open keeps the file's ending. Untitled uses the New document line endings setting (LF by default, not the OS). The statusbar shows LF or CRLF; click to switch. Save writes the active ending.
 
 ### Changed
 

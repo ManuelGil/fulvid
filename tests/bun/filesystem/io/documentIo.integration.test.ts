@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
-  assertWithinWorkspace,
   createDocument,
   deleteDocument,
   readDocument,
@@ -14,7 +13,10 @@ import {
   writeDocument,
 } from "../../../../src/bun/filesystem/io/documentIo";
 import { scanWorkspace } from "../../../../src/bun/filesystem/scanning/scanDirectory";
-import { filesystemErrorMessage } from "../../../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
+import {
+  documentConflictMessage,
+  filesystemErrorMessage,
+} from "../../../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
 import { linkDirectory } from "../../../support/platform";
 
 async function makeWorkspace(): Promise<string> {
@@ -26,16 +28,15 @@ async function makeWorkspace(): Promise<string> {
 describe("document I/O", () => {
   test("rejects traversal and absolute document targets", async () => {
     const root = await makeWorkspace();
+    const outsideFolder = filesystemErrorMessage("outsideFolder");
 
     try {
-      expect(() => assertWithinWorkspace(root, "../../../src/etc/passwd.md")).toThrow(
-        filesystemErrorMessage("outsideFolder"),
+      await expect(readDocument(root, "../../../src/etc/passwd.md")).rejects.toThrow(outsideFolder);
+      await expect(writeDocument(root, join(root, "document.md"), "# x\n")).rejects.toThrow(
+        outsideFolder,
       );
-      expect(() => assertWithinWorkspace(root, join(root, "document.md"))).toThrow(
-        filesystemErrorMessage("outsideFolder"),
-      );
-      expect(() => assertWithinWorkspace(root, "notes/../document.md")).toThrow(
-        filesystemErrorMessage("outsideFolder"),
+      await expect(createDocument(root, "notes/../document.md", "# x\n")).rejects.toThrow(
+        outsideFolder,
       );
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -67,6 +68,25 @@ describe("document I/O", () => {
 
       const snapshot = await readDocument(root, "notes/example.mdx");
       expect(snapshot.content).toContain("# Initial");
+      await expect(createDocument(root, "notes/example.mdx", "# Stolen\n")).rejects.toThrow(
+        filesystemErrorMessage("documentExists"),
+      );
+      await expect(writeDocument(root, "notes/example.mdx", "# Stale\n", 0)).rejects.toThrow(
+        documentConflictMessage("notes/example.mdx"),
+      );
+      expect((await readDocument(root, "notes/example.mdx")).content).toContain("# Initial");
+
+      const crlf = await createDocument(root, "notes/eol.md", "alpha\r\nbeta\r\n");
+      expect(crlf.note.path).toBe("notes/eol.md");
+      expect((await readDocument(root, "notes/eol.md")).content).toBe("alpha\r\nbeta\r\n");
+      const crlfWritten = await writeDocument(
+        root,
+        "notes/eol.md",
+        "gamma\r\ndelta\r\n",
+        (await readDocument(root, "notes/eol.md")).mtimeMs,
+      );
+      expect((await readDocument(root, "notes/eol.md")).content).toBe("gamma\r\ndelta\r\n");
+      expect(await deleteDocument(root, "notes/eol.md", crlfWritten.mtimeMs)).toBe(true);
 
       const written = await writeDocument(
         root,

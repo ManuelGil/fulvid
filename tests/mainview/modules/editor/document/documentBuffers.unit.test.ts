@@ -5,9 +5,14 @@ type FakeModel = {
   language: string;
   disposed: boolean;
   version: number;
+  eol: "\n" | "\r\n";
   listeners: Set<() => void>;
   getAlternativeVersionId(): number;
   getValue(): string;
+  getEOL(): "\n" | "\r\n";
+  getEndOfLineSequence(): 0 | 1;
+  setEOL(eol: 0 | 1): void;
+  pushEOL(eol: 0 | 1): void;
   setValue(value: string): void;
   onDidChangeContent(listener: () => void): { dispose(): void };
   dispose(): void;
@@ -25,6 +30,8 @@ let nextSaveAsResult: {
   mtimeMs: 2,
   grantToken: "grant-1",
 };
+let lastWrittenContent = "";
+let nextReadContent: string | null = null;
 let rewriteHook: (() => void) | null = null;
 let saveAsHook: (() => void) | null = null;
 let writeHook: (() => void) | null = null;
@@ -36,11 +43,12 @@ mock.module("../../../../../src/mainview/modules/workspace/filesystem/workspaceS
     return {
       path,
       absolutePath: `/workspace/${path}`,
-      content: `# ${path}`,
+      content: nextReadContent ?? `# ${path}`,
       mtimeMs: 1,
     };
   },
-  writeDocument: async () => {
+  writeDocument: async (_rootPath: string, _path: string, content: string) => {
+    lastWrittenContent = content;
     const hook = writeHook;
     writeHook = null;
     hook?.();
@@ -89,21 +97,39 @@ mock.module("../../../../../src/mainview/modules/editor/monaco/monacoSetup.ts", 
       parse: (path: string) => ({ path }),
     },
     editor: {
+      EndOfLineSequence: { LF: 0, CRLF: 1 },
       createModel: (value: string, language = "markdown") => {
         const model: FakeModel = {
           value,
           language,
           disposed: false,
           version: 1,
+          eol: value.includes("\r\n") ? "\r\n" : "\n",
           listeners: new Set(),
           getAlternativeVersionId() {
             return this.version;
           },
           getValue() {
-            return this.value;
+            return this.value.replace(/\r\n|\n/g, this.eol);
+          },
+          getEOL() {
+            return this.eol;
+          },
+          getEndOfLineSequence() {
+            return this.eol === "\r\n" ? 1 : 0;
+          },
+          setEOL(eol) {
+            this.eol = eol === 1 ? "\r\n" : "\n";
+            this.value = this.value.replace(/\r\n|\n/g, this.eol);
+          },
+          pushEOL(eol) {
+            this.setEOL(eol);
+            this.version += 1;
+            this.listeners.forEach((listener) => listener());
           },
           setValue(nextValue) {
             this.value = nextValue;
+            this.eol = nextValue.includes("\r\n") ? "\r\n" : "\n";
             this.version += 1;
             this.listeners.forEach((listener) => listener());
           },
@@ -131,6 +157,7 @@ const {
   closeDocument,
   activeBuffer,
   createUntitledDocument,
+  cycleDocumentEol,
   getDocumentBuffer,
   isDocumentDirty,
   openBuffers,
@@ -140,6 +167,8 @@ const { activeId, clearSessionDocuments } =
   await import("../../../../../src/mainview/modules/editor/document/documentSession.ts");
 const { currentFocus } =
   await import("../../../../../src/mainview/modules/workspace/focus/focusState");
+const { patchSettings, settings } =
+  await import("../../../../../src/mainview/modules/settings/settingsStore.ts");
 
 afterEach(() => {
   closeAllDocuments(true);
@@ -155,6 +184,9 @@ afterEach(() => {
   saveAsHook = null;
   writeHook = null;
   readHook = null;
+  lastWrittenContent = "";
+  nextReadContent = null;
+  patchSettings({ editor: { ...settings.value.editor, defaultEol: "lf" } });
 });
 
 // Intent: protect model identity, disposal, virtual documents, and dirty-version semantics.
@@ -224,5 +256,32 @@ describe("document buffers", () => {
     // The newer text was never written, so the buffer stays dirty for it.
     expect(isDocumentDirty(buffer)).toBe(true);
     expect(buffer.model.getValue()).toBe("# second");
+  });
+
+  test("document EOL follows the model, not the operating system, and writes only on save", async () => {
+    patchSettings({ editor: { ...settings.value.editor, defaultEol: "crlf" } });
+    const untitled = createUntitledDocument();
+    expect(untitled.model.getEOL()).toBe("\r\n");
+    expect(isDocumentDirty(untitled)).toBe(false);
+
+    cycleDocumentEol(untitled);
+    expect(untitled.model.getEOL()).toBe("\n");
+    expect(isDocumentDirty(untitled)).toBe(true);
+
+    patchSettings({ editor: { ...settings.value.editor, defaultEol: "lf" } });
+    nextReadContent = "alpha\r\nbeta\r\n";
+    const opened = await openDocument("/workspace", "crlf.md");
+    expect(opened.model.getEOL()).toBe("\r\n");
+    expect(opened.model.getValue()).toBe("alpha\r\nbeta\r\n");
+    expect(isDocumentDirty(opened)).toBe(false);
+
+    await saveDocument(opened);
+    expect(lastWrittenContent).toBe("alpha\r\nbeta\r\n");
+
+    cycleDocumentEol(opened);
+    expect(opened.model.getEOL()).toBe("\n");
+    expect(isDocumentDirty(opened)).toBe(true);
+    await saveDocument(opened);
+    expect(lastWrittenContent).toBe("alpha\nbeta\n");
   });
 });

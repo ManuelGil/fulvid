@@ -75,6 +75,11 @@ const STATUSBAR_INDICATORS: readonly {
     label: "settings.statusbarCharacters",
     hint: "settings.statusbarCharactersHint",
   },
+  {
+    key: "eol",
+    label: "settings.statusbarEol",
+    hint: "settings.statusbarEolHint",
+  },
 ];
 
 const DENSITY_OPTIONS: readonly {
@@ -436,6 +441,30 @@ function setLocale(locale: FulvidSettings["locale"]): void {
                   <option value="2">2</option>
                   <option value="4">4</option>
                   <option value="8">8</option>
+                </select>
+              </label>
+
+              <label class="settings-option">
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{ t("settings.editorDefaultEol") }}</span>
+                  <span id="settings-editor-default-eol-hint" class="settings-option__hint">
+                    {{ t("settings.editorDefaultEolHint") }}
+                  </span>
+                </span>
+                <select
+                  :value="settings.editor.defaultEol"
+                  :aria-label="t('settings.editorDefaultEol')"
+                  aria-describedby="settings-editor-default-eol-hint"
+                  @change="
+                    setEditor(
+                      'defaultEol',
+                      ($event.target as HTMLSelectElement)
+                        .value as FulvidSettings['editor']['defaultEol'],
+                    )
+                  "
+                >
+                  <option value="lf">{{ t("settings.editorDefaultEolLf") }}</option>
+                  <option value="crlf">{{ t("settings.editorDefaultEolCrlf") }}</option>
                 </select>
               </label>
 

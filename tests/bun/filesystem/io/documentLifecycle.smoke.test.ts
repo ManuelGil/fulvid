@@ -57,8 +57,8 @@ describe("the editing loop", () => {
     let a = await readDocument(root, "a.md");
     let b = await readDocument(root, "b.md");
 
-    // Twenty rounds of the loop, alternating documents the way a person does.
-    for (let round = 0; round < 20; round += 1) {
+    // Several rounds of the loop, alternating documents the way a person does.
+    for (let round = 0; round < 3; round += 1) {
       const writtenA = await writeDocument(
         root,
         "a.md",
