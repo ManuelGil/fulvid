@@ -137,7 +137,6 @@ function onBackdropPointerDown(event: PointerEvent): void {
             type="text"
             spellcheck="false"
             autocomplete="off"
-            :aria-label="activeDialog.label"
           />
         </label>
         <div class="dialog__actions">
@@ -155,8 +154,8 @@ function onBackdropPointerDown(event: PointerEvent): void {
         class="dialog"
         role="alertdialog"
         aria-modal="true"
-        :aria-labelledby="activeDialog.title ? 'dialog-title' : undefined"
-        :aria-describedby="'dialog-message'"
+        :aria-labelledby="activeDialog.title ? 'dialog-title' : 'dialog-message'"
+        :aria-describedby="activeDialog.title ? 'dialog-message' : undefined"
         @keydown="onConfirmKeydown"
       >
         <h2 v-if="activeDialog.title" id="dialog-title" class="dialog__title">

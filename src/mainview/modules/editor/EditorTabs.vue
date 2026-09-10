@@ -267,6 +267,15 @@ defineExpose({ focusActiveTab });
   min-height: $control-height;
   padding: 0 $space-3;
   font-size: $font-label;
+
+  &:hover {
+    color: $text-primary;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: -2px;
+  }
 }
 
 .editor-tabs__item:has([aria-selected="true"]) {

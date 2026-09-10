@@ -339,6 +339,21 @@ function leaveEditor(): void {
   editorTabsRef.value?.focusActiveTab();
 }
 
+function restoreEditorChromeFocus(): void {
+  void nextTick(() => {
+    if (openBuffers.value.length > 0) {
+      editorTabsRef.value?.focusActiveTab();
+      return;
+    }
+    const emptyAction = document.querySelector<HTMLElement>(".editor-empty-workspace button");
+    if (emptyAction) {
+      emptyAction.focus({ preventScroll: true });
+      return;
+    }
+    document.getElementById("main-content")?.focus({ preventScroll: true });
+  });
+}
+
 function togglePreview(): void {
   patchSettings({
     preview: {
@@ -514,11 +529,11 @@ async function closeEditorDocument(id: string): Promise<void> {
     const replacement = activeBuffer.value;
     if (replacement) {
       selectDocument(replacement.id);
-      editorTabsRef.value?.focusActiveTab();
     } else {
       clearFocusState();
     }
   }
+  restoreEditorChromeFocus();
 }
 
 async function closeOtherDocuments(targetId?: string): Promise<void> {
@@ -537,6 +552,7 @@ async function closeOtherDocuments(targetId?: string): Promise<void> {
   for (const buffer of others) {
     closeDocumentById(buffer.id, true);
   }
+  restoreEditorChromeFocus();
 }
 
 async function closeAllEditorDocuments(): Promise<void> {
@@ -552,6 +568,7 @@ async function closeAllEditorDocuments(): Promise<void> {
     return;
   }
   closeAllDocuments(true);
+  restoreEditorChromeFocus();
 }
 
 const unregisterCommands = [
@@ -751,6 +768,7 @@ onBeforeUnmount(() => {
       <button
         v-if="workspace"
         class="editor-page__path"
+        type="button"
         :title="t('workspace.rightClickActions')"
         :aria-label="t('workspace.rightClickActions')"
         aria-haspopup="menu"

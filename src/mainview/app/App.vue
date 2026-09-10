@@ -1052,7 +1052,6 @@ onBeforeUnmount(() => {
           type="button"
           :title="panel.label"
           :aria-label="panel.label"
-          :aria-pressed="activeRightPanel === panel.id"
           @click="activateCompactRightPanel(panel.id)"
         >
           <AppIcon :name="panel.icon" :size="15" />
@@ -1228,12 +1227,6 @@ onBeforeUnmount(() => {
 .app-shell__right-rail-button {
   @include icon-action-button;
   color: $text-muted;
-
-  &[aria-pressed="true"] {
-    background: $selection;
-    box-shadow: inset 2px 0 $accent;
-    color: $selection-foreground;
-  }
 }
 
 @media (max-width: 900px) {

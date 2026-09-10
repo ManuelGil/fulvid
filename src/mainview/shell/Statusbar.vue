@@ -108,8 +108,6 @@ const showContextGroup = computed(() =>
   <footer
     v-if="settings.appearance.statusbar.enabled"
     class="statusbar"
-    role="status"
-    aria-live="off"
     :aria-label="t('status.label')"
   >
     <span v-if="showDocumentGroup || showModeGroup" class="statusbar__cluster">

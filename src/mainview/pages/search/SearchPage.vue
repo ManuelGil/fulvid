@@ -411,6 +411,15 @@ function onQueryKeydown(event: KeyboardEvent): void {
     return;
   }
 
+  if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+    if (resultRows.value.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    openHighlightedResultMenu();
+    return;
+  }
+
   if (event.key === "Escape") {
     event.preventDefault();
     if (query.value) {
@@ -440,10 +449,29 @@ function onSearchKeydown(event: KeyboardEvent): void {
   }
 }
 
+function openResultMenuAt(x: number, y: number, index: number): void {
+  highlightIndex.value = index;
+  contextMenu.value = { open: true, x, y, index };
+}
+
 function openResultMenu(event: MouseEvent, index: number): void {
   event.preventDefault();
-  highlightIndex.value = index;
-  contextMenu.value = { open: true, x: event.clientX, y: event.clientY, index };
+  openResultMenuAt(event.clientX, event.clientY, index);
+}
+
+function openHighlightedResultMenu(): void {
+  const index = highlightIndex.value;
+  const option = document.getElementById(`search-result-option-${index}`);
+  const bounds = option?.getBoundingClientRect();
+  openResultMenuAt(bounds?.left ?? 0, bounds?.bottom ?? 0, index);
+}
+
+function onResultKeydown(event: KeyboardEvent, index: number): void {
+  if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+    event.preventDefault();
+    const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    openResultMenuAt(bounds.left, bounds.bottom, index);
+  }
 }
 
 async function runResultAction(id: string): Promise<void> {
@@ -621,10 +649,12 @@ onBeforeUnmount(() => {
               type="button"
               class="search-result__match"
               role="option"
+              tabindex="-1"
               :aria-selected="highlightIndex === row.index"
               :class="{ 'is-selected': highlightIndex === row.index }"
               @click="openResult(row.index)"
               @contextmenu="openResultMenu($event, row.index)"
+              @keydown="onResultKeydown($event, row.index)"
             >
               <span class="search-result__snippet">
                 <template

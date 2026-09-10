@@ -347,10 +347,17 @@ function restoreScroll(): void {
 }
 
 function closeOnEscape(event: KeyboardEvent): void {
-  if (event.key === "Escape" && !event.defaultPrevented && inspectorOpen.value) {
-    event.preventDefault();
-    closeInspector();
+  if (props.embedded || event.key !== "Escape" || event.defaultPrevented || !inspectorOpen.value) {
+    return;
   }
+  if (
+    event.target instanceof Element &&
+    event.target.closest(".monaco-editor, .dialog-host, .context-menu")
+  ) {
+    return;
+  }
+  event.preventDefault();
+  closeInspector();
 }
 
 watch(
@@ -382,7 +389,9 @@ watch(readingPath, (next, prev) => {
 });
 
 onMounted(() => {
-  window.addEventListener("keydown", closeOnEscape);
+  if (!props.embedded) {
+    window.addEventListener("keydown", closeOnEscape);
+  }
 });
 onBeforeUnmount(() => {
   inspectorResizeCleanup?.();

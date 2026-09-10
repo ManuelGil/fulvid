@@ -132,6 +132,11 @@
     color: $surface;
     cursor: not-allowed;
   }
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: 2px;
+  }
 }
 
 @mixin quiet-button {
@@ -169,6 +174,11 @@
     border-color: $border-subtle;
     cursor: not-allowed;
     opacity: 0.75;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: 2px;
   }
 }
 

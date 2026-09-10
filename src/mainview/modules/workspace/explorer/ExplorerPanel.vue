@@ -353,6 +353,11 @@ function openContextMenuAt(x: number, y: number, entry: FileSystemEntry): void {
   };
 }
 
+function focusRow(path: string): void {
+  selectedPath.value = path;
+  rowElements.get(path)?.focus();
+}
+
 function focusRelativeRow(path: string, delta: number): void {
   const index = visibleRows.value.findIndex((row) => row.entry.path === path);
   if (index < 0) {
@@ -360,7 +365,7 @@ function focusRelativeRow(path: string, delta: number): void {
   }
   const next = visibleRows.value[index + delta];
   if (next) {
-    rowElements.get(next.entry.path)?.focus();
+    focusRow(next.entry.path);
   }
 }
 
@@ -368,6 +373,22 @@ async function onRowKeydown(event: KeyboardEvent, row: VisibleRow): Promise<void
   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
     event.preventDefault();
     focusRelativeRow(row.entry.path, event.key === "ArrowDown" ? 1 : -1);
+    return;
+  }
+  if (event.key === "Home") {
+    event.preventDefault();
+    const first = visibleRows.value[0];
+    if (first) {
+      focusRow(first.entry.path);
+    }
+    return;
+  }
+  if (event.key === "End") {
+    event.preventDefault();
+    const last = visibleRows.value[visibleRows.value.length - 1];
+    if (last) {
+      focusRow(last.entry.path);
+    }
     return;
   }
   if (event.key === "ArrowRight" && row.entry.kind === "directory") {
@@ -382,7 +403,10 @@ async function onRowKeydown(event: KeyboardEvent, row: VisibleRow): Promise<void
     if (row.entry.kind === "directory" && expandedDirectories.value.has(row.entry.path)) {
       await toggleDirectory(row.entry);
     } else {
-      rowElements.get(parentPath(row.entry.path))?.focus();
+      const parent = parentPath(row.entry.path);
+      if (parent) {
+        focusRow(parent);
+      }
     }
     return;
   }
@@ -613,14 +637,16 @@ onBeforeUnmount(() => {
   cursor: pointer;
 
   &:hover,
-  &:focus-visible,
   &--selected {
     background: $surface-hover;
     color: $text-primary;
-    outline: none;
   }
 
   &:focus-visible {
+    background: $surface-hover;
+    color: $text-primary;
+    outline: 2px solid $focus-ring;
+    outline-offset: -2px;
     box-shadow: inset 2px 0 $focus-ring;
   }
 }

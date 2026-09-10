@@ -246,20 +246,20 @@ async function runWorkspaceMenu(id: string): Promise<void> {
           <span class="app-sidebar__workspace-label">
             {{ t("app.currentWorkspace") }}
           </span>
-          <span
-            class="app-sidebar__workspace-name"
-            :title="
-              currentName ? `${currentName} - ${t('workspace.rightClickActions')}` : undefined
-            "
-            :class="{ 'app-sidebar__workspace-name--active': workspace }"
-            :role="workspace ? 'button' : undefined"
-            :tabindex="workspace ? 0 : -1"
-            :aria-haspopup="workspace ? 'menu' : undefined"
-            :aria-expanded="workspace ? workspaceMenuOpen : undefined"
+          <button
+            v-if="workspace"
+            class="app-sidebar__workspace-name app-sidebar__workspace-name--active"
+            type="button"
+            :title="`${currentName} - ${t('workspace.rightClickActions')}`"
+            aria-haspopup="menu"
+            :aria-expanded="workspaceMenuOpen"
             @contextmenu="onWorkspaceNameContextMenu"
             @keydown="onWorkspaceNameKeydown"
           >
-            {{ currentName ?? t("workspace.noWorkspace") }}
+            {{ currentName }}
+          </button>
+          <span v-else class="app-sidebar__workspace-name">
+            {{ t("workspace.noWorkspace") }}
           </span>
         </div>
         <ContextMenu
@@ -448,12 +448,18 @@ async function runWorkspaceMenu(id: string): Promise<void> {
 
 .app-sidebar__workspace-name {
   display: block;
+  width: 100%;
   overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: $text-primary;
+  font: inherit;
   font-size: $font-body;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.3;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 
@@ -596,6 +602,11 @@ async function runWorkspaceMenu(id: string): Promise<void> {
     background: $selection;
     box-shadow: inset 2px 0 $accent;
     color: $selection-foreground;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: -2px;
   }
 }
 

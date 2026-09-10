@@ -16,6 +16,7 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Changed
 
+- Keyboard and accessibility of the existing chrome: Explorer tree selection follows arrow keys, Search results expose the existing context menu from the query field, dialogs without a title use the message as their accessible name, and focus returns after the last tab closes.
 - Documented the standing security and resilience contract. The 2026-09-09 adversarial review is kept as historical evidence.
 
 ## [0.1.0] - 2026-09-09
