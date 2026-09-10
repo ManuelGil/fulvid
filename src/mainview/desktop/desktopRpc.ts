@@ -5,6 +5,7 @@
 import type { RPCSchema } from "electrobun";
 
 import type { FilesystemRPC } from "../modules/workspace/filesystem/filesystemRpc";
+import type { ResolvedExternalOpen } from "./externalOpen";
 
 export type DesktopPlatform = "darwin" | "win32" | "linux" | "other";
 
@@ -31,6 +32,20 @@ export type ApplicationMenuSupport = {
   fallbackReason?: ApplicationMenuFallbackReason;
 };
 
+/**
+ * External open is a pull, not a push.
+ *
+ * A request can arrive before the webview exists, so the host queues it and the
+ * renderer drains it once it is ready. That needs no new transport and no
+ * listener: it rides the request channel the renderer already has.
+ */
+type ExternalOpenRequests = {
+  takePendingExternalOpens: {
+    params: Record<string, never>;
+    response: ResolvedExternalOpen[];
+  };
+};
+
 type ApplicationMenuRequests = {
   setApplicationMenu: {
     params: { items: SerializableMenuItem[] };
@@ -48,7 +63,7 @@ type ApplicationMenuRequests = {
 
 export type DesktopRPC = {
   bun: RPCSchema<{
-    requests: FilesystemRPC["bun"]["requests"] & ApplicationMenuRequests;
+    requests: FilesystemRPC["bun"]["requests"] & ApplicationMenuRequests & ExternalOpenRequests;
     messages: FilesystemRPC["bun"]["messages"];
   }>;
   webview: RPCSchema<{

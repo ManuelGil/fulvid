@@ -11,6 +11,8 @@ import {
   quitApplication,
   setNativeApplicationMenu,
 } from "./applicationMenu";
+import { enqueueExternalOpenRequest, takePendingExternalOpens } from "./external/externalOpen";
+import { externalOpenRequestsFromArguments } from "./external/startupArguments";
 import { configureWorkspaceApprovals } from "./workspaceGrants";
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
 
@@ -41,6 +43,7 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
   handlers: {
     requests: {
       ...filesystemRpcHandlers,
+      takePendingExternalOpens: () => takePendingExternalOpens(),
       setApplicationMenu: ({ items }) => setNativeApplicationMenu(items),
       getApplicationMenuSupport: () => applicationMenuSupport(),
       quitApplication: () => quitApplication(),
@@ -48,6 +51,13 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
     messages: {},
   },
 });
+
+// Launch arguments are the only external open source wired today, and the
+// packaged launcher does not forward them yet. Queuing before the window opens
+// means a request is waiting when the renderer first asks for it.
+for (const request of await externalOpenRequestsFromArguments(process.argv)) {
+  enqueueExternalOpenRequest(request);
+}
 
 const url = await getMainViewUrl();
 installNativeApplicationMenu((action) => {

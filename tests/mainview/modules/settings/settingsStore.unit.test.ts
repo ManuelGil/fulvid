@@ -5,17 +5,6 @@ import { sanitizeSettings } from "../../../../src/mainview/modules/settings/sett
 // Intent: keep persisted settings backward-compatible and fail-closed per field.
 // Growth boundary: add cases only for migrations or new validation domains.
 describe("settings migration", () => {
-  test("migrates a single legacy link syntax and startup preference", () => {
-    const settings = sanitizeSettings({
-      workspace: { reopenLast: true },
-      links: { syntaxes: ["wikilink"] },
-    });
-
-    expect(settings.links.linkMode).toBe("wikilink");
-    expect(settings.workspace.workspaceStartup).toBe("last");
-    expect(settings.links.defaultExtension).toBe("mdx");
-  });
-
   test("keeps the valid parts of a partly corrupt file", () => {
     const settings = sanitizeSettings({
       locale: "es",
@@ -83,7 +72,15 @@ describe("settings migration", () => {
     );
   });
 
-  test("defaults unknown fields and migrates the legacy reading indicator", () => {
+  test("migrates legacy fields and fills defaults", () => {
+    const migrated = sanitizeSettings({
+      workspace: { reopenLast: true },
+      links: { syntaxes: ["wikilink"] },
+    });
+    expect(migrated.links.linkMode).toBe("wikilink");
+    expect(migrated.workspace.workspaceStartup).toBe("last");
+    expect(migrated.links.defaultExtension).toBe("mdx");
+
     const defaults = sanitizeSettings({});
     expect(defaults.editor.readingStatistics).toBe("wordsAndTime");
     expect(defaults.editor.typewriterScrolling).toBe(true);

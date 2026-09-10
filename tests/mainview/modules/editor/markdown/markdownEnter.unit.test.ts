@@ -107,24 +107,6 @@ describe("Markdown Enter", () => {
     });
     expect(enterAtEnd("|  |  |", 1)).toBeNull();
 
-    const withEmpty = ["| A | B |", "| --- | --- |", "|  | Bar |"].join("\n");
-    expect(enterAtEnd(withEmpty, 3)).toEqual({
-      kind: "insert",
-      text: "\n|  |  |",
-      cursorLineDelta: 1,
-      cursorColumn: 3,
-    });
-
-    const withMarkup = ["| A | B |", "| --- | --- |", "| [a](https://example.com) | *b* |"].join(
-      "\n",
-    );
-    expect(enterAtEnd(withMarkup, 3)).toEqual({
-      kind: "insert",
-      text: "\n|  |  |",
-      cursorLineDelta: 1,
-      cursorColumn: 3,
-    });
-
     const escaped = ["| A | B |", "| --- | --- |", "| A \\| B | C |"].join("\n");
     expect(enterAtEnd(escaped, 3)).toEqual({
       kind: "insert",

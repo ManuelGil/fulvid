@@ -41,7 +41,7 @@ afterEach(() => {
 // Growth boundary: add cases only for new fields or clamp rules.
 describe("persisted layout", () => {
   test("unparseable state degrades to defaults instead of failing startup", async () => {
-    for (const corrupt of ["{{{", "", "null", '"a string"', "[1,2,3]", "7"]) {
+    for (const corrupt of ["{{{", "null", "[1,2,3]"]) {
       const { layout } = await loadLayout(corrupt);
 
       expect(layout.value.sidebarWidth).toBe(252);

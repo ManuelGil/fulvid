@@ -49,7 +49,7 @@ The renderer is untrusted. It may ask for a document inside a folder the person 
 | Rule | Meaning |
 | --- | --- |
 | Host-side validation | Every RPC parameter is checked for type, shape, and size in `rpcInput`. Renderer validation is never authority |
-| Folder approval | A folder root is authorized only after a native dialog approved it. Approvals persist host-side in `workspaceGrants` |
+| Folder approval | A folder root is authorized only by a host-side decision: a native dialog, or an external open request the host resolved. Approvals persist host-side in `workspaceGrants` |
 | Folder authority | `workspaceAuthority.ts` decides what the renderer may reach: approved roots, in-root paths, or grant tokens |
 | Reopening a folder | The renderer's recent list is a convenience. Reopening a path this host never approved is refused |
 | Folder containment | `workspacePaths` checks lexically, then canonically through `realpath`. A symlink cannot move a target out of the root |
@@ -58,6 +58,7 @@ The renderer is untrusted. It may ask for a document inside a folder the person 
 | Grants | A grant token maps to one absolute path, is shaped like a UUID, and the grant table is bounded |
 | Error containment | Failures cross the boundary as codes from `filesystemErrors`. No host path, errno, or stack reaches the UI |
 | Scan ceilings | A folder scan is bounded in document count and depth, and per-file analysis is capped. A partial scan is reported, never silent |
+| External open | An external request is intent, never privilege. It earns exactly what the equivalent dialog earns, through the same authorities. See [EXTERNAL-OPEN.md](./EXTERNAL-OPEN.md) |
 | Save integrity | A save that did not reach disk never clears dirty. Creating a document is an exclusive create, so a concurrent create is reported rather than overwritten |
 
 ## Persisted state

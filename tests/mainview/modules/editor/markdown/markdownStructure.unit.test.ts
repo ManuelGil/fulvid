@@ -8,7 +8,7 @@ import {
 // Intent: keep outline parsing aligned with heading, fence, and frontmatter rules.
 // Growth boundary: add cases only for a new Markdown structural form.
 describe("Markdown structure", () => {
-  test("ignores frontmatter and fenced headings", () => {
+  test("parses outline forms and resolves ATX and Setext anchors", () => {
     const structure = parseMarkdownStructure(`---
 title: Note
 ---
@@ -29,11 +29,8 @@ Configuration
     ]);
     expect(structure.frontmatterEndLine).toBe(3);
     expect(structure.fences).toEqual([{ startLine: 7, endLine: 9 }]);
-  });
 
-  test("resolves ATX and Setext anchors consistently", () => {
     const content = "# API Reference\n\nSetup\n=====\n";
-
     expect(findMarkdownHeading(content, "api-reference")?.lineNumber).toBe(1);
     expect(findMarkdownHeading(content, "Setup")?.lineNumber).toBe(3);
   });
