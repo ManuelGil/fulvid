@@ -2,9 +2,11 @@
 
 How something outside Fulvid asks Fulvid to open a file or a folder.
 
-This is the internal layer only. **No operating-system integration and no
-browser extension is implemented.** What exists is the contract, the single
-host-side handler that resolves it, and one worked adapter. See
+This is the internal layer, plus the Linux desktop `Exec` field that feeds it.
+**Packaged OS delivery is not complete:** Electrobun 2.0.1 does not forward
+launcher arguments to the Bun host, and there is no browser extension. What
+exists is the contract, the single host-side handler, one argv adapter, and a
+desktop entry that is ready to pass local paths once the launcher does. See
 [Status](#status) for exactly what is wired today.
 
 ## What an external open request is
@@ -114,38 +116,47 @@ external opened one.
 
 ## Status
 
-### Supported today
+### What exists
 
-| Channel | Status |
+| Piece | State |
 | --- | --- |
-| Launch arguments (`src/bun/external/startupArguments.ts`) | Adapter implemented and tested |
+| Contract, handler, queue, drain | Implemented and tested |
+| argv adapter (`src/bun/external/startupArguments.ts`) | Implemented and tested |
+| Linux desktop `Exec=… %F` | Prepared in all three variants |
+| Debian wrapper `exec /opt/fulvid/bin/launcher "$@"` | Already forwards what the desktop environment expanded |
 
-With one caveat, verified rather than assumed: **the Electrobun launcher does
-not forward its arguments to the Bun host.** Running
-`/opt/fulvid/bin/launcher /path/to/note.md` spawns the host with only the script
-path on its command line, and nothing arrives by environment either. So the argv
-adapter works when the host runs directly, and is the seam a file association
-will use — but a packaged `Fulvid` invoked with a path opens nothing today.
-Making that work is a launcher change, not a change to this layer.
+`%F` is the Freedesktop field code for one or more local paths, each its own
+argument. `%f` would force one process per file; `%U` would admit `file:` URLs
+this adapter does not parse. `MimeType` stays `text/markdown;text/x-markdown;`,
+which `shared-mime-info` already maps to `.md` and `.markdown`.
 
-### Prepared, not implemented
+### What blocks packaged delivery
 
-None of the following exists. They are listed because the contract was shaped so
-each becomes a thin adapter, not because any of them is wired.
+Electrobun 2.0.1's launcher drops the arguments. Verified against
+`package/src/launcher/main.zig` in v2.0.1: it collects OS arguments, consumes
+them for uninstall parsing and the private `--automation` flag, then spawns the
+runtime as `[runtime, Resources/main.js]` without appending the rest. The child
+inherits the environment, which this layer does not read.
 
-| Channel | What it would need |
+So `fulvid note.md` reaches the launcher and stops there. The argv adapter works
+when the host runs directly, which is how it is tested.
+
+**This is an Electrobun change, not a Fulvid one.** Fulvid must not work around
+it with an environment variable, socket, named pipe, localhost listener, or
+daemon. Any of those would be the second authority this layer exists to avoid.
+
+### Deliberately not done
+
+| Not done | Why |
 | --- | --- |
-| Windows shell verb / file association | Launcher argv forwarding, then a registry entry |
-| Linux desktop entry (`%f` / `%U`) | Launcher argv forwarding, then `MimeType` handling |
-| macOS `Open With` / `application:openFiles:` | An Electrobun open-files event, then an adapter |
-| File managers, shell integrations | Nothing beyond the above |
-| Browser extension | A channel, which does not exist and is not designed |
-| Requests to an **already running** Fulvid | Single-instance handoff, which does not exist |
+| `.mdx` and `inode/directory` MIME | Advertising a handler before delivery works only opens a blank window. There is no IANA type for MDX either |
+| Windows registry association | Electrobun 2.0.1 registers none, and Explorer would pass the path to the same launcher that drops it |
+| macOS `fileAssociations` | macOS delivers `file:` URLs on `open-url`, not argv. That is a different adapter, and it would need a drain after startup |
+| Single-instance / warm start | A second `fulvid note.md` is a second process with its own bounded queue. Handing a request across processes is a communication surface |
+| Browser extension | No channel exists or is designed |
 
-That last row is the real gap. Today a request is only queued before the window
-opens. Delivering one to a running instance needs a single-instance mechanism,
-which is out of scope here precisely because it is the part that would add a
-communication surface.
+A `.desktop` entry cannot hand a path to an already running instance either;
+that needs D-Bus activation or a lock Fulvid does not have.
 
 ## Adding an adapter later
 
@@ -167,3 +178,6 @@ where it is written once and tested once.
 - `tests/bun/external/externalOpen.integration.test.ts` — resolution through the
   real authorities: grant scope, kind/disk disagreement, symlinked folders,
   refusal reporting, replay, concurrent drain, and the argv adapter.
+- `tests/packaging/linuxDesktop.unit.test.ts` — canonical and variant desktop
+  files share MIME, use an unquoted `%F`, and the Debian wrapper still forwards
+  `"$@"`.

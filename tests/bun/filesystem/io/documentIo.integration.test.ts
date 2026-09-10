@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -15,6 +15,7 @@ import {
 } from "../../../../src/bun/filesystem/io/documentIo";
 import { scanWorkspace } from "../../../../src/bun/filesystem/scanning/scanDirectory";
 import { filesystemErrorMessage } from "../../../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
+import { linkDirectory } from "../../../support/platform";
 
 async function makeWorkspace(): Promise<string> {
   return mkdtemp(join(tmpdir(), "editor-document-io-"));
@@ -167,7 +168,7 @@ describe("folder containment for document I/O", () => {
     await mkdir(root);
     await mkdir(outside);
     await writeFile(join(outside, "secret.md"), "SECRET\n");
-    await symlink(outside, join(root, "link"));
+    await linkDirectory(outside, join(root, "link"));
 
     const outsideFolder = filesystemErrorMessage("outsideFolder");
     try {

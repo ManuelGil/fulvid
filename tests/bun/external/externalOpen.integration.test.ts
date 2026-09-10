@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -19,6 +19,7 @@ import {
   resetWorkspaceApprovals,
 } from "../../../src/bun/workspaceGrants";
 import { filesystemErrorMessage } from "../../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
+import { linkDirectory, posixModeBitsDenyAccess } from "../../support/platform";
 
 let base: string;
 let folder: string;
@@ -118,24 +119,31 @@ describe("resolving an external open", () => {
     ).toEqual({ kind: "rejected", source: "shell", reason: "documentMissing" });
   });
 
-  test("an unreadable document is refused without leaking the host path", async () => {
-    const locked = join(folder, "locked.md");
-    await writeFile(locked, "# Locked\n");
-    await chmod(locked, 0o000);
+  // The property is multiplatform; provoking a raw access error is not. Windows
+  // ignores POSIX mode bits, so this case runs where they actually deny access.
+  // That an unexpected host error never crosses as itself is covered portably by
+  // workspaceAuthority's `contained` case.
+  test.skipIf(!posixModeBitsDenyAccess)(
+    "an unreadable document is refused without leaking the host path",
+    async () => {
+      const locked = join(folder, "locked.md");
+      await writeFile(locked, "# Locked\n");
+      await chmod(locked, 0o000);
 
-    try {
-      const resolved = await resolveOne({ kind: "file", path: locked, source: "shell" });
+      try {
+        const resolved = await resolveOne({ kind: "file", path: locked, source: "shell" });
 
-      expect(resolved.kind).toBe("rejected");
-      if (resolved.kind !== "rejected") return;
-      expect(JSON.stringify(resolved)).not.toContain(locked);
-    } finally {
-      await chmod(locked, 0o644).catch(() => {});
-    }
-  });
+        expect(resolved.kind).toBe("rejected");
+        if (resolved.kind !== "rejected") return;
+        expect(JSON.stringify(resolved)).not.toContain(locked);
+      } finally {
+        await chmod(locked, 0o644).catch(() => {});
+      }
+    },
+  );
 
   test("a folder reached through a symlink authorizes where it really lands", async () => {
-    await symlink(outside, join(folder, "link"));
+    await linkDirectory(outside, join(folder, "link"));
 
     const resolved = await resolveOne({
       kind: "folder",
@@ -223,7 +231,10 @@ describe("launch arguments as a source", () => {
       ]);
 
       expect(requests).toHaveLength(1);
-      expect(requests[0].path).toBe(join(folder, "doc.md"));
+      // Compare canonically: this is the one assertion that crosses
+      // `process.cwd()`, and Windows may report the temp directory in a
+      // different form (8.3 short name, different case) than `mkdtemp` returned.
+      expect(await realpath(requests[0].path)).toBe(await realpath(join(folder, "doc.md")));
     } finally {
       process.chdir(previous);
     }

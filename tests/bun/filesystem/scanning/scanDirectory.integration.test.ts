@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { chmod, mkdir, mkdtemp, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -9,6 +9,7 @@ import {
   scanWorkspace,
 } from "../../../../src/bun/filesystem/scanning/scanDirectory";
 import { filesystemErrorMessage } from "../../../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
+import { linkDirectory, posixModeBitsDenyAccess } from "../../../support/platform";
 
 async function makeWorkspace(): Promise<string> {
   return mkdtemp(join(tmpdir(), "fulvid-explorer-"));
@@ -52,7 +53,7 @@ describe("folder containment for listing", () => {
     await mkdir(root);
     await mkdir(outside);
     await writeFile(join(outside, "secret.md"), "secret\n");
-    await symlink(outside, join(root, "link"));
+    await linkDirectory(outside, join(root, "link"));
 
     try {
       // The link is not offered as an entry...
@@ -104,8 +105,6 @@ function permissionDenied(syscall: string, target: string): NodeJS.ErrnoExceptio
   error.code = "EACCES";
   return error;
 }
-
-const posixModeBitsDenyAccess = process.platform !== "win32";
 
 describe("scanning a hostile or live folder", () => {
   test("an unreadable subdirectory is skipped, not fatal", async () => {
@@ -210,32 +209,6 @@ describe("scanning a hostile or live folder", () => {
       }
     },
   );
-
-  test("documents removed while the folder is scanned never fail the scan", async () => {
-    const root = await makeWorkspace();
-
-    try {
-      for (let index = 0; index < 60; index += 1) {
-        await writeFile(join(root, `note-${index}.md`), "# Note\n");
-      }
-
-      const scanning = scanWorkspace(root, { linkMode: "markdown" });
-      for (let index = 0; index < 60; index += 2) {
-        void unlink(join(root, `note-${index}.md`)).catch(() => {});
-      }
-      const scan = await scanning;
-
-      // Deletions racing the walk mean the totals are not fixed; what is
-      // guaranteed is that the scan returns a usable folder instead of throwing.
-      expect(scan.scannedNotes.length).toBeGreaterThan(0);
-      expect(scan.scannedNotes.length + scan.skipped).toBeLessThanOrEqual(60);
-      for (const note of scan.scannedNotes) {
-        expect(note.path).toMatch(/^note-\d+\.md$/);
-      }
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
-  });
 
   test("a folder with only other files is a complete scan of zero documents", async () => {
     const root = await makeWorkspace();

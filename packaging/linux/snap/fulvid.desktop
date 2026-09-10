@@ -2,7 +2,7 @@
 Type=Application
 Name=Fulvid
 Comment=Standalone desktop editor for Markdown and MDX
-Exec=fulvid
+Exec=fulvid %F
 Icon=fulvid
 Terminal=false
 StartupWMClass=Fulvid

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -9,6 +9,7 @@ import {
   containedPath,
 } from "../../../../src/bun/filesystem/security/workspacePaths";
 import { filesystemErrorMessage } from "../../../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
+import { linkDirectory } from "../../../support/platform";
 
 const OUTSIDE = filesystemErrorMessage("outsideFolder");
 
@@ -39,7 +40,7 @@ describe("canonical containment", () => {
     await mkdir(root);
     await mkdir(outside);
     await writeFile(join(outside, "secret.md"), "secret\n");
-    await symlink(outside, join(root, "link"));
+    await linkDirectory(outside, join(root, "link"));
 
     try {
       // Lexically this stays under the root; canonically it does not.
@@ -55,7 +56,7 @@ describe("canonical containment", () => {
     const root = await makeWorkspace();
     await mkdir(join(root, "notes"));
     await writeFile(join(root, "notes/real.md"), "real\n");
-    await symlink(join(root, "notes"), join(root, "alias"));
+    await linkDirectory(join(root, "notes"), join(root, "alias"));
 
     try {
       await expect(assertCanonicallyContained(root, "alias/real.md")).resolves.toBe(

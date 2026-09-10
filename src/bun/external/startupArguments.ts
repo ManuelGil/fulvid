@@ -7,11 +7,13 @@
  * other would be.
  *
  * Status today: `Fulvid.app`/`fulvid.exe`/`/usr/bin/fulvid` are launched through
- * the Electrobun launcher, which does **not** forward its arguments to the Bun
- * host process (verified: the spawned host's command line carries only the
- * script path, and nothing arrives by environment either). So this reads
- * arguments that are currently only present when the host is run directly, and
- * is the seam a file association would use once the launcher forwards them.
+ * Electrobun 2.0.1's Zig launcher. That launcher reads OS arguments, uses them
+ * for uninstall and `--automation`, then spawns Bun as
+ * `[runtime, Resources/main.js]` and does not append the remaining arguments
+ * (`package/src/launcher/main.zig` in Electrobun v2.0.1). The child inherits
+ * environment, which this adapter does not read. So this classifies arguments
+ * that are present when the host is run directly, and is the seam a Linux
+ * `%F` / Windows shell verb will use once the launcher forwards them.
  * See docs/EXTERNAL-OPEN.md.
  */
 import { stat } from "node:fs/promises";

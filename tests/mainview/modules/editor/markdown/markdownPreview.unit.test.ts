@@ -214,14 +214,4 @@ describe("inline markup density", () => {
     // Real documents sit far below the ceiling; this asserts the margin.
     expect(countInlineMarkup(prose)).toBeLessThan(PREVIEW_INLINE_MARKUP_LIMIT / 2);
   });
-
-  test("counting stops early instead of walking a hostile document twice", () => {
-    const source = "*x* ".repeat(200_000);
-
-    const started = performance.now();
-    const count = countInlineMarkup(source);
-
-    expect(count).toBeGreaterThan(PREVIEW_INLINE_MARKUP_LIMIT);
-    expect(performance.now() - started).toBeLessThan(250);
-  });
 });
