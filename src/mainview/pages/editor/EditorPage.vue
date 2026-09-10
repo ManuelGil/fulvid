@@ -775,30 +775,62 @@ onBeforeUnmount(() => {
         {{ loadingStatus ?? t("workspace.looking") }}
       </p>
 
-      <EmptyState
-        v-else-if="!workspace && openBuffers.length === 0"
-        pace="reassure"
-        :title="t('workspace.noWorkspace')"
-        :text="canReopenLast ? undefined : t('workspace.noWorkspaceText')"
-      >
-        <template v-if="canReopenLast && lastRecent" #detail>
-          <div class="editor-last-folder" role="group" :aria-labelledby="lastFolderLabelId">
-            <p :id="lastFolderLabelId" class="editor-last-folder__label">
-              {{ t("workspace.lastOpenedFolder") }}
-            </p>
-            <p class="editor-last-folder__name">{{ lastRecent.name }}</p>
-            <p class="editor-last-folder__path">{{ lastRecent.path }}</p>
+      <div v-else-if="!workspace && openBuffers.length === 0" class="editor-empty-workspace">
+        <EmptyState
+          pace="reassure"
+          :title="t('workspace.noWorkspace')"
+          :text="canReopenLast ? undefined : t('workspace.noWorkspaceText')"
+        >
+          <template v-if="canReopenLast && lastRecent" #detail>
+            <div class="editor-last-folder" role="group" :aria-labelledby="lastFolderLabelId">
+              <p :id="lastFolderLabelId" class="editor-last-folder__label">
+                {{ t("workspace.lastOpenedFolder") }}
+              </p>
+              <p class="editor-last-folder__name">{{ lastRecent.name }}</p>
+              <p class="editor-last-folder__path" :title="lastRecent.path">
+                {{ lastRecent.path }}
+              </p>
+            </div>
+          </template>
+          <template #action>
+            <button v-if="canReopenLast" type="button" @click="reopenLastWorkspace">
+              {{ t("actions.reopen", { name: lastRecent?.name ?? "" }) }}
+            </button>
+            <button :class="{ 'is-quiet': canReopenLast }" type="button" @click="openWorkspace">
+              {{ t("actions.openWorkspace") }}
+            </button>
+          </template>
+        </EmptyState>
+
+        <section
+          v-if="otherRecents.length > 0"
+          class="workspace-recents"
+          :aria-label="t('workspace.recentWorkspaces')"
+        >
+          <div class="workspace-recents__header">
+            <h2 class="workspace-recents__title">{{ t("workspace.recent") }}</h2>
+            <button class="workspace-recents__clear" type="button" @click="clearRecentWorkspaces">
+              {{ t("actions.clear") }}
+            </button>
           </div>
-        </template>
-        <template #action>
-          <button v-if="canReopenLast" type="button" @click="reopenLastWorkspace">
-            {{ t("actions.reopen", { name: lastRecent?.name ?? "" }) }}
-          </button>
-          <button :class="{ 'is-quiet': canReopenLast }" type="button" @click="openWorkspace">
-            {{ t("actions.openWorkspace") }}
-          </button>
-        </template>
-      </EmptyState>
+          <ul class="workspace-recents__list">
+            <li v-for="item in otherRecents" :key="item.path">
+              <button
+                class="workspace-recents__item"
+                type="button"
+                :title="item.path"
+                aria-haspopup="menu"
+                @click="selectRecentWorkspace(item.path)"
+                @contextmenu="onRecentContextMenu($event, item.path)"
+                @keydown="onRecentContextKeydown($event, item.path)"
+              >
+                <span class="workspace-recents__name">{{ item.name }}</span>
+                <span class="workspace-recents__item-path">{{ item.path }}</span>
+              </button>
+            </li>
+          </ul>
+        </section>
+      </div>
 
       <div v-else class="editor-page__editor-shell">
         <p
@@ -889,35 +921,6 @@ onBeforeUnmount(() => {
         </p>
       </div>
     </div>
-
-    <template
-      v-if="!workspace && !isLoading && openBuffers.length === 0 && otherRecents.length > 0"
-      #continue
-    >
-      <section class="workspace-recents" :aria-label="t('workspace.recentWorkspaces')">
-        <div class="workspace-recents__header">
-          <h2 class="workspace-recents__title">{{ t("workspace.recent") }}</h2>
-          <button class="workspace-recents__clear" type="button" @click="clearRecentWorkspaces">
-            {{ t("actions.clear") }}
-          </button>
-        </div>
-        <ul class="workspace-recents__list">
-          <li v-for="item in otherRecents" :key="item.path">
-            <button
-              class="workspace-recents__item"
-              type="button"
-              aria-haspopup="menu"
-              @click="selectRecentWorkspace(item.path)"
-              @contextmenu="onRecentContextMenu($event, item.path)"
-              @keydown="onRecentContextKeydown($event, item.path)"
-            >
-              <span class="workspace-recents__name">{{ item.name }}</span>
-              <span class="workspace-recents__item-path">{{ item.path }}</span>
-            </button>
-          </li>
-        </ul>
-      </section>
-    </template>
 
     <ContextMenu
       :open="menuOpen"
@@ -1052,33 +1055,52 @@ onBeforeUnmount(() => {
   }
 }
 
+.editor-page :deep(.empty-state--reassure) {
+  max-width: none;
+  padding-block: $space-compact 0;
+}
+
 .editor-page :deep(.empty-state--reassure .empty-state__title) {
-  color: $text-secondary;
-  font-size: $font-body;
+  color: $text-primary;
+  font-size: $font-section;
   font-weight: 600;
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
+}
+
+.editor-page :deep(.empty-state--reassure .empty-state__detail),
+.editor-page :deep(.empty-state--reassure .empty-state__action) {
+  margin-top: $space-related;
+}
+
+.editor-empty-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: $space-section;
+  max-width: 36rem;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: auto;
 }
 
 .editor-last-folder {
   display: flex;
   flex-direction: column;
   gap: $space-tight;
-  max-width: 24rem;
+  min-width: 0;
 }
 
 .editor-last-folder__label {
   margin: 0;
   color: $text-muted;
-  font-size: $font-micro;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: $font-caption;
+  font-weight: 500;
 }
 
 .editor-last-folder__name {
   margin: 0;
   color: $text-primary;
-  font-size: $font-section;
+  font-size: $font-lead;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.25;
@@ -1090,16 +1112,16 @@ onBeforeUnmount(() => {
   font-family: $font-mono;
   font-size: $font-caption;
   line-height: 1.4;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .workspace-recents {
   display: flex;
   flex-direction: column;
-  gap: $space-block;
-  padding-top: $space-section;
+  gap: $space-related;
+  padding-top: $space-compact;
   border-top: 1px solid $border-subtle;
-  max-width: 28rem;
+  min-width: 0;
 }
 
 .workspace-recents__header {
@@ -1141,6 +1163,6 @@ onBeforeUnmount(() => {
   color: $text-muted;
   font-family: $font-mono;
   font-size: $font-caption;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 </style>

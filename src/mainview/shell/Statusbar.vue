@@ -94,12 +94,14 @@ const showDocumentGroup = computed(
     Boolean(indicators.value.document && documentStatus.value) ||
     Boolean(indicators.value.language && activeLanguage.value),
 );
-const showModeGroup = computed(() => indicators.value.linkMode);
+const showModeGroup = computed(() => Boolean(indicators.value.linkMode && activeBuffer.value));
 const showFormatGroup = computed(() => Boolean(indicators.value.eol && eolLabel.value));
 const showStatsGroup = computed(
   () => Boolean(readingCount.value) || Boolean(indicators.value.characters && characterCount.value),
 );
-const showContextGroup = computed(() => indicators.value.workspace);
+const showContextGroup = computed(() =>
+  Boolean(indicators.value.workspace && (workspace.value || activeBuffer.value)),
+);
 </script>
 
 <template>
