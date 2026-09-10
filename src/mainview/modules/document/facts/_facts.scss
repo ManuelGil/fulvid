@@ -1,0 +1,70 @@
+@use "../../../styles/colors" as *;
+@use "../../../styles/variables" as *;
+
+/** Shared fact reading language - not KPI / dashboard chrome. */
+
+@mixin fact-section {
+  display: flex;
+  flex-direction: column;
+  gap: $space-compact;
+}
+
+@mixin fact-title {
+  margin: 0;
+  font-size: $font-control;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: $text-secondary;
+  text-transform: none;
+}
+
+@mixin fact-row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 7.5rem) 1fr;
+  gap: $space-related;
+  align-items: baseline;
+  padding: $space-tight 0;
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+}
+
+@mixin fact-label {
+  margin: 0;
+  color: $text-muted;
+  font-size: $font-label;
+  font-weight: 400;
+}
+
+@mixin fact-value {
+  margin: 0;
+  color: $text-primary;
+  font-size: $font-body;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+
+@mixin fact-statement {
+  margin: 0;
+  color: $text-primary;
+  font-size: $font-body;
+  line-height: 1.55;
+}
+
+@mixin fact-evidence {
+  margin: 0;
+  color: $text-muted;
+  font-size: $font-caption;
+  line-height: 1.4;
+}
+
+@mixin fact-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: $space-compact 0 0;
+  padding: 0;
+  list-style: none;
+}

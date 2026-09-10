@@ -1,0 +1,80 @@
+/* Graph stage tokens - document owns identity; canvas is the answer.
+ * Hierarchy (CSS only): Focus → direct references → wider context → chrome.
+ */
+
+.graph-workbench {
+  --graph-workbench-ink: var(--text-primary);
+  --graph-workbench-muted: var(--text-muted);
+
+  --graph-canvas-background: var(--background);
+  --graph-canvas-grid: color-mix(in srgb, var(--border) 18%, transparent);
+  --graph-canvas-vignette: color-mix(in srgb, var(--background) 28%, transparent);
+
+  /* Focus reads first; neighbors next; secondary recedes. */
+  --graph-node-focus-color: var(--accent-text);
+  --graph-node-focus-border: var(--text-primary);
+  --graph-node-neighbor-color: color-mix(in srgb, var(--surface-elevated) 70%, var(--accent) 30%);
+  --graph-node-neighbor-border: var(--accent-text);
+  --graph-node-default-color: var(--surface-hover);
+  --graph-node-default-border: var(--border);
+  --graph-node-highlight: var(--accent);
+
+  --graph-edge-focus: var(--accent-text);
+  --graph-edge-color: var(--border);
+  --graph-edge-highlight: var(--accent);
+  --graph-edge-dimmed: var(--border-subtle);
+
+  --graph-label-color: var(--text-primary);
+  --graph-label-muted: var(--text-secondary);
+  --graph-label-halo: var(--background);
+
+  --graph-chrome-surface: color-mix(in srgb, var(--surface) 82%, transparent);
+  --graph-chrome-border: color-mix(in srgb, var(--border) 72%, transparent);
+  --graph-chrome-ink: var(--text-secondary);
+  --graph-chrome-active: var(--accent-text);
+
+  --graph-tooltip-background: color-mix(in srgb, var(--surface-elevated) 94%, var(--background));
+  --graph-tooltip-border: var(--border);
+  --graph-tooltip-shadow: var(--shadow-soft);
+}
+
+@media (forced-colors: active) {
+  html[data-theme] .graph-workbench {
+    --graph-workbench-ink: CanvasText;
+    --graph-workbench-muted: CanvasText;
+    --graph-canvas-background: Canvas;
+    --graph-canvas-grid: GrayText;
+    --graph-canvas-vignette: Canvas;
+    --graph-node-focus-color: Highlight;
+    --graph-node-focus-border: CanvasText;
+    --graph-node-neighbor-color: Canvas;
+    --graph-node-neighbor-border: CanvasText;
+    --graph-node-default-color: Canvas;
+    --graph-node-default-border: GrayText;
+    --graph-node-highlight: Highlight;
+    --graph-edge-focus: Highlight;
+    --graph-edge-color: CanvasText;
+    --graph-edge-highlight: Highlight;
+    --graph-edge-dimmed: GrayText;
+    --graph-label-color: CanvasText;
+    --graph-label-muted: CanvasText;
+    --graph-label-halo: Canvas;
+    --graph-chrome-surface: Canvas;
+    --graph-chrome-border: CanvasText;
+    --graph-chrome-ink: CanvasText;
+    --graph-chrome-active: Highlight;
+    --graph-tooltip-background: Canvas;
+    --graph-tooltip-border: CanvasText;
+    --graph-tooltip-shadow: none;
+  }
+
+  .graph-workbench__viewport {
+    background: Canvas;
+    background-image: none;
+  }
+}
+
+.graph-canvas,
+.graph-workbench__viewport {
+  --graph-canvas-background: inherit;
+}

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Fulvid
+Comment=Standalone desktop editor for Markdown and MDX
+Exec=fulvid
+Icon=fulvid
+Terminal=false
+StartupWMClass=Fulvid
+Categories=Utility;TextEditor;
+MimeType=text/markdown;text/x-markdown;

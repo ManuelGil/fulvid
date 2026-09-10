@@ -1,0 +1,128 @@
+@use "./colors" as *;
+@use "./variables" as *;
+
+@mixin control-field {
+  display: inline-flex;
+  align-items: center;
+  min-height: $control-height;
+  padding: $space-2 $space-3;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: $background;
+  color: $text-primary;
+  font: inherit;
+  font-size: $font-body;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  box-sizing: border-box;
+  transition:
+    border-color $transition-fast $ease-out,
+    background-color $transition-fast $ease-out,
+    box-shadow $transition-fast $ease-out;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+
+  &:hover:not(:disabled):not(:focus-visible) {
+    border-color: color-mix(in srgb, $border 40%, $text-secondary);
+  }
+
+  &:focus-visible {
+    border-color: $focus-ring;
+    box-shadow: 0 0 0 1px $focus-ring;
+    outline: none;
+  }
+
+  &:disabled {
+    color: $disabled;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+}
+
+@mixin control-select {
+  @include control-field;
+  appearance: none;
+  padding-right: 28px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, $text-muted 50%),
+    linear-gradient(135deg, $text-muted 50%, transparent 50%);
+  background-position:
+    calc(100% - 13px) calc(50% - 2px),
+    calc(100% - 8px) calc(50% - 2px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+@mixin control-checkbox {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: $accent;
+  cursor: pointer;
+}
+
+@mixin control-search {
+  @include control-field;
+  min-height: 48px;
+  padding: $space-3 $space-4;
+  font-size: $font-lead;
+  letter-spacing: -0.015em;
+  box-shadow: $shadow-soft;
+
+  &:focus-visible {
+    border-color: $focus-ring;
+    box-shadow:
+      0 0 0 1px $focus-ring,
+      $shadow-soft;
+  }
+}
+
+@mixin icon-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: $hit-min;
+  height: $hit-min;
+  padding: 0;
+  border: 0;
+  border-radius: $radius;
+  background: transparent;
+  color: $text-secondary;
+  cursor: pointer;
+
+  &:hover:not(:disabled),
+  &[aria-pressed="true"] {
+    background: $surface-hover;
+    color: $text-primary;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: -2px;
+  }
+
+  &:disabled {
+    color: $disabled;
+    cursor: not-allowed;
+  }
+}
+
+@mixin resize-handle-interaction {
+  cursor: col-resize;
+  touch-action: none;
+
+  &:hover,
+  &:focus-visible {
+    background: color-mix(in srgb, $accent 35%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: -1px;
+  }
+}

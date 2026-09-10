@@ -1,0 +1,47 @@
+$sidebar-width: var(--sidebar-width);
+$inspector-width: var(--inspector-width);
+$panel-padding: var(--panel-padding);
+$radius: var(--radius);
+$radius-lg: var(--radius-lg);
+$transition-fast: var(--transition-fast);
+$transition-medium: var(--transition-medium);
+$ease-out: var(--ease-out);
+$hit-min: var(--hit-min);
+$control-height: var(--control-height);
+$control-height-small: var(--control-height-small);
+$menu-row-height: var(--menu-row-height);
+$actions-row-height: var(--actions-row-height);
+$panel-header-height: var(--panel-header-height);
+$statusbar-height: var(--statusbar-height);
+$settings-option-height: var(--settings-option-height);
+$resize-hit-width: var(--resize-hit-width);
+
+$page-max-width: 760px;
+$scroll-inline-padding: 4px;
+
+$space-1: var(--space-1);
+$space-2: var(--space-2);
+$space-3: var(--space-3);
+$space-4: var(--space-4);
+$space-5: var(--space-5);
+$space-6: var(--space-6);
+
+$space-tight: $space-1;
+$space-related: $space-2;
+$space-compact: $space-3;
+$space-block: $space-4;
+$space-group: $space-5;
+$space-section: $space-5;
+$space-page: $space-6;
+
+$font-micro: var(--font-size-micro);
+$font-caption: var(--font-size-caption);
+$font-label: var(--font-size-label);
+$font-control: var(--font-size-control);
+$font-body: var(--font-size-body);
+$font-lead: var(--font-size-lead);
+$font-section: var(--font-size-section);
+$font-title: var(--font-size-title);
+$font-display: var(--font-size-display);
+
+$font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;

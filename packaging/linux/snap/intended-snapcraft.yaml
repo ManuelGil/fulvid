@@ -1,0 +1,54 @@
+# INTENDED SNAPCRAFT DRAFT — not built, not validated, not a Store upload.
+#
+# Do not copy this to snap/snapcraft.yaml until a prototype has been run.
+# snapcraft is not wired in CI. GitHub Releases remains the only public channel.
+#
+# Forbidden in this draft and in any first implementation:
+#   confinement: classic
+#   plugs: home | network | removable-media | personal-files
+#   bundleCEF / CEF
+#
+# Source of the part is intentionally unset. Choose later:
+#   - local build/stable-linux-x64/Fulvid
+#   - a declared URL to the Linux Setup archive after a GitHub Release exists
+#
+# name: fulvid is the Store identifier candidate, not a second product name.
+
+name: fulvid
+base: core24
+version: "0.1.0"
+summary: A standalone desktop editor for Markdown and MDX
+description: |
+  Fulvid is a standalone desktop editor for Markdown and MDX.
+  The file on disk is the source of truth. Monaco is the live editor.
+  MDX is not executed. Preview is inert Markdown.
+license: MIT
+grade: devel
+confinement: strict
+# website, contact, issues: reuse GitHub (ManuelGil/fulvid) when listing exists
+
+apps:
+  fulvid:
+    command: bin/launcher
+    desktop: fulvid.desktop
+    extensions: [gnome]
+    plugs:
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+    # Evaluate browser-support only if WebKit helpers fail to spawn.
+
+parts:
+  fulvid:
+    plugin: dump
+    # source:  # decide when prototyping
+    organize:
+      "*": .
+    # stage-packages: only if gnome-46-2404 does not provide a NEEDED soname
+    # (Ayatana / dbusmenu). Do not stage WebKit from Ubuntu to "be safe".
+
+# If WebKitNetworkProcess cannot start, try a symlink layout for
+# /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1 before any
+# product or CEF change. The GNOME extension already bind-mounts 4.1.

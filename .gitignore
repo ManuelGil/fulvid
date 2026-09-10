@@ -1,0 +1,12 @@
+node_modules/
+.env
+.hutch/
+build/
+dist/
+# Generated packaging output. Not committed.
+artifacts/
+# Detached PGP signatures from a local release. The project public key stays tracked.
+*.asc
+!security/signing-key.asc
+.cottontail-tmp/
+*.tsbuildinfo

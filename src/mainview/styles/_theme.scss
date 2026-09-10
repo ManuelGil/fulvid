@@ -1,0 +1,681 @@
+// Design System V2 - semantic color roles.
+//
+// Surface ladder (must remain distinguishable):
+//   background  → window chrome
+//   surface     → sidebar / navigation
+//   surface-elevated → page stage, dialogs, canvas
+//   surface-hover / selection → interaction
+
+@mixin emit-theme-tokens($tokens) {
+  @each $name, $value in $tokens {
+    --#{$name}: #{$value};
+  }
+}
+
+// Theme colors live here so Chrome, previews, Graph, and Monaco can consume
+// one semantic vocabulary. Add a theme by adding one complete token map.
+$light-tokens: (
+  background: #f6f8fa,
+  surface: #f6f8fa,
+  surface-elevated: #ffffff,
+  surface-hover: #eaeef2,
+  selection: #b6d7ff,
+  selection-foreground: #24292f,
+  border: #d0d7de,
+  border-subtle: #d8dee4,
+  text-primary: #24292f,
+  text-secondary: #4b5563,
+  text-muted: #59636e,
+  text-heading: #8250df,
+  text-link: #0969da,
+  text-code: #953800,
+  accent: #0969da,
+  accent-hover: #0550ae,
+  accent-text: #0969da,
+  on-accent: #ffffff,
+  focus-ring: #0969da,
+  disabled: #8c959f,
+  error-text: #cf222e,
+  warning-text: #9a6700,
+  success-text: #1a7f37,
+  shadow-elevated: 0 18px 44px rgba(31, 35, 40, 0.1),
+  shadow-soft: 0 3px 12px rgba(31, 35, 40, 0.05),
+  scrollbar-thumb: #afb8c1,
+  scrollbar-thumb-hover: #8c959f,
+  overlay: rgba(14, 18, 24, 0.34),
+  color-scheme: light,
+);
+
+$paper-tokens: (
+  background: #f7f4ed,
+  surface: #fbf9f4,
+  surface-elevated: #fffdf8,
+  surface-hover: #eee9dd,
+  selection: #c9ddf4,
+  selection-foreground: #2d2a26,
+  border: #d8d0c2,
+  border-subtle: #e5ded2,
+  text-primary: #2d2a26,
+  text-secondary: #5f5a50,
+  text-muted: #746e63,
+  text-heading: #7d4e2d,
+  text-link: #2c5f8a,
+  text-code: #6b4f2a,
+  accent: #2c5f8a,
+  accent-hover: #21496b,
+  accent-text: #2c5f8a,
+  on-accent: #ffffff,
+  focus-ring: #2c5f8a,
+  disabled: #938b7e,
+  error-text: #a33a2b,
+  warning-text: #8a5a00,
+  success-text: #356b43,
+  shadow-elevated: 0 18px 44px rgba(73, 61, 43, 0.12),
+  shadow-soft: 0 3px 12px rgba(73, 61, 43, 0.06),
+  scrollbar-thumb: #bcb3a5,
+  scrollbar-thumb-hover: #988d7e,
+  overlay: rgba(51, 43, 31, 0.3),
+  color-scheme: light,
+);
+
+$warm-light-tokens: (
+  background: #fff8f0,
+  surface: #fffaf4,
+  surface-elevated: #fffdf9,
+  surface-hover: #f5e7da,
+  selection: #f4cfb5,
+  selection-foreground: #3b2b25,
+  border: #e4cfc0,
+  border-subtle: #f0dfd1,
+  text-primary: #3b2b25,
+  text-secondary: #6f574d,
+  text-muted: #8b7164,
+  text-heading: #7b3f87,
+  text-link: #9a3e25,
+  text-code: #7a4b25,
+  accent: #a64b2a,
+  accent-hover: #873a21,
+  accent-text: #9a3e25,
+  on-accent: #ffffff,
+  focus-ring: #9a3e25,
+  disabled: #a98e80,
+  error-text: #a32e2e,
+  warning-text: #8a5600,
+  success-text: #3f7048,
+  shadow-elevated: 0 18px 44px rgba(102, 57, 35, 0.12),
+  shadow-soft: 0 3px 12px rgba(102, 57, 35, 0.06),
+  scrollbar-thumb: #cdb2a3,
+  scrollbar-thumb-hover: #ad8d7d,
+  overlay: rgba(75, 43, 31, 0.3),
+  color-scheme: light,
+);
+
+$soft-light-tokens: (
+  background: #f3f6f8,
+  surface: #f8fafb,
+  surface-elevated: #ffffff,
+  surface-hover: #e7edf1,
+  selection: #c8dce4,
+  selection-foreground: #26343b,
+  border: #cbd8df,
+  border-subtle: #dce6eb,
+  text-primary: #26343b,
+  text-secondary: #51616b,
+  text-muted: #6c7c86,
+  text-heading: #5d5c9d,
+  text-link: #2f657c,
+  text-code: #6c4f43,
+  accent: #3a7185,
+  accent-hover: #2e5c6d,
+  accent-text: #2f657c,
+  on-accent: #ffffff,
+  focus-ring: #2f657c,
+  disabled: #91a0a8,
+  error-text: #a33d4b,
+  warning-text: #8a6200,
+  success-text: #2f7359,
+  shadow-elevated: 0 18px 44px rgba(49, 78, 91, 0.12),
+  shadow-soft: 0 3px 12px rgba(49, 78, 91, 0.06),
+  scrollbar-thumb: #aebfc8,
+  scrollbar-thumb-hover: #899da8,
+  overlay: rgba(38, 52, 59, 0.28),
+  color-scheme: light,
+);
+
+$dark-tokens: (
+  background: #0d1117,
+  surface: #161b22,
+  surface-elevated: #0d1117,
+  surface-hover: #21262d,
+  selection: #264f78,
+  selection-foreground: #ffffff,
+  border: #30363d,
+  border-subtle: #21262d,
+  text-primary: #c9d1d9,
+  text-secondary: #b1bac4,
+  text-muted: #8b949e,
+  text-heading: #d2a8ff,
+  text-link: #58a6ff,
+  text-code: #ffa657,
+  accent: #58a6ff,
+  accent-hover: #79c0ff,
+  accent-text: #58a6ff,
+  on-accent: #ffffff,
+  focus-ring: #58a6ff,
+  disabled: #6e7681,
+  error-text: #ff7b72,
+  warning-text: #d29922,
+  success-text: #3fb950,
+  shadow-elevated: 0 14px 32px rgba(0, 0, 0, 0.45),
+  shadow-soft: 0 3px 12px rgba(0, 0, 0, 0.22),
+  scrollbar-thumb: #30363d,
+  scrollbar-thumb-hover: #484f58,
+  overlay: rgba(4, 6, 8, 0.58),
+  color-scheme: dark,
+);
+
+$dark-soft-tokens: (
+  background: #12161c,
+  surface: #1b222c,
+  surface-elevated: #242c36,
+  surface-hover: #2c3743,
+  selection: #3a5268,
+  selection-foreground: #f4f7fa,
+  border: #3b4854,
+  border-subtle: #293540,
+  text-primary: #d5dde5,
+  text-secondary: #b2bfca,
+  text-muted: #94a3af,
+  text-heading: #c3a8e8,
+  text-link: #8ec5e8,
+  text-code: #e8b277,
+  accent: #7bb3d8,
+  accent-hover: #a0ccec,
+  accent-text: #8ec5e8,
+  on-accent: #10202b,
+  focus-ring: #a0ccec,
+  disabled: #71808d,
+  error-text: #ff9c91,
+  warning-text: #e5bd6d,
+  success-text: #78c99a,
+  shadow-elevated: 0 14px 32px rgba(0, 0, 0, 0.3),
+  shadow-soft: 0 3px 12px rgba(0, 0, 0, 0.16),
+  scrollbar-thumb: #465562,
+  scrollbar-thumb-hover: #607383,
+  overlay: rgba(8, 11, 15, 0.5),
+  color-scheme: dark,
+);
+
+$dark-strong-tokens: (
+  background: #05070a,
+  surface: #0b0f14,
+  surface-elevated: #111720,
+  surface-hover: #18212b,
+  selection: #234f78,
+  selection-foreground: #ffffff,
+  border: #394754,
+  border-subtle: #202a34,
+  text-primary: #f0f4f8,
+  text-secondary: #c3ced8,
+  text-muted: #9ba8b5,
+  text-heading: #e0b7ff,
+  text-link: #64b5ff,
+  text-code: #ffb86b,
+  accent: #64b5ff,
+  accent-hover: #8dcbff,
+  accent-text: #64b5ff,
+  on-accent: #061019,
+  focus-ring: #8dcbff,
+  disabled: #697783,
+  error-text: #ff8d83,
+  warning-text: #f0bd56,
+  success-text: #61d490,
+  shadow-elevated: 0 16px 38px rgba(0, 0, 0, 0.58),
+  shadow-soft: 0 3px 12px rgba(0, 0, 0, 0.3),
+  scrollbar-thumb: #394754,
+  scrollbar-thumb-hover: #5a6c7c,
+  overlay: rgba(0, 0, 0, 0.68),
+  color-scheme: dark,
+);
+
+$midnight-tokens: (
+  background: #080a16,
+  surface: #101329,
+  surface-elevated: #151b37,
+  surface-hover: #1c2548,
+  selection: #3c447e,
+  selection-foreground: #ffffff,
+  border: #333b63,
+  border-subtle: #252d50,
+  text-primary: #e1e5ff,
+  text-secondary: #b9c2e5,
+  text-muted: #929dca,
+  text-heading: #e2b4ff,
+  text-link: #9eb8ff,
+  text-code: #f2c17d,
+  accent: #8da2ff,
+  accent-hover: #b0beff,
+  accent-text: #9eb8ff,
+  on-accent: #0b1024,
+  focus-ring: #b0beff,
+  disabled: #6d78a3,
+  error-text: #ff9aa8,
+  warning-text: #f1c875,
+  success-text: #7bd6a4,
+  shadow-elevated: 0 16px 38px rgba(0, 0, 0, 0.5),
+  shadow-soft: 0 3px 12px rgba(0, 0, 0, 0.26),
+  scrollbar-thumb: #3b4672,
+  scrollbar-thumb-hover: #5969a0,
+  overlay: rgba(4, 5, 15, 0.68),
+  color-scheme: dark,
+);
+
+$high-contrast-light-tokens: (
+  background: #ffffff,
+  surface: #ffffff,
+  surface-elevated: #ffffff,
+  surface-hover: #e6e6e6,
+  selection: #000000,
+  selection-foreground: #ffffff,
+  border: #000000,
+  border-subtle: #000000,
+  text-primary: #000000,
+  text-secondary: #000000,
+  text-muted: #262626,
+  text-heading: #000080,
+  text-link: #0000ee,
+  text-code: #6b0000,
+  accent: #0000ee,
+  accent-hover: #000080,
+  accent-text: #0000ee,
+  on-accent: #ffffff,
+  focus-ring: #000000,
+  disabled: #4b4b4b,
+  error-text: #a00000,
+  warning-text: #714900,
+  success-text: #005a00,
+  shadow-elevated: none,
+  shadow-soft: none,
+  scrollbar-thumb: #000000,
+  scrollbar-thumb-hover: #0000ee,
+  overlay: rgba(0, 0, 0, 0.8),
+  color-scheme: light,
+);
+
+$high-contrast-dark-tokens: (
+  background: #000000,
+  surface: #000000,
+  surface-elevated: #000000,
+  surface-hover: #2b2b2b,
+  selection: #ffffff,
+  selection-foreground: #000000,
+  border: #ffffff,
+  border-subtle: #ffffff,
+  text-primary: #ffffff,
+  text-secondary: #f5f5f5,
+  text-muted: #e8e8e8,
+  text-heading: #ffff00,
+  text-link: #00ffff,
+  text-code: #ffe08a,
+  accent: #00ffff,
+  accent-hover: #ffff00,
+  accent-text: #00ffff,
+  on-accent: #000000,
+  focus-ring: #ffff00,
+  disabled: #e8e8e8,
+  error-text: #ffb3b3,
+  warning-text: #ffe08a,
+  success-text: #8cff8c,
+  shadow-elevated: none,
+  shadow-soft: none,
+  scrollbar-thumb: #ffffff,
+  scrollbar-thumb-hover: #ffff00,
+  overlay: rgba(0, 0, 0, 0.8),
+  color-scheme: dark,
+);
+
+$protanopia-tokens: (
+  background: #f5f7fb,
+  surface: #eef2f8,
+  surface-elevated: #ffffff,
+  surface-hover: #dde6f2,
+  selection: #b9d4f4,
+  selection-foreground: #1f2b3a,
+  border: #c5d1df,
+  border-subtle: #dce4ed,
+  text-primary: #1f2b3a,
+  text-secondary: #4d5d70,
+  text-muted: #697a8d,
+  text-heading: #6a3d9a,
+  text-link: #005fae,
+  text-code: #8a4b00,
+  accent: #005fae,
+  accent-hover: #00477f,
+  accent-text: #005fae,
+  on-accent: #ffffff,
+  focus-ring: #005fae,
+  disabled: #8a98a8,
+  error-text: #8a3b12,
+  warning-text: #785500,
+  success-text: #246b6b,
+  shadow-elevated: 0 18px 44px rgba(36, 53, 75, 0.1),
+  shadow-soft: 0 3px 12px rgba(36, 53, 75, 0.05),
+  scrollbar-thumb: #a9b8c8,
+  scrollbar-thumb-hover: #7d91a7,
+  overlay: rgba(31, 43, 58, 0.3),
+  color-scheme: light,
+);
+
+$deuteranopia-tokens: (
+  background: #f7f8fc,
+  surface: #eff1f8,
+  surface-elevated: #ffffff,
+  surface-hover: #e1e5f1,
+  selection: #c1d5f0,
+  selection-foreground: #222b3a,
+  border: #c7d0e0,
+  border-subtle: #dfe5ef,
+  text-primary: #222b3a,
+  text-secondary: #505d72,
+  text-muted: #6e7b91,
+  text-heading: #5b4b9a,
+  text-link: #1d4f91,
+  text-code: #825000,
+  accent: #1d4f91,
+  accent-hover: #163d70,
+  accent-text: #1d4f91,
+  on-accent: #ffffff,
+  focus-ring: #163d70,
+  disabled: #8c97a8,
+  error-text: #8c3f00,
+  warning-text: #6a5200,
+  success-text: #0b6b6b,
+  shadow-elevated: 0 18px 44px rgba(34, 43, 58, 0.1),
+  shadow-soft: 0 3px 12px rgba(34, 43, 58, 0.05),
+  scrollbar-thumb: #acb8cb,
+  scrollbar-thumb-hover: #8191ad,
+  overlay: rgba(34, 43, 58, 0.3),
+  color-scheme: light,
+);
+
+$tritanopia-tokens: (
+  background: #fbf6f8,
+  surface: #f6edf2,
+  surface-elevated: #ffffff,
+  surface-hover: #eadce5,
+  selection: #edc5d5,
+  selection-foreground: #3a2530,
+  border: #d9c6d1,
+  border-subtle: #eadde4,
+  text-primary: #3a2530,
+  text-secondary: #664c5a,
+  text-muted: #806a77,
+  text-heading: #6b3f87,
+  text-link: #8a2358,
+  text-code: #7f4b28,
+  accent: #9c2f68,
+  accent-hover: #7d2453,
+  accent-text: #8a2358,
+  on-accent: #ffffff,
+  focus-ring: #7d2453,
+  disabled: #a18d99,
+  error-text: #8b1e3f,
+  warning-text: #8a4b00,
+  success-text: #287044,
+  shadow-elevated: 0 18px 44px rgba(74, 39, 58, 0.1),
+  shadow-soft: 0 3px 12px rgba(74, 39, 58, 0.05),
+  scrollbar-thumb: #c1a9b7,
+  scrollbar-thumb-hover: #a27c91,
+  overlay: rgba(58, 37, 48, 0.3),
+  color-scheme: light,
+);
+
+$monochrome-tokens: (
+  background: #111111,
+  surface: #1b1b1b,
+  surface-elevated: #242424,
+  surface-hover: #303030,
+  selection: #d8d8d8,
+  selection-foreground: #111111,
+  border: #5f5f5f,
+  border-subtle: #3e3e3e,
+  text-primary: #f1f1f1,
+  text-secondary: #c8c8c8,
+  text-muted: #9d9d9d,
+  text-heading: #ffffff,
+  text-link: #e6e6e6,
+  text-code: #c6c6c6,
+  accent: #f1f1f1,
+  accent-hover: #ffffff,
+  accent-text: #f1f1f1,
+  on-accent: #111111,
+  focus-ring: #ffffff,
+  disabled: #777777,
+  error-text: #ffffff,
+  warning-text: #d6d6d6,
+  success-text: #b2b2b2,
+  shadow-elevated: 0 16px 38px rgba(0, 0, 0, 0.5),
+  shadow-soft: 0 3px 12px rgba(0, 0, 0, 0.26),
+  scrollbar-thumb: #666666,
+  scrollbar-thumb-hover: #a0a0a0,
+  overlay: rgba(0, 0, 0, 0.68),
+  color-scheme: dark,
+);
+
+@mixin dark-tokens {
+  @include emit-theme-tokens($dark-tokens);
+}
+
+@mixin light-tokens {
+  @include emit-theme-tokens($light-tokens);
+}
+
+@mixin high-contrast-light-tokens {
+  @include emit-theme-tokens($high-contrast-light-tokens);
+}
+
+@mixin high-contrast-dark-tokens {
+  @include emit-theme-tokens($high-contrast-dark-tokens);
+}
+
+:root {
+  @include dark-tokens;
+  --ui-text-scale: 1;
+  --ui-icon-scale: 1;
+  // Named chrome type ramp: Monaco's document typography stays independent.
+  --font-size-micro: calc(10px * var(--ui-text-scale));
+  --font-size-caption: calc(11px * var(--ui-text-scale));
+  --font-size-label: calc(12px * var(--ui-text-scale));
+  --font-size-control: calc(13px * var(--ui-text-scale));
+  --font-size-body: calc(14px * var(--ui-text-scale));
+  --font-size-lead: calc(15px * var(--ui-text-scale));
+  --font-size-section: calc(18px * var(--ui-text-scale));
+  --font-size-title: calc(20px * var(--ui-text-scale));
+  --font-size-display: calc(26px * var(--ui-text-scale));
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --panel-padding: 20px;
+  --sidebar-width: 252px;
+  --inspector-width: 320px;
+  // Shared control rhythm keeps menus, toolbars, panels, and settings aligned.
+  --control-height-small: 32px;
+  --menu-row-height: 36px;
+  --actions-row-height: 40px;
+  --panel-header-height: 40px;
+  --statusbar-height: 32px;
+  --settings-option-height: 48px;
+  --resize-hit-width: 12px;
+  --radius: 6px;
+  --radius-lg: 8px;
+  --transition-fast: 110ms;
+  --transition-medium: 180ms;
+  --hit-min: 36px;
+  --control-height: 36px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  color-scheme: var(--color-scheme, dark);
+}
+
+html[data-interface-text-scale="small"] {
+  --ui-text-scale: 0.92;
+}
+
+html[data-interface-text-scale="large"] {
+  --ui-text-scale: 1.14;
+}
+
+html[data-icon-scale="small"] {
+  --ui-icon-scale: 0.9;
+}
+
+html[data-icon-scale="large"] {
+  --ui-icon-scale: 1.15;
+}
+
+html[data-density="compact"] {
+  --space-1: 3px;
+  --space-2: 7px;
+  --space-3: 10px;
+  --space-4: 14px;
+  --space-5: 20px;
+  --space-6: 28px;
+  --panel-padding: 16px;
+  --sidebar-width: 236px;
+  --inspector-width: 300px;
+  --control-height: 34px;
+  --control-height-small: 32px;
+  --menu-row-height: 34px;
+  --actions-row-height: 36px;
+  --panel-header-height: 36px;
+  --statusbar-height: 30px;
+  --settings-option-height: 44px;
+  --resize-hit-width: 12px;
+}
+
+[data-theme="dark"] {
+  @include dark-tokens;
+}
+
+[data-theme="light"] {
+  @include light-tokens;
+}
+
+[data-theme="paper"] {
+  @include emit-theme-tokens($paper-tokens);
+}
+
+[data-theme="warm-light"] {
+  @include emit-theme-tokens($warm-light-tokens);
+}
+
+[data-theme="soft-light"] {
+  @include emit-theme-tokens($soft-light-tokens);
+}
+
+[data-theme="dark-soft"] {
+  @include emit-theme-tokens($dark-soft-tokens);
+}
+
+[data-theme="dark-strong"] {
+  @include emit-theme-tokens($dark-strong-tokens);
+}
+
+[data-theme="midnight"] {
+  @include emit-theme-tokens($midnight-tokens);
+}
+
+[data-theme="high-contrast-light"] {
+  @include high-contrast-light-tokens;
+}
+
+[data-theme="high-contrast-dark"] {
+  @include high-contrast-dark-tokens;
+}
+
+[data-theme="protanopia"] {
+  @include emit-theme-tokens($protanopia-tokens);
+}
+
+[data-theme="deuteranopia"] {
+  @include emit-theme-tokens($deuteranopia-tokens);
+}
+
+[data-theme="tritanopia"] {
+  @include emit-theme-tokens($tritanopia-tokens);
+}
+
+[data-theme="monochrome"] {
+  @include emit-theme-tokens($monochrome-tokens);
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    @include light-tokens;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    @include dark-tokens;
+  }
+}
+
+@media (forced-colors: active) {
+  [data-theme] {
+    --background: Canvas;
+    --surface: Canvas;
+    --surface-elevated: Canvas;
+    --surface-hover: Highlight;
+    --selection: Highlight;
+    --selection-foreground: HighlightText;
+    --border: CanvasText;
+    --border-subtle: CanvasText;
+    --text-primary: CanvasText;
+    --text-secondary: CanvasText;
+    --text-muted: GrayText;
+    --text-heading: CanvasText;
+    --text-link: LinkText;
+    --text-code: CanvasText;
+    --accent: Highlight;
+    --accent-hover: Highlight;
+    --accent-text: LinkText;
+    --on-accent: HighlightText;
+    --focus-ring: Highlight;
+    --disabled: GrayText;
+    --error-text: CanvasText;
+    --warning-text: CanvasText;
+    --success-text: CanvasText;
+    --shadow-elevated: none;
+    --shadow-soft: none;
+    --scrollbar-thumb: CanvasText;
+    --scrollbar-thumb-hover: Highlight;
+    --overlay: Canvas;
+    --color-scheme: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-reduced-motion="false"]) *,
+  html:not([data-reduced-motion="false"]) *::before,
+  html:not([data-reduced-motion="false"]) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before,
+html[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

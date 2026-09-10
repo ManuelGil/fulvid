@@ -1,0 +1,236 @@
+name: Dependency security
+
+on:
+  schedule:
+    - cron: "17 3 1 * *"
+  workflow_dispatch:
+
+concurrency:
+  group: dependency-security
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CI: "true"
+  BUN_VERSION: "1.4.0"
+  SECURITY_BRANCH: "automation/security-dependency-updates"
+
+jobs:
+  security-maintenance:
+    name: Security dependency maintenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      status: ${{ steps.security.outputs.status }}
+      validation: ${{ steps.validation.outcome }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Restore Bun cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-${{ env.BUN_VERSION }}-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Apply security-only dependency fixes
+        id: security
+        run: bun run deps:security -- --apply --report "$RUNNER_TEMP/fulvid-security-dependency-report.md"
+
+      - name: Publish security review summary
+        if: always()
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/fulvid-security-dependency-report.md"
+          if [[ -f "$report" ]]; then
+            cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## Security dependency review"
+              echo
+              echo "The security maintenance script did not produce a report."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Validate security update
+        id: validation
+        if: steps.security.outputs.status == 'fixed'
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/fulvid-security-dependency-report.md"
+
+          bun install --frozen-lockfile --ignore-scripts
+          bun run deps:check
+          bun audit --prod
+          bun run validate
+          git diff --check
+
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            case "$file" in
+              package.json|bun.lock) ;;
+              *)
+                echo "Unexpected file changed by security maintenance: $file"
+                exit 1
+                ;;
+            esac
+          done < <(git diff --name-only)
+
+          cat >> "$report" <<'EOF'
+
+          ### Validation
+
+          - `bun install --frozen-lockfile --ignore-scripts`: passed
+          - `bun run deps:check`: passed
+          - `bun audit --prod`: passed
+          - `bun run validate`: passed
+          - `git diff --check`: passed
+          EOF
+
+      - name: Publish validation result
+        if: always() && steps.security.outputs.status == 'fixed'
+        env:
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          set -euo pipefail
+          {
+            echo
+            echo "### Validation result"
+            echo
+            echo "- Existing validation gate: ${VALIDATION_OUTCOME}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload security update
+        if: success() && steps.security.outputs.status == 'fixed' && steps.validation.outcome == 'success'
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/security-dependency-update"
+          cp -- package.json bun.lock "$RUNNER_TEMP/security-dependency-update/"
+          cp -- "$RUNNER_TEMP/fulvid-security-dependency-report.md" \
+            "$RUNNER_TEMP/security-dependency-update/fulvid-security-dependency-report.md"
+
+      - name: Store security update
+        if: success() && steps.security.outputs.status == 'fixed' && steps.validation.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: security-dependency-update
+          path: ${{ runner.temp }}/security-dependency-update/*
+          if-no-files-found: error
+
+  open-pr:
+    name: Open security Pull Request
+    needs: security-maintenance
+    if: success() && needs.security-maintenance.outputs.status == 'fixed' && needs.security-maintenance.outputs.validation == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Download security update
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: security-dependency-update
+          path: "${{ runner.temp }}/security-dependency-update"
+
+      - name: Create or update security Pull Request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          update="${RUNNER_TEMP}/security-dependency-update"
+          report="$update/fulvid-security-dependency-report.md"
+
+          existing="$(
+            gh pr list \
+              --state open \
+              --search 'in:body "fulvid-security-dependency-maintenance"' \
+              --json number,headRefName,headRepositoryOwner,baseRefName \
+              --limit 20 |
+              jq -r --arg base "$DEFAULT_BRANCH" --arg owner "$GITHUB_REPOSITORY_OWNER" '
+                map(select(.baseRefName == $base and ((.headRepositoryOwner.login // .headRepositoryOwner // "") == $owner)))[0]
+                | if . == null then "" else "\(.number)\t\(.headRefName)" end
+              '
+          )"
+
+          if [[ -z "$existing" ]]; then
+            existing="$(
+              gh pr list \
+                --state open \
+                --head "${GITHUB_REPOSITORY_OWNER}:${SECURITY_BRANCH}" \
+                --base "$DEFAULT_BRANCH" \
+                --json number,headRefName \
+                --jq 'if length == 0 then "" else "\((.[0].number))\t\((.[0].headRefName))" end'
+            )"
+          fi
+
+          if [[ -n "$existing" ]]; then
+            IFS=$'\t' read -r existing_pr branch <<< "$existing"
+          else
+            existing_pr=""
+            branch="$SECURITY_BRANCH"
+          fi
+
+          git_auth=(-c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN")
+          if git "${git_auth[@]}" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            git "${git_auth[@]}" fetch --no-tags origin "$branch"
+            git switch --create "$branch" --track "origin/$branch"
+          else
+            git switch --create "$branch"
+          fi
+
+          cp -- "$update/package.json" package.json
+          cp -- "$update/bun.lock" bun.lock
+
+          git add package.json bun.lock
+          if git diff --cached --quiet; then
+            echo "No dependency files changed; no Pull Request will be created."
+            exit 0
+          fi
+
+          sed -i 's/Pull requests created: pending/Pull requests created: 1/' "$report"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(security): update vulnerable dependencies"
+          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" push --set-upstream origin "$branch"
+
+          if [[ -n "$existing_pr" ]]; then
+            gh pr edit "$existing_pr" --body-file "$report"
+            echo "Updated existing security Pull Request #${existing_pr}."
+          else
+            gh pr create \
+              --base "$DEFAULT_BRANCH" \
+              --head "$branch" \
+              --title "chore(security): update vulnerable dependencies" \
+              --body-file "$report"
+          fi

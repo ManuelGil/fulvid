@@ -1,0 +1,82 @@
+@use "./colors" as *;
+@use "./variables" as *;
+@use "./page-layout" as *;
+
+@mixin object-hover-row {
+  width: 100%;
+  min-height: $hit-min;
+  padding: $space-compact $space-block;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: $radius;
+  background: transparent;
+  cursor: pointer;
+  scroll-margin-block: $space-block;
+  transition:
+    background-color $transition-fast $ease-out,
+    border-color $transition-fast $ease-out;
+
+  &:hover {
+    background: $surface-hover;
+  }
+
+  &:active {
+    background: $selection;
+    color: $selection-foreground;
+  }
+}
+
+@mixin object-selected-row {
+  background: $selection;
+  color: $selection-foreground;
+  border-color: transparent;
+}
+
+@mixin object-section-title {
+  margin: 0;
+  font-size: $font-caption;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $text-muted;
+}
+
+@mixin object-row-list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-tight;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@mixin object-metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: $space-tight;
+
+  dt {
+    color: $text-muted;
+    font-size: $font-caption;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  dd {
+    margin: 0;
+    font-size: $font-control;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35;
+    color: $text-primary;
+  }
+}
+
+@mixin object-inline-action {
+  @include quiet-button;
+  min-height: $hit-min;
+  padding: $space-2 $space-3;
+  font-size: $font-label;
+  line-height: 1.4;
+  white-space: nowrap;
+}

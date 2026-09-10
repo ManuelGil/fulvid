@@ -1,0 +1,36 @@
+@use "./variables" as *;
+
+body {
+  font-family:
+    "IBM Plex Sans",
+    "Segoe UI Variable",
+    "Segoe UI",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: $font-body;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  font-feature-settings:
+    "ss01" on,
+    "cv11" on;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+p {
+  margin: 0;
+}
+
+small {
+  color: var(--text-secondary);
+}

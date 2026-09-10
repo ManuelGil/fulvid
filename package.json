@@ -1,0 +1,98 @@
+{
+  "name": "fulvid",
+  "description": "A standalone desktop editor for Markdown and MDX",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "icon": "assets/fulvid.png",
+  "license": "MIT",
+  "author": {
+    "name": "Manuel Gil",
+    "email": "support@imgil.dev",
+    "url": "https://imgil.dev/"
+  },
+  "sponsor": {
+    "url": "https://github.com/sponsors/ManuelGil"
+  },
+  "keywords": [
+    "markdown",
+    "mdx",
+    "desktop",
+    "editor",
+    "markdown-editor",
+    "filesystem",
+    "standalone",
+    "wikilinks"
+  ],
+  "homepage": "https://github.com/ManuelGil/fulvid",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ManuelGil/fulvid.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ManuelGil/fulvid/issues"
+  },
+  "scripts": {
+    "dev": "bun run build && electrobun dev --watch",
+    "dev:hmr": "bun run prepare:electrobun && concurrently --kill-others-on-fail \"vite --port 5173\" \"bun run scripts/devHmr.ts\"",
+    "start": "bun run build && electrobun dev",
+    "prepare:electrobun": "electrobun prepare --env=dev",
+    "build": "bun run prepare:electrobun && vite build",
+    "build:canary": "electrobun prepare --env=canary && vite build && electrobun build --env=canary",
+    "release": "electrobun prepare --env=stable && vite build && electrobun build --env=stable",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "bun run prepare:electrobun && eslint .",
+    "lint:fix": "bun run prepare:electrobun && eslint . --fix",
+    "typecheck": "bun run prepare:electrobun && vue-tsc --noEmit",
+    "test": "bun run test:unit && bun run test:integration",
+    "test:unit": "bun test .unit.test.ts",
+    "test:integration": "bun test .integration.test.ts",
+    "smoke": "bun run scripts/smoke.ts",
+    "smoke:compatibility": "bun run scripts/compatibilitySmoke.ts",
+    "i18n:check": "bun run scripts/i18nCheck.ts",
+    "doctor": "bun run scripts/doctor.ts",
+    "validate": "bun run scripts/validate.ts",
+    "deps:audit": "bun audit",
+    "deps:check": "bun run deps:verify && bun run deps:audit",
+    "deps:security": "bun run scripts/dependencySecurity.ts",
+    "deps:outdated": "bun outdated",
+    "deps:tree": "bun list --all",
+    "deps:verify": "bun install --frozen-lockfile --ignore-scripts --dry-run --silent"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^3.1.1",
+    "@lucide/vue": "^1.43.0",
+    "graphology": "^0.26.0",
+    "marked": "^18.0.12",
+    "monaco-editor": "0.56.0",
+    "sigma": "^3.0.3",
+    "vue": "^3.5.42",
+    "vue-i18n": "^11.4.10",
+    "vue-router": "^5.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "1.4.2",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "concurrently": "^10.0.5",
+    "electrobun": "2.0.1",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.11.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.6",
+    "sass": "^1.104.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.0",
+    "vite": "^8.2.2",
+    "vue-tsc": "^3.3.11"
+  },
+  "overrides": {
+    "dompurify": "3.4.15",
+    "immutable": "5.1.9",
+    "ip-address": "10.7.0",
+    "nanoid": "3.3.18",
+    "postcss": "8.5.28"
+  }
+}

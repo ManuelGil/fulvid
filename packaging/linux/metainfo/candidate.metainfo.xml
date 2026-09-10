@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Candidate AppStream metadata. Not a Flathub submission.
+
+  The <id> is a candidate reverse-DNS spelling for imgil.dev. It is not
+  adopted. Do not rename fulvid.imgil.dev or fulvid.desktop because of this
+  file. Screenshots and <releases> are omitted until they are real.
+-->
+<component type="desktop-application">
+  <id>dev.imgil.fulvid</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Fulvid</name>
+  <summary>A standalone desktop editor for Markdown and MDX</summary>
+  <description>
+    <p>
+      Fulvid is a standalone desktop editor for Markdown and MDX. The file on
+      disk is the source of truth. Monaco is the live editor. MDX is not
+      executed. Preview is inert Markdown.
+    </p>
+    <p>
+      Open a file or a folder with the native dialogs. Edit locally. There is
+      no account, no cloud service, and no plugin platform.
+    </p>
+  </description>
+  <url type="homepage">https://github.com/ManuelGil/fulvid</url>
+  <url type="bugtracker">https://github.com/ManuelGil/fulvid/issues</url>
+  <url type="vcs-browser">https://github.com/ManuelGil/fulvid</url>
+  <developer id="dev.imgil">
+    <name>Manuel Gil</name>
+  </developer>
+  <launchable type="desktop-id">fulvid.desktop</launchable>
+  <icon type="stock">fulvid</icon>
+  <categories>
+    <category>Utility</category>
+    <category>TextEditor</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+</component>

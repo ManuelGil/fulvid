@@ -1,0 +1,512 @@
+# Package Linux, Windows, and macOS. Publish only when the publish job's RELEASE_ENABLED
+# operand is true and the ref is a version tag. See docs/DISTRIBUTION.md.
+name: Release
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  BUN_VERSION: "1.4.0"
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Restore Bun cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-linux-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-linux-${{ env.BUN_VERSION }}-
+
+      - name: Install dependencies
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            bun install --frozen-lockfile --ignore-scripts
+          else
+            bun install --frozen-lockfile
+          fi
+
+      - name: Align version with tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          export VERSION="${GITHUB_REF_NAME#v}"
+          case "$VERSION" in
+            '' | *[!0-9A-Za-z._-]*)
+              echo "refusing unsafe version from ref name" >&2
+              exit 1
+              ;;
+          esac
+          bun -e '
+            const fs = require("fs");
+            const version = process.env.VERSION;
+            if (!version) throw new Error("VERSION is required");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            pkg.version = version;
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+            let cfg = fs.readFileSync("electrobun.config.ts", "utf8");
+            cfg = cfg.replace(/version:\s*"[^"]+"/, `version: "${version}"`);
+            fs.writeFileSync("electrobun.config.ts", cfg);
+            console.log("Aligned version to", version);
+          '
+
+      - name: Build Linux
+        run: |
+          set -euo pipefail
+          export PATH="$PWD/node_modules/.bin:$PATH"
+          command -v electrobun >/dev/null
+          command -v vite >/dev/null
+          command -v dpkg-deb >/dev/null
+          rm -rf -- build dist
+          mkdir -p artifacts
+          find artifacts -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+          electrobun prepare --env=stable
+          vite build
+          electrobun build --env=stable
+
+      - name: Collect Linux artifacts
+        run: |
+          set -euo pipefail
+          version="$(bun -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("package.json","utf8")).version)')"
+          configured="$(awk -F'"' '/version:[[:space:]]*"/ {print $2; exit}' electrobun.config.ts)"
+          [ "$configured" = "$version" ]
+          installer="fulvid_${version}_linux-x64-Setup.tar.gz"
+          bundle="fulvid_${version}_linux-x64.tar.zst"
+          update_json="fulvid_${version}_linux-x64-update.json"
+          promote() {
+            local dest="$1"
+            local pattern="$2"
+            if [ -f "artifacts/$dest" ]; then
+              return 0
+            fi
+            shopt -s nullglob
+            local matches=(artifacts/$pattern)
+            shopt -u nullglob
+            [ "${#matches[@]}" -eq 1 ]
+            mv -f -- "${matches[0]}" "artifacts/$dest"
+          }
+          promote "$installer" '*Setup*.tar.gz'
+          promote "$bundle" '*.tar.zst'
+          promote "$update_json" '*-update.json'
+          bun -e '
+            const fs = require("fs");
+            const path = process.argv[1];
+            const file = process.argv[2];
+            const version = process.argv[3];
+            const data = JSON.parse(fs.readFileSync(path, "utf8"));
+            if (String(data.version ?? "") !== version) process.exit(1);
+            if (!data.artifact || typeof data.artifact !== "object") process.exit(1);
+            data.artifact.file = file;
+            fs.writeFileSync(path, JSON.stringify(data) + "\n");
+          ' "artifacts/$update_json" "$bundle" "$version"
+
+      - name: Assemble Debian package
+        run: |
+          set -euo pipefail
+          version="$(bun -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("package.json","utf8")).version)')"
+          deb="fulvid_${version}_linux-x64.deb"
+          app_tree="build/stable-linux-x64/Fulvid"
+          [ -x "$app_tree/bin/launcher" ]
+          stage="$(mktemp -d)"
+          trap 'rm -rf -- "$stage"' EXIT
+          install -d "$stage/opt/fulvid"
+          cp -a "$app_tree/." "$stage/opt/fulvid/"
+          find "$stage/opt/fulvid" -type d -exec chmod 755 {} +
+          find "$stage/opt/fulvid" -type f -exec chmod 644 {} +
+          chmod 755 "$stage/opt/fulvid/bin/launcher"
+          install -d "$stage/usr/bin"
+          printf '%s\n' '#!/bin/sh' 'exec /opt/fulvid/bin/launcher "$@"' >"$stage/usr/bin/fulvid"
+          chmod 755 "$stage/usr/bin/fulvid"
+          install -d "$stage/usr/share/applications"
+          install -m 644 packaging/linux/desktop/fulvid.desktop \
+            "$stage/usr/share/applications/fulvid.desktop"
+          [ -f assets/fulvid.png ]
+          install -d "$stage/usr/share/icons/hicolor/512x512/apps"
+          cp -- assets/fulvid.png "$stage/usr/share/icons/hicolor/512x512/apps/fulvid.png"
+          installed_size="$(du -sk "$stage" | awk '{print $1}')"
+          install -d "$stage/DEBIAN"
+          cat >"$stage/DEBIAN/control" <<EOF
+          Package: fulvid
+          Version: ${version}
+          Section: editors
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Manuel Gil <support@imgil.dev>
+          Installed-Size: ${installed_size}
+          Depends: libwebkit2gtk-4.1-0, libgtk-3-0, libsoup-3.0-0, libdbusmenu-gtk3-4
+          Homepage: https://github.com/ManuelGil/fulvid
+          Description: standalone desktop editor for Markdown and MDX
+           Fulvid is a standalone desktop editor for Markdown and MDX.
+          EOF
+          dpkg-deb --build --root-owner-group -Zxz "$stage" "artifacts/$deb"
+
+      - name: Write Linux checksums
+        run: |
+          set -euo pipefail
+          version="$(bun -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("package.json","utf8")).version)')"
+          deb="fulvid_${version}_linux-x64.deb"
+          installer="fulvid_${version}_linux-x64-Setup.tar.gz"
+          bundle="fulvid_${version}_linux-x64.tar.zst"
+          update_json="fulvid_${version}_linux-x64-update.json"
+          build_timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git_commit="$(git rev-parse HEAD 2>/dev/null || true)"
+          git_tag="$(git describe --exact-match --tags HEAD 2>/dev/null || true)"
+          git_describe="$(git describe --always --dirty 2>/dev/null || true)"
+          {
+            printf '%s\n' 'Fulvid Linux CI package'
+            printf 'build_timestamp_utc: %s\n' "$build_timestamp"
+            printf 'product: fulvid\n'
+            printf 'version: %s\n' "$version"
+            printf 'architecture: linux-x64\n'
+            printf 'debian_package: %s\n' "$deb"
+            printf 'signing_pgp: not-applied\n'
+            printf 'platform_native_signing: not-applied\n'
+            printf 'git_commit: %s\n' "$git_commit"
+            printf 'git_tag: %s\n' "$git_tag"
+            printf 'git_describe: %s\n' "$git_describe"
+          } >artifacts/build.log
+          bun -e '
+            const fs = require("fs");
+            const { createHash } = require("crypto");
+            const path = require("path");
+            const artifacts = process.argv[1];
+            const version = process.argv[2];
+            const stamp = process.argv[3];
+            const commit = process.argv[4];
+            const tag = process.argv[5];
+            const describe = process.argv[6];
+            const names = process.argv.slice(7);
+            const sha = (p) => createHash("sha256").update(new Uint8Array(fs.readFileSync(p))).digest("hex");
+            const payloads = names.map((name) => {
+              const p = path.join(artifacts, name);
+              const st = fs.statSync(p);
+              let role = "artifact";
+              if (name.endsWith(".deb")) role = "deb";
+              else if (name.includes("-Setup.")) role = "installer";
+              else if (name.endsWith(".tar.zst")) role = "bundle";
+              else if (name.endsWith("-update.json")) role = "update";
+              else if (name === "build.log") role = "log";
+              return { name, role, size_bytes: st.size, sha256: sha(p) };
+            });
+            const primary = payloads.find((item) => item.role === "deb");
+            const manifest = {
+              schema: 1,
+              project: "fulvid",
+              version,
+              platform: "linux",
+              architecture: "linux-x64",
+              package: {
+                filename: primary.name,
+                format: "deb",
+                architecture: "linux-x64",
+                size_bytes: primary.size_bytes,
+                sha256: primary.sha256,
+              },
+              payloads,
+              build_timestamp: stamp,
+              git: { commit, tag, describe },
+              signing: {
+                pgp: { enabled: false, status: "SKIPPED", fingerprint: "", verification: "skipped" },
+                platform_native: { mechanism: "none", status: "not-applied", note: "CI Linux does not apply Fulvid PGP." },
+              },
+              artifacts: [...names, "release-manifest.json", "SHA256SUMS"].sort(),
+            };
+            fs.writeFileSync(path.join(artifacts, "release-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+          ' artifacts "$version" "$build_timestamp" "$git_commit" "$git_tag" "$git_describe" \
+            "$deb" "$installer" "$bundle" "$update_json" build.log
+          (
+            cd artifacts
+            rm -f -- SHA256SUMS
+            sha256sum -- "$deb" "$installer" "$bundle" "$update_json" build.log release-manifest.json >SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+          expected="$(printf '%s\n' "$deb" "$installer" "$bundle" "$update_json" build.log release-manifest.json SHA256SUMS | LC_ALL=C sort)"
+          actual="$(find artifacts -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)"
+          [ "$actual" = "$expected" ]
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fulvid-linux
+          path: artifacts/*
+          if-no-files-found: error
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Restore Bun cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-windows-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-windows-${{ env.BUN_VERSION }}-
+
+      - name: Install dependencies
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if ($env:EVENT_NAME -eq 'pull_request') {
+            bun install --frozen-lockfile --ignore-scripts
+          } else {
+            bun install --frozen-lockfile
+          }
+
+      - name: Align version with tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          export VERSION="${GITHUB_REF_NAME#v}"
+          case "$VERSION" in
+            '' | *[!0-9A-Za-z._-]*)
+              echo "refusing unsafe version from ref name" >&2
+              exit 1
+              ;;
+          esac
+          bun -e '
+            const fs = require("fs");
+            const version = process.env.VERSION;
+            if (!version) throw new Error("VERSION is required");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            pkg.version = version;
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+            let cfg = fs.readFileSync("electrobun.config.ts", "utf8");
+            cfg = cfg.replace(/version:\s*"[^"]+"/, `version: "${version}"`);
+            fs.writeFileSync("electrobun.config.ts", cfg);
+            console.log("Aligned version to", version);
+          '
+
+      - name: Package Windows
+        run: pwsh -File packaging/windows/package.ps1
+
+      - name: Authenticode (optional)
+        if: github.event_name != 'pull_request'
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: pwsh -File packaging/windows/sign-authenticode.ps1
+
+      - name: Refresh checksums after optional signing
+        run: pwsh -File packaging/windows/package.ps1 -RefreshHashes
+
+      - name: Verify Windows artifacts
+        run: pwsh -File packaging/windows/verify.ps1
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fulvid-windows
+          path: artifacts/*
+          if-no-files-found: error
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Restore Bun cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-macos-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-macos-${{ env.BUN_VERSION }}-
+
+      - name: Install dependencies
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            bun install --frozen-lockfile --ignore-scripts
+          else
+            bun install --frozen-lockfile
+          fi
+
+      - name: Align version with tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          export VERSION="${GITHUB_REF_NAME#v}"
+          case "$VERSION" in
+            '' | *[!0-9A-Za-z._-]*)
+              echo "refusing unsafe version from ref name" >&2
+              exit 1
+              ;;
+          esac
+          bun -e '
+            const fs = require("fs");
+            const version = process.env.VERSION;
+            if (!version) throw new Error("VERSION is required");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            pkg.version = version;
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+            let cfg = fs.readFileSync("electrobun.config.ts", "utf8");
+            cfg = cfg.replace(/version:\s*"[^"]+"/, `version: "${version}"`);
+            fs.writeFileSync("electrobun.config.ts", cfg);
+            console.log("Aligned version to", version);
+          '
+
+      - name: Set up macOS signing keychain
+        id: macos-keychain
+        if: github.event_name != 'pull_request'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_CERTIFICATE:-}" ]; then
+            echo "APPLE_CERTIFICATE unset - macOS build will be unsigned"
+            echo "developer_id=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CERT_PATH="$(mktemp "$RUNNER_TEMP/apple-certificate.XXXXXX")"
+          trap 'rm -f -- "$CERT_PATH"' EXIT
+          KEYCHAIN_PATH="$RUNNER_TEMP/fulvid-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "${APPLE_CERTIFICATE_PASSWORD:-}" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
+          if [ -z "$IDENTITY" ]; then
+            echo "No Developer ID Application identity found in certificate"
+            exit 1
+          fi
+
+          echo "developer_id=$IDENTITY" >> "$GITHUB_OUTPUT"
+          echo "Using Developer ID: $IDENTITY"
+
+      - name: Package macOS
+        if: github.event_name == 'pull_request'
+        run: bash packaging/macos/package.sh
+
+      - name: Package macOS
+        if: github.event_name != 'pull_request'
+        env:
+          ELECTROBUN_DEVELOPER_ID: ${{ steps.macos-keychain.outputs.developer_id }}
+          ELECTROBUN_APPLEID: ${{ secrets.APPLE_ID }}
+          ELECTROBUN_APPLEIDPASS: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          ELECTROBUN_TEAMID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash packaging/macos/package.sh
+
+      - name: Verify macOS artifacts
+        run: bash packaging/macos/verify.sh
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fulvid-macos
+          path: artifacts/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [linux, windows, macos]
+    # RELEASE_ENABLED: the first operand below. Default false (build, do not publish).
+    # GitHub does not allow workflow env in jobs.<id>.if, so the switch lives here.
+    # Enable automatic publication by changing false to true. Do not gate on version numbers.
+    if: ${{ false && startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: release-assets
+
+      - name: Keep shared metadata names distinct
+        run: |
+          set -euo pipefail
+          for platform in linux windows macos; do
+            dir="release-assets/fulvid-${platform}"
+            [ -d "$dir" ]
+            for name in SHA256SUMS release-manifest.json build.log; do
+              if [ -f "$dir/$name" ]; then
+                mv -f -- "$dir/$name" "$dir/${name}.${platform}"
+              fi
+            done
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Fulvid ${{ github.ref_name }}
+          generate_release_notes: true
+          overwrite_files: false
+          files: |
+            release-assets/fulvid-linux/*
+            release-assets/fulvid-windows/*
+            release-assets/fulvid-macos/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

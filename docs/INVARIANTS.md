@@ -1,0 +1,75 @@
+# Invariants
+
+Rules implementations should preserve.
+
+Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTURE.md). Graph pipeline: [GRAPH.md](./GRAPH.md).
+
+## Product
+
+| Rule | Meaning |
+| --- | --- |
+| Metadata optional | Frontmatter is optional; a filename is enough to identify a document |
+| Determinism | Same folder scan and settings produce the same derived facts |
+| Document identity | Virtual IDs are `untitled:N`. Persisted identity is one canonical `absolutePath`; the buffer `id` is `file:${absolutePath}` |
+| Document writes | Folder writes stay contained. Replace uses temp+rename. Standalone writes require a dialog-issued grant |
+| Document links | Exactly one active link mode; Markdown is the default, Wikilink the alternative |
+| Session ownership | `DocumentSession.activeId` owns the editor selection. The active buffer never derives from Focus |
+| Selection seam | UI selection uses `selectDocument`. `activateDocument` is session-internal |
+| Focus ownership | Focus is folder-scoped Graph/Context metadata. Graph consumes Focus and does not own it |
+| Search ownership | Local find uses the active Monaco model. Global Search uses folder document content |
+| Semantic rename | F2 renames a heading or fragment in document text. It never renames a file or document ID |
+| Preview and Export | Preview and Export HTML share `renderMarkdownPreview`. Save writes source. Export writes `.html` |
+| Folder startup | `workspaceStartup` is `none` or `last`. Untitled is available in both cases |
+
+## Graph
+
+| Rule | Meaning |
+| --- | --- |
+| Visualization only | Graph shows resolved links around Focus. It is not a knowledge graph or a second store |
+| Not the product center | Graph must not redefine Search, Explorer, Folder, or Document Context |
+| Depth is Graph-local | Graph depth must not affect other features |
+| Link count is not quality | Reference count is not a score |
+
+## Resources
+
+Canvas, workers, observers, and subscriptions die with their owner. See [ARCHITECTURE.md](./ARCHITECTURE.md#resources).
+
+## Preview
+
+Markdown Preview is secondary and inert. Embedded HTML is escaped. `.mdx` goes through the Markdown layer only. No document code, JSX, or component runtime executes.
+
+Images are inert placeholders (no network). Document links go through `openOrActivate` and can only reach a document already in the open folder. External targets are `https:` and `mailto:` only; every other scheme renders as `#`. The pane refuses navigation that is not a document link, by click and by keyboard.
+
+Export HTML uses this same renderer and the same source-size cap.
+
+## Trust boundary
+
+The renderer is untrusted. It may ask for a document inside a folder the person opened, or for a grant this host issued. It may never name an arbitrary filesystem target. Every rule below is enforced in the Bun host, in `src/bun/filesystem/`, regardless of what the UI already checked.
+
+| Rule | Meaning |
+| --- | --- |
+| Host-side validation | Every RPC parameter is checked for type, shape, and size in `rpcInput`. Renderer validation is never authority |
+| Folder approval | A folder root is authorized only after a native dialog approved it. Approvals persist host-side in `workspaceGrants` |
+| Folder authority | `workspaceAuthority.ts` decides what the renderer may reach: approved roots, in-root paths, or grant tokens |
+| Reopening a folder | The renderer's recent list is a convenience. Reopening a path this host never approved is refused |
+| Folder containment | `workspacePaths` checks lexically, then canonically through `realpath`. A symlink cannot move a target out of the root |
+| Supported formats | `.md`, `.markdown`, and `.mdx` only, matched case-insensitively on the privileged side |
+| Desktop actions | Reveal and copy accept only an approved root, something inside an authorized root, or a granted document |
+| Grants | A grant token maps to one absolute path, is shaped like a UUID, and the grant table is bounded |
+| Error containment | Failures cross the boundary as codes from `filesystemErrors`. No host path, errno, or stack reaches the UI |
+| Scan ceilings | A folder scan is bounded in document count and depth, and per-file analysis is capped. A partial scan is reported, never silent |
+| Save integrity | A save that did not reach disk never clears dirty. Creating a document is an exclusive create, so a concurrent create is reported rather than overwritten |
+
+## Persisted state
+
+Persisted state is treated as potentially corrupt or tampered with. Settings, layout, context roots, and folder approvals each sanitize on read: an invalid part is discarded and its default applied, and Fulvid still starts. Persisted state can never grant a capability. A recent-folder entry does not authorize a folder.
+
+## Content Security Policy
+
+`src/mainview/index.html` sets `object-src 'none'`, `frame-src 'none'`, `base-uri 'none'`, and `form-action 'none'`. These close the active-content vectors a document could reach. Preview escaping is what keeps document content inert.
+
+Omitted `script-src` / `style-src` / `worker-src` directives are a packaging constraint, not this contract. See the comment in `src/mainview/index.html`.
+
+## Claims to avoid
+
+The product should not imply health scores, embeddings, semantic similarity, or AI-generated metadata.

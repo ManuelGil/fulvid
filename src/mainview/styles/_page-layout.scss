@@ -1,0 +1,235 @@
+@use "./colors" as *;
+@use "./variables" as *;
+
+@mixin page-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: $panel-padding;
+  gap: $space-group;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@mixin page-title {
+  margin: 0;
+  font-size: $font-display;
+  font-weight: 600;
+  letter-spacing: -0.028em;
+  line-height: 1.18;
+  color: $text-primary;
+}
+
+@mixin page-question {
+  margin: 0;
+  color: $text-secondary;
+  font-size: $font-control;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+  line-height: 1.4;
+  max-width: 40rem;
+}
+
+@mixin page-subtitle {
+  margin: $space-related 0 0;
+  color: $text-secondary;
+  font-size: $font-control;
+  line-height: 1.45;
+}
+
+@mixin page-path {
+  @include page-subtitle;
+  margin-top: $space-tight;
+  font-family: $font-mono;
+  font-size: $font-label;
+  color: $text-muted;
+  word-break: break-all;
+}
+
+/** Quiet next step - composition only, never a CTA strip. */
+@mixin exploration-continue {
+  display: flex;
+  flex-direction: column;
+  gap: $space-related;
+  margin-top: 0;
+  padding-top: $space-group;
+  color: $text-muted;
+  font-size: $font-control;
+  line-height: 1.45;
+}
+
+// Quiet strip - no competing card chrome.
+@mixin context-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-compact $space-block;
+  min-height: $control-height;
+  padding: $space-related 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+@mixin context-bar-location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: $space-tight;
+  min-width: 0;
+  color: $text-secondary;
+  font-size: $font-control;
+  line-height: 1.4;
+}
+
+@mixin context-bar-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: $space-related;
+  margin-left: auto;
+}
+
+@mixin status-text {
+  margin: 0;
+  color: $text-secondary;
+  font-size: $font-body;
+  line-height: 1.5;
+}
+
+@mixin action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: $hit-min;
+  padding: $space-2 $space-4;
+  border: 1px solid transparent;
+  border-radius: $radius;
+  background: $accent;
+  color: $on-accent;
+  font: inherit;
+  font-size: $font-control;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition:
+    background-color $transition-fast $ease-out,
+    transform $transition-fast $ease-out;
+
+  &:hover:not(:disabled) {
+    background: $accent-hover;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    background: $disabled;
+    color: $surface;
+    cursor: not-allowed;
+  }
+}
+
+@mixin quiet-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: $hit-min;
+  padding: $space-2 $space-3;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: transparent;
+  color: $text-secondary;
+  font: inherit;
+  font-size: $font-control;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition:
+    background-color $transition-fast $ease-out,
+    color $transition-fast $ease-out,
+    border-color $transition-fast $ease-out,
+    transform $transition-fast $ease-out;
+
+  &:hover:not(:disabled) {
+    background: $surface-hover;
+    border-color: color-mix(in srgb, $border 35%, $text-secondary);
+    color: $text-primary;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    color: $disabled;
+    border-color: $border-subtle;
+    cursor: not-allowed;
+    opacity: 0.75;
+  }
+}
+
+@mixin error-text {
+  margin: 0;
+  color: $error-text;
+  font-size: $font-control;
+  line-height: 1.45;
+}
+
+@mixin scroll-region {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-inline-end: $scroll-inline-padding;
+  box-sizing: border-box;
+}
+
+@mixin empty-state-text {
+  margin: 0;
+  color: $text-secondary;
+  font-size: $font-body;
+  line-height: 1.55;
+  max-width: 32rem;
+}
+
+@mixin empty-state-block {
+  display: flex;
+  flex-direction: column;
+  gap: $space-block;
+  max-width: 26rem;
+  padding: $space-page 0;
+  color: $text-secondary;
+  font-size: $font-body;
+  line-height: 1.55;
+}
+
+@mixin empty-state-title {
+  margin: 0;
+  color: $text-primary;
+  font-size: $font-section;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+@mixin kbd-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 4px;
+  border: 1px solid $border-subtle;
+  border-radius: 4px;
+  background: color-mix(in srgb, $surface 70%, $surface-elevated);
+  color: $text-muted;
+  font-family: $font-mono;
+  font-size: $font-micro;
+  font-weight: 500;
+  line-height: 1;
+}

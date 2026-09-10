@@ -1,0 +1,214 @@
+# Linux compatibility. Does not publish. Independent of Windows and macOS.
+name: Compatibility Linux
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: compatibility-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: "true"
+  BUN_VERSION: "1.4.0"
+  FULVID_SMOKE_LAUNCH: "1"
+  GDK_BACKEND: x11
+  WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+
+jobs:
+  ubuntu:
+    name: Ubuntu ${{ matrix.release }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            release: "24.04"
+          - os: ubuntu-22.04
+            release: "22.04"
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Install native libraries
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-0 \
+            libgtk-3-0 \
+            libsoup-3.0-0 \
+            libdbusmenu-gtk3-4 \
+            libjavascriptcoregtk-4.1-0 \
+            xvfb
+
+      - name: Record native stack
+        run: |
+          set -euo pipefail
+          {
+            echo "## Ubuntu ${{ matrix.release }} native stack"
+            echo
+            echo '```text'
+            ldd --version | head -n 1
+            dpkg-query -W \
+              libwebkit2gtk-4.1-0 \
+              libgtk-3-0 \
+              libsoup-3.0-0 \
+              libdbusmenu-gtk3-4 \
+              libjavascriptcoregtk-4.1-0
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Restore Bun cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-compat-linux-${{ matrix.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-compat-linux-${{ matrix.os }}-${{ env.BUN_VERSION }}-
+
+      - name: Install dependencies
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            bun install --frozen-lockfile --ignore-scripts
+          else
+            bun install --frozen-lockfile
+          fi
+
+      - name: Package Linux
+        run: bash packaging/linux/package.sh
+
+      - name: Doctor
+        run: bun run doctor
+
+      - name: Compatibility smoke
+        run: xvfb-run -a bun run smoke:compatibility
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: compatibility-linux-ubuntu-${{ matrix.release }}
+          path: |
+            artifacts/build.log
+            dist/index.html
+          if-no-files-found: ignore
+
+  debian:
+    name: Debian 13 (stable)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    container:
+      image: debian:13
+      options: --init
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Install native libraries
+        run: |
+          set -euo pipefail
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates \
+            curl \
+            git \
+            unzip \
+            xvfb \
+            dpkg \
+            procps \
+            libwebkit2gtk-4.1-0 \
+            libgtk-3-0 \
+            libsoup-3.0-0 \
+            libdbusmenu-gtk3-4 \
+            libjavascriptcoregtk-4.1-0
+
+      - name: Record native stack
+        run: |
+          set -euo pipefail
+          {
+            echo "## Debian 13 native stack"
+            echo
+            echo '```text'
+            cat /etc/os-release
+            ldd --version | head -n 1
+            dpkg-query -W \
+              libwebkit2gtk-4.1-0 \
+              libgtk-3-0 \
+              libsoup-3.0-0 \
+              libdbusmenu-gtk3-4 \
+              libjavascriptcoregtk-4.1-0
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Restore Bun cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-compat-linux-debian13-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-compat-linux-debian13-${{ env.BUN_VERSION }}-
+
+      - name: Install dependencies
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            bun install --frozen-lockfile --ignore-scripts
+          else
+            bun install --frozen-lockfile
+          fi
+
+      - name: Package Linux
+        run: bash packaging/linux/package.sh
+
+      - name: Doctor
+        run: bun run doctor
+
+      - name: Compatibility smoke
+        run: xvfb-run -a bun run smoke:compatibility
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: compatibility-linux-debian-13
+          path: |
+            artifacts/build.log
+            dist/index.html
+          if-no-files-found: ignore

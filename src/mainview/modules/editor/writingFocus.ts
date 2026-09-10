@@ -1,0 +1,44 @@
+import { ref } from "vue";
+
+/** Session-only writing focus. Not a persisted editor preference. */
+export const writingFocusActive = ref(false);
+
+export function toggleWritingFocus(): void {
+  writingFocusActive.value = !writingFocusActive.value;
+}
+
+/**
+ * Monaco option overlay for writing focus. Session-only; does not patch
+ * settingsStore. Typewriter padding is skipped when reduced-motion is on or
+ * the typewriter preference is off. Minimap and sticky headings are always
+ * off in Focus so the writing surface stays clear.
+ */
+export function writingFocusMonacoOptions(
+  reducedMotion: boolean,
+  typewriterScrolling = true,
+): {
+  cursorSurroundingLines: number;
+  cursorSurroundingLinesStyle: "all";
+  scrollBeyondLastLine: boolean;
+  stickyScroll: { enabled: false };
+  minimap: { enabled: false };
+  padding: { top: number; bottom: number };
+} {
+  const typewriter = typewriterScrolling
+    ? {
+        cursorSurroundingLines: reducedMotion ? 3 : 8,
+        scrollBeyondLastLine: true,
+        padding: { top: reducedMotion ? 18 : 72, bottom: reducedMotion ? 18 : 72 },
+      }
+    : {
+        cursorSurroundingLines: 0,
+        scrollBeyondLastLine: false,
+        padding: { top: 18, bottom: 18 },
+      };
+  return {
+    ...typewriter,
+    cursorSurroundingLinesStyle: "all",
+    stickyScroll: { enabled: false },
+    minimap: { enabled: false },
+  };
+}
