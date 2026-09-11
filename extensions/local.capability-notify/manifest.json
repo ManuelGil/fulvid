@@ -1,0 +1,16 @@
+{
+  "id": "local.capability-notify",
+  "name": "Capability: notify",
+  "version": "0.1.0",
+  "api": 0,
+  "description": "Permanent fixture: smallest declarative pack. Declares one command whose only host action is notify. Demonstrates extension → capability → owner without product features, Monaco, or filesystem.",
+  "capabilities": ["commands", "ui"],
+  "commands": [
+    {
+      "id": "ping",
+      "title": "Extension fixture: notify",
+      "action": "notify",
+      "message": "Fixture local.capability-notify — not a product feature; Fulvid does not load this pack yet."
+    }
+  ]
+}

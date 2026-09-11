@@ -12,6 +12,7 @@ LICENSE
 assets/                  Application icon
 assets/screenshots/      Window captures
 examples/                Demo folder for local checks and those captures
+extensions/              Long-lived extension-boundary fixtures (not loaded; see extensions/README.md)
 src/bun/                 Desktop host and filesystem RPC
 src/bun/filesystem/      io/, rpc/, scanning/, security/
 src/mainview/pages/      Routes: editor/, search/, graph/, settings/

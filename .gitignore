@@ -10,3 +10,6 @@ artifacts/
 !security/signing-key.asc
 .cottontail-tmp/
 *.tsbuildinfo
+# Extension experiment artifacts only. Tracked sources under extensions/ stay committed.
+extensions/**/.cache/
+extensions/**/dist/

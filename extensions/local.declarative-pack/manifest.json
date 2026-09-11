@@ -1,0 +1,23 @@
+{
+  "id": "local.declarative-pack",
+  "name": "Capability: declarative template",
+  "version": "0.1.0",
+  "api": 0,
+  "description": "Permanent fixture: declarative template + command composition. Intentionally product-neutral body. Shows how a local pack can seed an untitled buffer via createUntitledFromTemplate without growing the core template catalog.",
+  "capabilities": ["templates", "commands"],
+  "templates": [
+    {
+      "id": "sample",
+      "name": "Declarative sample",
+      "file": "templates/sample.md"
+    }
+  ],
+  "commands": [
+    {
+      "id": "createSample",
+      "title": "Extension fixture: create from template",
+      "action": "createUntitledFromTemplate",
+      "template": "sample"
+    }
+  ]
+}
