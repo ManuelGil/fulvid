@@ -17,6 +17,7 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Selection seam | UI selection uses `selectDocument`. `activateDocument` is session-internal |
 | Focus ownership | Focus is folder-scoped Graph/Context metadata. Graph consumes Focus and does not own it |
 | Search ownership | Local find uses the active Monaco model. Global Search uses folder document content |
+| Quick Open ownership | Quick Open matches document identity (`title`, filename, relative path) from `workspace.scannedNotes` in the open Folder only. It does not search content, own a scan, or bypass `openOrActivate` / filesystem containment |
 | Semantic rename | F2 renames a heading or fragment in document text. It never renames a file or document ID |
 | Preview and Export | Preview and Export HTML share `renderMarkdownPreview`. Save writes source. Export writes `.html` |
 | Folder startup | `workspaceStartup` is `none` or `last`. Untitled is available in both cases |

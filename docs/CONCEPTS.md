@@ -24,7 +24,7 @@ Product copy uses **Folder**, never Workspace. Host code may still use `workspac
 | **Tab** | One open buffer in the editor session |
 | **Editor** | Monaco writing surface |
 | **Search** | Folder-wide content search at `/search` (`Ctrl/Cmd+Shift+F`, or `/`) |
-| **Quick Open** | Open a document by title, filename, or relative path in the open Folder (`Ctrl/Cmd+P`). Not content search; not a Command Palette |
+| **Quick Open** | Open a document by title, filename, or relative path in the open Folder (`Ctrl/Cmd+P`). Candidates come from the Folder scan (`scannedNotes`), not a second index. Not content search; not a Command Palette. Picker UI ships after shortcut/command prep |
 | **Graph** | Visualization of resolved document links around Focus |
 | **Preview** | Inert HTML of the active buffer |
 | **Export HTML** | Same renderer as Preview, written to a `.html` file |

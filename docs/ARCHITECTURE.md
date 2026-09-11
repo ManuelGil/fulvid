@@ -14,7 +14,8 @@ Every user-visible behavior has **one owner**. Pages and the shell choose what i
 | Document buffers | Monaco models, dirty/`savedVersionId`, virtual vs persisted identity, grants, `selectDocument`, `openOrActivate` |
 | Editor | Commands, Preview split, Outline, Monaco host, Writing Focus chrome overlay |
 | Explorer | Folder file tree in the right sidebar |
-| Search | `/search` and Search sidebar options |
+| Search | `/search` and Search sidebar options (content strategies) |
+| Quick Open | Keyboard document picker by identity in the open Folder (`Ctrl/Cmd+P`); not content search; not a Command Palette |
 | Graph | Focus-scoped visualization of resolved links |
 | Document Context | References and facts for the focused or peeked document |
 | Focus | Folder-scoped Graph/Context target; Peek |
@@ -22,7 +23,17 @@ Every user-visible behavior has **one owner**. Pages and the shell choose what i
 | Settings | Persistence in `settingsStore.ts` |
 | Filesystem | Scan and document I/O through one RPC boundary |
 
-Local find (`Ctrl/Cmd+F`) belongs to Monaco, not Search. Graph depth belongs only to Graph.
+Local find (`Ctrl/Cmd+F`) belongs to Monaco, not Search. Global Search is `Ctrl/Cmd+Shift+F`. Graph depth belongs only to Graph.
+
+### Quick Open
+
+Candidates are a **temporary projection** of `workspace.scannedNotes` (Folder scan owned by `workspaceState`; discovery by Filesystem scan). Identity fields: `title`, `name` (filename), `path` (folder-relative). See [`quickOpenCandidates.ts`](../src/mainview/modules/quickOpen/quickOpenCandidates.ts).
+
+Quick Open does not scan, index, or own document lifecycle. No Folder open → empty candidates. Partial / truncated scans expose whatever the scan already loaded; they do not invent a second walk.
+
+Activation uses the same seam as Explorer and Search: `openOrActivate({ kind: "workspace", rootPath, path })` → `selectDocument`. Candidate paths are not grants; read/open still goes through filesystem containment.
+
+Overlay/focus: extend the existing DialogHost / `dialogs.ts` surface (Teleport, Escape, Tab trap, `restoreUsableFocus`). `.dialog-host` already stays usable under Writing Focus. Do not add a second dialog or focus manager. Do not touch native Full Screen.
 
 ## Selection and Focus
 

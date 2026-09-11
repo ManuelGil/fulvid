@@ -705,12 +705,16 @@ function openGlobalSearch(): void {
 /**
  * Entry point for Quick Open (Ctrl/Cmd+P).
  *
- * Quick Open finds a document by identity (title, filename, relative path)
- * inside the open Folder. It does not search document content — that remains
- * Global Search (`openGlobalSearch`, Ctrl/Cmd+Shift+F).
+ * Decisions (Phase 1):
+ * - Candidates: `workspace.scannedNotes` via `quickOpenCandidatesFromNotes`
+ *   (Folder scan only; empty when no Folder). Not Search strategies / content.
+ * - Open: `openOrActivate({ kind: "workspace", rootPath, path })` →
+ *   `selectDocument`. Paths are not grants.
+ * - Overlay: DialogHost / `dialogs.ts` + `restoreUsableFocus` (same as other
+ *   dialogs; usable under Writing Focus). No Vue Full Screen state.
  *
- * Wire the picker UI here later; activation must stay openOrActivate →
- * selectDocument. No-op until that UI exists.
+ * Global Search stays `openGlobalSearch` (Ctrl/Cmd+Shift+F).
+ * Wire the picker UI here in Phase 2.
  */
 function openQuickOpen(): void {}
 
