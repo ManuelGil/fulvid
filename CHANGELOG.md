@@ -9,13 +9,15 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-11
+
 ### Added
 
-- Quick Open (`Ctrl/Cmd+P`): filter documents in the open Folder by title, filename, or relative path and open the selection. Not content search; not a Command Palette.
+- Quick Open (`Ctrl/Cmd+P`): filter documents in the open Folder by title, filename, or relative path and open the selection. Keyboard-first; not content search; not a Command Palette. Opens through the existing folder document path and does not add grants or bypass containment.
 
 ### Changed
 
-- Keyboard: `Ctrl/Cmd+P` is reserved for Quick Open (document identity in the open Folder). Global Search moves to `Ctrl/Cmd+Shift+F`. Writing Focus moves to `Ctrl/Cmd+Shift+Enter` so those chords do not compete. Monaco local find stays `Ctrl/Cmd+F`.
+- Keyboard: `Ctrl/Cmd+P` opens Quick Open. Global Search moves to `Ctrl/Cmd+Shift+F`. Writing Focus moves to `Ctrl/Cmd+Shift+Enter` so those chords do not compete. Monaco local find stays `Ctrl/Cmd+F`.
 
 ## [0.3.0] - 2026-09-10
 
@@ -57,7 +59,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.1.0

@@ -15,7 +15,7 @@ examples/                Demo folder for local checks and those captures
 src/bun/                 Desktop host and filesystem RPC
 src/bun/filesystem/      io/, rpc/, scanning/, security/
 src/mainview/pages/      Routes: editor/, search/, graph/, settings/
-src/mainview/modules/    workspace/, editor/, search/, graph/, document/, settings/
+src/mainview/modules/    workspace/, editor/, search/, quickOpen/, graph/, document/, settings/
 src/mainview/app/        Bootstrap, router, layout, folder lifecycle
 src/mainview/shell/      Menus, sidebars, AppIcon.vue
 src/mainview/i18n/       EN/ES catalogs; see I18N.md
@@ -36,6 +36,7 @@ docs/
 | Editor | `pages/editor/EditorPage.vue` (`/editor`) |
 | Explorer | `modules/workspace/explorer/ExplorerPanel.vue` |
 | Global Search | `pages/search/SearchPage.vue` (`/search`) |
+| Quick Open | `modules/quickOpen/` + DialogHost (`Ctrl/Cmd+P`) |
 | Graph | `pages/graph/GraphPage.vue` (`/graph`) |
 | Settings | `pages/settings/SettingsPage.vue` (`/settings`) |
 | Document Context | `modules/document/inspector/InspectorDrawer.vue` |

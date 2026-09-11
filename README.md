@@ -41,11 +41,11 @@ It is open source (MIT). The source in this repository is the product.
 
 Open a Markdown or MDX file and edit it. Untitled tabs work when you are still deciding where the file lives. Save and Save As write source, not a converted note format.
 
-Open a folder when you want Explorer, Global Search, Graph, and Document Context. Those views read the same files you are editing. They are optional. Writing still comes first.
+Open a folder when you want Explorer, Quick Open, Global Search, Graph, and Document Context. Those views read the same files you are editing. They are optional. Writing still comes first.
 
 Follow links that are actually in the source. You choose one link mode for the session: Markdown (default) or Wikilink. Broken links stay visible. Fulvid does not create a file because a link points at a missing path.
 
-Search in two places. Local find is the editor's own find (`Ctrl/Cmd+F`). Global Search looks through document content in the open folder.
+Search in two places. Local find is the editor's own find (`Ctrl/Cmd+F`). Global Search (`Ctrl/Cmd+Shift+F`) looks through document content in the open folder. Quick Open (`Ctrl/Cmd+P`) jumps to a document by title, filename, or path in that folder — it does not search content.
 
 Preview the active buffer as inert HTML. Export HTML uses that same renderer and writes a `.html` file. Export cannot overwrite a Markdown or MDX note.
 
