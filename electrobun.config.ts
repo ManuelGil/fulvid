@@ -16,7 +16,7 @@ export default {
   app: {
     name: "Fulvid",
     identifier: "fulvid.imgil.dev",
-    version: "0.2.0",
+    version: "0.3.0",
   },
   build: {
     mainProcess: "bun",

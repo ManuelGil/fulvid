@@ -13,18 +13,13 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Added
 
-- Native Full Screen for the application window (View menu). Host-owned window fullscreen, not web Document Fullscreen, not a Vue UI mode, and not persisted. Independent of Writing Focus. Shortcuts: F11 on Windows and Linux; Ctrl+Cmd+F on macOS. Normal window bounds are not written while the window is fullscreen.
-- Writing Focus on the editor route: hides and inerts the editor chrome that should step aside (sidebars, tabs, format bar, idle right rail, statusbar) while Monaco stays the editor, typewriter presentation continues, and Preview, empty state, dialogs, context menus, toasts, the Linux on-screen application menu, and Quick Actions stay usable. Session-only; announced through the existing live region; not Graph Focus; not Full Screen; not persisted. Shortcuts remain Ctrl+Shift+F on Windows and Linux and Cmd+Shift+F on macOS.
-- Writing Focus in Quick Actions (Fulvid group, beside Preview): enter/exit labels, pressed state when active, and the shared Focus toggle—discoverability for the existing capability, not a second owner.
+- Native Full Screen from the View menu. Host window fullscreen (not web Document Fullscreen), independent of Writing Focus, and not persisted. F11 on Windows and Linux; Ctrl+Cmd+F on macOS. Normal window bounds are not saved while the window is fullscreen.
+- Writing Focus in Quick Actions (Fulvid group, beside Preview), using the same Focus toggle as the menu and shortcut.
+- Back to top control in the editor for long documents. It appears after you scroll down and returns to the start of the document without changing the text.
 
 ### Changed
 
-- Writing Focus and Full Screen compose independently: either, both, or neither. Neither turns the other on.
-- Focus restore paths refuse disconnected, disabled, or inert targets so dialogs and context menus do not return keyboard focus into hidden chrome.
-
-### Fixed
-
-- Quick Actions no longer become hidden or inert with Writing Focus, so the Fulvid Focus control can turn the mode off from the toolbar. Narrow-viewport overlay inert behavior is unchanged.
+- Writing Focus on the editor route now hides the chrome that gets in the way of writing (sidebars, tabs, format bar, statusbar) while Monaco stays the editor. Session-only; not Graph Focus; not Full Screen. Shortcuts remain Ctrl+Shift+F on Windows and Linux and Cmd+Shift+F on macOS.
 
 ## [0.2.0] - 2026-09-10
 
