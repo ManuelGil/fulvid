@@ -116,7 +116,7 @@ You can keep using git, another editor, or a static generator on the same tree. 
 
 The editor is the center of the window. Explorer, Search, Graph, and Settings are there when you need them. They do not replace the writing surface.
 
-Keyboard shortcuts cover the usual desktop habits: new file, save, find, follow a link, rename a heading (`F2`), find heading references (`Shift+F12`), Focus mode (`Ctrl/Cmd+Shift+F`) that quiets editor chrome while you type, and native Full Screen (`F11`, or `Ctrl+Cmd+F` on macOS). There is no Command Palette and no Quick Open. Monaco is the only editor.
+Keyboard shortcuts cover the usual desktop habits: new file, save, find, follow a link, rename a heading (`F2`), find heading references (`Shift+F12`), Quick Open (`Ctrl/Cmd+P`) to jump to a document by name in the open folder, Global Search (`Ctrl/Cmd+Shift+F`), Focus mode (`Ctrl/Cmd+Shift+Enter`) that quiets editor chrome while you type, and native Full Screen (`F11`, or `Ctrl+Cmd+F` on macOS). There is no Command Palette. Monaco is the only editor.
 
 File dialogs are native. The app uses the system webview (WebKitGTK on Linux, WebView2 on Windows, WKWebView on macOS). On Linux the application menu is an HTML bar; Electrobun's native menu exists on macOS and Windows.
 

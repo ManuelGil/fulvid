@@ -10,7 +10,7 @@ Open a document, edit, save, open another. Writing comes first. Folder browsing,
 
 Opening a folder looks recursively for `.md`, `.markdown`, and `.mdx`. If the scan finishes and finds none, Fulvid says so and does not load that folder. A partial scan never claims the folder is empty of documents. Finding an `.mdx` file does not run MDX.
 
-Fulvid does not run MDX or document HTML. It does not score notes, infer links, or use embeddings. There is no Command Palette or Quick Open. Monaco is the only editor. Preview and Export HTML share one inert renderer.
+Fulvid does not run MDX or document HTML. It does not score notes, infer links, or use embeddings. There is no Command Palette. Quick Open (document identity in the open Folder) is reserved on `Ctrl/Cmd+P`; its picker UI is not shipped yet. Monaco is the only editor. Preview and Export HTML share one inert renderer.
 
 ## Vocabulary
 
@@ -23,7 +23,8 @@ Product copy uses **Folder**, never Workspace. Host code may still use `workspac
 | **Document** | Untitled buffer (`untitled:N`) or a persisted `.md`, `.markdown`, or `.mdx` file |
 | **Tab** | One open buffer in the editor session |
 | **Editor** | Monaco writing surface |
-| **Search** | Folder-wide content search at `/search` |
+| **Search** | Folder-wide content search at `/search` (`Ctrl/Cmd+Shift+F`, or `/`) |
+| **Quick Open** | Open a document by title, filename, or relative path in the open Folder (`Ctrl/Cmd+P`). Not content search; not a Command Palette |
 | **Graph** | Visualization of resolved document links around Focus |
 | **Preview** | Inert HTML of the active buffer |
 | **Export HTML** | Same renderer as Preview, written to a `.html` file |
@@ -35,13 +36,13 @@ Product copy uses **Folder**, never Workspace. Host code may still use `workspac
 | **Focus** | Folder-scoped target for Graph and Document Context |
 | **Peek** | Read another document in Context without changing Focus |
 | **Context root** | Folder that limits facts and link resolution |
-| **Focus mode** | Session writing overlay: hide editor chrome, typewriter, hide minimap. Not Graph Focus. Independent of native Full Screen |
+| **Focus mode** | Session writing overlay: hide editor chrome, typewriter, hide minimap. Not Graph Focus. Independent of native Full Screen. Shortcut: `Ctrl/Cmd+Shift+Enter` |
 
 Settings choose one `linkMode`: `"markdown"` (default) or `"wikilink"`. That mode governs scan, resolution, editor providers, Preview, references, rename, and Graph.
 
 **Find references** (`Shift+F12`) lists heading and fragment locations. **Rename heading** (`F2`) rewrites that heading and known fragment targets as text. F2 does not rename files.
 
-Local find is Monaco (`Ctrl/Cmd+F`). Global Search is `/search`.
+Local find is Monaco (`Ctrl/Cmd+F`). Global Search is `/search` (`Ctrl/Cmd+Shift+F`). Quick Open asks which document to open by identity; Global Search asks where text appears.
 
 ## Markdown and MDX
 

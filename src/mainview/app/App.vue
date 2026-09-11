@@ -377,9 +377,14 @@ function handleModifierShortcut(event: KeyboardEvent, insideMonaco: boolean): bo
     void runCommand(event.shiftKey ? "saveAs" : "save");
     return true;
   }
-  if (event.shiftKey && key === "f") {
+  if (event.shiftKey && key === "enter") {
     event.preventDefault();
     toggleWritingFocus();
+    return true;
+  }
+  if (event.shiftKey && key === "f") {
+    event.preventDefault();
+    openGlobalSearch();
     return true;
   }
   if (event.shiftKey && key === "e") {
@@ -394,7 +399,7 @@ function handleModifierShortcut(event: KeyboardEvent, insideMonaco: boolean): bo
   }
   if (!event.shiftKey && key === "p") {
     event.preventDefault();
-    openGlobalSearch();
+    openQuickOpen();
     return true;
   }
   if (!event.shiftKey && key === "n") {
@@ -697,6 +702,18 @@ function openGlobalSearch(): void {
   });
 }
 
+/**
+ * Entry point for Quick Open (Ctrl/Cmd+P).
+ *
+ * Quick Open finds a document by identity (title, filename, relative path)
+ * inside the open Folder. It does not search document content — that remains
+ * Global Search (`openGlobalSearch`, Ctrl/Cmd+Shift+F).
+ *
+ * Wire the picker UI here later; activation must stay openOrActivate →
+ * selectDocument. No-op until that UI exists.
+ */
+function openQuickOpen(): void {}
+
 function openExplorer(): void {
   if (route.name !== APP_ROUTE_NAMES.editor) {
     openRightSidebar("explorer");
@@ -874,6 +891,7 @@ const unregisterCommands = [
     toggleRightSidebar(panel);
   }),
   registerCommandHandler("openExplorer", openExplorer),
+  registerCommandHandler("openQuickOpen", openQuickOpen),
   registerCommandHandler("openGlobalSearch", openGlobalSearch),
   registerCommandHandler("openOutline", openOutline),
   registerCommandHandler("toggleStatusbar", toggleStatusbar),
