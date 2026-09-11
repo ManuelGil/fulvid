@@ -4,8 +4,6 @@
  */
 import { shallowRef } from "vue";
 
-import type { QuickOpenCandidate } from "../modules/quickOpen/quickOpenCandidates";
-
 export type FilenamePromptRequest = {
   kind: "filename";
   title: string;
@@ -23,7 +21,6 @@ export type ConfirmPromptRequest = {
 
 export type QuickOpenPromptRequest = {
   kind: "quickOpen";
-  candidates: readonly QuickOpenCandidate[];
   resolve: (path: string | null) => void;
 };
 
@@ -76,14 +73,13 @@ export function confirmDialog(message: string, title?: string): Promise<boolean>
 }
 
 /**
- * Open Quick Open over a snapshot of folder candidates.
- * Resolves to a folder-relative path, or null when cancelled.
+ * Open Quick Open. Resolves to a folder-relative path from the live Folder scan,
+ * or null when cancelled. DialogHost projects `workspace.scannedNotes`.
  */
-export function promptQuickOpen(candidates: readonly QuickOpenCandidate[]): Promise<string | null> {
+export function promptQuickOpen(): Promise<string | null> {
   return new Promise((resolve) => {
     replaceDialog({
       kind: "quickOpen",
-      candidates,
       resolve,
     });
   });
@@ -128,13 +124,13 @@ export function submitConfirm(confirmed: boolean): void {
   current.resolve(confirmed);
 }
 
-/** Accept a Quick Open selection. `path` must come from the candidate list. */
+/**
+ * Accept a Quick Open selection. Callers must pass a path from the live
+ * candidate list (DialogHost); this is a selection hand-off, not a grant.
+ */
 export function submitQuickOpen(path: string): void {
   const current = activeDialog.value;
-  if (!current || current.kind !== "quickOpen") {
-    return;
-  }
-  if (!current.candidates.some((candidate) => candidate.path === path)) {
+  if (!current || current.kind !== "quickOpen" || !path) {
     return;
   }
   closeDialog();

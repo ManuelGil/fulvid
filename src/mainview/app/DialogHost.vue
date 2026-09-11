@@ -9,8 +9,10 @@ import {
   submitFilename,
   submitQuickOpen,
 } from "./dialogs";
+import { quickOpenCandidatesFromNotes } from "../modules/quickOpen/quickOpenCandidates";
 import { matchQuickOpenCandidates } from "../modules/quickOpen/quickOpenMatch";
 import { restoreUsableFocus } from "./usableFocusTarget";
+import { workspace } from "./workspaceState";
 
 const { t } = useI18n();
 const dialogHostRef = ref<HTMLElement | null>(null);
@@ -22,13 +24,17 @@ const quickOpenQuery = ref("");
 const quickOpenSelectedIndex = ref(0);
 let previousFocus: HTMLElement | null = null;
 
-const quickOpenMatch = computed(() => {
-  const dialog = activeDialog.value;
-  if (!dialog || dialog.kind !== "quickOpen") {
-    return { matches: [], total: 0 };
+/** Live Folder projection — refresh / close Folder updates the list. */
+const quickOpenCandidates = computed(() => {
+  if (activeDialog.value?.kind !== "quickOpen") {
+    return [];
   }
-  return matchQuickOpenCandidates(dialog.candidates, quickOpenQuery.value);
+  return quickOpenCandidatesFromNotes(workspace.value?.scannedNotes ?? []);
 });
+
+const quickOpenMatch = computed(() =>
+  matchQuickOpenCandidates(quickOpenCandidates.value, quickOpenQuery.value),
+);
 
 const quickOpenResults = computed(() => quickOpenMatch.value.matches);
 const quickOpenTotal = computed(() => quickOpenMatch.value.total);
@@ -40,10 +46,7 @@ const quickOpenActiveOptionId = computed(() => {
   return `quick-open-option-${quickOpenSelectedIndex.value}`;
 });
 
-const quickOpenHasFolderCandidates = computed(() => {
-  const dialog = activeDialog.value;
-  return Boolean(dialog && dialog.kind === "quickOpen" && dialog.candidates.length > 0);
-});
+const quickOpenHasFolderCandidates = computed(() => quickOpenCandidates.value.length > 0);
 
 watch(
   activeDialog,
@@ -78,6 +81,11 @@ watch(
   },
   { flush: "post" },
 );
+
+// Prefer the new top match when the filter changes; clamp only when the list shrinks.
+watch(quickOpenQuery, () => {
+  quickOpenSelectedIndex.value = 0;
+});
 
 watch(quickOpenResults, (results) => {
   if (quickOpenSelectedIndex.value >= results.length) {
@@ -160,6 +168,10 @@ function moveQuickOpenSelection(delta: 1 | -1): void {
 function activateQuickOpenSelection(): void {
   const selected = quickOpenResults.value[quickOpenSelectedIndex.value];
   if (!selected) {
+    return;
+  }
+  // Only paths present in the live Folder projection may be submitted.
+  if (!quickOpenCandidates.value.some((candidate) => candidate.path === selected.path)) {
     return;
   }
   submitQuickOpen(selected.path);
@@ -487,7 +499,14 @@ function onBackdropPointerDown(event: PointerEvent): void {
   }
 
   &.is-selected {
-    background: $surface-hover;
+    background: color-mix(in srgb, $accent 22%, $surface-elevated);
+  }
+
+  @media (forced-colors: active) {
+    &.is-selected {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+    }
   }
 }
 
@@ -503,7 +522,7 @@ function onBackdropPointerDown(event: PointerEvent): void {
   font-family: $font-mono;
   font-size: $font-label;
   line-height: 1.35;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .quick-open-results__limit {

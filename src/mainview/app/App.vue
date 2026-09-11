@@ -40,7 +40,6 @@ import {
   openOrActivate,
   selectDocument,
 } from "../modules/editor/document/documentBuffers";
-import { quickOpenCandidatesFromNotes } from "../modules/quickOpen/quickOpenCandidates";
 import {
   activeId,
   nextMruDocument,
@@ -706,13 +705,13 @@ function openGlobalSearch(): void {
 /**
  * Entry point for Quick Open (Ctrl/Cmd+P).
  *
- * Candidates: `workspace.scannedNotes` via `quickOpenCandidatesFromNotes`.
- * Overlay: DialogHost / `promptQuickOpen`. Open: `openOrActivate` → `selectDocument`.
+ * Candidates: live `workspace.scannedNotes` via DialogHost /
+ * `quickOpenCandidatesFromNotes`. Overlay: `promptQuickOpen`.
+ * Open: `openOrActivate` → `selectDocument`.
  * Global Search stays `openGlobalSearch` (Ctrl/Cmd+Shift+F).
  */
 async function openQuickOpen(): Promise<void> {
-  const candidates = quickOpenCandidatesFromNotes(workspace.value?.scannedNotes ?? []);
-  const path = await promptQuickOpen(candidates);
+  const path = await promptQuickOpen();
   if (!path) {
     return;
   }

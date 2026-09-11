@@ -27,7 +27,7 @@ Local find (`Ctrl/Cmd+F`) belongs to Monaco, not Search. Global Search is `Ctrl/
 
 ### Quick Open
 
-Candidates are a **temporary projection** of `workspace.scannedNotes` (Folder scan owned by `workspaceState`; discovery by Filesystem scan). Identity fields: `title`, `name` (filename), `path` (folder-relative). See [`quickOpenCandidates.ts`](../src/mainview/modules/quickOpen/quickOpenCandidates.ts).
+Candidates are a **temporary projection** of `workspace.scannedNotes` (Folder scan owned by `workspaceState`; discovery by Filesystem scan). Identity fields: `title`, `name` (filename), `path` (folder-relative). See [`quickOpenCandidates.ts`](../src/mainview/modules/quickOpen/quickOpenCandidates.ts). DialogHost reads the live scan while open (refresh / close Folder update the list).
 
 Quick Open does not scan, index, or own document lifecycle. No Folder open → empty candidates. Partial / truncated scans expose whatever the scan already loaded; they do not invent a second walk.
 

@@ -39,6 +39,9 @@ describe("quick open matching", () => {
       "docs/architecture.md",
       "docs/guide.md",
     ]);
+    expect(matchQuickOpenCandidates(notes, "docs\\guide").matches.map((item) => item.path)).toEqual(
+      ["docs/guide.md"],
+    );
     // Title prefix ranks ahead of a path substring on another note.
     expect(matchQuickOpenCandidates(notes, "api").matches.map((item) => item.path)).toEqual([
       "notes/api.md",

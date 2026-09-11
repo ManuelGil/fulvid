@@ -16,8 +16,9 @@ export type QuickOpenMatchResult = {
   readonly total: number;
 };
 
+/** Trim, lower-case, and normalize path separators to match scanned paths. */
 function normalizeQuery(query: string): string {
-  return query.trim().toLowerCase();
+  return query.trim().toLowerCase().replaceAll("\\", "/");
 }
 
 /**
