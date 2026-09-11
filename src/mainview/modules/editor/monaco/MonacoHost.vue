@@ -68,6 +68,13 @@ let colorScheme: MediaQueryList | null = null;
 let queuedRevealPosition: { lineNumber: number; column: number } | null = null;
 let markdownActions: monaco.IDisposable[] = [];
 let stopLocaleWatch: (() => void) | null = null;
+let backToTopButton: HTMLButtonElement | null = null;
+let backToTopWidget: monaco.editor.IOverlayWidget | null = null;
+let stopLayoutWatch: monaco.IDisposable | null = null;
+
+const BACK_TO_TOP_WIDGET_ID = "fulvid.backToTop";
+/** Show the control once the viewport has left the first screen of the document. */
+const BACK_TO_TOP_SCROLL_PX = 96;
 
 function updateLayout(): void {
   editor?.layout();
@@ -80,6 +87,115 @@ function emitScrollRatio(): void {
   const layoutInfo = editor.getLayoutInfo();
   const scrollable = Math.max(editor.getScrollHeight() - layoutInfo.height, 0);
   emit("scroll", scrollable > 0 ? editor.getScrollTop() / scrollable : 0);
+}
+
+function readChromeInsetPx(): number {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--space-3").trim();
+  const value = Number.parseFloat(raw);
+  return Number.isFinite(value) ? value : 12;
+}
+
+function updateBackToTopLabel(): void {
+  if (!backToTopButton) {
+    return;
+  }
+  const label = t("workspace.backToTop");
+  backToTopButton.title = label;
+  backToTopButton.setAttribute("aria-label", label);
+}
+
+function layoutBackToTopWidget(): void {
+  if (editor && backToTopWidget) {
+    editor.layoutOverlayWidget(backToTopWidget);
+  }
+}
+
+function updateBackToTopVisibility(): void {
+  if (!editor || !backToTopButton) {
+    return;
+  }
+  backToTopButton.hidden = editor.getScrollTop() <= BACK_TO_TOP_SCROLL_PX;
+  layoutBackToTopWidget();
+}
+
+function backToTopWidgetPosition(): monaco.editor.IOverlayWidgetPosition {
+  if (!editor || !backToTopButton) {
+    return {
+      preference: monaco.editor.OverlayWidgetPositionPreference.BOTTOM_RIGHT_CORNER,
+    };
+  }
+  const layout = editor.getLayoutInfo();
+  const inset = readChromeInsetPx();
+  const height = backToTopButton.offsetHeight || 36;
+  const width = backToTopButton.offsetWidth || 36;
+  // Stay inside Monaco's layout box (design-token inset). Do not offset for Statusbar.
+  return {
+    preference: {
+      top: Math.max(inset, layout.height - height - inset - layout.horizontalScrollbarHeight),
+      left: Math.max(
+        inset,
+        layout.width - width - inset - layout.verticalScrollbarWidth - layout.minimap.minimapWidth,
+      ),
+    },
+  };
+}
+
+function scrollDocumentToStart(): void {
+  if (!editor) {
+    return;
+  }
+  // Public Monaco navigation API: reveal the first line without editing the model.
+  editor.revealLine(
+    1,
+    settings.value.appearance.reducedMotion
+      ? monaco.editor.ScrollType.Immediate
+      : monaco.editor.ScrollType.Smooth,
+  );
+  updateBackToTopVisibility();
+}
+
+function mountBackToTopWidget(): void {
+  if (!editor || backToTopWidget) {
+    return;
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "fulvid-monaco-back-to-top";
+  button.hidden = true;
+  const icon = document.createElement("span");
+  icon.className = "codicon codicon-arrow-up";
+  icon.setAttribute("aria-hidden", "true");
+  button.append(icon);
+  // Keep keyboard focus in Monaco; this is a viewport affordance, not an edit surface.
+  button.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+  button.addEventListener("click", scrollDocumentToStart);
+  backToTopButton = button;
+  updateBackToTopLabel();
+
+  backToTopWidget = {
+    getId: () => BACK_TO_TOP_WIDGET_ID,
+    getDomNode: () => button,
+    getPosition: backToTopWidgetPosition,
+  };
+  editor.addOverlayWidget(backToTopWidget);
+  stopLayoutWatch?.dispose();
+  stopLayoutWatch = editor.onDidLayoutChange(() => {
+    layoutBackToTopWidget();
+  });
+  updateBackToTopVisibility();
+}
+
+function disposeBackToTopWidget(): void {
+  stopLayoutWatch?.dispose();
+  stopLayoutWatch = null;
+  if (editor && backToTopWidget) {
+    editor.removeOverlayWidget(backToTopWidget);
+  }
+  backToTopWidget = null;
+  backToTopButton = null;
 }
 
 function emitCommandState(): void {
@@ -306,7 +422,10 @@ function mountEditor(): void {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => find());
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => replace());
   registerMarkdownActions();
-  stopLocaleWatch = watch(locale, registerMarkdownActions);
+  stopLocaleWatch = watch(locale, () => {
+    registerMarkdownActions();
+    updateBackToTopLabel();
+  });
   stopContentWatch = editor.onDidChangeModelContent(queueCommandState);
   stopEditorKeyWatch = editor.onKeyDown((event) => {
     if (event.keyCode === monaco.KeyCode.Escape) {
@@ -327,8 +446,10 @@ function mountEditor(): void {
   stopScrollWatch = editor.onDidScrollChange((event) => {
     if (event.scrollTopChanged || event.scrollHeightChanged) {
       emitScrollRatio();
+      updateBackToTopVisibility();
     }
   });
+  mountBackToTopWidget();
 
   resizeObserver = new ResizeObserver(updateLayout);
   resizeObserver.observe(hostRef.value);
@@ -564,6 +685,7 @@ onBeforeUnmount(() => {
   stopLocaleWatch = null;
   markdownActions.forEach((disposable) => disposable.dispose());
   markdownActions = [];
+  disposeBackToTopWidget();
   if (colorScheme) {
     colorScheme.removeEventListener("change", onColorSchemeChange);
     colorScheme = null;
@@ -590,5 +712,45 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 18rem;
   overflow: hidden;
+}
+</style>
+
+<style lang="scss">
+@use "../../../styles/colors" as *;
+@use "../../../styles/variables" as *;
+
+/* Overlay widgets live under Monaco's DOM, outside Vue scoped attributes. */
+.fulvid-monaco-back-to-top {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: $hit-min;
+  height: $hit-min;
+  /* Absolute overlay: margin escapes Monaco into the statusbar band. */
+  margin: 0;
+  padding: 0;
+  border: 1px solid $border-subtle;
+  border-radius: $radius;
+  background: $surface;
+  color: $text-secondary;
+  cursor: pointer;
+
+  &:hover {
+    background: $surface-hover;
+    color: $text-primary;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: 2px;
+  }
+
+  &[hidden] {
+    display: none;
+  }
+
+  .codicon {
+    font-size: 14px;
+  }
 }
 </style>

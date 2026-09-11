@@ -1099,7 +1099,7 @@ onBeforeUnmount(() => {
       </aside>
     </div>
 
-    <div :hidden="editorFocusChrome" :inert="editorFocusChrome">
+    <div class="app-shell__statusbar" :hidden="editorFocusChrome" :inert="editorFocusChrome">
       <Statusbar />
     </div>
     <ToastHost />
@@ -1152,6 +1152,11 @@ onBeforeUnmount(() => {
   flex: 1;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+}
+
+.app-shell__statusbar {
+  flex-shrink: 0;
 }
 
 .app-shell__scrim {

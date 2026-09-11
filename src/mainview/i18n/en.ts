@@ -178,6 +178,7 @@ export default {
     editQuestion: "Edit documents",
     toolbar: "Editor actions",
     editorArea: "Document editor",
+    backToTop: "Back to top",
     noWorkspace: "No folder open",
     lastOpenedFolder: "Last opened folder",
     continueWith: "Continue with {name}",

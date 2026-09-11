@@ -180,6 +180,7 @@ export default {
     editQuestion: "Editar documentos",
     toolbar: "Acciones del editor",
     editorArea: "Editor del documento",
+    backToTop: "Volver al inicio",
     noWorkspace: "No hay carpeta abierta",
     lastOpenedFolder: "Última carpeta abierta",
     continueWith: "Continuar con {name}",
