@@ -27,7 +27,7 @@ import { APP_ROUTE_NAMES } from "./router";
 import { notify } from "./notify";
 import ToastHost from "./ToastHost.vue";
 import DialogHost from "./DialogHost.vue";
-import { activeDialog } from "./dialogs";
+import { activeDialog, promptQuickOpen } from "./dialogs";
 import {
   describeFilesystemError,
   notifyFilesystemError,
@@ -40,6 +40,7 @@ import {
   openOrActivate,
   selectDocument,
 } from "../modules/editor/document/documentBuffers";
+import { quickOpenCandidatesFromNotes } from "../modules/quickOpen/quickOpenCandidates";
 import {
   activeId,
   nextMruDocument,
@@ -399,7 +400,7 @@ function handleModifierShortcut(event: KeyboardEvent, insideMonaco: boolean): bo
   }
   if (!event.shiftKey && key === "p") {
     event.preventDefault();
-    openQuickOpen();
+    void runCommand("openQuickOpen");
     return true;
   }
   if (!event.shiftKey && key === "n") {
@@ -705,18 +706,31 @@ function openGlobalSearch(): void {
 /**
  * Entry point for Quick Open (Ctrl/Cmd+P).
  *
- * Decisions (Phase 1):
- * - Candidates: `workspace.scannedNotes` via `quickOpenCandidatesFromNotes`
- *   (Folder scan only; empty when no Folder). Not Search strategies / content.
- * - Open: `openOrActivate({ kind: "workspace", rootPath, path })` →
- *   `selectDocument`. Paths are not grants.
- * - Overlay: DialogHost / `dialogs.ts` + `restoreUsableFocus` (same as other
- *   dialogs; usable under Writing Focus). No Vue Full Screen state.
- *
+ * Candidates: `workspace.scannedNotes` via `quickOpenCandidatesFromNotes`.
+ * Overlay: DialogHost / `promptQuickOpen`. Open: `openOrActivate` → `selectDocument`.
  * Global Search stays `openGlobalSearch` (Ctrl/Cmd+Shift+F).
- * Wire the picker UI here in Phase 2.
  */
-function openQuickOpen(): void {}
+async function openQuickOpen(): Promise<void> {
+  const candidates = quickOpenCandidatesFromNotes(workspace.value?.scannedNotes ?? []);
+  const path = await promptQuickOpen(candidates);
+  if (!path) {
+    return;
+  }
+  const rootPath = workspace.value?.path;
+  if (!rootPath) {
+    return;
+  }
+  try {
+    await openOrActivate({
+      kind: "workspace",
+      rootPath,
+      path,
+    });
+    await router.push({ name: APP_ROUTE_NAMES.editor });
+  } catch (error) {
+    notifyFilesystemError(error, "workspace.openDocumentError", notify);
+  }
+}
 
 function openExplorer(): void {
   if (route.name !== APP_ROUTE_NAMES.editor) {

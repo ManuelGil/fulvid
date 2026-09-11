@@ -1,8 +1,10 @@
 /**
- * Small promise-based dialogs for filename input and confirmation.
+ * Small promise-based dialogs for filename input, confirmation, and Quick Open.
  * Rendered by DialogHost.vue — not a modal framework.
  */
 import { shallowRef } from "vue";
+
+import type { QuickOpenCandidate } from "../modules/quickOpen/quickOpenCandidates";
 
 export type FilenamePromptRequest = {
   kind: "filename";
@@ -19,19 +21,30 @@ export type ConfirmPromptRequest = {
   resolve: (value: boolean) => void;
 };
 
-export type DialogRequest = FilenamePromptRequest | ConfirmPromptRequest;
+export type QuickOpenPromptRequest = {
+  kind: "quickOpen";
+  candidates: readonly QuickOpenCandidate[];
+  resolve: (path: string | null) => void;
+};
+
+export type DialogRequest = FilenamePromptRequest | ConfirmPromptRequest | QuickOpenPromptRequest;
 
 export const activeDialog = shallowRef<DialogRequest | null>(null);
 
-function replaceDialog(next: DialogRequest): void {
+function dismissCurrentDialog(): void {
   const current = activeDialog.value;
-  if (current) {
-    if (current.kind === "filename") {
-      current.resolve(null);
-    } else {
-      current.resolve(false);
-    }
+  if (!current) {
+    return;
   }
+  if (current.kind === "filename" || current.kind === "quickOpen") {
+    current.resolve(null);
+  } else {
+    current.resolve(false);
+  }
+}
+
+function replaceDialog(next: DialogRequest): void {
+  dismissCurrentDialog();
   activeDialog.value = next;
 }
 
@@ -62,6 +75,20 @@ export function confirmDialog(message: string, title?: string): Promise<boolean>
   });
 }
 
+/**
+ * Open Quick Open over a snapshot of folder candidates.
+ * Resolves to a folder-relative path, or null when cancelled.
+ */
+export function promptQuickOpen(candidates: readonly QuickOpenCandidate[]): Promise<string | null> {
+  return new Promise((resolve) => {
+    replaceDialog({
+      kind: "quickOpen",
+      candidates,
+      resolve,
+    });
+  });
+}
+
 function closeDialog(): void {
   activeDialog.value = null;
 }
@@ -72,7 +99,7 @@ export function cancelDialog(): void {
     return;
   }
   closeDialog();
-  if (current.kind === "filename") {
+  if (current.kind === "filename" || current.kind === "quickOpen") {
     current.resolve(null);
   } else {
     current.resolve(false);
@@ -99,4 +126,17 @@ export function submitConfirm(confirmed: boolean): void {
   }
   closeDialog();
   current.resolve(confirmed);
+}
+
+/** Accept a Quick Open selection. `path` must come from the candidate list. */
+export function submitQuickOpen(path: string): void {
+  const current = activeDialog.value;
+  if (!current || current.kind !== "quickOpen") {
+    return;
+  }
+  if (!current.candidates.some((candidate) => candidate.path === path)) {
+    return;
+  }
+  closeDialog();
+  current.resolve(path);
 }

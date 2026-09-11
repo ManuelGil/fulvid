@@ -59,6 +59,13 @@ export default {
     confirm: "Confirmar",
     cancel: "Cancelar",
   },
+  quickOpen: {
+    filterLabel: "Filtrar documentos",
+    placeholder: "Filtrar por título, nombre o ruta",
+    emptyFolder: "Abre una carpeta para encontrar documentos.",
+    noMatches: "No hay documentos coincidentes.",
+    showingLimited: "Mostrando {shown} de {total}",
+  },
   nav: {
     editor: "Editor",
     search: "Buscar",

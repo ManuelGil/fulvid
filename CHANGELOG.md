@@ -9,6 +9,10 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+### Added
+
+- Quick Open (`Ctrl/Cmd+P`): filter documents in the open Folder by title, filename, or relative path and open the selection. Not content search; not a Command Palette.
+
 ### Changed
 
 - Keyboard: `Ctrl/Cmd+P` is reserved for Quick Open (document identity in the open Folder). Global Search moves to `Ctrl/Cmd+Shift+F`. Writing Focus moves to `Ctrl/Cmd+Shift+Enter` so those chords do not compete. Monaco local find stays `Ctrl/Cmd+F`.

@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
-import { activeDialog, cancelDialog, submitConfirm, submitFilename } from "./dialogs";
+import {
+  activeDialog,
+  cancelDialog,
+  submitConfirm,
+  submitFilename,
+  submitQuickOpen,
+} from "./dialogs";
+import { matchQuickOpenCandidates } from "../modules/quickOpen/quickOpenMatch";
 import { restoreUsableFocus } from "./usableFocusTarget";
 
 const { t } = useI18n();
@@ -10,7 +17,33 @@ const dialogHostRef = ref<HTMLElement | null>(null);
 const filenameInputRef = ref<HTMLInputElement | null>(null);
 const filenameValue = ref("");
 const confirmButtonRef = ref<HTMLButtonElement | null>(null);
+const quickOpenInputRef = ref<HTMLInputElement | null>(null);
+const quickOpenQuery = ref("");
+const quickOpenSelectedIndex = ref(0);
 let previousFocus: HTMLElement | null = null;
+
+const quickOpenMatch = computed(() => {
+  const dialog = activeDialog.value;
+  if (!dialog || dialog.kind !== "quickOpen") {
+    return { matches: [], total: 0 };
+  }
+  return matchQuickOpenCandidates(dialog.candidates, quickOpenQuery.value);
+});
+
+const quickOpenResults = computed(() => quickOpenMatch.value.matches);
+const quickOpenTotal = computed(() => quickOpenMatch.value.total);
+
+const quickOpenActiveOptionId = computed(() => {
+  if (quickOpenResults.value.length === 0) {
+    return undefined;
+  }
+  return `quick-open-option-${quickOpenSelectedIndex.value}`;
+});
+
+const quickOpenHasFolderCandidates = computed(() => {
+  const dialog = activeDialog.value;
+  return Boolean(dialog && dialog.kind === "quickOpen" && dialog.candidates.length > 0);
+});
 
 watch(
   activeDialog,
@@ -31,12 +64,26 @@ watch(
       const input = filenameInputRef.value;
       input?.focus({ preventScroll: true });
       input?.select();
-    } else {
-      confirmButtonRef.value?.focus({ preventScroll: true });
+      return;
     }
+
+    if (dialog.kind === "quickOpen") {
+      quickOpenQuery.value = "";
+      quickOpenSelectedIndex.value = 0;
+      quickOpenInputRef.value?.focus({ preventScroll: true });
+      return;
+    }
+
+    confirmButtonRef.value?.focus({ preventScroll: true });
   },
   { flush: "post" },
 );
+
+watch(quickOpenResults, (results) => {
+  if (quickOpenSelectedIndex.value >= results.length) {
+    quickOpenSelectedIndex.value = Math.max(0, results.length - 1);
+  }
+});
 
 function dialogFocusableElements(): HTMLElement[] {
   const host = dialogHostRef.value;
@@ -99,6 +146,52 @@ function onConfirmKeydown(event: KeyboardEvent): void {
   }
 }
 
+function moveQuickOpenSelection(delta: 1 | -1): void {
+  const length = quickOpenResults.value.length;
+  if (length === 0) {
+    return;
+  }
+  quickOpenSelectedIndex.value = (quickOpenSelectedIndex.value + delta + length) % length;
+  document
+    .getElementById(`quick-open-option-${quickOpenSelectedIndex.value}`)
+    ?.scrollIntoView({ block: "nearest" });
+}
+
+function activateQuickOpenSelection(): void {
+  const selected = quickOpenResults.value[quickOpenSelectedIndex.value];
+  if (!selected) {
+    return;
+  }
+  submitQuickOpen(selected.path);
+}
+
+function onQuickOpenKeydown(event: KeyboardEvent): void {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    cancelDialog();
+    return;
+  }
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    moveQuickOpenSelection(1);
+    return;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    moveQuickOpenSelection(-1);
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    activateQuickOpenSelection();
+  }
+}
+
+function onQuickOpenResultClick(index: number): void {
+  quickOpenSelectedIndex.value = index;
+  activateQuickOpenSelection();
+}
+
 function onBackdropPointerDown(event: PointerEvent): void {
   if (event.target === event.currentTarget) {
     cancelDialog();
@@ -149,6 +242,87 @@ function onBackdropPointerDown(event: PointerEvent): void {
       </form>
 
       <div
+        v-else-if="activeDialog.kind === 'quickOpen'"
+        class="dialog dialog--quick-open"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quick-open-title"
+        @keydown="onQuickOpenKeydown"
+      >
+        <h2 id="quick-open-title" class="dialog__title">
+          {{ t("actions.quickOpen") }}
+        </h2>
+        <label class="dialog__field dialog__field--tight">
+          <span class="visually-hidden">{{ t("quickOpen.filterLabel") }}</span>
+          <input
+            id="quick-open-query"
+            ref="quickOpenInputRef"
+            v-model="quickOpenQuery"
+            class="dialog__input"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            :placeholder="t('quickOpen.placeholder')"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            :aria-controls="quickOpenResults.length > 0 ? 'quick-open-results' : undefined"
+            :aria-expanded="quickOpenResults.length > 0"
+            :aria-activedescendant="quickOpenActiveOptionId"
+          />
+        </label>
+
+        <p
+          v-if="!quickOpenHasFolderCandidates"
+          class="dialog__message dialog__message--compact"
+          role="status"
+        >
+          {{ t("quickOpen.emptyFolder") }}
+        </p>
+        <p
+          v-else-if="quickOpenResults.length === 0"
+          class="dialog__message dialog__message--compact"
+          role="status"
+        >
+          {{ t("quickOpen.noMatches") }}
+        </p>
+        <template v-else>
+          <ul
+            id="quick-open-results"
+            class="quick-open-results"
+            role="listbox"
+            :aria-label="t('actions.quickOpen')"
+          >
+            <li
+              v-for="(result, index) in quickOpenResults"
+              :id="`quick-open-option-${index}`"
+              :key="result.path"
+              role="option"
+              class="quick-open-results__item"
+              :class="{ 'is-selected': quickOpenSelectedIndex === index }"
+              :aria-selected="quickOpenSelectedIndex === index"
+              @pointerdown.prevent="onQuickOpenResultClick(index)"
+            >
+              <span class="quick-open-results__title">{{ result.title }}</span>
+              <span class="quick-open-results__path">{{ result.path }}</span>
+            </li>
+          </ul>
+          <p
+            v-if="quickOpenTotal > quickOpenResults.length"
+            class="quick-open-results__limit"
+            role="status"
+          >
+            {{
+              t("quickOpen.showingLimited", {
+                shown: quickOpenResults.length,
+                total: quickOpenTotal,
+              })
+            }}
+          </p>
+        </template>
+      </div>
+
+      <div
         v-else
         class="dialog"
         role="alertdialog"
@@ -196,6 +370,11 @@ function onBackdropPointerDown(event: PointerEvent): void {
   justify-content: center;
   padding: $space-block;
   background: $overlay;
+
+  &:has(.dialog--quick-open) {
+    align-items: flex-start;
+    padding-top: max($space-block, 12vh);
+  }
 }
 
 .dialog {
@@ -205,6 +384,10 @@ function onBackdropPointerDown(event: PointerEvent): void {
   border-radius: $radius-lg;
   background: $surface-elevated;
   box-shadow: $shadow-elevated;
+}
+
+.dialog--quick-open {
+  width: min(32rem, calc(100vw - 2rem));
 }
 
 .dialog__title {
@@ -221,6 +404,10 @@ function onBackdropPointerDown(event: PointerEvent): void {
   flex-direction: column;
   gap: $space-related;
   margin-bottom: $space-block;
+}
+
+.dialog__field--tight {
+  margin-bottom: $space-compact;
 }
 
 .dialog__label {
@@ -245,6 +432,10 @@ function onBackdropPointerDown(event: PointerEvent): void {
   white-space: pre-wrap;
 }
 
+.dialog__message--compact {
+  margin-bottom: 0;
+}
+
 .dialog__actions {
   display: flex;
   justify-content: flex-end;
@@ -259,5 +450,66 @@ function onBackdropPointerDown(event: PointerEvent): void {
 .dialog__button--quiet {
   @include quiet-button;
   min-width: 5.5rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.quick-open-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(22rem, 50vh);
+  overflow: auto;
+  border: 1px solid $border-subtle;
+  border-radius: $radius;
+}
+
+.quick-open-results__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: $space-related $space-compact;
+  cursor: pointer;
+  border-bottom: 1px solid $border-subtle;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &.is-selected {
+    background: $surface-hover;
+  }
+}
+
+.quick-open-results__title {
+  color: $text-primary;
+  font-size: $font-control;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.quick-open-results__path {
+  color: $text-secondary;
+  font-family: $font-mono;
+  font-size: $font-label;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.quick-open-results__limit {
+  margin: $space-related 0 0;
+  color: $text-secondary;
+  font-size: $font-label;
+  line-height: 1.35;
 }
 </style>

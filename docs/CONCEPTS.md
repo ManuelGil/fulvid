@@ -10,7 +10,7 @@ Open a document, edit, save, open another. Writing comes first. Folder browsing,
 
 Opening a folder looks recursively for `.md`, `.markdown`, and `.mdx`. If the scan finishes and finds none, Fulvid says so and does not load that folder. A partial scan never claims the folder is empty of documents. Finding an `.mdx` file does not run MDX.
 
-Fulvid does not run MDX or document HTML. It does not score notes, infer links, or use embeddings. There is no Command Palette. Quick Open (document identity in the open Folder) is reserved on `Ctrl/Cmd+P`; its picker UI is not shipped yet. Monaco is the only editor. Preview and Export HTML share one inert renderer.
+Fulvid does not run MDX or document HTML. It does not score notes, infer links, or use embeddings. There is no Command Palette. Quick Open (`Ctrl/Cmd+P`) opens a document by title, filename, or relative path in the open Folder. Monaco is the only editor. Preview and Export HTML share one inert renderer.
 
 ## Vocabulary
 
@@ -24,7 +24,7 @@ Product copy uses **Folder**, never Workspace. Host code may still use `workspac
 | **Tab** | One open buffer in the editor session |
 | **Editor** | Monaco writing surface |
 | **Search** | Folder-wide content search at `/search` (`Ctrl/Cmd+Shift+F`, or `/`) |
-| **Quick Open** | Open a document by title, filename, or relative path in the open Folder (`Ctrl/Cmd+P`). Candidates come from the Folder scan (`scannedNotes`), not a second index. Not content search; not a Command Palette. Picker UI ships after shortcut/command prep |
+| **Quick Open** | Open a document by title, filename, or relative path in the open Folder (`Ctrl/Cmd+P`). Candidates come from the Folder scan (`scannedNotes`), not a second index. Not content search; not a Command Palette |
 | **Graph** | Visualization of resolved document links around Focus |
 | **Preview** | Inert HTML of the active buffer |
 | **Export HTML** | Same renderer as Preview, written to a `.html` file |

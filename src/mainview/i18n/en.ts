@@ -59,6 +59,13 @@ export default {
     confirm: "Confirm",
     cancel: "Cancel",
   },
+  quickOpen: {
+    filterLabel: "Filter documents",
+    placeholder: "Filter by title, filename, or path",
+    emptyFolder: "Open a folder to find documents.",
+    noMatches: "No matching documents.",
+    showingLimited: "Showing {shown} of {total}",
+  },
   nav: {
     editor: "Editor",
     search: "Search",

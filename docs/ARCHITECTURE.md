@@ -33,7 +33,7 @@ Quick Open does not scan, index, or own document lifecycle. No Folder open → e
 
 Activation uses the same seam as Explorer and Search: `openOrActivate({ kind: "workspace", rootPath, path })` → `selectDocument`. Candidate paths are not grants; read/open still goes through filesystem containment.
 
-Overlay/focus: extend the existing DialogHost / `dialogs.ts` surface (Teleport, Escape, Tab trap, `restoreUsableFocus`). `.dialog-host` already stays usable under Writing Focus. Do not add a second dialog or focus manager. Do not touch native Full Screen.
+Overlay/focus: DialogHost / `dialogs.ts` (`promptQuickOpen`) with Teleport, Escape, Tab trap, and `restoreUsableFocus`. `.dialog-host` already stays usable under Writing Focus. Do not add a second dialog or focus manager. Do not touch native Full Screen.
 
 ## Selection and Focus
 
