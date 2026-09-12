@@ -12,7 +12,7 @@ Every user-visible behavior has **one owner**. Pages and the shell choose what i
 | --- | --- |
 | Document Session | Open documents and `activeId` |
 | Document buffers | Monaco models, dirty/`savedVersionId`, virtual vs persisted identity, grants, `selectDocument`, `openOrActivate` |
-| Editor | Commands, Preview split, Outline, Monaco host, Writing Focus chrome overlay |
+| Editor | Commands, Preview split, Outline, Monaco host, Writing Focus chrome overlay, session document annotations |
 | Explorer | Folder file tree in the right sidebar |
 | Search | `/search` and Search sidebar options (content strategies) |
 | Quick Open | Keyboard document picker by identity in the open Folder (`Ctrl/Cmd+P`); not content search; not a Command Palette |

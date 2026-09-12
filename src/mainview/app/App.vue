@@ -92,6 +92,11 @@ import {
   writingFocusActive,
   writingFocusHidesEditorChrome,
 } from "../modules/editor/writingFocus";
+import {
+  documentAnnotationsVisible,
+  syncDocumentAnnotationsVisibleFromPreference,
+  toggleDocumentAnnotationsVisible,
+} from "../modules/editor/document/documentAnnotationVisibility";
 import { isUsableFocusTarget } from "./usableFocusTarget";
 import {
   renderDocumentTemplate,
@@ -606,6 +611,7 @@ const unregisterNativeMenu = onApplicationMenuClicked((action) => {
 });
 
 onMounted(() => {
+  syncDocumentAnnotationsVisibleFromPreference(settings.value.editor.showDocumentAnnotations);
   void resolveApplicationMenuSupport().then(() => {
     void syncNativeApplicationMenu(presentedApplicationMenus.value);
   });
@@ -905,6 +911,7 @@ const applicationMenuState = computed<ApplicationMenuState>(() => {
     rightSidebarOpen: Boolean(activeRightPanel.value),
     statusbarEnabled: settings.value.appearance.statusbar.enabled,
     writingFocus: writingFocusActive.value,
+    documentAnnotationsVisible: documentAnnotationsVisible.value,
     canUndo: editorCommandState.value.canUndo,
     canRedo: editorCommandState.value.canRedo,
   };
@@ -944,6 +951,10 @@ const unregisterCommands = [
   registerCommandHandler("newDocumentDaily", () => createNewDocumentFromTemplate("daily")),
   registerCommandHandler("newDocumentProject", () => createNewDocumentFromTemplate("project")),
   registerCommandHandler("toggleWritingFocus", toggleWritingFocus),
+  registerCommandHandler("toggleDocumentAnnotations", () => {
+    const visible = toggleDocumentAnnotationsVisible();
+    notify(t(visible ? "documentAnnotations.shown" : "documentAnnotations.hidden"));
+  }),
   registerCommandHandler("openFile", openFileDocument),
   registerCommandHandler("openWorkspace", openWorkspace),
   registerCommandHandler("closeWorkspace", closeWorkspace),
@@ -1021,6 +1032,11 @@ const editorCommandIds = new Set<CommandId>([
   "renameHeading",
   "togglePreview",
   "deleteSelection",
+  "annotateDocument",
+  "removeAnnotation",
+  "nextAnnotation",
+  "previousAnnotation",
+  "clearAnnotations",
   ...MARKDOWN_COMMANDS.map((command) => command.id),
 ]);
 

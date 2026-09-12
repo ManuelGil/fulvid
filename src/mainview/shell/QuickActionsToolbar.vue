@@ -7,6 +7,7 @@ import ContextMenu, { type ContextMenuAction } from "./ContextMenu.vue";
 import { editorCommandState } from "../modules/editor/editorCommandState";
 import { activeBuffer } from "../modules/editor/document/documentBuffers";
 import { writingFocusActive } from "../modules/editor/writingFocus";
+import { documentAnnotationsVisible } from "../modules/editor/document/documentAnnotationVisibility";
 import {
   quickActionGroupOrder,
   quickActions,
@@ -94,6 +95,11 @@ function localizedLabel(action: QuickActionDefinition): string {
   if (action.id === "togglePreview") {
     return t(settings.value.preview.enabled ? "actions.hidePreview" : "actions.preview");
   }
+  if (action.id === "toggleDocumentAnnotations") {
+    return t(
+      documentAnnotationsVisible.value ? "actions.hideAnnotations" : "actions.showAnnotations",
+    );
+  }
   if (action.id === "toggleWritingFocus") {
     return t(writingFocusActive.value ? "actions.exitFocusMode" : "actions.focusMode");
   }
@@ -125,6 +131,9 @@ function isDisabled(action: QuickActionDefinition): boolean {
 function ariaPressed(action: QuickActionDefinition): boolean | undefined {
   if (action.id === "togglePreview") {
     return settings.value.preview.enabled;
+  }
+  if (action.id === "toggleDocumentAnnotations") {
+    return documentAnnotationsVisible.value;
   }
   if (action.id === "toggleWritingFocus") {
     return writingFocusActive.value;

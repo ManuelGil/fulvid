@@ -11,6 +11,9 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Added
 
+- Session-local document annotations: short plain-text notes on tracked positions in the open document (Navigate menu; glyph margin). Not persistent; not part of the Markdown/MDX file.
+- Show/Hide annotations presentation (Quick Actions and View menu), with Settings → Editor preferred default. Hiding does not delete annotations.
+
 ## [0.5.0] - 2026-09-12
 
 - Settings -> General: Reset settings restores persisted preferences to built-in defaults (documents, Folder, tabs, and files stay unchanged).

@@ -25,6 +25,7 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Folder startup | `workspaceStartup` is `none` or `last`. Untitled is available in both cases |
 | Folder preflight | Opening a folder loads it only when the scan found `.md` / `.markdown` / `.mdx`, or when the scan was partial. A complete scan with none of those files is said out loud and does not become the open folder. Preflight does not grant access, execute MDX, or walk the tree a second time |
 | Line endings | EOL is document state on the Monaco model. Existing files keep LF or CRLF. Untitled and files with no line break use `editor.defaultEol` (not the OS). Explicit change uses the model and persists only through the existing Save path |
+| Document annotations | Session-local plain-text notes on model-owned Monaco decorations. Presentation visibility is separate from existence. They do not dirty the document, write disk, or persist annotation content across close/reopen. Not Graph, Search, Outline, Preview, or diagnostics. See [ANNOTATIONS.md](./ANNOTATIONS.md) |
 
 ## Graph
 

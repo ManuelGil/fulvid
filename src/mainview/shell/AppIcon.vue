@@ -47,6 +47,7 @@ import {
   Search,
   Settings,
   Share2,
+  StickyNote,
   Strikethrough,
   Undo2,
   UnfoldVertical,
@@ -80,6 +81,7 @@ export type IconName =
   | "close-all"
   | "preview"
   | "focus"
+  | "annotations"
   | "dirty"
   | "chevron-down"
   | "chevron-right"
@@ -128,6 +130,7 @@ const icons: Record<IconName, FunctionalComponent> = {
   "close-all": CopyX,
   preview: Eye,
   focus: Focus,
+  annotations: StickyNote,
   dirty: Circle,
   "chevron-down": ChevronDown,
   "chevron-right": ChevronRight,

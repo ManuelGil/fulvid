@@ -45,6 +45,7 @@ export type ApplicationMenuState = {
   rightSidebarOpen: boolean;
   statusbarEnabled: boolean;
   writingFocus: boolean;
+  documentAnnotationsVisible: boolean;
   canUndo: boolean;
   canRedo: boolean;
 };
@@ -58,7 +59,13 @@ export type ApplicationMenuNode =
       shortcut?: string;
       accelerator?: string;
       availability: MenuAvailability;
-      checked?: "preview" | "leftSidebar" | "rightSidebar" | "statusbar" | "writingFocus";
+      checked?:
+        | "preview"
+        | "leftSidebar"
+        | "rightSidebar"
+        | "statusbar"
+        | "writingFocus"
+        | "documentAnnotations";
     }
   | {
       type: "role";
@@ -149,7 +156,14 @@ export function menuItemEnabled(
 }
 
 function checkedFor(
-  key: "preview" | "leftSidebar" | "rightSidebar" | "statusbar" | "writingFocus" | undefined,
+  key:
+    | "preview"
+    | "leftSidebar"
+    | "rightSidebar"
+    | "statusbar"
+    | "writingFocus"
+    | "documentAnnotations"
+    | undefined,
   state: ApplicationMenuState,
 ): boolean | undefined {
   if (key === "preview") {
@@ -167,12 +181,18 @@ function checkedFor(
   if (key === "writingFocus") {
     return state.writingFocus;
   }
+  if (key === "documentAnnotations") {
+    return state.documentAnnotationsVisible;
+  }
   return undefined;
 }
 
 function commandLabel(id: CommandId, label: string, state: ApplicationMenuState): string {
   if (id === "togglePreview") {
     return state.previewEnabled ? "actions.hidePreview" : "actions.preview";
+  }
+  if (id === "toggleDocumentAnnotations") {
+    return state.documentAnnotationsVisible ? "actions.hideAnnotations" : "actions.showAnnotations";
   }
   if (id === "toggleWritingFocus") {
     return state.writingFocus ? "actions.exitFocusMode" : "actions.focusMode";
@@ -485,6 +505,13 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
         },
         {
           type: "command",
+          id: "toggleDocumentAnnotations",
+          label: "actions.showAnnotations",
+          availability: "always",
+          checked: "documentAnnotations",
+        },
+        {
+          type: "command",
           id: "toggleWritingFocus",
           label: "menu.focusMode",
           shortcut: "Ctrl/Cmd+Shift+Enter",
@@ -575,6 +602,37 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
           id: "renameHeading",
           label: "actions.renameHeading",
           shortcut: "F2",
+          availability: "hasDocument",
+        },
+        { type: "separator", id: "navigate-separator-annotations" },
+        {
+          type: "command",
+          id: "annotateDocument",
+          label: "documentAnnotations.annotate",
+          availability: "hasDocument",
+        },
+        {
+          type: "command",
+          id: "removeAnnotation",
+          label: "documentAnnotations.remove",
+          availability: "hasDocument",
+        },
+        {
+          type: "command",
+          id: "nextAnnotation",
+          label: "documentAnnotations.next",
+          availability: "hasDocument",
+        },
+        {
+          type: "command",
+          id: "previousAnnotation",
+          label: "documentAnnotations.previous",
+          availability: "hasDocument",
+        },
+        {
+          type: "command",
+          id: "clearAnnotations",
+          label: "documentAnnotations.clear",
           availability: "hasDocument",
         },
       ],

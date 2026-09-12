@@ -61,6 +61,12 @@ export interface EditorSettings {
   stickyScroll: boolean;
   renderWhitespace: EditorRenderWhitespace;
   showMarkdownFormatBar: boolean;
+  /**
+   * Preferred default for document annotation glyph/hover presentation.
+   * Session visibility can diverge until restart, settings change, or reset.
+   * Does not persist annotation content or positions.
+   */
+  showDocumentAnnotations: boolean;
   readingStatistics: ReadingStatisticsMode;
   /** Focus-mode only. Ignored when writing focus is off. */
   typewriterScrolling: boolean;
@@ -142,6 +148,7 @@ const DEFAULT_SETTINGS: FulvidSettings = {
     stickyScroll: true,
     renderWhitespace: "selection",
     showMarkdownFormatBar: false,
+    showDocumentAnnotations: true,
     readingStatistics: "wordsAndTime",
     typewriterScrolling: true,
     documentLocation: "main-panel",
@@ -355,6 +362,11 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
           : typeof (editor as { showMarkdownToolbar?: unknown }).showMarkdownToolbar === "boolean"
             ? (editor as { showMarkdownToolbar: boolean }).showMarkdownToolbar
             : DEFAULT_SETTINGS.editor.showMarkdownFormatBar,
+      showDocumentAnnotations:
+        typeof (editor as { showDocumentAnnotations?: unknown }).showDocumentAnnotations ===
+        "boolean"
+          ? (editor as { showDocumentAnnotations: boolean }).showDocumentAnnotations
+          : DEFAULT_SETTINGS.editor.showDocumentAnnotations,
       readingStatistics: VALID_READING_STATISTICS.has(
         editor.readingStatistics as ReadingStatisticsMode,
       )
@@ -454,6 +466,8 @@ export function defaultSettings(): FulvidSettings {
  * Restore every persisted preference to DEFAULT_SETTINGS in one assignment.
  * Does not touch documents, Folder, layout, session chrome, or grants.
  * The settings watcher persists and reapplies appearance / link mode.
+ * Callers that own session presentation (e.g. annotation visibility) sync
+ * from the restored preference separately.
  */
 export function resetSettingsToDefaults(): void {
   settings.value = defaultSettings();

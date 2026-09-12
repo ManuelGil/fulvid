@@ -47,6 +47,12 @@ export type CommandId =
   | "toggleLeftSidebar"
   | "toggleRightSidebar"
   | "toggleFullscreen"
+  | "annotateDocument"
+  | "removeAnnotation"
+  | "nextAnnotation"
+  | "previousAnnotation"
+  | "clearAnnotations"
+  | "toggleDocumentAnnotations"
   | "openExplorer"
   | "openEditor"
   | "openGraph"
@@ -85,6 +91,7 @@ export type CommandIcon =
   | "close-all"
   | "preview"
   | "focus"
+  | "annotations"
   | "outline"
   | "search"
   | "undo"
@@ -204,6 +211,13 @@ export const quickActions: readonly QuickActionDefinition[] = [
     id: "togglePreview",
     label: "actions.preview",
     icon: "preview",
+    group: "fulvid",
+    tier: "secondary",
+  },
+  {
+    id: "toggleDocumentAnnotations",
+    label: "actions.showAnnotations",
+    icon: "annotations",
     group: "fulvid",
     tier: "secondary",
   },

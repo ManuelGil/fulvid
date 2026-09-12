@@ -66,7 +66,7 @@ import {
   pendingReveal,
 } from "../../modules/editor/document/documentSession";
 import { notify } from "../../app/notify";
-import { confirmDialog, promptFilename } from "../../app/dialogs";
+import { confirmDialog, promptFilename, promptText } from "../../app/dialogs";
 import { settings } from "../../modules/settings/settingsStore";
 import {
   layout,
@@ -98,6 +98,10 @@ import {
   selectDocument,
 } from "../../modules/editor/document/documentBuffers";
 import {
+  DOCUMENT_ANNOTATION_MAX,
+  DOCUMENT_ANNOTATION_TEXT_MAX,
+} from "../../modules/editor/document/documentAnnotations";
+import {
   documentLocationFromBuffer,
   showsMainPanelDocumentLocation,
 } from "../../modules/editor/document/documentLocation";
@@ -115,6 +119,28 @@ type MonacoHostHandle = {
   runEditorAction: (action: "undo" | "redo" | "fold" | "unfold") => Promise<void>;
   runMonacoAction: (actionId: string) => Promise<void>;
   runMarkdownAction: (action: MarkdownFormatAction) => void;
+  currentCursorPosition: () => { lineNumber: number; column: number };
+  findAnnotationAtLine: (lineNumber: number) => {
+    position: { lineNumber: number; column: number };
+    text: string;
+  } | null;
+  upsertAnnotationAtLine: (
+    lineNumber: number,
+    column: number,
+    text: string,
+  ) => {
+    action: "added" | "updated" | "capped";
+    annotation?: { position: { lineNumber: number; column: number }; text: string };
+    position?: { lineNumber: number; column: number };
+    count: number;
+  } | null;
+  removeAnnotationAtLine: (lineNumber: number) => {
+    position: { lineNumber: number; column: number };
+    text: string;
+  } | null;
+  goToNextDocumentAnnotation: () => boolean;
+  goToPreviousDocumentAnnotation: () => boolean;
+  clearDocumentAnnotations: () => number;
 };
 
 type PreviewPaneHandle = {
@@ -456,6 +482,81 @@ function findInEditor(): void {
   monacoHostRef.value?.find();
 }
 
+async function annotateAtLine(lineNumber: number, column: number): Promise<void> {
+  const host = monacoHostRef.value;
+  if (!host) {
+    return;
+  }
+  const existing = host.findAnnotationAtLine(lineNumber);
+  const entered = await promptText({
+    title: existing ? t("documentAnnotations.editTitle") : t("documentAnnotations.addTitle"),
+    label: t("documentAnnotations.textLabel"),
+    initialValue: existing?.text ?? "",
+    maxLength: DOCUMENT_ANNOTATION_TEXT_MAX,
+  });
+  if (!entered) {
+    return;
+  }
+  const result = host.upsertAnnotationAtLine(
+    lineNumber,
+    existing?.position.column ?? column,
+    entered,
+  );
+  if (!result) {
+    return;
+  }
+  if (result.action === "capped") {
+    notify(t("documentAnnotations.capped", { max: DOCUMENT_ANNOTATION_MAX }));
+    return;
+  }
+  const line = result.annotation?.position.lineNumber ?? lineNumber;
+  if (result.action === "updated") {
+    notify(t("documentAnnotations.updated", { line }));
+    return;
+  }
+  notify(t("documentAnnotations.added", { line }));
+}
+
+async function annotateAtCursor(): Promise<void> {
+  const cursor = monacoHostRef.value?.currentCursorPosition() ?? { lineNumber: 1, column: 1 };
+  await annotateAtLine(cursor.lineNumber, cursor.column);
+}
+
+function removeAnnotationAtCursor(): void {
+  const host = monacoHostRef.value;
+  if (!host) {
+    return;
+  }
+  const cursor = host.currentCursorPosition();
+  const removed = host.removeAnnotationAtLine(cursor.lineNumber);
+  if (!removed) {
+    notify(t("documentAnnotations.noneAtCursor"));
+    return;
+  }
+  notify(t("documentAnnotations.removed", { line: removed.position.lineNumber }));
+}
+
+function goToNextDocumentAnnotation(): void {
+  if (!(monacoHostRef.value?.goToNextDocumentAnnotation() ?? false)) {
+    notify(t("documentAnnotations.none"));
+  }
+}
+
+function goToPreviousDocumentAnnotation(): void {
+  if (!(monacoHostRef.value?.goToPreviousDocumentAnnotation() ?? false)) {
+    notify(t("documentAnnotations.none"));
+  }
+}
+
+function clearDocumentAnnotationsInEditor(): void {
+  const cleared = monacoHostRef.value?.clearDocumentAnnotations() ?? 0;
+  if (cleared === 0) {
+    notify(t("documentAnnotations.none"));
+    return;
+  }
+  notify(t("documentAnnotations.cleared", { count: cleared }));
+}
+
 function replaceInEditor(): void {
   monacoHostRef.value?.replace();
 }
@@ -680,6 +781,11 @@ const unregisterCommands = [
   ),
   registerCommandHandler("renameHeading", () => runMonacoEditorAction("editor.action.rename")),
   registerCommandHandler("togglePreview", togglePreview),
+  registerCommandHandler("annotateDocument", () => void annotateAtCursor()),
+  registerCommandHandler("removeAnnotation", removeAnnotationAtCursor),
+  registerCommandHandler("nextAnnotation", goToNextDocumentAnnotation),
+  registerCommandHandler("previousAnnotation", goToPreviousDocumentAnnotation),
+  registerCommandHandler("clearAnnotations", clearDocumentAnnotationsInEditor),
   ...MARKDOWN_COMMANDS.map((command) =>
     registerCommandHandler(command.id, () => {
       monacoHostRef.value?.runMarkdownAction(command.action);
@@ -934,6 +1040,7 @@ onBeforeUnmount(() => {
               @escape="leaveEditor"
               @scroll="syncPreviewScroll"
               @command-state="onCommandState"
+              @annotate-line="(lineNumber) => void annotateAtLine(lineNumber, 1)"
             />
             <p v-else class="editor-page__empty-editor">
               {{ t("workspace.chooseDocument") }}

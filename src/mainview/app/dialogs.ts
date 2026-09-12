@@ -1,5 +1,5 @@
 /**
- * Small promise-based dialogs for filename input, confirmation, and Quick Open.
+ * Small promise-based dialogs for filename input, plain text, confirmation, and Quick Open.
  * Rendered by DialogHost.vue - not a modal framework.
  */
 import { shallowRef } from "vue";
@@ -9,6 +9,15 @@ export type FilenamePromptRequest = {
   title: string;
   label: string;
   value: string;
+  resolve: (value: string | null) => void;
+};
+
+export type TextPromptRequest = {
+  kind: "text";
+  title: string;
+  label: string;
+  value: string;
+  maxLength: number;
   resolve: (value: string | null) => void;
 };
 
@@ -34,7 +43,8 @@ export type QuickOpenPromptRequest = {
   resolve: (path: string | null) => void;
 };
 
-export type DialogRequest = FilenamePromptRequest | ConfirmPromptRequest | QuickOpenPromptRequest;
+export type DialogRequest =
+  FilenamePromptRequest | TextPromptRequest | ConfirmPromptRequest | QuickOpenPromptRequest;
 
 export const activeDialog = shallowRef<DialogRequest | null>(null);
 
@@ -43,7 +53,7 @@ function dismissCurrentDialog(): void {
   if (!current) {
     return;
   }
-  if (current.kind === "filename" || current.kind === "quickOpen") {
+  if (current.kind === "filename" || current.kind === "text" || current.kind === "quickOpen") {
     current.resolve(null);
   } else {
     current.resolve(false);
@@ -66,6 +76,25 @@ export function promptFilename(options: {
       title: options.title,
       label: options.label,
       value: options.initialValue ?? "",
+      resolve,
+    });
+  });
+}
+
+/** Plain-text prompt for short session notes (annotations). Not a form framework. */
+export function promptText(options: {
+  title: string;
+  label: string;
+  initialValue?: string;
+  maxLength: number;
+}): Promise<string | null> {
+  return new Promise((resolve) => {
+    replaceDialog({
+      kind: "text",
+      title: options.title,
+      label: options.label,
+      value: options.initialValue ?? "",
+      maxLength: options.maxLength,
       resolve,
     });
   });
@@ -112,7 +141,7 @@ export function cancelDialog(): void {
     return;
   }
   closeDialog();
-  if (current.kind === "filename" || current.kind === "quickOpen") {
+  if (current.kind === "filename" || current.kind === "text" || current.kind === "quickOpen") {
     current.resolve(null);
   } else {
     current.resolve(false);
@@ -130,6 +159,20 @@ export function submitFilename(value: string): void {
   }
   closeDialog();
   current.resolve(trimmed);
+}
+
+export function submitText(value: string): void {
+  const current = activeDialog.value;
+  if (!current || current.kind !== "text") {
+    return;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return;
+  }
+  const limited = current.maxLength > 0 ? trimmed.slice(0, current.maxLength) : trimmed;
+  closeDialog();
+  current.resolve(limited);
 }
 
 export function submitConfirm(confirmed: boolean): void {

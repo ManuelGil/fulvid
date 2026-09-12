@@ -24,6 +24,7 @@ const idleState: ApplicationMenuState = {
   rightSidebarOpen: false,
   statusbarEnabled: true,
   writingFocus: false,
+  documentAnnotationsVisible: true,
   canUndo: false,
   canRedo: false,
 };

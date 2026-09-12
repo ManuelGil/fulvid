@@ -23,6 +23,18 @@ import type { EditorCommandState } from "../editorCommandState";
 
 import { settings, type EditorSettings } from "../../settings/settingsStore";
 import { monacoEditorPreferences } from "../preferences/editorPreferences";
+import {
+  applyDocumentAnnotationPresentation,
+  clearDocumentAnnotations,
+  findAnnotationOnLine,
+  findDocumentAnnotationNear,
+  listDocumentAnnotations,
+  removeDocumentAnnotationOnLine,
+  upsertDocumentAnnotationOnLine,
+  type DocumentAnnotation,
+  type UpsertDocumentAnnotationResult,
+} from "../document/documentAnnotations";
+import { documentAnnotationsVisible } from "../document/documentAnnotationVisibility";
 import { writingFocusActive, writingFocusMonacoOptions } from "../writingFocus";
 import {
   applyMonacoTheme,
@@ -53,6 +65,7 @@ const emit = defineEmits<{
   escape: [];
   scroll: [ratio: number];
   commandState: [state: EditorCommandState];
+  annotateLine: [lineNumber: number];
 }>();
 
 const hostRef = ref<HTMLDivElement | null>(null);
@@ -71,6 +84,7 @@ let stopLocaleWatch: (() => void) | null = null;
 let backToTopButton: HTMLButtonElement | null = null;
 let backToTopWidget: monaco.editor.IOverlayWidget | null = null;
 let stopLayoutWatch: monaco.IDisposable | null = null;
+let stopAnnotationMouseWatch: monaco.IDisposable | null = null;
 
 const BACK_TO_TOP_WIDGET_ID = "fulvid.backToTop";
 /** Show the control once the viewport has left the first screen of the document. */
@@ -397,6 +411,8 @@ function mountEditor(): void {
     },
     padding: { top: 18, bottom: 18 },
     roundedSelection: false,
+    // Glyph margin hosts session document annotations.
+    glyphMargin: true,
     theme: monacoTheme,
     ariaLabel: t("documentLanguage.editing", { path: props.path }),
   });
@@ -422,6 +438,17 @@ function mountEditor(): void {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => find());
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => replace());
   registerMarkdownActions();
+  stopAnnotationMouseWatch = editor.onMouseDown((event) => {
+    if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
+      return;
+    }
+    const lineNumber = event.target.position?.lineNumber;
+    if (!lineNumber) {
+      return;
+    }
+    event.event.preventDefault();
+    emit("annotateLine", lineNumber);
+  });
   stopLocaleWatch = watch(locale, () => {
     registerMarkdownActions();
     updateBackToTopLabel();
@@ -454,6 +481,7 @@ function mountEditor(): void {
   resizeObserver = new ResizeObserver(updateLayout);
   resizeObserver.observe(hostRef.value);
   updateLayout();
+  syncAnnotationPresentation();
   emitCommandState();
 
   stopThemeWatch = watch(
@@ -475,6 +503,7 @@ watch(
         : null;
       frontmatterRegistration?.dispose();
       frontmatterRegistration = props.rootPath ? null : registerFrontmatterDiagnostics(model);
+      syncAnnotationPresentation();
       queueCommandState();
     }
   },
@@ -521,6 +550,10 @@ watch(
   },
 );
 
+watch(documentAnnotationsVisible, () => {
+  syncAnnotationPresentation();
+});
+
 onMounted(mountEditor);
 
 function onHostKeydown(event: KeyboardEvent): void {
@@ -538,6 +571,79 @@ function revealPosition(lineNumber: number, column: number): void {
   editor.setPosition(position);
   editor.revealPositionInCenter(position);
   editor.focus();
+}
+
+function currentCursorPosition(): { lineNumber: number; column: number } {
+  const position = editor?.getPosition();
+  return {
+    lineNumber: position?.lineNumber ?? 1,
+    column: position?.column ?? 1,
+  };
+}
+
+function syncAnnotationPresentation(): void {
+  const model = editor?.getModel();
+  if (!model) {
+    return;
+  }
+  applyDocumentAnnotationPresentation(monaco, model, documentAnnotationsVisible.value);
+}
+
+function findAnnotationAtLine(lineNumber: number): DocumentAnnotation | null {
+  const model = editor?.getModel();
+  if (!model) {
+    return null;
+  }
+  return findAnnotationOnLine(monaco, model, lineNumber);
+}
+
+function upsertAnnotationAtLine(
+  lineNumber: number,
+  column: number,
+  text: string,
+): UpsertDocumentAnnotationResult | null {
+  const model = editor?.getModel();
+  if (!model) {
+    return null;
+  }
+  return upsertDocumentAnnotationOnLine(
+    monaco,
+    model,
+    lineNumber,
+    column,
+    text,
+    documentAnnotationsVisible.value,
+  );
+}
+
+function removeAnnotationAtLine(lineNumber: number): DocumentAnnotation | null {
+  const model = editor?.getModel();
+  if (!model) {
+    return null;
+  }
+  return removeDocumentAnnotationOnLine(monaco, model, lineNumber);
+}
+
+function goToDocumentAnnotation(direction: "next" | "previous"): boolean {
+  const model = editor?.getModel();
+  if (!model || !editor) {
+    return false;
+  }
+  const annotations = listDocumentAnnotations(monaco, model);
+  const target = findDocumentAnnotationNear(annotations, currentCursorPosition(), direction);
+  if (!target) {
+    return false;
+  }
+  revealPosition(target.position.lineNumber, target.position.column);
+  return true;
+}
+
+function clearAnnotationsInDocument(): number {
+  const model = editor?.getModel();
+  if (!model) {
+    return 0;
+  }
+  return clearDocumentAnnotations(model);
 }
 
 function find(): void {
@@ -671,6 +777,13 @@ defineExpose({
   runEditorAction,
   runMonacoAction,
   runMarkdownAction,
+  currentCursorPosition,
+  findAnnotationAtLine,
+  upsertAnnotationAtLine,
+  removeAnnotationAtLine,
+  goToNextDocumentAnnotation: () => goToDocumentAnnotation("next"),
+  goToPreviousDocumentAnnotation: () => goToDocumentAnnotation("previous"),
+  clearDocumentAnnotations: clearAnnotationsInDocument,
 });
 
 onBeforeUnmount(() => {
@@ -683,6 +796,8 @@ onBeforeUnmount(() => {
   stopScrollWatch = null;
   stopContentWatch?.dispose();
   stopContentWatch = null;
+  stopAnnotationMouseWatch?.dispose();
+  stopAnnotationMouseWatch = null;
   stopLocaleWatch?.();
   stopLocaleWatch = null;
   markdownActions.forEach((disposable) => disposable.dispose());
@@ -754,5 +869,27 @@ onBeforeUnmount(() => {
   .codicon {
     font-size: 14px;
   }
+}
+
+/*
+ * Session document annotation in the glyph margin. Shape + currentColor so
+ * forced colors still show an annotation without depending on a single hue.
+ */
+.fulvid-document-annotation-glyph {
+  position: relative;
+}
+
+.fulvid-document-annotation-glyph::before {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin: auto;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+  opacity: 0.85;
 }
 </style>
