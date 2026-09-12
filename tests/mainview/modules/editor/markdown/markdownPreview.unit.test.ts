@@ -44,6 +44,21 @@ describe("markdown preview", () => {
     expect(result.html).not.toContain("<img onerror");
   });
 
+  test("MDX import and brace expressions never evaluate", () => {
+    const result = renderMarkdownPreview(
+      "import X from 'evil'\n\nexport const y = 1\n\n{1 + 1}\n\n{(() => 99)()}\n",
+      [],
+      "markdown",
+    );
+
+    // Observable inertness: expressions are not computed into the HTML.
+    expect(result.html).not.toMatch(/>\s*2\s*</);
+    expect(result.html).not.toMatch(/>\s*99\s*</);
+    expect(result.html).not.toContain("<script");
+    expect(result.html).toContain("{1 + 1}");
+    expect(result.html).toContain("import X from");
+  });
+
   test("uses the shared document resolver for Markdown and Wikilink targets", () => {
     const markdown = renderMarkdownPreview(
       "[Guide](docs/guide.mdx#start) [Missing](missing.md)",

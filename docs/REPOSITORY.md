@@ -21,7 +21,7 @@ src/mainview/app/        Bootstrap, router, layout, folder lifecycle
 src/mainview/shell/      Menus, sidebars, AppIcon.vue
 src/mainview/i18n/       EN/ES catalogs; see I18N.md
 src/mainview/styles/
-tests/                   Mirrors src/bun, src/mainview, and scripts/
+tests/                   Mirrors src/bun, src/mainview, scripts/, and extensions/
 scripts/                 validate, doctor, icons, smoke, compatibility smoke
 packaging/linux/         Manual Linux release and desktop/metainfo stubs
 packaging/windows/       Windows packaging (Actions)
@@ -44,7 +44,7 @@ docs/
 | Outline | `modules/editor/outline/OutlinePanel.vue` |
 | Preview | `modules/editor/preview/PreviewPane.vue` |
 
-Tests mirror `src/` and `scripts/`. Names are `.unit.test.ts`, `.integration.test.ts`, and `.smoke.test.ts`. Unit tests are the exception; see [CONTRIBUTING.md](../CONTRIBUTING.md#testing). Smoke is `bun run smoke`, not part of `bun run test`.
+Tests mirror `src/`, `scripts/`, and `extensions/`. Names are `.unit.test.ts`, `.integration.test.ts`, and `.smoke.test.ts`. Unit tests are the exception; see [CONTRIBUTING.md](../CONTRIBUTING.md#testing). Smoke is `bun run smoke`, not part of `bun run test`. Security and architecture frontiers are protected by those existing layers (filesystem, External Open, Focus/selection, Graph projection, Preview inertness, Writing Focus ⊥ Full Screen, extension fixtures) — not by a separate `tests/security-harness/` tree.
 
 Product copy uses **Folder**. Host code may keep `workspace*` identifiers.
 

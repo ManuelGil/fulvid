@@ -16,6 +16,7 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Session ownership | `DocumentSession.activeId` owns the editor selection. The active buffer never derives from Focus |
 | Selection seam | UI selection uses `selectDocument`. `activateDocument` is session-internal |
 | Focus ownership | Focus is folder-scoped Graph/Context metadata. Graph consumes Focus and does not own it |
+| Writing Focus ⊥ Full Screen | Writing Focus is session editor chrome only. Native Full Screen is BrowserWindow state on the host. Either may be on, off, or combined; neither owns the other, grants, containment, Preview, or document selection |
 | Search ownership | Local find uses the active Monaco model. Global Search uses folder document content |
 | Quick Open ownership | Quick Open matches document identity (`title`, filename, relative path) from `workspace.scannedNotes` in the open Folder only. It does not search content, own a scan, or bypass `openOrActivate` / filesystem containment |
 | Semantic rename | F2 renames a heading or fragment in document text. It never renames a file or document ID |

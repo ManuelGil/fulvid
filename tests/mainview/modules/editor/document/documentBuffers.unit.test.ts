@@ -162,10 +162,11 @@ const {
   isDocumentDirty,
   openBuffers,
   openDocument,
+  selectDocument,
 } = await import("../../../../../src/mainview/modules/editor/document/documentBuffers.ts");
 const { activeId, clearSessionDocuments } =
   await import("../../../../../src/mainview/modules/editor/document/documentSession.ts");
-const { currentFocus } =
+const { bindFocusToWorkspace, clearFocusState, currentFocus } =
   await import("../../../../../src/mainview/modules/workspace/focus/focusState");
 const { patchSettings, settings } =
   await import("../../../../../src/mainview/modules/settings/settingsStore.ts");
@@ -173,6 +174,8 @@ const { patchSettings, settings } =
 afterEach(() => {
   closeAllDocuments(true);
   clearSessionDocuments();
+  clearFocusState();
+  bindFocusToWorkspace(null);
   models.length = 0;
   nextSaveAsResult = {
     status: "saved",
@@ -225,6 +228,30 @@ describe("document buffers", () => {
     expect(fromTemplate.model.getValue()).toBe("# Note\n\n");
     expect(isDocumentDirty(fromTemplate)).toBe(true);
     expect(fromTemplate.kind).toBe("virtual");
+  });
+
+  // Intent: selectDocument is the only UI seam that pairs session activeId with Focus.
+  // Growth boundary: add cases only when a new buffer kind gains or loses folder Focus.
+  test("selectDocument pairs folder Focus and clears it for virtual tabs", async () => {
+    bindFocusToWorkspace("/workspace");
+
+    const first = await openDocument("/workspace", "one.md");
+    expect(activeId.value).toBe(first.id);
+    expect(currentFocus.value).toEqual({ path: "one.md", workspacePath: "/workspace" });
+
+    const second = await openDocument("/workspace", "two.md");
+    expect(currentFocus.value).toEqual({ path: "two.md", workspacePath: "/workspace" });
+
+    const untitled = createUntitledDocument();
+    expect(activeId.value).toBe(untitled.id);
+    expect(currentFocus.value).toBeNull();
+
+    expect(selectDocument(first.id)).toBe(true);
+    expect(activeId.value).toBe(first.id);
+    expect(currentFocus.value).toEqual({ path: "one.md", workspacePath: "/workspace" });
+
+    expect(selectDocument(second.id)).toBe(true);
+    expect(currentFocus.value).toEqual({ path: "two.md", workspacePath: "/workspace" });
   });
 
   test("a failed save leaves the document dirty", async () => {

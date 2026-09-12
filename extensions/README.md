@@ -35,6 +35,8 @@ Do not add product-shaped packs (bug report, meeting, ADR, etc.) here. Those age
 | Discovery / loader | **Not implemented** |
 | Lua / wasmoon | **Not implemented** |
 
+Contract tests: `tests/extensions/extensionFixtures.unit.test.ts` (permanent set size, allowed capabilities/actions, no executable artifacts).
+
 ## Layout
 
 ```text

@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  canPersistWindowFrame,
+  toggleNativeFullScreen,
+} from "../../../../src/bun/windowFullScreen.ts";
+import {
   toggleWritingFocus,
   writingFocusActive,
   writingFocusHidesEditorChrome,
@@ -23,5 +27,48 @@ describe("writing focus", () => {
 
     toggleWritingFocus();
     expect(writingFocusActive.value).toBe(false);
+  });
+});
+
+// Intent: Writing Focus (editor chrome) and native Full Screen (BrowserWindow) stay orthogonal.
+// Growth boundary: add cases only if a new shared owner appears between them.
+describe("writing focus and native fullscreen", () => {
+  test("all four combinations stay independent", () => {
+    writingFocusActive.value = false;
+    let fullScreen = false;
+    const window = {
+      isFullScreen: () => fullScreen,
+      setFullScreen: (next: boolean) => {
+        fullScreen = next;
+      },
+    };
+
+    // normal
+    expect(writingFocusActive.value).toBe(false);
+    expect(fullScreen).toBe(false);
+    expect(canPersistWindowFrame(fullScreen)).toBe(true);
+
+    // Writing Focus alone
+    toggleWritingFocus();
+    expect(writingFocusActive.value).toBe(true);
+    expect(fullScreen).toBe(false);
+    expect(canPersistWindowFrame(fullScreen)).toBe(true);
+
+    // Writing Focus + Fullscreen
+    expect(toggleNativeFullScreen(window)).toBe(true);
+    expect(writingFocusActive.value).toBe(true);
+    expect(fullScreen).toBe(true);
+    expect(canPersistWindowFrame(fullScreen)).toBe(false);
+
+    // Fullscreen alone
+    toggleWritingFocus();
+    expect(writingFocusActive.value).toBe(false);
+    expect(fullScreen).toBe(true);
+    expect(canPersistWindowFrame(fullScreen)).toBe(false);
+
+    // back to normal — Fullscreen toggle must not flip Writing Focus
+    expect(toggleNativeFullScreen(window)).toBe(false);
+    expect(writingFocusActive.value).toBe(false);
+    expect(fullScreen).toBe(false);
   });
 });
