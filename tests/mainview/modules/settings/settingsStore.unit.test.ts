@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { sanitizeSettings } from "../../../../src/mainview/modules/settings/settingsStore";
+import {
+  defaultSettings,
+  patchSettings,
+  resetSettingsToDefaults,
+  sanitizeSettings,
+  settings,
+} from "../../../../src/mainview/modules/settings/settingsStore";
 
 // Intent: keep persisted settings backward-compatible and fail-closed per field.
 // Growth boundary: add cases only for migrations or new validation domains.
@@ -106,5 +112,54 @@ describe("settings migration", () => {
     expect(
       (legacy.appearance.statusbar.indicators as { reading?: boolean }).reading,
     ).toBeUndefined();
+  });
+});
+
+// Intent: reset restores the single defaults object and is idempotent.
+describe("settings reset", () => {
+  test("restores every persisted field to the built-in defaults", () => {
+    const beforeJson = JSON.stringify(settings.value);
+    try {
+      patchSettings({
+        locale: "es",
+        appearance: {
+          ...settings.value.appearance,
+          theme: "light",
+          reducedMotion: true,
+        },
+        editor: {
+          ...settings.value.editor,
+          fontSize: 20,
+          documentLocation: "window-title",
+          typewriterScrolling: false,
+        },
+        workspace: {
+          ...settings.value.workspace,
+          showHiddenFiles: false,
+          workspaceStartup: "last",
+        },
+        links: {
+          ...settings.value.links,
+          linkMode: "wikilink",
+          showIncomingLinks: false,
+        },
+        preview: { enabled: true },
+      });
+
+      expect(settings.value.locale).toBe("es");
+      expect(settings.value.editor.documentLocation).toBe("window-title");
+
+      resetSettingsToDefaults();
+      expect(settings.value).toEqual(defaultSettings());
+      expect(settings.value).toEqual(sanitizeSettings({}));
+      expect(settings.value.editor.documentLocation).toBe(
+        defaultSettings().editor.documentLocation,
+      );
+
+      resetSettingsToDefaults();
+      expect(settings.value).toEqual(defaultSettings());
+    } finally {
+      settings.value = sanitizeSettings(JSON.parse(beforeJson));
+    }
   });
 });

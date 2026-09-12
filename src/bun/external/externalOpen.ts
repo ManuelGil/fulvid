@@ -1,8 +1,8 @@
 /**
  * The one host-side handler for external open requests.
  *
- * Every future integration — a Windows shell verb, a Linux desktop entry, a
- * browser extension, a file manager — converts whatever it receives into an
+ * Every future integration - a Windows shell verb, a Linux desktop entry, a
+ * browser extension, a file manager - converts whatever it receives into an
  * `ExternalOpenRequest` and hands it here. None of them implements security.
  * This module is where a request is validated, and the existing host
  * authorities are where it is resolved:
@@ -43,7 +43,7 @@ const pending: ExternalOpenRequest[] = [];
 /**
  * Turn an untrusted value into a request, or refuse it.
  *
- * Shape only — whether the path may be opened is the resolver's decision, made
+ * Shape only - whether the path may be opened is the resolver's decision, made
  * by the same authorities the dialogs use. Refusals are the boundary's own
  * codes so the renderer can say them in the reader's language.
  */
@@ -113,7 +113,7 @@ async function resolveExternalOpenRequest(
       return { kind: "folder", source: request.source, rootPath };
     }
     // The same call the Open dialog makes: supported extension, size cap, and
-    // a grant for exactly this one path — not for the folder holding it.
+    // a grant for exactly this one path - not for the folder holding it.
     const snapshot = await readSelectedDocument(request.path);
     return {
       kind: "file",

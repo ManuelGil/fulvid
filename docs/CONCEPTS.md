@@ -36,13 +36,15 @@ Product copy uses **Folder**, never Workspace. Host code may still use `workspac
 | **Focus** | Folder-scoped target for Graph and Document Context |
 | **Peek** | Read another document in Context without changing Focus |
 | **Context root** | Folder that limits facts and link resolution |
-| **Focus mode** | Session writing overlay: hide editor chrome, typewriter, hide minimap. Not Graph Focus. Independent of native Full Screen. Shortcut: `Ctrl/Cmd+Shift+Enter` |
+| **Focus mode** | Strong writing presentation: collapses the left sidebar to the compact rail, hides tabs/statusbar/format bar, expands the editor surface, optional quiet document location. Session-only. Not Graph Focus. Independent of native Full Screen. Shortcut: `Ctrl/Cmd+Shift+Enter` |
 
 Settings choose one `linkMode`: `"markdown"` (default) or `"wikilink"`. That mode governs scan, resolution, editor providers, Preview, references, rename, and Graph.
 
 **Find references** (`Shift+F12`) lists heading and fragment locations. **Rename heading** (`F2`) rewrites that heading and known fragment targets as text. F2 does not rename files.
 
 Local find is Monaco (`Ctrl/Cmd+F`). Global Search is `/search` (`Ctrl/Cmd+Shift+F`). Quick Open asks which document to open by identity; Global Search asks where text appears.
+
+**Document location.** Folder documents are oriented by their folder-relative path (compact when long). Settings choose where that identity appears: main panel, window title, or hidden (tabs/Explorer/accessibility still identify the document). Tabs stay on the basename unless open tabs collide, then they add path segments until unique. Untitled and standalone keep their labels. Showing a path is not a grant and does not browse the Folder.
 
 ## Markdown and MDX
 
@@ -57,6 +59,6 @@ Title, aliases, tags, and links come from the document body and optional frontma
 
 ## Settings
 
-Groups: General, Editor, Appearance, Markdown, Preview, Folder, Accessibility, Keyboard. Interface scale never changes Monaco document typography.
+Groups: General, Editor, Appearance, Markdown, Preview, Folder, Accessibility, Keyboard. Interface scale never changes Monaco document typography. General includes Reset settings, which restores persisted preferences to built-in defaults without changing documents, tabs, Folder, or files. Layout widths stay in layout state, not settings.
 
-Line endings (LF or CRLF) belong to the document, not to the operating system. Opening a file keeps its endings. Untitled documents use Settings → New document line endings (LF by default). The statusbar shows the active document's ending; click to switch. Save writes that ending. Changing it does not write until Save.
+Line endings (LF or CRLF) belong to the document, not to the operating system. Opening a file keeps its endings. Untitled documents use Settings -> New document line endings (LF by default). The statusbar shows the active document's ending; click to switch. Save writes that ending. Changing it does not write until Save.

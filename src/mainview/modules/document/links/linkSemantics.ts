@@ -30,7 +30,7 @@ let activeDocumentLinkSettings: DocumentLinkSettings = {
 /**
  * Process-local copy of link mode/resolution so parse and resolve stay free of
  * `settingsStore`. Settings writes here; tests inject the same way. Not a
- * second settings source of truth — only a seam for the semantic module.
+ * second settings source of truth - only a seam for the semantic module.
  */
 export function setDocumentLinkSettings(settings: Partial<DocumentLinkSettings>): void {
   activeDocumentLinkSettings = {

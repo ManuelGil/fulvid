@@ -1,5 +1,5 @@
 /**
- * Reference Graph Projection — undirected, focus-scoped membership for the Graph page.
+ * Reference Graph Projection - undirected, focus-scoped membership for the Graph page.
  *
  * Distinct from `buildFocusGraph` (directed outgoing BFS for Context stats).
  * Consumes Graph View State; never Shell or editor `activeId`.

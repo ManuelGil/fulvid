@@ -509,6 +509,12 @@ export default {
     typewriterScrolling: "Desplazamiento de máquina de escribir",
     typewriterScrollingHint:
       "Solo en el modo foco (Vista > Modo foco). Mantiene cerca del centro la línea que estás escribiendo.\n\nCon el modo foco activo, Intro acerca la línea nueva al centro. El movimiento reducido desplaza menos. Desactívalo si quieres el modo foco sin recentrar.",
+    documentLocation: "Ubicación del documento",
+    documentLocationHint:
+      "Dónde Fulvid muestra la ruta del documento activo. La misma identidad se proyecta en todas partes; mostrar una ruta no concede acceso a la carpeta.\n\nPanel principal: ruta discreta en el editor. Título de ventana: Fulvid - ruta en la ventana del sistema. Oculta: las pestañas, el Explorador y la accesibilidad conservan la identidad sin una línea de ruta persistente.",
+    documentLocationMainPanel: "Panel principal",
+    documentLocationWindowTitle: "Título de ventana",
+    documentLocationHidden: "Oculta",
     markdownFormatBar: "Mostrar barra de formato Markdown",
     markdownFormatBarHint:
       "Negrita, listas, enlaces y tablas encima del editor. Las mismas acciones siguen en el teclado y en el menú Editar si lo dejas desactivado.",
@@ -655,7 +661,7 @@ export default {
     shortcutOutline: "Abrir el esquema del documento activo",
     shortcutLeftSidebar: "Mostrar u ocultar navegación y carpeta",
     shortcutFind: "Buscar un documento",
-    shortcutQuickOpen: "Apertura rápida — abrir un documento por nombre o ruta en la carpeta",
+    shortcutQuickOpen: "Apertura rápida - abrir un documento por nombre o ruta en la carpeta",
     shortcutNew: "Crear un documento nuevo sin título",
     shortcutOpenFile: "Abrir un archivo",
     shortcutSave: "Guardar el documento activo",
@@ -685,6 +691,15 @@ export default {
       "Cambia al momento los menús, Ajustes y mensajes de Fulvid. Tus documentos se quedan en el idioma en que los escribiste.",
     english: "Inglés",
     spanish: "Español",
+    resetToDefaults: "Restablecer ajustes",
+    resetToDefaultsHint:
+      "Devuelve los ajustes de Fulvid a sus valores predeterminados. No cambia documentos, pestañas abiertas, carpeta ni archivos.",
+    resetToDefaultsAction: "Restablecer valores",
+    resetToDefaultsTitle: "¿Restablecer ajustes?",
+    resetToDefaultsMessage:
+      "Esto restaura los ajustes de Fulvid a sus valores predeterminados.\nTus documentos y archivos no se modifican.",
+    resetToDefaultsConfirm: "Restablecer",
+    resetToDefaultsDone: "Ajustes restaurados a los valores predeterminados",
   },
   preview: {
     dense:

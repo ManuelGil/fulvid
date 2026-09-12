@@ -149,7 +149,7 @@ describe("scanning a hostile or live folder", () => {
         {
           beforeAnalyzeFile: async (filePath) => {
             if (resolve(filePath) === locked) {
-              // Listed by the walk, then gone before analysis — the F-03 condition.
+              // Listed by the walk, then gone before analysis - the F-03 condition.
               await unlink(locked);
             }
           },

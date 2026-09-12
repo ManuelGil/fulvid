@@ -503,7 +503,7 @@ function queueBufferWrite<Result>(
  * Write the buffer through the per-buffer save queue.
  *
  * Workspace documents use folder RPC; standalone granted documents use the
- * grant. Virtual documents cannot save here — they must Save As so they gain
+ * grant. Virtual documents cannot save here - they must Save As so they gain
  * an absolute path and identity.
  */
 export function saveDocument(

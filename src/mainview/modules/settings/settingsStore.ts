@@ -9,6 +9,8 @@
 import { ref, watch } from "vue";
 import { setDocumentLinkSettings, type LinkResolutionMode } from "../document/links/linkSemantics";
 import type { LinkSyntax } from "../document/links/documentLink";
+import type { DocumentLocationDestination } from "../editor/document/documentLocation";
+import { DOCUMENT_LOCATION_DESTINATIONS } from "../editor/document/documentLocation";
 import {
   DEFAULT_THEME,
   THEME_PREFERENCES,
@@ -62,6 +64,11 @@ export interface EditorSettings {
   readingStatistics: ReadingStatisticsMode;
   /** Focus-mode only. Ignored when writing focus is off. */
   typewriterScrolling: boolean;
+  /**
+   * Where to present the active document location (same projection everywhere).
+   * Showing a path never grants filesystem access.
+   */
+  documentLocation: DocumentLocationDestination;
 }
 
 export interface FulvidSettings {
@@ -100,6 +107,7 @@ export interface FulvidSettings {
   };
 }
 
+/** Single source of defaults for load, sanitize fallbacks, and reset. */
 const DEFAULT_SETTINGS: FulvidSettings = {
   locale: "en",
   appearance: {
@@ -136,6 +144,7 @@ const DEFAULT_SETTINGS: FulvidSettings = {
     showMarkdownFormatBar: false,
     readingStatistics: "wordsAndTime",
     typewriterScrolling: true,
+    documentLocation: "main-panel",
   },
   workspace: {
     showHiddenFiles: true,
@@ -357,6 +366,11 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
         typeof editor.typewriterScrolling === "boolean"
           ? editor.typewriterScrolling
           : DEFAULT_SETTINGS.editor.typewriterScrolling,
+      documentLocation: DOCUMENT_LOCATION_DESTINATIONS.includes(
+        editor.documentLocation as DocumentLocationDestination,
+      )
+        ? (editor.documentLocation as DocumentLocationDestination)
+        : DEFAULT_SETTINGS.editor.documentLocation,
     },
     workspace: {
       showHiddenFiles:
@@ -430,6 +444,20 @@ export function appearanceDatasetFor(
 
 export const settings = ref<FulvidSettings>(loadSettings());
 setDocumentLinkSettings(settings.value.links);
+
+/** Clone of the built-in defaults. Does not read localStorage. */
+export function defaultSettings(): FulvidSettings {
+  return structuredClone(DEFAULT_SETTINGS);
+}
+
+/**
+ * Restore every persisted preference to DEFAULT_SETTINGS in one assignment.
+ * Does not touch documents, Folder, layout, session chrome, or grants.
+ * The settings watcher persists and reapplies appearance / link mode.
+ */
+export function resetSettingsToDefaults(): void {
+  settings.value = defaultSettings();
+}
 
 function applyAppearance(appearance: FulvidSettings["appearance"]): void {
   if (typeof document === "undefined") {

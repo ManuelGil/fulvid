@@ -38,6 +38,7 @@ export function writingFocusKeepsFocusTarget(element: EventTarget | null): boole
         ".markdown-preview",
         "[data-application-menu]",
         ".quick-actions",
+        ".app-sidebar",
         ".skip-link",
         "#main-content",
         ".dialog-host",

@@ -16,6 +16,7 @@ import { externalOpenRequestsFromArguments } from "./external/startupArguments";
 import { configureWorkspaceApprovals } from "./workspaceGrants";
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
 import { canPersistWindowFrame, toggleNativeFullScreen } from "./windowFullScreen";
+import { setNativeWindowTitle } from "./windowTitle";
 
 // Folder approvals are host state: which folders a person picked in a dialog.
 // Configuring the store here keeps the approval rules free of the runtime.
@@ -54,6 +55,7 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
       quitApplication: () => quitApplication(),
       toggleWindowFullScreen: () =>
         mainWindowHolder.window ? toggleNativeFullScreen(mainWindowHolder.window) : false,
+      setWindowTitle: ({ title }) => setNativeWindowTitle(mainWindowHolder.window, title),
     },
     messages: {},
   },

@@ -6,7 +6,7 @@
  * take a native-dialog path: extension and null-byte checks only, not folder
  * roots. Later standalone saves use a grant token that maps to that path.
  * HTML Export writes `.html` through the same dialog folder picker and
- * never issues a grant — the file is not a document buffer.
+ * never issues a grant - the file is not a document buffer.
  *
  * Scan analysis is capped separately (`MAX_ANALYZED_BYTES`); this module
  * uses `MAX_DOCUMENT_BYTES` for open/save so a large note can still be

@@ -59,7 +59,7 @@ not reinterpreted: a directory sent as a file is `unsupportedDocument`, a file
 sent as a folder is `notADirectory`.
 
 `path` must be absolute. A relative path has no meaning across a process
-boundary — there is no agreed working directory — and guessing one would invent
+boundary - there is no agreed working directory - and guessing one would invent
 a target the sender did not name. `isAbsolute` is the host platform's own rule,
 so drive letters and UNC paths remain valid on Windows. Nothing is normalized
 here; the existing authorities canonicalize.
@@ -110,8 +110,8 @@ The queue is bounded (8) and drained once. Duplicate requests are safe without
 any idempotency machinery: `openGrantedDocument` already dedupes by absolute
 path, and `loadWorkspace` already discards superseded folder loads.
 
-An external request outranks the remembered folder — someone asked for this one
-now — so `bootstrapWorkspace` only restores the last folder when nothing
+An external request outranks the remembered folder - someone asked for this one
+now - so `bootstrapWorkspace` only restores the last folder when nothing
 external opened one.
 
 ## Status
@@ -164,8 +164,8 @@ An adapter converts a channel's representation into an `ExternalOpenRequest` and
 hands it to `enqueueExternalOpenRequest`. That is all it does.
 
 `startupArguments.ts` is the worked example: about thirty lines, and none of them
-is a security decision. It resolves argv against the process directory — a
-convention of that channel — classifies each path with a `stat`, and stops.
+is a security decision. It resolves argv against the process directory - a
+convention of that channel - classifies each path with a `stat`, and stops.
 
 **Security must never live in an adapter.** If a future adapter needs to decide
 what may be opened, the design is wrong: that decision belongs in the handler,
@@ -173,11 +173,11 @@ where it is written once and tested once.
 
 ## Tests
 
-- `tests/bun/external/externalOpen.unit.test.ts` — contract shape, refusals
+- `tests/bun/external/externalOpen.unit.test.ts` - contract shape, refusals
   (including relative paths), field stripping, source coercion, queue bounds.
-- `tests/bun/external/externalOpen.integration.test.ts` — resolution through the
+- `tests/bun/external/externalOpen.integration.test.ts` - resolution through the
   real authorities: grant scope, kind/disk disagreement, symlinked folders,
   refusal reporting, replay, concurrent drain, and the argv adapter.
-- `tests/packaging/linuxDesktop.unit.test.ts` — canonical and variant desktop
+- `tests/packaging/linuxDesktop.unit.test.ts` - canonical and variant desktop
   files share MIME, use an unquoted `%F`, and the Debian wrapper still forwards
   `"$@"`.
