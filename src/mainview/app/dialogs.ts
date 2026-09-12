@@ -1,6 +1,6 @@
 /**
  * Small promise-based dialogs for filename input, confirmation, and Quick Open.
- * Rendered by DialogHost.vue — not a modal framework.
+ * Rendered by DialogHost.vue - not a modal framework.
  */
 import { shallowRef } from "vue";
 
@@ -16,7 +16,17 @@ export type ConfirmPromptRequest = {
   kind: "confirm";
   title?: string;
   message: string;
+  /** Defaults to the shared Confirm label. */
+  confirmLabel?: string;
+  /** Which action receives initial focus. Defaults to confirm. */
+  initialFocus?: "confirm" | "cancel";
   resolve: (value: boolean) => void;
+};
+
+export type ConfirmDialogOptions = {
+  title?: string;
+  confirmLabel?: string;
+  initialFocus?: "confirm" | "cancel";
 };
 
 export type QuickOpenPromptRequest = {
@@ -61,12 +71,19 @@ export function promptFilename(options: {
   });
 }
 
-export function confirmDialog(message: string, title?: string): Promise<boolean> {
+export function confirmDialog(
+  message: string,
+  titleOrOptions?: string | ConfirmDialogOptions,
+): Promise<boolean> {
+  const options =
+    typeof titleOrOptions === "string" ? { title: titleOrOptions } : (titleOrOptions ?? {});
   return new Promise((resolve) => {
     replaceDialog({
       kind: "confirm",
-      title,
+      title: options.title,
       message,
+      confirmLabel: options.confirmLabel,
+      initialFocus: options.initialFocus,
       resolve,
     });
   });

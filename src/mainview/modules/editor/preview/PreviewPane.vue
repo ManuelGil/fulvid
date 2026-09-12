@@ -173,10 +173,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <aside ref="previewPane" class="preview-pane" :aria-label="t('preview.aria')">
+  <aside
+    ref="previewPane"
+    class="preview-pane"
+    :aria-label="path ? `${t('preview.aria')}: ${path}` : t('preview.aria')"
+  >
     <div class="preview-pane__header">
       <span class="preview-pane__title">{{ t("preview.label") }}</span>
-      <span class="preview-pane__path">{{ path }}</span>
     </div>
     <p v-if="isCapped" class="preview-pane__notice" role="status">
       {{
@@ -238,15 +241,6 @@ onBeforeUnmount(() => {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.preview-pane__path {
-  overflow: hidden;
-  color: $text-muted;
-  font-family: $font-mono;
-  font-size: $font-caption;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .preview-pane__notice,

@@ -9,6 +9,20 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+### Added
+
+## [0.5.0] - 2026-09-12
+
+- Settings -> General: Reset settings restores persisted preferences to built-in defaults (documents, Folder, tabs, and files stay unchanged).
+
+
+- Settings → Document location: choose Main panel, Window title, or Hidden for the same document-path projection (never a grant).
+
+### Changed
+
+- Strong Writing Focus: collapses the left sidebar to the compact rail (restores it on exit), hides tabs/statusbar/format bar, expands the editor surface, and keeps document identity according to Document location. Still independent of Full Screen.
+- Document orientation: compact relative paths, collision-aware tab labels, and less redundant chrome (no Folder absolute path as document identity; Preview header no longer repeats the path).
+
 ## [0.4.0] - 2026-09-11
 
 ### Added
@@ -59,7 +73,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.5.0
 [0.4.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.2.0

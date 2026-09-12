@@ -25,7 +25,7 @@ function verifyBuiltShell(): void {
   const assetsPath = join(root, "dist/assets");
 
   if (!existsSync(indexPath)) {
-    throw new Error("dist/index.html is missing — run bun run build first");
+    throw new Error("dist/index.html is missing - run bun run build first");
   }
 
   const html = readFileSync(indexPath, "utf8");
@@ -65,14 +65,14 @@ async function launchDesktopSmoke(): Promise<void> {
   }
 
   if (!hasDisplay()) {
-    console.log("No display server — skipping desktop launch smoke.\n");
+    console.log("No display server - skipping desktop launch smoke.\n");
     return;
   }
 
   try {
     execFileSync("wmctrl", ["-m"], { stdio: "ignore" });
   } catch {
-    console.log("wmctrl unavailable — skipping desktop launch smoke.\n");
+    console.log("wmctrl unavailable - skipping desktop launch smoke.\n");
     return;
   }
 

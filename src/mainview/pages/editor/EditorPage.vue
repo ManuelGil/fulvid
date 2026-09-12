@@ -27,9 +27,7 @@ import { patchSettings } from "../../modules/settings/settingsStore";
 import {
   applyScannedNote,
   clearRecentWorkspaces,
-  closeWorkspace,
   copyPath,
-  copyWorkspacePath,
   errorMessage,
   isLoading,
   loadingStatus,
@@ -38,7 +36,6 @@ import {
   recentWorkspaces,
   reopenLastWorkspace,
   revealPath,
-  revealWorkspaceInExplorer,
   refreshWorkspace,
   relativeDocumentPath,
   selectRecentWorkspace,
@@ -100,6 +97,10 @@ import {
   saveDocument,
   selectDocument,
 } from "../../modules/editor/document/documentBuffers";
+import {
+  documentLocationFromBuffer,
+  showsMainPanelDocumentLocation,
+} from "../../modules/editor/document/documentLocation";
 
 const MonacoHost = defineAsyncComponent(() => import("../../modules/editor/monaco/MonacoHost.vue"));
 const PreviewPane = defineAsyncComponent(
@@ -152,10 +153,52 @@ const otherRecents = computed(() =>
   }),
 );
 
-const pageTitle = computed(
-  () =>
-    activeBuffer.value?.title ??
-    (workspace.value ? workspaceName(workspace.value.path) : t("workspace.title")),
+const pageLocation = computed(() => documentLocationFromBuffer(activeBuffer.value));
+
+const showMainPanelLocation = computed(() =>
+  showsMainPanelDocumentLocation(settings.value.editor.documentLocation),
+);
+
+const pageTitle = computed(() => {
+  const location = pageLocation.value;
+  const folderOrApp = workspace.value ? workspaceName(workspace.value.path) : t("workspace.title");
+
+  if (!showMainPanelLocation.value || !location) {
+    return folderOrApp;
+  }
+
+  // Writing Focus: quiet document location when the destination is main-panel.
+  if (writingFocusActive.value) {
+    return location.label;
+  }
+
+  // Normal: show relative path only when it adds hierarchy beyond the tab basename.
+  if (location.kind === "workspace" && location.full.includes("/")) {
+    return location.label;
+  }
+
+  return folderOrApp;
+});
+
+const pageTitleHint = computed(() => {
+  if (!showMainPanelLocation.value) {
+    return undefined;
+  }
+  const location = pageLocation.value;
+  if (!location) {
+    return undefined;
+  }
+  if (writingFocusActive.value) {
+    return location.full;
+  }
+  if (location.kind === "workspace" && location.full.includes("/")) {
+    return location.full;
+  }
+  return undefined;
+});
+
+const showWritingFocusLocationChrome = computed(
+  () => writingFocusActive.value && showMainPanelLocation.value && Boolean(pageLocation.value),
 );
 
 const activeBufferPath = computed(() => {
@@ -677,53 +720,6 @@ async function runMenuAction(id: string): Promise<void> {
   await action.run();
 }
 
-function workspaceMenuActions(): MenuAction[] {
-  return [
-    {
-      id: "reveal",
-      label: t("actions.reveal"),
-      run: () => revealWorkspaceInExplorer(),
-    },
-    {
-      id: "copy",
-      label: t("actions.copy"),
-      run: () => copyWorkspacePath(),
-    },
-    {
-      id: "open",
-      label: t("actions.openEllipsis"),
-      run: openWorkspace,
-    },
-    {
-      id: "close",
-      label: t("actions.close"),
-      run: closeWorkspace,
-      danger: true,
-    },
-  ];
-}
-
-function onWorkspaceContextMenu(event: MouseEvent): void {
-  if (!workspace.value) {
-    return;
-  }
-
-  (event.currentTarget as HTMLElement).focus();
-  openMenu(event, workspaceMenuActions());
-}
-
-function onWorkspaceContextKeydown(event: KeyboardEvent): void {
-  if (
-    !workspace.value ||
-    !(["Enter", " ", "ContextMenu"].includes(event.key) || (event.shiftKey && event.key === "F10"))
-  ) {
-    return;
-  }
-  event.preventDefault();
-  const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
-  openMenuAt(bounds.left, bounds.bottom, workspaceMenuActions());
-}
-
 function onRecentContextMenu(event: MouseEvent, path: string): void {
   (event.currentTarget as HTMLElement).focus();
   openMenu(event, [
@@ -802,27 +798,19 @@ onBeforeUnmount(() => {
 
 <template>
   <PageShell
-    :title="pageTitle"
+    :title="
+      writingFocusActive && !showWritingFocusLocationChrome
+        ? (pageLocation?.full ?? pageTitle)
+        : pageTitle
+    "
+    :title-hint="pageTitleHint"
+    :embedded="writingFocusActive && !showWritingFocusLocationChrome"
+    :writing-focus="writingFocusActive"
+    :quiet-identity="showWritingFocusLocationChrome"
     fill
     rhythm="immediate"
-    :class="{ 'editor-page-shell--writing-focus': writingFocusActive }"
   >
-    <template #header>
-      <button
-        v-if="workspace && !writingFocusActive"
-        class="editor-page__path"
-        type="button"
-        :title="t('workspace.rightClickActions')"
-        :aria-label="t('workspace.rightClickActions')"
-        aria-haspopup="menu"
-        :aria-expanded="menuOpen"
-        @contextmenu="onWorkspaceContextMenu"
-        @keydown="onWorkspaceContextKeydown"
-      >
-        {{ workspace.path }}
-      </button>
-    </template>
-    <div class="editor-page">
+    <div class="editor-page" :class="{ 'editor-page--writing-focus': writingFocusActive }">
       <p v-if="errorMessage" class="editor-page__error" role="alert">
         {{ errorMessage }}
       </p>
@@ -903,18 +891,16 @@ onBeforeUnmount(() => {
         >
           {{ loadingStatus ?? t("workspace.looking") }}
         </p>
-        <div :hidden="writingFocusActive" :inert="writingFocusActive">
-          <EditorTabs
-            v-if="openBuffers.length > 0"
-            ref="editorTabsRef"
-            :buffers="openBuffers"
-            :active-id="activeId"
-            @activate="selectDocument"
-            @close="closeEditorDocument"
-            @new="createNewDocument"
-            @close-others="closeOtherDocuments"
-          />
-        </div>
+        <EditorTabs
+          v-if="openBuffers.length > 0 && !writingFocusActive"
+          ref="editorTabsRef"
+          :buffers="openBuffers"
+          :active-id="activeId"
+          @activate="selectDocument"
+          @close="closeEditorDocument"
+          @new="createNewDocument"
+          @close-others="closeOtherDocuments"
+        />
 
         <EditorToolbar
           v-if="settings.editor.showMarkdownFormatBar && activeBuffer && !writingFocusActive"
@@ -931,7 +917,7 @@ onBeforeUnmount(() => {
             id="document-editor-panel"
             class="editor-page__editor-column"
             role="tabpanel"
-            aria-labelledby="active-document-tab"
+            :aria-labelledby="writingFocusActive ? undefined : 'active-document-tab'"
             :aria-label="t('workspace.editorArea')"
           >
             <MonacoHost
@@ -1013,12 +999,25 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+.editor-page--writing-focus {
+  gap: 0;
+}
+
 .editor-page__editor-shell {
   display: flex;
   flex-direction: column;
   gap: $space-related;
   flex: 1;
   min-width: 0;
+  min-height: 0;
+}
+
+.editor-page--writing-focus .editor-page__editor-shell,
+.editor-page--writing-focus .editor-page__document-split {
+  gap: 0;
+}
+
+.editor-page--writing-focus .editor-page__editor {
   min-height: 0;
 }
 
@@ -1059,23 +1058,6 @@ onBeforeUnmount(() => {
 .editor-page__empty-editor {
   margin: 0;
   color: $text-muted;
-}
-
-.editor-page__path {
-  @include page-path;
-  display: block;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: context-menu;
-  max-width: 36rem;
-
-  &:focus-visible {
-    outline: 2px solid $focus-ring;
-    outline-offset: 2px;
-  }
 }
 
 .editor-page__loading {
@@ -1227,11 +1209,5 @@ onBeforeUnmount(() => {
   font-family: $font-mono;
   font-size: $font-caption;
   overflow-wrap: anywhere;
-}
-</style>
-
-<style lang="scss">
-.editor-page-shell--writing-focus > .page-shell__header {
-  display: none;
 }
 </style>

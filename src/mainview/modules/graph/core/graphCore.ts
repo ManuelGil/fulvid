@@ -1,5 +1,5 @@
 /**
- * Graph Core pipeline — membership in, geometry out.
+ * Graph Core pipeline - membership in, geometry out.
  *
  *   filterRenderableEdges → depth map → structural edges → layout → composition
  *

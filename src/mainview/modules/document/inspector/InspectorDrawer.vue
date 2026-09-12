@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Document Context panel — stage sibling of the current surface.
+ * Document Context panel - stage sibling of the current surface.
  *
  * Facts, incoming/outgoing links, and reading stats are projections of scan
  * evidence plus the active buffer. This drawer does not own document identity

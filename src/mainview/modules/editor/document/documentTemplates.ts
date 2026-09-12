@@ -1,7 +1,7 @@
 /**
  * Seed text for untitled documents.
  *
- * Templates are not document types, stored notes, or a second lifecycle —
+ * Templates are not document types, stored notes, or a second lifecycle -
  * only the initial buffer body passed to `createUntitledDocument`.
  */
 export type DocumentTemplateId = "blank" | "note" | "meeting" | "daily" | "project";

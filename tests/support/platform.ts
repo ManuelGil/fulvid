@@ -11,7 +11,7 @@ import { symlink } from "node:fs/promises";
  * Link a directory in a way both families accept.
  *
  * POSIX ignores the type argument. Windows needs one, and `"junction"` is the
- * reparse point a normal user may create — a directory symlink there needs
+ * reparse point a normal user may create - a directory symlink there needs
  * elevation or Developer Mode. `realpath` resolves junctions, so canonical
  * containment is exercised on Windows exactly as it is on POSIX, rather than
  * being skipped.

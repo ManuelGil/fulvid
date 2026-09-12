@@ -41,6 +41,10 @@ import {
   selectDocument,
 } from "../modules/editor/document/documentBuffers";
 import {
+  documentLocationFromBuffer,
+  windowTitleForDocumentLocation,
+} from "../modules/editor/document/documentLocation";
+import {
   activeId,
   nextMruDocument,
   pendingReveal,
@@ -59,6 +63,7 @@ import {
   CONTEXTUAL_WIDTH_LIMITS,
   leftSidebarOpen,
   layout,
+  openLeftSidebar,
   openRightSidebar,
   rightSidebar,
   setContextualWidth,
@@ -631,9 +636,12 @@ const routeLabel = computed(() => {
 
 const routeAnnouncement = computed(() => {
   const workspaceLabel = workspace.value ? workspaceName(workspace.value.path) : "";
-  const documentLabel = activeBuffer.value
-    ? `${activeBuffer.value.title}${
-        isDocumentDirty(activeBuffer.value) ? ` · ${t("tabs.unsavedChanges")}` : ""
+  const location = documentLocationFromBuffer(activeBuffer.value);
+  const documentLabel = location
+    ? `${location.full}${
+        activeBuffer.value && isDocumentDirty(activeBuffer.value)
+          ? ` · ${t("tabs.unsavedChanges")}`
+          : ""
       }`
     : validatedFocus.value
       ? noteTitle(validatedFocus.value.path, workspace.value?.scannedNotes ?? [])
@@ -646,6 +654,50 @@ const focusModeAnnouncement = ref("");
 watch(writingFocusActive, (active) => {
   focusModeAnnouncement.value = active ? t("actions.focusMode") : t("actions.exitFocusMode");
 });
+
+/** Restore left sidebar after Strong Writing Focus collapses it. */
+const leftSidebarBeforeWritingFocus = ref<boolean | null>(null);
+
+watch(editorFocusChrome, (hiding) => {
+  if (hiding) {
+    if (leftSidebarBeforeWritingFocus.value === null) {
+      leftSidebarBeforeWritingFocus.value = leftSidebarOpen.value;
+    }
+    // Collapse to the existing compact rail; do not hide/inert the rail.
+    closeLeftSidebar();
+    return;
+  }
+  if (leftSidebarBeforeWritingFocus.value !== null) {
+    if (leftSidebarBeforeWritingFocus.value) {
+      openLeftSidebar();
+    }
+    leftSidebarBeforeWritingFocus.value = null;
+  }
+});
+
+watch(
+  [
+    () => activeBuffer.value?.id,
+    () => activeBuffer.value?.path,
+    () => activeBuffer.value?.title,
+    () => activeBuffer.value?.absolutePath,
+    () => settings.value.editor.documentLocation,
+  ],
+  () => {
+    const location = documentLocationFromBuffer(activeBuffer.value);
+    const title = windowTitleForDocumentLocation(
+      "Fulvid",
+      location,
+      settings.value.editor.documentLocation,
+    );
+    void desktopRequest()
+      .setWindowTitle({ title })
+      .catch(() => {
+        // Host title is presentation-only; failure must not block editing.
+      });
+  },
+  { immediate: true },
+);
 
 const liveAnnouncement = computed(() =>
   [routeAnnouncement.value, focusModeAnnouncement.value].filter(Boolean).join(" · "),
@@ -1012,7 +1064,6 @@ onBeforeUnmount(() => {
       'app-shell--search': route.name === APP_ROUTE_NAMES.search,
       'app-shell--graph': route.name === APP_ROUTE_NAMES.graph,
       'app-shell--settings': route.name === APP_ROUTE_NAMES.settings,
-      'app-shell--writing-focus': editorFocusChrome,
     }"
   >
     <a class="skip-link" href="#main-content">{{ t("app.skipToContent") }}</a>
@@ -1040,8 +1091,7 @@ onBeforeUnmount(() => {
       <AppSidebar
         :compact="!leftSidebarOpen"
         :overlay="narrowViewport && leftSidebarOpen"
-        :hidden="editorFocusChrome"
-        :inert="editorFocusChrome || (overlayOpen && !leftSidebarOpen)"
+        :inert="overlayOpen && !leftSidebarOpen"
       />
       <button
         v-if="leftSidebarOpen && !editorFocusChrome"

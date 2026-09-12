@@ -19,12 +19,13 @@ const dialogHostRef = ref<HTMLElement | null>(null);
 const filenameInputRef = ref<HTMLInputElement | null>(null);
 const filenameValue = ref("");
 const confirmButtonRef = ref<HTMLButtonElement | null>(null);
+const cancelButtonRef = ref<HTMLButtonElement | null>(null);
 const quickOpenInputRef = ref<HTMLInputElement | null>(null);
 const quickOpenQuery = ref("");
 const quickOpenSelectedIndex = ref(0);
 let previousFocus: HTMLElement | null = null;
 
-/** Live Folder projection — refresh / close Folder updates the list. */
+/** Live Folder projection - refresh / close Folder updates the list. */
 const quickOpenCandidates = computed(() => {
   if (activeDialog.value?.kind !== "quickOpen") {
     return [];
@@ -77,6 +78,10 @@ watch(
       return;
     }
 
+    if (dialog.kind === "confirm" && dialog.initialFocus === "cancel") {
+      cancelButtonRef.value?.focus({ preventScroll: true });
+      return;
+    }
     confirmButtonRef.value?.focus({ preventScroll: true });
   },
   { flush: "post" },
@@ -350,7 +355,12 @@ function onBackdropPointerDown(event: PointerEvent): void {
           {{ activeDialog.message }}
         </p>
         <div class="dialog__actions">
-          <button class="dialog__button dialog__button--quiet" type="button" @click="cancelDialog">
+          <button
+            ref="cancelButtonRef"
+            class="dialog__button dialog__button--quiet"
+            type="button"
+            @click="cancelDialog"
+          >
             {{ t("dialog.cancel") }}
           </button>
           <button
@@ -359,7 +369,7 @@ function onBackdropPointerDown(event: PointerEvent): void {
             type="button"
             @click="submitConfirm(true)"
           >
-            {{ t("dialog.confirm") }}
+            {{ activeDialog.confirmLabel ?? t("dialog.confirm") }}
           </button>
         </div>
       </div>

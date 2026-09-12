@@ -501,6 +501,12 @@ export default {
     typewriterScrolling: "Typewriter scrolling",
     typewriterScrollingHint:
       "Only in Focus mode (View > Focus mode). Keeps the line you are typing near the middle of the editor.\n\nWith Focus mode on, Enter moves the new line toward the center. Reduced motion uses a smaller shift. Turn this off if you want Focus mode without recentering.",
+    documentLocation: "Document location",
+    documentLocationHint:
+      "Where Fulvid shows the active document path. The same identity is projected everywhere; showing a path never grants folder access.\n\nMain panel: quiet path in the editor. Window title: Fulvid - path on the OS window. Hidden: tabs, Explorer, and accessibility keep identity without a persistent path line.",
+    documentLocationMainPanel: "Main panel",
+    documentLocationWindowTitle: "Window title",
+    documentLocationHidden: "Hidden",
     markdownFormatBar: "Show Markdown formatting bar",
     markdownFormatBarHint:
       "Bold, lists, links, and tables sit above the editor. The same actions stay on the keyboard and the Edit menu if you leave this off.",
@@ -641,7 +647,7 @@ export default {
     shortcutOutline: "Open the active document outline",
     shortcutLeftSidebar: "Show or hide navigation and folder",
     shortcutFind: "Find a document",
-    shortcutQuickOpen: "Quick Open — open a document by name or path in the folder",
+    shortcutQuickOpen: "Quick Open - open a document by name or path in the folder",
     shortcutNew: "Create a new untitled document",
     shortcutOpenFile: "Open a file",
     shortcutSave: "Save the active document",
@@ -671,6 +677,15 @@ export default {
       "Changes Fulvid's menus, Settings, and messages right away. Your documents stay in whatever language you wrote them in.",
     english: "English",
     spanish: "Spanish",
+    resetToDefaults: "Reset settings",
+    resetToDefaultsHint:
+      "Restore Fulvid settings to their default values. Your documents, open tabs, Folder, and files are not changed.",
+    resetToDefaultsAction: "Reset to defaults",
+    resetToDefaultsTitle: "Reset settings?",
+    resetToDefaultsMessage:
+      "This restores Fulvid's settings to their default values.\nYour documents and files will not be changed.",
+    resetToDefaultsConfirm: "Reset",
+    resetToDefaultsDone: "Settings restored to defaults",
   },
   preview: {
     dense:

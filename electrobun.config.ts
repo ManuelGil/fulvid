@@ -16,7 +16,7 @@ export default {
   app: {
     name: "Fulvid",
     identifier: "fulvid.imgil.dev",
-    version: "0.4.0",
+    version: "0.5.0",
   },
   build: {
     mainProcess: "bun",
@@ -35,7 +35,7 @@ export default {
       notarize: hasDeveloperId && (hasAppleIdNotarization || hasApiKeyNotarization),
       createDmg: true,
       // System webview (WKWebView / WebView2 / WebKitGTK), not bundled CEF.
-      // Enabling CEF is a CSP, worker, and HMR review — see CONTRIBUTING.md.
+      // Enabling CEF is a CSP, worker, and HMR review - see CONTRIBUTING.md.
       bundleCEF: false,
       // iconutil on macOS turns this iconset into AppIcon.icns. Not generated on Linux.
       icons: "assets/macos/fulvid.iconset",

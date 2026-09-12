@@ -1,7 +1,7 @@
 /**
  * Combined renderer↔host RPC. Filesystem requests stay owned by FilesystemRPC;
- * this file adds Application Menu transport and one window capability on the
- * same Electrobun channel.
+ * this file adds Application Menu transport and narrow window capabilities on
+ * the same Electrobun channel (fullscreen toggle, title presentation).
  */
 import type { RPCSchema } from "electrobun";
 
@@ -65,6 +65,10 @@ type ApplicationMenuRequests = {
 type WindowRequests = {
   toggleWindowFullScreen: {
     params: Record<string, never>;
+    response: boolean;
+  };
+  setWindowTitle: {
+    params: { title: string };
     response: boolean;
   };
 };

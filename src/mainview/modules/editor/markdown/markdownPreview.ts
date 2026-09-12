@@ -192,7 +192,7 @@ function emptyResult(
  * Shared Markdown/MDX HTML for Preview and Export.
  *
  * GFM via marked. MDX is inert: JSX is escaped, not executed. Document links
- * go through parseDocumentLinks / resolveDocumentLink — do not add a second
+ * go through parseDocumentLinks / resolveDocumentLink - do not add a second
  * parser or renderer here.
  */
 export function renderMarkdownPreview(

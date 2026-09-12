@@ -561,7 +561,7 @@ function renderSecurityReport(
       dependencyType: advisory?.dependencyType ?? "transitive",
       via:
         advisory?.via ??
-        (advisory?.dependencyType === "transitive" ? "transitive dependency" : "—"),
+        (advisory?.dependencyType === "transitive" ? "transitive dependency" : "-"),
       advisory,
     };
   });

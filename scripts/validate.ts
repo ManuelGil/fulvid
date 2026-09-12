@@ -1,5 +1,5 @@
 /**
- * Local validation gate — static checks first, then tests, then build.
+ * Local validation gate - static checks first, then tests, then build.
  *
  * Run with: bun run validate
  */

@@ -1,4 +1,4 @@
-# INTENDED SNAPCRAFT DRAFT — not built, not validated, not a Store upload.
+# INTENDED SNAPCRAFT DRAFT - not built, not validated, not a Store upload.
 #
 # Do not copy this to snap/snapcraft.yaml until a prototype has been run.
 # snapcraft is not wired in CI. GitHub Releases remains the only public channel.
@@ -16,7 +16,7 @@
 
 name: fulvid
 base: core24
-version: "0.4.0"
+version: "0.5.0"
 summary: A standalone desktop editor for Markdown and MDX
 description: |
   Fulvid is a standalone desktop editor for Markdown and MDX.

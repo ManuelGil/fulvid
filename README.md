@@ -45,7 +45,7 @@ Open a folder when you want Explorer, Quick Open, Global Search, Graph, and Docu
 
 Follow links that are actually in the source. You choose one link mode for the session: Markdown (default) or Wikilink. Broken links stay visible. Fulvid does not create a file because a link points at a missing path.
 
-Search in two places. Local find is the editor's own find (`Ctrl/Cmd+F`). Global Search (`Ctrl/Cmd+Shift+F`) looks through document content in the open folder. Quick Open (`Ctrl/Cmd+P`) jumps to a document by title, filename, or path in that folder — it does not search content.
+Search in two places. Local find is the editor's own find (`Ctrl/Cmd+F`). Global Search (`Ctrl/Cmd+Shift+F`) looks through document content in the open folder. Quick Open (`Ctrl/Cmd+P`) jumps to a document by title, filename, or path in that folder - it does not search content.
 
 Preview the active buffer as inert HTML. Export HTML uses that same renderer and writes a `.html` file. Export cannot overwrite a Markdown or MDX note.
 
