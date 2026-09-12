@@ -57,6 +57,21 @@ HTML Export is a separate dialog that writes `.html` only, using the Preview ren
 
 The right sidebar shows one panel: Explorer, Search options (on `/search`), Document Context, or Outline. Search, Graph, and Settings are pages. Sidebars do not own `activeId`.
 
+### Extension UI boundary
+
+Presentation may become extension-capable later; **authority does not**.
+
+| Category | Surfaces / rules |
+| --- | --- |
+| **Current** | No loader. Fixtures under [`extensions/`](../extensions/) declare inert host actions only and are **not** loaded |
+| **Future seam** | Declared host actions (`notify`, `createUntitledFromTemplate`); contributions to Quick Actions / Application Menu **only** as `command → existing owner → UI`. Icons are closed declarative names (`appIcons.ts` / `CommandIcon`) |
+| **Core-controlled** | Focus, dirty state, document selection, Writing Focus policy, grants, filesystem, Graph, Preview inertness, native Full Screen, right-rail panel set, Statusbar indicators, tabs chrome |
+| **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, IPC, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution |
+
+There is **no** contribution registry, placement API, or loader today. See [`extensions/README.md`](../extensions/README.md) and `tests/extensions/`.
+
+Do not add a second command bus. Do not let a button call filesystem or Monaco directly.
+
 ## Document links
 
 [`documentLink.ts`](../src/mainview/modules/document/links/documentLink.ts) is the only resolver for the active link mode (Markdown or Wikilink, not both). Scan, Monaco providers, Preview, Export, and Graph use it.

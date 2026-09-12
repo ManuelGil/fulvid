@@ -1,8 +1,7 @@
 /**
- * Quit confirmation against dirty buffers.
- *
- * Dirty ownership stays in documentBuffers. Confirmation UI stays in dialogs.
- * This module only decides whether Quit may call the host quit RPC.
+ * Quit may call the host quit RPC only after the same confirmClose gate
+ * used when closing dirty tabs. Dirty state stays in documentBuffers;
+ * confirmation UI stays in dialogs; this file is not a lifecycle owner.
  */
 export function shouldConfirmQuit(options: {
   dirtyCount: number;
@@ -11,25 +10,15 @@ export function shouldConfirmQuit(options: {
   return options.confirmCloseEnabled && options.dirtyCount > 0;
 }
 
-/**
- * Run Quit after the same confirmClose gate used for closing dirty tabs.
- * Returns whether the host quit ran.
- */
+/** @returns true when the host quit ran */
 export async function confirmAndQuit(options: {
   dirtyCount: number;
   confirmCloseEnabled: boolean;
   confirm: () => Promise<boolean>;
   quit: () => Promise<void>;
 }): Promise<boolean> {
-  if (
-    shouldConfirmQuit({
-      dirtyCount: options.dirtyCount,
-      confirmCloseEnabled: options.confirmCloseEnabled,
-    })
-  ) {
-    if (!(await options.confirm())) {
-      return false;
-    }
+  if (shouldConfirmQuit(options) && !(await options.confirm())) {
+    return false;
   }
   await options.quit();
   return true;

@@ -25,28 +25,32 @@ export function writingFocusLeaveEditorTarget(
   return hasOpenDocument ? "tabs" : "empty-or-main";
 }
 
-/** Regions that stay usable while Focus hides editor chrome. */
+/**
+ * Regions that stay keyboard-usable while Writing Focus hides editor chrome.
+ * Quick Actions stays because toggleWritingFocus lives there; menu/dialogs/toasts
+ * are session chrome, not inert writing surface.
+ */
+export const WRITING_FOCUS_KEPT_SELECTORS = [
+  ".monaco-editor",
+  ".editor-empty-workspace",
+  ".markdown-preview",
+  "[data-application-menu]",
+  ".quick-actions",
+  ".skip-link",
+  "#main-content",
+  ".dialog-host",
+  ".context-menu",
+  ".toast-host",
+  ".app-shell__panel",
+] as const;
+
+const WRITING_FOCUS_KEPT_SELECTOR = WRITING_FOCUS_KEPT_SELECTORS.join(", ");
+
 export function writingFocusKeepsFocusTarget(element: EventTarget | null): boolean {
   if (!(element instanceof Element)) {
     return false;
   }
-  return Boolean(
-    element.closest(
-      [
-        ".monaco-editor",
-        ".editor-empty-workspace",
-        ".markdown-preview",
-        "[data-application-menu]",
-        ".quick-actions",
-        ".skip-link",
-        "#main-content",
-        ".dialog-host",
-        ".context-menu",
-        ".toast-host",
-        ".app-shell__panel",
-      ].join(", "),
-    ),
-  );
+  return Boolean(element.closest(WRITING_FOCUS_KEPT_SELECTOR));
 }
 
 /**

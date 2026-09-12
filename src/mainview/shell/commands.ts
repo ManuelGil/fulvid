@@ -76,23 +76,31 @@ export function toAriaKeyshortcuts(shortcut?: string): string | undefined {
   return shortcut.replaceAll("Ctrl+", "Control+").replaceAll("Cmd+", "Meta+");
 }
 
-export type CommandIcon =
-  | "document"
-  | "new-document"
-  | "folder"
-  | "folder-open"
-  | "save"
-  | "close-all"
-  | "preview"
-  | "focus"
-  | "outline"
-  | "search"
-  | "undo"
-  | "redo"
-  | "cut"
-  | "copy"
-  | "paste"
-  | "replace";
+/** Closed Quick Action / command icon names (must resolve via `resolveAppIconName`). */
+export const COMMAND_ICONS = [
+  "document",
+  "new-document",
+  "folder",
+  "folder-open",
+  "save",
+  "close-all",
+  "preview",
+  "focus",
+  "outline",
+  "search",
+  "undo",
+  "redo",
+  "cut",
+  "copy",
+  "paste",
+  "replace",
+] as const;
+
+export type CommandIcon = (typeof COMMAND_ICONS)[number];
+
+export function isCommandIcon(value: string): value is CommandIcon {
+  return (COMMAND_ICONS as readonly string[]).includes(value);
+}
 
 export type CommandDefinition = {
   id: CommandId;

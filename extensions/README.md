@@ -35,7 +35,17 @@ Do not add product-shaped packs (bug report, meeting, ADR, etc.) here. Those age
 | Discovery / loader | **Not implemented** |
 | Lua / wasmoon | **Not implemented** |
 
-Contract tests: `tests/extensions/extensionFixtures.unit.test.ts` (permanent set size, allowed capabilities/actions, no executable artifacts).
+Contract tests: `tests/extensions/extensionFixtures.unit.test.ts` (permanent set size, allowed capabilities/actions, no executable artifacts). UI boundary harness: `tests/extensions/extensionUiBoundary.unit.test.ts` (icons, Writing Focus keep-list, forbidden authorities).
+
+## UI extension boundary
+
+| Kind | Meaning today |
+| --- | --- |
+| **Current capability** | Fixtures declare inert host actions only (`notify`, `createUntitledFromTemplate`). Not loaded. |
+| **Future extension seam** | Contributions to Quick Actions / Application Menu only as `command → owner → UI`. Closed Lucide/AppIcon names as presentation data. |
+| **Forbidden** | Monaco, filesystem/grants, BrowserWindow, IPC, process, network, Vue internals, arbitrary HTML/SVG/DOM, MDX execution, Focus/Graph policy |
+
+Path: `extension → capability → owner → presentation`. Never: `extension → Vue/Monaco/filesystem`.
 
 ## Layout
 
