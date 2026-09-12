@@ -40,10 +40,12 @@ export function installNativeApplicationMenu(sendClick: (action: string) => void
   // Registers the click handler on every OS. Electrobun 2.0.1 only draws a
   // native bar on macOS and Windows; Linux is a documented no-op
   // (electrobunApplicationMenu.ts).
+  // Placeholder until the renderer syncs the real menu. Do not use role
+  // "quit" here — that would bypass the renderer's dirty-document guard.
   ApplicationMenu.setApplicationMenu([
     {
       label: "Fulvid",
-      submenu: [{ role: "quit" }],
+      submenu: [{ label: "Fulvid", action: "openAbout" }],
     },
   ]);
   ApplicationMenu.on("application-menu-clicked", (event: unknown) => {

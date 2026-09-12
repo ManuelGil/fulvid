@@ -220,6 +220,8 @@ export default {
     closeUnsaved: "Close {name} with unsaved changes?",
     closeOthersUnsaved: "Close the other tabs with unsaved changes?",
     closeAllUnsaved: "Close all tabs with unsaved changes?",
+    quitUnsavedOne: "Quit Fulvid and discard unsaved changes in {name}?",
+    quitUnsaved: "Quit Fulvid and discard unsaved changes in {count} tabs?",
     closeWorkspaceConfirm: "Close this folder?",
     closeWorkspaceError: "Couldn't finish closing this folder.",
     closed: "Folder closed",
@@ -601,7 +603,7 @@ export default {
       "Start with Untitled and reopen your last folder in the background. You can write right away.",
     confirmClose: "Confirm before closing",
     confirmCloseHint:
-      "Ask before closing the folder, and before closing tabs with unsaved changes.\n\nAlready saved documents close without asking.",
+      "Ask before closing the folder, before closing tabs with unsaved changes, and before quitting with unsaved changes.\n\nAlready saved documents close without asking.",
     links: "Links",
     markdown: "Markdown",
     linkMode: "Link mode",

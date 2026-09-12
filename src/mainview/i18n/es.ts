@@ -222,6 +222,8 @@ export default {
     closeUnsaved: "¿Cerrar {name} con cambios sin guardar?",
     closeOthersUnsaved: "¿Cerrar las demás pestañas con cambios sin guardar?",
     closeAllUnsaved: "¿Cerrar todas las pestañas con cambios sin guardar?",
+    quitUnsavedOne: "¿Salir de Fulvid y descartar los cambios sin guardar en {name}?",
+    quitUnsaved: "¿Salir de Fulvid y descartar los cambios sin guardar en {count} pestañas?",
     closeWorkspaceConfirm: "¿Cerrar esta carpeta?",
     closeWorkspaceError: "No se pudo terminar de cerrar esta carpeta.",
     closed: "Carpeta cerrada",
@@ -615,7 +617,7 @@ export default {
       "Empieza con Sin título y reabre la última carpeta en segundo plano. Puedes escribir enseguida.",
     confirmClose: "Confirmar antes de cerrar",
     confirmCloseHint:
-      "Pregunta antes de cerrar la carpeta y antes de cerrar pestañas con cambios sin guardar.\n\nLos documentos ya guardados se cierran sin preguntar.",
+      "Pregunta antes de cerrar la carpeta, antes de cerrar pestañas con cambios sin guardar y antes de salir con cambios sin guardar.\n\nLos documentos ya guardados se cierran sin preguntar.",
     links: "Enlaces",
     markdown: "Markdown",
     linkMode: "Modo de enlaces",

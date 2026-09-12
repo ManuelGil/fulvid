@@ -217,7 +217,15 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
       { type: "role", id: "hideOthers", role: "hideOthers", label: "menu.hideOthers" },
       { type: "role", id: "showAll", role: "showAll", label: "menu.showAll" },
       { type: "separator", id: "app-separator-2" },
-      { type: "role", id: "quit", role: "quit", label: "menu.quit", fallbackCommand: "quit" },
+      // Command (not OS role) so Quit goes through the renderer dirty guard.
+      {
+        type: "command",
+        id: "quit",
+        label: "menu.quit",
+        shortcut: "Ctrl/Cmd+Q",
+        accelerator: "q",
+        availability: "always",
+      },
     ],
   };
 
@@ -359,7 +367,14 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
   if (platform !== "darwin") {
     fileItems.push(
       { type: "separator", id: "file-separator-3" },
-      { type: "role", id: "quit", role: "quit", label: "menu.quit", fallbackCommand: "quit" },
+      {
+        type: "command",
+        id: "quit",
+        label: "menu.quit",
+        shortcut: "Ctrl/Cmd+Q",
+        accelerator: "q",
+        availability: "always",
+      },
     );
   }
 

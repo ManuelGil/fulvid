@@ -27,7 +27,8 @@ import { APP_ROUTE_NAMES } from "./router";
 import { notify } from "./notify";
 import ToastHost from "./ToastHost.vue";
 import DialogHost from "./DialogHost.vue";
-import { activeDialog, promptQuickOpen } from "./dialogs";
+import { activeDialog, confirmDialog, promptQuickOpen } from "./dialogs";
+import { confirmAndQuit } from "./applicationQuit";
 import {
   describeFilesystemError,
   notifyFilesystemError,
@@ -943,9 +944,26 @@ const unregisterCommands = [
   }),
   registerCommandHandler("toggleFullscreen", toggleFullscreen),
   registerCommandHandler("quit", () => {
-    void quitApplication();
+    void requestApplicationQuit();
   }),
 ];
+
+async function requestApplicationQuit(): Promise<void> {
+  const dirtyCount = openBuffers.value.filter(isDocumentDirty).length;
+  await confirmAndQuit({
+    dirtyCount,
+    confirmCloseEnabled: settings.value.workspace.confirmClose,
+    confirm: () =>
+      confirmDialog(
+        dirtyCount === 1
+          ? t("workspace.quitUnsavedOne", {
+              name: openBuffers.value.find(isDocumentDirty)?.title ?? "",
+            })
+          : t("workspace.quitUnsaved", { count: dirtyCount }),
+      ),
+    quit: quitApplication,
+  });
+}
 
 const editorCommandIds = new Set<CommandId>([
   "save",

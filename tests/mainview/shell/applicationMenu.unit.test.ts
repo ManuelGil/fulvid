@@ -79,4 +79,23 @@ describe("application menu", () => {
       false,
     );
   });
+
+  test("routes Quit through a command so dirty buffers can be confirmed", () => {
+    const darwin = presentApplicationMenu("darwin", idleState, (key) => key);
+    const app = darwin.find((menu) => menu.id === "app");
+    const darwinQuit = app?.items.find((item) => item.type === "command" && item.id === "quit");
+    expect(darwinQuit?.type).toBe("command");
+    if (darwinQuit?.type === "command") {
+      expect(presentedMenuAction(darwinQuit)).toBe("quit");
+    }
+    expect(app?.items.some((item) => item.type === "role" && item.role === "quit")).toBe(false);
+
+    const win = presentApplicationMenu("win32", idleState, (key) => key);
+    const file = win.find((menu) => menu.id === "file");
+    const winQuit = file?.items.find((item) => item.type === "command" && item.id === "quit");
+    expect(winQuit?.type).toBe("command");
+    if (winQuit?.type === "command") {
+      expect(presentedMenuAction(winQuit)).toBe("quit");
+    }
+  });
 });
