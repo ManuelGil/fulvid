@@ -41,11 +41,11 @@ It is open source (MIT). The source in this repository is the product.
 
 Open a Markdown or MDX file and edit it. Untitled tabs work when you are still deciding where the file lives. Save and Save As write source, not a converted note format.
 
-Open a folder when you want Explorer, Global Search, Graph, and Document Context. Those views read the same files you are editing. They are optional. Writing still comes first.
+Open a folder when you want Explorer, Quick Open, Global Search, Graph, and Document Context. Those views read the same files you are editing. They are optional. Writing still comes first.
 
 Follow links that are actually in the source. You choose one link mode for the session: Markdown (default) or Wikilink. Broken links stay visible. Fulvid does not create a file because a link points at a missing path.
 
-Search in two places. Local find is the editor's own find (`Ctrl/Cmd+F`). Global Search looks through document content in the open folder.
+Search in two places. Local find is the editor's own find (`Ctrl/Cmd+F`). Global Search (`Ctrl/Cmd+Shift+F`) looks through document content in the open folder. Quick Open (`Ctrl/Cmd+P`) jumps to a document by title, filename, or path in that folder — it does not search content.
 
 Preview the active buffer as inert HTML. Export HTML uses that same renderer and writes a `.html` file. Export cannot overwrite a Markdown or MDX note.
 
@@ -116,7 +116,7 @@ You can keep using git, another editor, or a static generator on the same tree. 
 
 The editor is the center of the window. Explorer, Search, Graph, and Settings are there when you need them. They do not replace the writing surface.
 
-Keyboard shortcuts cover the usual desktop habits: new file, save, find, follow a link, rename a heading (`F2`), find heading references (`Shift+F12`), Focus mode (`Ctrl/Cmd+Shift+F`) that quiets editor chrome while you type, and native Full Screen (`F11`, or `Ctrl+Cmd+F` on macOS). There is no Command Palette and no Quick Open. Monaco is the only editor.
+Keyboard shortcuts cover the usual desktop habits: new file, save, find, follow a link, rename a heading (`F2`), find heading references (`Shift+F12`), Quick Open (`Ctrl/Cmd+P`) to jump to a document by name in the open folder, Global Search (`Ctrl/Cmd+Shift+F`), Focus mode (`Ctrl/Cmd+Shift+Enter`) that quiets editor chrome while you type, and native Full Screen (`F11`, or `Ctrl+Cmd+F` on macOS). There is no Command Palette. Monaco is the only editor.
 
 File dialogs are native. The app uses the system webview (WebKitGTK on Linux, WebView2 on Windows, WKWebView on macOS). On Linux the application menu is an HTML bar; Electrobun's native menu exists on macOS and Windows.
 

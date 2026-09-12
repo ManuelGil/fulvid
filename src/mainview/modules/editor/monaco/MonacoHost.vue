@@ -541,7 +541,9 @@ function revealPosition(lineNumber: number, column: number): void {
 }
 
 function find(): void {
-  // In-buffer Monaco find. Global Search is `/search`; Find References is Shift+F12.
+  // In-buffer Monaco find (Ctrl/Cmd+F). Global Search is `/search`
+  // (Ctrl/Cmd+Shift+F). Quick Open (Ctrl/Cmd+P) opens by document identity.
+  // Find References is Shift+F12.
   editor?.trigger("keyboard", "actions.find", {});
 }
 

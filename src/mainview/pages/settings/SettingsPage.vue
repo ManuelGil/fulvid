@@ -1225,6 +1225,13 @@ function setLocale(locale: FulvidSettings["locale"]): void {
                   <kbd>{{ primaryModifier }}</kbd
                   ><kbd>P</kbd>
                 </dt>
+                <dd>{{ t("settings.shortcutQuickOpen") }}</dd>
+              </div>
+              <div class="settings-shortcuts__row">
+                <dt>
+                  <kbd>{{ primaryModifier }}</kbd
+                  ><kbd>Shift</kbd><kbd>F</kbd>
+                </dt>
                 <dd>{{ t("settings.shortcutGlobalSearch") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
@@ -1286,7 +1293,7 @@ function setLocale(locale: FulvidSettings["locale"]): void {
               <div class="settings-shortcuts__row">
                 <dt>
                   <kbd>{{ primaryModifier }}</kbd
-                  ><kbd>Shift</kbd><kbd>F</kbd>
+                  ><kbd>Shift</kbd><kbd>Enter</kbd>
                 </dt>
                 <dd>{{ t("settings.shortcutFocus") }}</dd>
               </div>

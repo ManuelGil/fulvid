@@ -1,5 +1,5 @@
 /**
- * Small promise-based dialogs for filename input and confirmation.
+ * Small promise-based dialogs for filename input, confirmation, and Quick Open.
  * Rendered by DialogHost.vue — not a modal framework.
  */
 import { shallowRef } from "vue";
@@ -19,19 +19,29 @@ export type ConfirmPromptRequest = {
   resolve: (value: boolean) => void;
 };
 
-export type DialogRequest = FilenamePromptRequest | ConfirmPromptRequest;
+export type QuickOpenPromptRequest = {
+  kind: "quickOpen";
+  resolve: (path: string | null) => void;
+};
+
+export type DialogRequest = FilenamePromptRequest | ConfirmPromptRequest | QuickOpenPromptRequest;
 
 export const activeDialog = shallowRef<DialogRequest | null>(null);
 
-function replaceDialog(next: DialogRequest): void {
+function dismissCurrentDialog(): void {
   const current = activeDialog.value;
-  if (current) {
-    if (current.kind === "filename") {
-      current.resolve(null);
-    } else {
-      current.resolve(false);
-    }
+  if (!current) {
+    return;
   }
+  if (current.kind === "filename" || current.kind === "quickOpen") {
+    current.resolve(null);
+  } else {
+    current.resolve(false);
+  }
+}
+
+function replaceDialog(next: DialogRequest): void {
+  dismissCurrentDialog();
   activeDialog.value = next;
 }
 
@@ -62,6 +72,19 @@ export function confirmDialog(message: string, title?: string): Promise<boolean>
   });
 }
 
+/**
+ * Open Quick Open. Resolves to a folder-relative path from the live Folder scan,
+ * or null when cancelled. DialogHost projects `workspace.scannedNotes`.
+ */
+export function promptQuickOpen(): Promise<string | null> {
+  return new Promise((resolve) => {
+    replaceDialog({
+      kind: "quickOpen",
+      resolve,
+    });
+  });
+}
+
 function closeDialog(): void {
   activeDialog.value = null;
 }
@@ -72,7 +95,7 @@ export function cancelDialog(): void {
     return;
   }
   closeDialog();
-  if (current.kind === "filename") {
+  if (current.kind === "filename" || current.kind === "quickOpen") {
     current.resolve(null);
   } else {
     current.resolve(false);
@@ -99,4 +122,17 @@ export function submitConfirm(confirmed: boolean): void {
   }
   closeDialog();
   current.resolve(confirmed);
+}
+
+/**
+ * Accept a Quick Open selection. Callers must pass a path from the live
+ * candidate list (DialogHost); this is a selection hand-off, not a grant.
+ */
+export function submitQuickOpen(path: string): void {
+  const current = activeDialog.value;
+  if (!current || current.kind !== "quickOpen" || !path) {
+    return;
+  }
+  closeDialog();
+  current.resolve(path);
 }

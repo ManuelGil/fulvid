@@ -27,7 +27,7 @@ import { APP_ROUTE_NAMES } from "./router";
 import { notify } from "./notify";
 import ToastHost from "./ToastHost.vue";
 import DialogHost from "./DialogHost.vue";
-import { activeDialog } from "./dialogs";
+import { activeDialog, promptQuickOpen } from "./dialogs";
 import {
   describeFilesystemError,
   notifyFilesystemError,
@@ -377,9 +377,14 @@ function handleModifierShortcut(event: KeyboardEvent, insideMonaco: boolean): bo
     void runCommand(event.shiftKey ? "saveAs" : "save");
     return true;
   }
-  if (event.shiftKey && key === "f") {
+  if (event.shiftKey && key === "enter") {
     event.preventDefault();
     toggleWritingFocus();
+    return true;
+  }
+  if (event.shiftKey && key === "f") {
+    event.preventDefault();
+    openGlobalSearch();
     return true;
   }
   if (event.shiftKey && key === "e") {
@@ -394,7 +399,7 @@ function handleModifierShortcut(event: KeyboardEvent, insideMonaco: boolean): bo
   }
   if (!event.shiftKey && key === "p") {
     event.preventDefault();
-    openGlobalSearch();
+    void runCommand("openQuickOpen");
     return true;
   }
   if (!event.shiftKey && key === "n") {
@@ -697,6 +702,35 @@ function openGlobalSearch(): void {
   });
 }
 
+/**
+ * Entry point for Quick Open (Ctrl/Cmd+P).
+ *
+ * Candidates: live `workspace.scannedNotes` via DialogHost /
+ * `quickOpenCandidatesFromNotes`. Overlay: `promptQuickOpen`.
+ * Open: `openOrActivate` → `selectDocument`.
+ * Global Search stays `openGlobalSearch` (Ctrl/Cmd+Shift+F).
+ */
+async function openQuickOpen(): Promise<void> {
+  const path = await promptQuickOpen();
+  if (!path) {
+    return;
+  }
+  const rootPath = workspace.value?.path;
+  if (!rootPath) {
+    return;
+  }
+  try {
+    await openOrActivate({
+      kind: "workspace",
+      rootPath,
+      path,
+    });
+    await router.push({ name: APP_ROUTE_NAMES.editor });
+  } catch (error) {
+    notifyFilesystemError(error, "workspace.openDocumentError", notify);
+  }
+}
+
 function openExplorer(): void {
   if (route.name !== APP_ROUTE_NAMES.editor) {
     openRightSidebar("explorer");
@@ -874,6 +908,7 @@ const unregisterCommands = [
     toggleRightSidebar(panel);
   }),
   registerCommandHandler("openExplorer", openExplorer),
+  registerCommandHandler("openQuickOpen", openQuickOpen),
   registerCommandHandler("openGlobalSearch", openGlobalSearch),
   registerCommandHandler("openOutline", openOutline),
   registerCommandHandler("toggleStatusbar", toggleStatusbar),

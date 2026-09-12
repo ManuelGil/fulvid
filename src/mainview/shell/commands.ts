@@ -50,6 +50,7 @@ export type CommandId =
   | "openExplorer"
   | "openEditor"
   | "openGraph"
+  | "openQuickOpen"
   | "openGlobalSearch"
   | "openOutline"
   | "nextTab"
@@ -209,7 +210,7 @@ export const quickActions: readonly QuickActionDefinition[] = [
   {
     id: "toggleWritingFocus",
     label: "actions.focusMode",
-    shortcut: "Ctrl/Cmd+Shift+F",
+    shortcut: "Ctrl/Cmd+Shift+Enter",
     icon: "focus",
     group: "fulvid",
     tier: "secondary",
@@ -217,7 +218,7 @@ export const quickActions: readonly QuickActionDefinition[] = [
   {
     id: "openGlobalSearch",
     label: "app.searchPanel",
-    shortcut: "Ctrl/Cmd+P",
+    shortcut: "Ctrl/Cmd+Shift+F",
     icon: "search",
     group: "search",
     tier: "overflow",
