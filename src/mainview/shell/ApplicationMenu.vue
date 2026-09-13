@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 
 import ContextMenu, { type ContextMenuAction } from "./ContextMenu.vue";
 import type { MenuAnchor } from "./contextMenuPosition";
-import { toAriaKeyshortcuts, type CommandId } from "./commands";
+import { toAriaKeyshortcuts } from "./commands";
 import {
   presentedMenuAction,
   type PresentedMenuBar,
@@ -16,7 +16,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  command: [id: CommandId];
+  command: [id: string];
 }>();
 
 const { t } = useI18n();
@@ -90,7 +90,7 @@ function closeMenu(): void {
 
 function selectCommand(id: string): void {
   closeMenu();
-  emit("command", id as CommandId);
+  emit("command", id);
 }
 
 function focusAdjacentMenu(menuId: string, direction: -1 | 1): void {

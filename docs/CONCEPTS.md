@@ -10,7 +10,7 @@ Open a document, edit, save, open another. Writing comes first. Folder browsing,
 
 Opening a folder looks recursively for `.md`, `.markdown`, and `.mdx`. If the scan finishes and finds none, Fulvid says so and does not load that folder. A partial scan never claims the folder is empty of documents. Finding an `.mdx` file does not run MDX.
 
-Fulvid does not run MDX or document HTML. It does not score notes, infer links, or use embeddings. There is no Command Palette. Quick Open (`Ctrl/Cmd+P`) opens a document by title, filename, or relative path in the open Folder. Monaco is the only editor. Preview and Export HTML share one inert renderer. Fulvid is not a plugin marketplace; local extension fixtures (if any) are declarative samples and are not loaded as a platform.
+Fulvid does not run MDX or document HTML. It does not score notes, infer links, or use embeddings. There is no Command Palette. Quick Open (`Ctrl/Cmd+P`) opens a document by title, filename, or relative path in the open Folder. Monaco is the only editor. Preview and Export HTML share one inert renderer. Fulvid is not a plugin marketplace. Declarative local packs under `userData/extensions` may declare host actions (`notify`, `createUntitledFromTemplate`); they never become a platform runtime or Lua host.
 
 ## Vocabulary
 

@@ -14,6 +14,11 @@ import {
 import { enqueueExternalOpenRequest, takePendingExternalOpens } from "./external/externalOpen";
 import { externalOpenRequestsFromArguments } from "./external/startupArguments";
 import { configureWorkspaceApprovals } from "./workspaceGrants";
+import {
+  configureExtensionDiscovery,
+  discoverExtensions,
+  getDiscoveredExtensions,
+} from "./extensions/discoverExtensions";
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
 import { canPersistWindowFrame, toggleNativeFullScreen } from "./windowFullScreen";
 import { setNativeWindowTitle } from "./windowTitle";
@@ -21,6 +26,9 @@ import { setNativeWindowTitle } from "./windowTitle";
 // Folder approvals are host state: which folders a person picked in a dialog.
 // Configuring the store here keeps the approval rules free of the runtime.
 configureWorkspaceApprovals(Utils.paths.userData);
+// Declarative packs live under userData/extensions — filesystem is source of truth.
+configureExtensionDiscovery(Utils.paths.userData);
+await discoverExtensions();
 
 const DEV_SERVER_HOST = "127.0.0.1";
 const DEV_SERVER_PORT = 5173;
@@ -50,6 +58,7 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
     requests: {
       ...filesystemRpcHandlers,
       takePendingExternalOpens: () => takePendingExternalOpens(),
+      listDiscoveredExtensions: () => getDiscoveredExtensions(),
       setApplicationMenu: ({ items }) => setNativeApplicationMenu(items),
       getApplicationMenuSupport: () => applicationMenuSupport(),
       quitApplication: () => quitApplication(),

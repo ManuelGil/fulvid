@@ -12,11 +12,13 @@ LICENSE
 assets/                  Application icon
 assets/screenshots/      Window captures
 examples/                Demo folder for local checks and those captures
-extensions/              Long-lived extension-boundary fixtures (not loaded; see extensions/README.md)
+extensions/              Extension-boundary fixtures (copy into userData/extensions to load)
 src/bun/                 Desktop host and filesystem RPC
+src/bun/extensions/      Declarative extension discovery (userData/extensions)
 src/bun/filesystem/      io/, rpc/, scanning/, security/
 src/mainview/pages/      Routes: editor/, search/, graph/, settings/
 src/mainview/modules/    workspace/, editor/, search/, quickOpen/, graph/, document/, settings/
+src/mainview/extensions/ Manifest contract + registry / host action dispatch
 src/mainview/app/        Bootstrap, router, layout, folder lifecycle
 src/mainview/shell/      Menus, sidebars, AppIcon.vue
 src/mainview/i18n/       EN/ES catalogs; see I18N.md

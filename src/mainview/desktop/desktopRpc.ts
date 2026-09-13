@@ -6,6 +6,7 @@
 import type { RPCSchema } from "electrobun";
 
 import type { FilesystemRPC } from "../modules/workspace/filesystem/filesystemRpc";
+import type { ExtensionDiscoveryResult } from "../extensions/extensionManifest";
 import type { ResolvedExternalOpen } from "./externalOpen";
 
 export type DesktopPlatform = "darwin" | "win32" | "linux" | "other";
@@ -47,6 +48,13 @@ type ExternalOpenRequests = {
   };
 };
 
+type ExtensionDiscoveryRequests = {
+  listDiscoveredExtensions: {
+    params: Record<string, never>;
+    response: ExtensionDiscoveryResult;
+  };
+};
+
 type ApplicationMenuRequests = {
   setApplicationMenu: {
     params: { items: SerializableMenuItem[] };
@@ -78,6 +86,7 @@ export type DesktopRPC = {
     requests: FilesystemRPC["bun"]["requests"] &
       ApplicationMenuRequests &
       ExternalOpenRequests &
+      ExtensionDiscoveryRequests &
       WindowRequests;
     messages: FilesystemRPC["bun"]["messages"];
   }>;

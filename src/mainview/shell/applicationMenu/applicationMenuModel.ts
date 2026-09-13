@@ -91,7 +91,8 @@ export type PresentedMenuItem =
   | { type: "separator"; id: string }
   | {
       type: "command";
-      id: CommandId;
+      /** Core `CommandId` or namespaced extension command id. */
+      id: string;
       label: string;
       shortcut?: string;
       accelerator?: string;
@@ -737,7 +738,7 @@ function presentItems(
   });
 }
 
-export function presentedMenuAction(item: PresentedMenuItem): CommandId | null {
+export function presentedMenuAction(item: PresentedMenuItem): string | null {
   if (item.type === "command") {
     return item.id;
   }
@@ -745,4 +746,31 @@ export function presentedMenuAction(item: PresentedMenuItem): CommandId | null {
     return item.fallbackCommand ?? null;
   }
   return null;
+}
+
+/**
+ * Append a top-level Extensions menu when declarative commands are loaded.
+ * Presentation only — ownership stays with extension → host action.
+ */
+export function appendExtensionCommandsMenu(
+  menus: readonly PresentedMenuBar[],
+  commands: readonly { namespacedId: string; title: string }[],
+  menuLabel: string,
+): PresentedMenuBar[] {
+  if (commands.length === 0) {
+    return [...menus];
+  }
+  return [
+    ...menus,
+    {
+      id: "extensions",
+      label: menuLabel,
+      items: commands.map((command) => ({
+        type: "command" as const,
+        id: command.namespacedId,
+        label: command.title,
+        enabled: true,
+      })),
+    },
+  ];
 }

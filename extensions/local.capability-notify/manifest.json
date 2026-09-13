@@ -10,7 +10,7 @@
       "id": "ping",
       "title": "Extension fixture: notify",
       "action": "notify",
-      "message": "Fixture local.capability-notify — not a product feature; Fulvid does not load this pack yet."
+      "message": "Fixture local.capability-notify — host-owned notify only; not a product feature."
     }
   ]
 }

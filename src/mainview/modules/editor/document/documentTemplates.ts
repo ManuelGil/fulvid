@@ -84,11 +84,16 @@ export function documentTemplateDate(now = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Expand host-owned `{date}` tokens only — not arbitrary expressions. */
+export function expandTemplateDateTokens(body: string, now = new Date()): string {
+  return body.replaceAll(DATE_TOKEN, documentTemplateDate(now));
+}
+
 /** Expand `{date}` in a template. Empty string if the id is unknown. */
 export function renderDocumentTemplate(id: DocumentTemplateId, now = new Date()): string {
   const template = DOCUMENT_TEMPLATES.find((entry) => entry.id === id);
   if (!template) {
     return "";
   }
-  return template.body.replaceAll(DATE_TOKEN, documentTemplateDate(now));
+  return expandTemplateDateTokens(template.body, now);
 }

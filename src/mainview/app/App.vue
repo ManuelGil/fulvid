@@ -83,10 +83,17 @@ import {
   usesNativeApplicationMenu,
 } from "../shell/applicationMenu/applicationMenuClient";
 import {
+  appendExtensionCommandsMenu,
   presentApplicationMenu,
   type ApplicationMenuState,
 } from "../shell/applicationMenu/applicationMenuModel";
 import { desktopRequest, onApplicationMenuClicked } from "../desktop/electrobunClient";
+import {
+  configureExtensionHostActions,
+  listExtensionCommands,
+  runExtensionCommand,
+  setDiscoveredExtensions,
+} from "../extensions/extensionRegistry";
 import { editorCommandState } from "../modules/editor/editorCommandState";
 import {
   toggleWritingFocus,
@@ -624,11 +631,26 @@ function startContextualResize(event: PointerEvent): void {
 }
 
 const unregisterNativeMenu = onApplicationMenuClicked((action) => {
-  void runCommand(action as CommandId);
+  void runShellCommand(action);
 });
 
 onMounted(() => {
   syncDocumentAnnotationsVisibleFromPreference(settings.value.editor.showDocumentAnnotations);
+  configureExtensionHostActions({
+    notify: (message) => notify(message),
+    createUntitled: (content) => createNewDocument(content),
+  });
+  void desktopRequest()
+    .listDiscoveredExtensions({})
+    .then((result) => {
+      setDiscoveredExtensions(result);
+      for (const failure of result.failed) {
+        console.warn(`Fulvid extension "${failure.id}" failed: ${failure.reason}`);
+      }
+    })
+    .catch((error: unknown) => {
+      console.warn("Fulvid extension discovery unavailable:", error);
+    });
   void resolveApplicationMenuSupport().then(() => {
     void syncNativeApplicationMenu(presentedApplicationMenus.value);
   });
@@ -940,10 +962,14 @@ const applicationMenuState = computed<ApplicationMenuState>(() => {
 });
 
 const presentedApplicationMenus = computed(() =>
-  presentApplicationMenu(
-    applicationMenuSupport.value?.platform ?? "other",
-    applicationMenuState.value,
-    t,
+  appendExtensionCommandsMenu(
+    presentApplicationMenu(
+      applicationMenuSupport.value?.platform ?? "other",
+      applicationMenuState.value,
+      t,
+    ),
+    listExtensionCommands(),
+    t("menu.extensions"),
   ),
 );
 
@@ -1079,6 +1105,17 @@ const editorCommandIds = new Set<CommandId>([
   ...MARKDOWN_COMMANDS.map((command) => command.id),
 ]);
 
+async function runShellCommand(id: string): Promise<void> {
+  try {
+    if (await runExtensionCommand(id)) {
+      return;
+    }
+    await runCommand(id as CommandId);
+  } catch (error: unknown) {
+    notify(describeFilesystemError(error, "app.commandError"));
+  }
+}
+
 async function runCommand(id: CommandId): Promise<void> {
   try {
     const requiresEditor = editorCommandIds.has(id);
@@ -1132,13 +1169,13 @@ onBeforeUnmount(() => {
         class="app-shell__menu-row"
         data-application-menu="html-fallback"
       >
-        <ApplicationMenu :menus="presentedApplicationMenus" @command="runCommand" />
+        <ApplicationMenu :menus="presentedApplicationMenus" @command="runShellCommand" />
       </div>
       <!-- Writing Focus must not hide/inert this row: Quick Actions stay a capability. -->
       <div class="app-shell__actions-row" :inert="overlayOpen">
         <QuickActionsToolbar
           :explorer-open="activeRightPanel === 'explorer'"
-          :run-command="runCommand"
+          :run-command="runShellCommand"
         />
       </div>
     </header>

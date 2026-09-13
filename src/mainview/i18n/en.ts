@@ -145,6 +145,7 @@ export default {
     previousTab: "Previous Tab",
     keyboardShortcuts: "Keyboard Shortcuts",
     aboutFulvid: "About Fulvid",
+    extensions: "Extensions",
     quit: "Quit Fulvid",
     hide: "Hide Fulvid",
     hideOthers: "Hide Others",

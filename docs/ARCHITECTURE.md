@@ -93,14 +93,14 @@ Path: `extension → declared capability / command → existing owner → existi
 
 | Category | Surfaces / rules |
 | --- | --- |
-| **Current** | No loader, contribution registry, or placement API. Fixtures under [`extensions/`](../extensions/) declare inert host actions only and are **not** loaded. Icons are a closed declarative vocabulary (`appIcons.ts` / `CommandIcon`); `AppIcon.vue` is presentation only |
-| **Future seam** | Declared host actions (`notify`, `createUntitledFromTemplate`); contributions to Quick Actions / Application Menu **only** as `command → existing owner → UI` |
+| **Current** | Declarative discovery loads `userData/extensions` at startup (`api: 0` only). Invalid packs fail in isolation. Fixtures under [`extensions/`](../extensions/) document the contract; copy them into userData to try. Host actions: `notify`, `createUntitledFromTemplate`. Namespaced command ids (`<extensionId>.<commandId>`) appear under Application Menu → Extensions when loaded. Icons remain a closed declarative vocabulary (`appIcons.ts` / `CommandIcon`); `AppIcon.vue` is presentation only. No Lua, contribution registry, or placement API |
+| **Future seam** | Broader Quick Actions contributions; optional Lua runtime only if declarative packs prove insufficient |
 | **Core-controlled** | Focus, dirty state, document selection, Writing Focus policy, grants, filesystem, Graph, Preview inertness, native Full Screen, right-rail panel set, Statusbar indicators, tabs chrome |
-| **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, IPC, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution |
+| **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, parallel IPC channels, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution, extension-owned dirty/selection state |
 
 Do not add a second command bus. Do not let a button call filesystem or Monaco directly. Do not fix a UI problem by inventing a second owner of the same behavior.
 
-Boundary contract tests: `tests/extensions/` (fixture set + UI boundary). Those tests fail if the closed icon vocabulary, Writing Focus capability keep-list, or forbidden fixture authorities are weakened.
+Discovery: `src/bun/extensions/`. Registry / host dispatch: `src/mainview/extensions/`. Contract tests: `tests/extensions/`.
 
 See [`extensions/README.md`](../extensions/README.md).
 

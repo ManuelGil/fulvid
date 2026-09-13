@@ -145,6 +145,7 @@ export default {
     previousTab: "Pestaña anterior",
     keyboardShortcuts: "Atajos de teclado",
     aboutFulvid: "Acerca de Fulvid",
+    extensions: "Extensiones",
     quit: "Salir de Fulvid",
     hide: "Ocultar Fulvid",
     hideOthers: "Ocultar otras",

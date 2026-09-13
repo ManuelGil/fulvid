@@ -1,20 +1,20 @@
 # Extensions (repository fixtures)
 
-This directory holds a **minimal set of long-lived fixtures** for Fulvid’s future extension boundary.
+This directory holds a **minimal set of long-lived fixtures** for Fulvid’s declarative extension boundary.
 
 It is **not**:
 
 - a marketplace or plugin catalog;
 - official Fulvid product features;
-- installable plugins (Fulvid does **not** load this directory today);
-- a runtime, SDK, or permission system;
+- the runtime load path (that is `userData/extensions`);
+- a Lua/runtime/SDK surface;
 - a place for temporary product-gap workarounds.
 
 It **is**:
 
 - documentation-as-data for `extension → capability → owner`;
 - durable examples of **declarative** packs;
-- architecture teaching aids for future contributors.
+- samples you can copy into `userData/extensions` to exercise discovery.
 
 > These fixtures demonstrate composition and limits of extensibility. They are **not** recommended core features and must not be treated as a roadmap of product templates.
 
@@ -22,17 +22,18 @@ It **is**:
 
 | Id | Teaches |
 | --- | --- |
-| `local.capability-notify` | Declared command → `notify` only (no Monaco, no FS) |
+| `local.capability-notify` | Declared command → host `notify` only (no Monaco, no FS) |
 | `local.declarative-pack` | Declared template + `createUntitledFromTemplate` (product-neutral body) |
 
-Do not add product-shaped packs (bug report, meeting, ADR, etc.) here. Those age into “missing core features.” Prefer disposable experiments outside the permanent set, or user-local packs once a loader exists.
+Do not add product-shaped packs (bug report, meeting, ADR, etc.) here. Those age into “missing core features.” Prefer disposable experiments outside the permanent set, or user-local packs under userData.
 
 ## Status
 
 | Layer | Status |
 | --- | --- |
-| Fixtures (JSON + Markdown) | Present — **not loaded** |
-| Discovery / loader | **Not implemented** |
+| Fixtures (JSON + Markdown) | Present — copy into userData to load |
+| Discovery (`userData/extensions`, `api: 0`) | **Implemented** (declarative only) |
+| Host actions | `notify`, `createUntitledFromTemplate` |
 | Lua / wasmoon | **Not implemented** |
 
 ## UI extension boundary
@@ -41,13 +42,13 @@ Path: `extension → declared capability / command → existing owner → presen
 
 | Kind | Meaning today |
 | --- | --- |
-| **Current** | Fixtures declare inert host actions only (`notify`, `createUntitledFromTemplate`). Not loaded. No loader, Lua runtime, contribution registry, or placement API |
-| **Future seam** | Contributions to Quick Actions / Application Menu only as `command → existing owner → UI`. Closed AppIcon / `CommandIcon` names as presentation data |
-| **Forbidden** | Monaco, filesystem/grants, BrowserWindow, IPC, process, network, Vue internals, arbitrary HTML/SVG/DOM, MDX execution, Focus / Writing Focus / Graph policy |
+| **Current** | Host discovers `userData/extensions`, validates `api: 0` manifests, registers declarative commands/templates, invokes existing owners. Failures are isolated per pack. Namespaced ids: `<extensionId>.<commandId>` |
+| **Future seam** | Optional Lua only if declarative packs are insufficient for a real need |
+| **Forbidden** | Monaco, filesystem/grants, BrowserWindow, process, network, Vue internals, arbitrary HTML/SVG/DOM, MDX execution, Focus / Writing Focus / Graph policy, executable `main`/`entry`/`lua` |
 
 Never: `extension → Vue/Monaco/filesystem`. Do not invent a second owner to “make an extension work.”
 
-Contract tests: `tests/extensions/extensionFixtures.unit.test.ts` and `extensionUiBoundary.unit.test.ts`. They fail if the closed icon vocabulary, Writing Focus capability keep-list, forbidden fixture authorities, or permanent fixture set are weakened.
+Contract tests: `tests/extensions/extensionFixtures.unit.test.ts`, `extensionUiBoundary.unit.test.ts`, `extensionDiscovery.unit.test.ts`.
 
 ## Layout
 
@@ -59,7 +60,7 @@ extensions/
   local.declarative-pack/templates/sample.md
 ```
 
-Ids use the `local.*` prefix so they never look like a public registry.
+Ids use the `local.*` prefix so they never look like a public registry. The load path is `Utils.paths.userData/extensions/<id>/`.
 
 ## Relation to `examples/`
 
@@ -67,13 +68,6 @@ Ids use the `local.*` prefix so they never look like a public registry.
 | --- | --- |
 | `examples/demo-workspace/` | Demo **notes** for Open folder / screenshots |
 | `extensions/` | **Extension-boundary fixtures** (manifests), not a notes folder |
-
-## Research
-
-- `docs/research/2026-09-10-lua-extension-engine.md`
-- `docs/research/2026-09-10-small-core-unix-extensibility.md`
-- `docs/research/2026-09-11-extension-workspace-and-risk.md` (initial inventory)
-- `docs/research/2026-09-11-extension-fixtures-longevity.md` (**fixture set decision**)
 
 ## Local artifacts
 
