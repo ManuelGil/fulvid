@@ -651,7 +651,7 @@ export default {
     shortcutReplace: "Replace in the active document",
     shortcutOutline: "Open the active document outline",
     shortcutDocumentAnnotations:
-      "Temporary line notes in the editor margin. Quick Actions Add/Edit annotation uses the cursor line; click the glyph margin or use Navigate for add, edit, remove, next, previous, or clear. Show/Hide is on View. Notes are session-only and never saved to the file.",
+      "Temporary line notes. Add or edit from Quick Actions, the glyph margin, or Navigate. Show/Hide is on View. Session-only; never saved to the file.",
     shortcutLeftSidebar: "Show or hide navigation and folder",
     shortcutFind: "Find a document",
     shortcutQuickOpen: "Quick Open - open a document by name or path in the folder",

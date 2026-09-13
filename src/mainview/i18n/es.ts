@@ -665,7 +665,7 @@ export default {
     shortcutReplace: "Reemplazar en el documento activo",
     shortcutOutline: "Abrir el esquema del documento activo",
     shortcutDocumentAnnotations:
-      "Notas temporales en el margen del editor. Las acciones rápidas Añadir/Editar anotación usan la línea del cursor; haz clic en el margen de glifos o usa Navegar para añadir, editar, quitar, siguiente, anterior o borrar. Mostrar/Ocultar está en Vista. Las notas son solo de sesión y no se guardan en el archivo.",
+      "Notas temporales de línea. Añade o edita desde Acciones rápidas, el margen de glifos o Navegar. Mostrar/Ocultar está en Vista. Solo de sesión; no se guardan en el archivo.",
     shortcutLeftSidebar: "Mostrar u ocultar navegación y carpeta",
     shortcutFind: "Buscar un documento",
     shortcutQuickOpen: "Apertura rápida - abrir un documento por nombre o ruta en la carpeta",

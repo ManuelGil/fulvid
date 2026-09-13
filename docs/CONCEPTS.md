@@ -36,7 +36,7 @@ Product copy uses **Folder**, never Workspace. Host code may still use `workspac
 | **Focus** | Folder-scoped target for Graph and Document Context |
 | **Peek** | Read another document in Context without changing Focus |
 | **Context root** | Folder that limits facts and link resolution |
-| **Focus mode** | Strong writing presentation: collapses the left sidebar to the compact rail, hides tabs/statusbar/format bar, expands the editor surface, optional quiet document location. Session-only. Not Graph Focus. Independent of native Full Screen. Shortcut: `Ctrl/Cmd+Shift+Enter` |
+| **Writing Focus** | Strong writing presentation: collapses the left sidebar to the compact rail, hides tabs/statusbar/format bar, expands the editor surface, optional quiet document location. Session-only. Not Graph Focus. Independent of native Full Screen. Shortcut: `Ctrl/Cmd+Shift+Enter` |
 | **Annotation** | Temporary plain-text note on a tracked line in the open document (**document annotation**). Session-local and document-local; not source, not persistent, not searchable. Primary actions: **Add annotation** / **Edit annotation** (Quick Actions, Navigate, glyph margin). **Show/Hide document annotations** is presentation only (View + Settings). See [ANNOTATIONS.md](./ANNOTATIONS.md) |
 
 Settings choose one `linkMode`: `"markdown"` (default) or `"wikilink"`. That mode governs scan, resolution, editor providers, Preview, references, rename, and Graph.
