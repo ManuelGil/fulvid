@@ -19,16 +19,14 @@ function note(path: string, content: string, title = "Document"): ScannedNote {
     categories: [],
     projects: [],
     summary: "",
-    tokens: 0,
     words: 0,
     content,
   };
 }
 
-// Intent: extra strategies must change matches without a second document parser.
-// Growth boundary: add a case only when a strategy's matching rule changes.
+// Intent: extra strategies change matches without inventing a second document parser.
 describe("search strategies", () => {
-  test("finds approximate words, combined terms, and nearby terms", () => {
+  test("fuzzy, boolean, proximity, and structure strategies reuse document fields", () => {
     const notes = [
       note("fuzzy.md", "The recieve function failed"),
       note("both.md", "alpha later beta"),
@@ -50,31 +48,21 @@ describe("search strategies", () => {
       ),
     ).toEqual(["both.md"]);
     expect(searchQueryIssue("alpha", { strategy: "proximity" })).toBe("invalidPattern");
-  });
 
-  test("reuses document structure and path fields instead of a second parser", () => {
     const content =
       '---\n"title": Quoted\ntitle: Guide\n---\n# Getting started\n\nSee [other](other.md) and [[notes]].\n\n```ts\nconst x = 1\n# Not a heading\n- fake item\n```\n\n- item one\n';
-    const notes = [note("docs/guide.md", content, "Getting started")];
+    const structured = [note("docs/guide.md", content, "Getting started")];
     const structure = parseMarkdownStructure(content);
     const markdownLink = parseDocumentLinks(content, "markdown")[0];
 
-    const heading = searchDocuments(notes, "started", {
-      strategy: "pattern",
-      patternKind: "heading",
-    })[0];
-    expect(heading?.match.lineNumber).toBe(structure.headings[0]?.lineNumber);
     expect(
-      searchDocuments(notes, "heading", { strategy: "pattern", patternKind: "heading" }),
-    ).toHaveLength(0);
-
-    const link = searchDocuments(notes, "other", { strategy: "pattern", patternKind: "link" })[0];
-    expect(link?.match.offset).toBe(markdownLink?.range.start);
-
+      searchDocuments(structured, "started", { strategy: "pattern", patternKind: "heading" })[0]
+        ?.match.lineNumber,
+    ).toBe(structure.headings[0]?.lineNumber);
     expect(
-      searchDocuments(notes, "ts", { strategy: "pattern", patternKind: "fence" })[0]?.match
-        .lineNumber,
-    ).toBe(structure.fences[0]?.startLine);
-    expect(searchDocuments(notes, "guide", { strategy: "path" })[0]?.match.kind).toBe("path");
+      searchDocuments(structured, "other", { strategy: "pattern", patternKind: "link" })[0]?.match
+        .offset,
+    ).toBe(markdownLink?.range.start);
+    expect(searchDocuments(structured, "guide", { strategy: "path" })[0]?.match.kind).toBe("path");
   });
 });

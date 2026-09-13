@@ -27,49 +27,34 @@ const spanish = {
   },
 } satisfies MessageCatalog;
 
-// Intent: fail the catalog gate on missing structure or statically missing keys.
-// Growth boundary: add cases only for new blocking audit rules.
+// Intent: fail the catalog gate on missing structure, missing usages, or unescaped pipes.
 describe("i18n catalog auditor", () => {
-  test("reports a missing key", () => {
-    const report = auditCatalogs({
-      en: english,
-      es: {
-        app: spanish.app,
-      },
-    });
+  test("reports missing keys, unused static usages, and unescaped plural pipes", () => {
+    expect(
+      auditCatalogs({
+        en: english,
+        es: {
+          app: spanish.app,
+        },
+      }).missingKeys,
+    ).toEqual([{ locale: "es", key: "nested.value" }]);
 
-    expect(report.missingKeys).toEqual([{ locale: "es", key: "nested.value" }]);
-  });
-
-  test("reports a statically used key that is absent from every catalog", () => {
-    const report = auditI18n({ en: english, es: spanish }, [
+    const missingUsage = auditI18n({ en: english, es: spanish }, [
       {
         path: "src/mainview/Missing.vue",
         content: `<template><button :aria-label="t('actions.missing')">Save</button></template>`,
       },
     ]);
-
-    expect(report.missingUsages).toEqual([
-      {
-        file: "src/mainview/Missing.vue",
-        line: 1,
-        key: "actions.missing",
-      },
+    expect(missingUsage.missingUsages).toEqual([
+      { file: "src/mainview/Missing.vue", line: 1, key: "actions.missing" },
     ]);
-    expect(hasBlockingIssues(report)).toBe(true);
-  });
+    expect(hasBlockingIssues(missingUsage)).toBe(true);
 
-  test("reports an unescaped | that vue-i18n would treat as a plural split", () => {
-    const report = auditI18n({
-      en: {
-        hint: "Treat [[note]] and [[note|Label]] as document links.",
-      },
-      es: {
-        hint: "Trata [[note]] y [[note\\|Label]] como enlaces.",
-      },
+    const pipes = auditI18n({
+      en: { hint: "Treat [[note]] and [[note|Label]] as document links." },
+      es: { hint: "Trata [[note]] y [[note\\|Label]] como enlaces." },
     });
-
-    expect(report.unescapedPipes).toEqual([{ locale: "en", key: "hint" }]);
-    expect(hasBlockingIssues(report)).toBe(true);
+    expect(pipes.unescapedPipes).toEqual([{ locale: "en", key: "hint" }]);
+    expect(hasBlockingIssues(pipes)).toBe(true);
   });
 });

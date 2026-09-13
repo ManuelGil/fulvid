@@ -11,32 +11,27 @@ import {
   explorerPathActionLabelKeys,
 } from "../../../src/mainview/modules/workspace/explorer/explorerContextMenu.ts";
 
-// Intent: object-context menus expose only product-grounded actions for each object.
-// Growth boundary: add a case only if Explorer/tab action sets or naming change.
+// Intent: object menus expose only filesystem/product-grounded actions.
+// Folder menus must not reintroduce Context-root operations.
 describe("object context menu semantics", () => {
-  test("names Explorer menus by entry kind", () => {
+  test("Explorer menus are filesystem operations named by entry kind", () => {
     expect(explorerContextMenuLabelKey("file")).toBe("files.documentActions");
     expect(explorerContextMenuLabelKey("directory")).toBe("files.folderActions");
-  });
-
-  test("uses Copy Path and Reveal in Folder for Explorer path actions", () => {
     expect(explorerPathActionLabelKeys.copy).toBe("menu.copyPath");
     expect(explorerPathActionLabelKeys.reveal).toBe("menu.revealInFolder");
+
+    const fileActions = [...explorerFileContextActionIds()];
+    const folderActions = [...explorerFolderContextActionIds()];
+    expect(fileActions).toEqual(["rename", "reveal", "copy", "delete"]);
+    expect(folderActions).toEqual(["reveal", "copy"]);
+    // Removed product concept: Context root must not return via menu actions.
+    expect(fileActions.some((id) => id.toLowerCase().includes("context"))).toBe(false);
+    expect(folderActions.some((id) => id.toLowerCase().includes("context"))).toBe(false);
   });
 
-  test("Explorer file actions are filesystem document operations only", () => {
-    expect([...explorerFileContextActionIds()]).toEqual(["rename", "reveal", "copy", "delete"]);
-  });
-
-  test("Explorer folder actions are filesystem only (no Context root)", () => {
-    expect([...explorerFolderContextActionIds()]).toEqual(["reveal", "copy"]);
-  });
-
-  test("omits Close others when fewer than two tabs are open", () => {
-    expect(canCloseOtherEditorTabs(0)).toBe(false);
+  test("Close others is omitted unless at least two tabs are open", () => {
     expect(canCloseOtherEditorTabs(1)).toBe(false);
     expect(canCloseOtherEditorTabs(2)).toBe(true);
-
     expect(
       editorTabContextActions(1, { close: "Close", closeOthers: "Close others" }).map(
         (action) => action.id,

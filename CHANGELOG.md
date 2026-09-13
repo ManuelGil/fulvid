@@ -49,7 +49,7 @@ This file is updated as part of the change, not reconstructed when a version is 
 ### Added
 
 - Native Full Screen from the View menu. Host window fullscreen (not web Document Fullscreen), independent of Writing Focus, and not persisted. F11 on Windows and Linux; Ctrl+Cmd+F on macOS. Normal window bounds are not saved while the window is fullscreen.
-- Writing Focus in Quick Actions (Fulvid group, beside Preview), using the same Focus toggle as the menu and shortcut.
+- Writing Focus in Quick Actions (Fulvid group, beside Preview), using the same Writing Focus toggle as the menu and shortcut.
 - Back to top control in the editor for long documents. It appears after you scroll down and returns to the start of the document without changing the text.
 
 ### Changed

@@ -17,7 +17,6 @@ function note(path: string): ScannedNote {
     categories: [],
     projects: [],
     summary: "",
-    tokens: 0,
     words: 0,
   };
 }

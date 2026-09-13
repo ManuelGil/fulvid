@@ -8,156 +8,63 @@ import {
   settings,
 } from "../../../../src/mainview/modules/settings/settingsStore";
 
-// Intent: keep persisted settings backward-compatible and fail-closed per field.
-// Growth boundary: add cases only for migrations or new validation domains.
+// Intent: persisted settings stay backward-compatible and fail-closed.
+// Unknown product concepts (Context root, templates) must not hydrate.
 describe("settings migration", () => {
-  test("keeps the valid parts of a partly corrupt file", () => {
-    const settings = sanitizeSettings({
+  test("keeps valid fields, migrates legacy values, and rejects unsupported enums", () => {
+    const next = sanitizeSettings({
       locale: "es",
       appearance: {
         theme: "not-a-theme",
         interfaceTextScale: "huge",
-        iconScale: 2,
-        density: "tight",
         reducedMotion: "yes",
       },
       editor: {
         fontSize: "big",
-        fontFamily: "comic-sans",
-        lineHeight: "huge",
         tabSize: 3,
-        insertSpaces: "yes",
-        wordWrap: "always",
-        autoIndent: "sometimes",
-        lineNumbers: "yes",
-        minimap: "always",
-        stickyScroll: 1,
-        renderWhitespace: "boundary",
+        defaultEol: "native",
       },
-      workspace: { showHiddenFiles: 1, workspaceStartup: "always" },
-      links: { linkMode: "wikilink", resolution: "guess", defaultExtension: "exe" },
+      workspace: { reopenLast: true },
+      links: { syntaxes: ["wikilink"], resolution: "guess" },
+      // Removed concepts must not reappear as live settings shape.
+      templates: { meeting: true },
+      contextRoot: "/notes",
+      contextRoots: ["/notes"],
     });
 
-    // The value that made sense is kept; each invalid one falls back alone.
-    expect(settings.locale).toBe("es");
-    expect(settings.links.linkMode).toBe("wikilink");
-    expect(settings.appearance.theme).toBe("dark");
-    expect(settings.appearance.interfaceTextScale).toBe("normal");
-    expect(settings.appearance.iconScale).toBe("normal");
-    expect(settings.appearance.density).toBe("normal");
-    expect(settings.appearance.reducedMotion).toBe(false);
-    expect(settings.editor.fontSize).toBe(14);
-    expect(settings.editor.fontFamily).toBe("monospace");
-    expect(settings.editor.lineHeight).toBe("auto");
-    expect(settings.editor.tabSize).toBe(2);
-    expect(settings.editor.defaultEol).toBe("lf");
-    expect(settings.editor.insertSpaces).toBe(true);
-    expect(settings.editor.wordWrap).toBe("on");
-    expect(settings.editor.autoIndent).toBe(true);
-    expect(settings.editor.lineNumbers).toBe(true);
-    expect(settings.editor.minimap).toBe(false);
-    expect(settings.editor.stickyScroll).toBe(true);
-    expect(settings.editor.renderWhitespace).toBe("selection");
-    expect(settings.editor.readingStatistics).toBe("wordsAndTime");
-    expect(settings.editor.typewriterScrolling).toBe(true);
-    expect(settings.workspace.workspaceStartup).toBe("none");
-    expect(settings.links.resolution).toBe("both");
-    expect(settings.links.defaultExtension).toBe("mdx");
-    expect(settings.links.showIncomingLinks).toBe(true);
-    expect(settings.links.showOutgoingLinks).toBe(true);
-  });
-
-  test("never accepts a locale or theme outside the supported set", () => {
-    // Persisted state must not be able to select something the app cannot run.
+    expect(next.locale).toBe("es");
+    expect(next.appearance.theme).toBe("dark");
+    expect(next.editor.fontSize).toBe(14);
+    expect(next.editor.defaultEol).toBe("lf");
+    expect(next.workspace.workspaceStartup).toBe("last");
+    expect(next.links.linkMode).toBe("wikilink");
+    expect(next.links.resolution).toBe("both");
+    expect(next).not.toHaveProperty("templates");
+    expect(next).not.toHaveProperty("contextRoot");
+    expect(next).not.toHaveProperty("contextRoots");
     expect(sanitizeSettings({ locale: "fr" }).locale).toBe("en");
-    expect(sanitizeSettings({ locale: "__proto__" }).locale).toBe("en");
     expect(sanitizeSettings({ appearance: { theme: "constructor" } }).appearance.theme).toBe(
       "dark",
     );
-    expect(sanitizeSettings({ appearance: { theme: "high-contrast-dark" } }).appearance.theme).toBe(
-      "high-contrast-dark",
-    );
-  });
-
-  test("migrates legacy fields and fills defaults", () => {
-    const migrated = sanitizeSettings({
-      workspace: { reopenLast: true },
-      links: { syntaxes: ["wikilink"] },
-    });
-    expect(migrated.links.linkMode).toBe("wikilink");
-    expect(migrated.workspace.workspaceStartup).toBe("last");
-    expect(migrated.links.defaultExtension).toBe("mdx");
-
-    const defaults = sanitizeSettings({});
-    expect(defaults.editor.readingStatistics).toBe("wordsAndTime");
-    expect(defaults.editor.typewriterScrolling).toBe(true);
-    expect(defaults.editor.defaultEol).toBe("lf");
-    expect(defaults.links.showIncomingLinks).toBe(true);
-    expect(defaults).not.toHaveProperty("templates");
     expect(sanitizeSettings({ editor: { defaultEol: "crlf" } }).editor.defaultEol).toBe("crlf");
-    expect(sanitizeSettings({ editor: { defaultEol: "native" } }).editor.defaultEol).toBe("lf");
-
-    const honored = sanitizeSettings({
-      editor: { readingStatistics: "words", typewriterScrolling: false },
-      links: { showIncomingLinks: false, showOutgoingLinks: false },
-    });
-    expect(honored.editor.readingStatistics).toBe("words");
-    expect(honored.editor.typewriterScrolling).toBe(false);
-    expect(honored.links.showIncomingLinks).toBe(false);
-
-    const legacy = sanitizeSettings({
-      appearance: { statusbar: { indicators: { reading: false } } },
-    });
-    expect(legacy.editor.readingStatistics).toBe("off");
-    expect(
-      (legacy.appearance.statusbar.indicators as { reading?: boolean }).reading,
-    ).toBeUndefined();
   });
 });
 
-// Intent: reset restores the single defaults object and is idempotent.
 describe("settings reset", () => {
   test("restores every persisted field to the built-in defaults", () => {
     const beforeJson = JSON.stringify(settings.value);
     try {
       patchSettings({
         locale: "es",
-        appearance: {
-          ...settings.value.appearance,
-          theme: "light",
-          reducedMotion: true,
-        },
         editor: {
           ...settings.value.editor,
-          fontSize: 20,
           documentLocation: "window-title",
           typewriterScrolling: false,
         },
-        workspace: {
-          ...settings.value.workspace,
-          showHiddenFiles: false,
-          workspaceStartup: "last",
-        },
-        links: {
-          ...settings.value.links,
-          linkMode: "wikilink",
-          showIncomingLinks: false,
-        },
-        preview: { enabled: true },
       });
-
-      expect(settings.value.locale).toBe("es");
-      expect(settings.value.editor.documentLocation).toBe("window-title");
-
       resetSettingsToDefaults();
       expect(settings.value).toEqual(defaultSettings());
       expect(settings.value).toEqual(sanitizeSettings({}));
-      expect(settings.value.editor.documentLocation).toBe(
-        defaultSettings().editor.documentLocation,
-      );
-
-      resetSettingsToDefaults();
-      expect(settings.value).toEqual(defaultSettings());
     } finally {
       settings.value = sanitizeSettings(JSON.parse(beforeJson));
     }

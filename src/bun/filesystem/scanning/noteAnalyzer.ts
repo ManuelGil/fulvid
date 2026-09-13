@@ -25,7 +25,6 @@ interface ParsedNote {
   categories: string[];
   projects: string[];
   summary: string;
-  tokens: number;
   words: number;
   content: string;
 }
@@ -73,10 +72,6 @@ function countWords(text: string): number {
     return 0;
   }
   return trimmed.split(/\s+/).length;
-}
-
-function countTokens(text: string): number {
-  return Math.ceil(countWords(text) * 1.3);
 }
 
 /** Drop a trailing partial UTF-8 sequence left by a byte-level cut. */
@@ -141,7 +136,6 @@ export async function analyzeMarkdownFile(
     categories,
     projects,
     summary,
-    tokens: countTokens(body),
     words: countWords(body),
     content: raw,
   };

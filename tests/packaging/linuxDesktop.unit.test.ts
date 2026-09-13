@@ -33,10 +33,9 @@ const sharedKeys = [
 ] as const;
 
 // Intent: Linux OS delivery is Exec %F plus the Debian wrapper. MIME stays the
-// types shared-mime-info already knows. Do not grow this file into a packaging
-// suite; add a case only when the launch chain or identity keys change.
+// types shared-mime-info already knows.
 describe("Linux desktop launch chain", () => {
-  test("variants share identity and only Exec may differ", () => {
+  test("desktop entries share identity, pass unquoted %F, and the Debian wrapper forwards those paths", () => {
     for (const key of sharedKeys) {
       const value = desktopField(canonical, key);
       expect(desktopField(appimage, key)).toBe(value);
@@ -46,20 +45,15 @@ describe("Linux desktop launch chain", () => {
     expect(desktopField(canonical, "MimeType")).toBe("text/markdown;text/x-markdown;");
     expect(desktopField(canonical, "MimeType")).not.toContain("mdx");
     expect(canonical).not.toContain("inode/directory");
-  });
 
-  test("Exec receives unquoted %F so the desktop environment can pass local paths", () => {
     expect(desktopField(canonical, "Exec")).toBe("/usr/bin/fulvid %F");
     expect(desktopField(appimage, "Exec")).toBe("fulvid %F");
     expect(desktopField(snap, "Exec")).toBe("fulvid %F");
-
     for (const contents of [canonical, appimage, snap]) {
       expect(contents).not.toMatch(/Exec=.*%[fFuU].*%[fFuU]/);
       expect(contents).not.toMatch(/Exec="[^"]*%F/);
     }
-  });
 
-  test("the Debian wrapper forwards those paths to the Electrobun launcher", () => {
     expect(debian).toContain('exec /opt/fulvid/bin/launcher "$@"');
     expect(actions).toContain('exec /opt/fulvid/bin/launcher "$@"');
   });

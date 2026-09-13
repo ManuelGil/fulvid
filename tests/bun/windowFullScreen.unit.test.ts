@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import { canPersistWindowFrame, toggleNativeFullScreen } from "../../src/bun/windowFullScreen.ts";
 
-// Intent: one host capability toggles native fullscreen; fail closed; never persist fullscreen frames.
+// Intent: one host capability toggles native fullscreen on BrowserWindow.
+// Fail closed on host errors; never persist fullscreen frames as normal bounds.
 describe("native fullscreen", () => {
   test("toggles on the host, fails closed, and blocks frame persistence while fullscreen", () => {
     let fullScreen = false;

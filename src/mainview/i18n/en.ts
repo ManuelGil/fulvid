@@ -93,8 +93,8 @@ export default {
     hidePreview: "Hide preview",
     showAnnotations: "Show document annotations",
     hideAnnotations: "Hide document annotations",
-    focusMode: "Focus mode",
-    exitFocusMode: "Exit focus mode",
+    focusMode: "Writing Focus",
+    exitFocusMode: "Exit Writing Focus",
     find: "Find",
     quickOpen: "Quick Open",
     here: "Here",
@@ -164,7 +164,7 @@ export default {
     find: "Find in document",
     replace: "Replace in document",
     statusbar: "Statusbar",
-    focusMode: "Focus mode",
+    focusMode: "Writing Focus",
   },
   filesystemErrors: {
     folderNotOpen: "Open this folder again before working in it.",
@@ -298,11 +298,9 @@ export default {
     resultSummary: "{matches} · {documents}",
     showingLimit: "Showing the first {shown} matches. Try a narrower query.",
     matchLine: "Line {line}",
-    scope: "Scope",
     scopeLabel: "Scope · {scope}",
     scopeFolder: "Current folder",
     scopeStandalone: "Open documents",
-    scopeAllDocuments: "All documents",
     filters: "Filters",
     filtersNone: "None",
     filtersActive: "{count} active",
@@ -482,10 +480,10 @@ export default {
     editorLineNumbersHint: "Show line numbers beside the document. Outline can jump to them.",
     editorMinimap: "Minimap",
     editorMinimapHint:
-      "A miniature map of the file beside the editor. Hidden automatically while Focus mode is on.",
+      "A miniature map of the file beside the editor. Hidden automatically while Writing Focus is on.",
     editorStickyScroll: "Sticky headings",
     editorStickyScrollHint:
-      "Pin the current heading at the top while you scroll through its section. Hidden automatically while Focus mode is on.",
+      "Pin the current heading at the top while you scroll through its section. Hidden automatically while Writing Focus is on.",
     editorWhitespace: "Whitespace",
     editorWhitespaceHint:
       "When spaces and tabs are drawn as dots or arrows.\n\nHidden never shows them. Selection shows them only in the selected text. Always shows them everywhere.",
@@ -500,7 +498,7 @@ export default {
     readingStatisticsWordsAndTime: "Word count + reading time",
     typewriterScrolling: "Typewriter scrolling",
     typewriterScrollingHint:
-      "Only in Focus mode (View > Focus mode). Keeps the line you are typing near the middle of the editor.\n\nWith Focus mode on, Enter moves the new line toward the center. Reduced motion uses a smaller shift. Turn this off if you want Focus mode without recentering.",
+      "Only in Writing Focus (View > Writing Focus). Keeps the line you are typing near the middle of the editor.\n\nWith Writing Focus on, Enter moves the new line toward the center. Reduced motion uses a smaller shift. Turn this off if you want Writing Focus without recentering.",
     documentLocation: "Document location",
     documentLocationHint:
       "Where Fulvid shows the active document path. The same identity is projected everywhere; showing a path never grants folder access.\n\nMain panel: quiet path in the editor. Window title: Fulvid - path on the OS window. Hidden: tabs, Explorer, and accessibility keep identity without a persistent path line.",
@@ -578,7 +576,7 @@ export default {
     monochromeHint: "A grayscale interface that uses contrast and structure for states.",
     reducedMotion: "Reduced motion",
     reducedMotionHint:
-      "Use less motion in Fulvid. In Focus mode, typewriter scrolling moves less. Your files do not change.",
+      "Use less motion in Fulvid. In Writing Focus, typewriter scrolling moves less. Your files do not change.",
     statusbar: "Statusbar",
     statusbarEnabled: "Show statusbar",
     statusbarEnabledHint:
@@ -595,7 +593,7 @@ export default {
     statusbarCharactersHint: "Character count of the current editor text, including spaces.",
     statusbarEol: "Line endings",
     statusbarEolHint: "LF or CRLF for the active document. Click it on the statusbar to change.",
-    shortcutFocus: "Turn Focus mode on or off",
+    shortcutFocus: "Turn Writing Focus on or off",
     shortcutFullscreen: "Turn Full Screen on or off",
     workspace: "Folder",
     showHidden: "Show hidden files",
@@ -758,7 +756,6 @@ export default {
     documents: "Documents",
     references: "References",
     words: "Words",
-    tokens: "Tokens",
     tags: "Tags",
     summary: "Summary",
     incompleteReferences: "Incomplete links",

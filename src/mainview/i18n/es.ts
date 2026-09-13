@@ -93,8 +93,8 @@ export default {
     hidePreview: "Ocultar vista previa",
     showAnnotations: "Mostrar anotaciones del documento",
     hideAnnotations: "Ocultar anotaciones del documento",
-    focusMode: "Modo foco",
-    exitFocusMode: "Salir del modo foco",
+    focusMode: "Foco de escritura",
+    exitFocusMode: "Salir del foco de escritura",
     find: "Buscar",
     quickOpen: "Apertura rápida",
     here: "Aquí",
@@ -164,7 +164,7 @@ export default {
     find: "Buscar en el documento",
     replace: "Reemplazar en el documento",
     statusbar: "Barra de estado",
-    focusMode: "Modo foco",
+    focusMode: "Foco de escritura",
   },
   filesystemErrors: {
     folderNotOpen: "Vuelve a abrir esta carpeta antes de trabajar en ella.",
@@ -300,11 +300,9 @@ export default {
     resultSummary: "{matches} · {documents}",
     showingLimit: "Mostrando las primeras {shown} coincidencias. Prueba una búsqueda más concreta.",
     matchLine: "Línea {line}",
-    scope: "Ámbito",
     scopeLabel: "Ámbito · {scope}",
     scopeFolder: "Carpeta actual",
     scopeStandalone: "Documentos abiertos",
-    scopeAllDocuments: "Todos los documentos",
     filters: "Filtros",
     filtersNone: "Ninguno",
     filtersActive: "{count} activos",
@@ -489,10 +487,10 @@ export default {
       "Mostrar números de línea junto al documento. El esquema puede saltar a ellos.",
     editorMinimap: "Minimapa",
     editorMinimapHint:
-      "Un mapa miniatura del archivo junto al editor. Se oculta automáticamente en el modo foco.",
+      "Un mapa miniatura del archivo junto al editor. Se oculta automáticamente con el foco de escritura.",
     editorStickyScroll: "Encabezados fijos",
     editorStickyScrollHint:
-      "Fijar el encabezado actual arriba mientras recorres su sección. Se oculta automáticamente en el modo foco.",
+      "Fijar el encabezado actual arriba mientras recorres su sección. Se oculta automáticamente con el foco de escritura.",
     editorWhitespace: "Espacios en blanco",
     editorWhitespaceHint:
       "Cuándo se dibujan espacios y tabuladores como puntos o flechas.\n\nOcultos no los muestra nunca. Selección solo en el texto seleccionado. Siempre en todo el documento.",
@@ -507,7 +505,7 @@ export default {
     readingStatisticsWordsAndTime: "Palabras y tiempo de lectura",
     typewriterScrolling: "Desplazamiento de máquina de escribir",
     typewriterScrollingHint:
-      "Solo en el modo foco (Vista > Modo foco). Mantiene cerca del centro la línea que estás escribiendo.\n\nCon el modo foco activo, Intro acerca la línea nueva al centro. El movimiento reducido desplaza menos. Desactívalo si quieres el modo foco sin recentrar.",
+      "Solo en el foco de escritura (Vista > Foco de escritura). Mantiene cerca del centro la línea que estás escribiendo.\n\nCon el foco de escritura activo, Intro acerca la línea nueva al centro. El movimiento reducido desplaza menos. Desactívalo si quieres el foco de escritura sin recentrar.",
     documentLocation: "Ubicación del documento",
     documentLocationHint:
       "Dónde Fulvid muestra la ruta del documento activo. La misma identidad se proyecta en todas partes; mostrar una ruta no concede acceso a la carpeta.\n\nPanel principal: ruta discreta en el editor. Título de ventana: Fulvid - ruta en la ventana del sistema. Oculta: las pestañas, el Explorador y la accesibilidad conservan la identidad sin una línea de ruta persistente.",
@@ -587,7 +585,7 @@ export default {
       "Una interfaz en escala de grises que usa contraste y estructura para los estados.",
     reducedMotion: "Movimiento reducido",
     reducedMotionHint:
-      "Usa menos movimiento en Fulvid. En el modo foco, el desplazamiento de máquina de escribir se mueve menos. Tus archivos no cambian.",
+      "Usa menos movimiento en Fulvid. En el foco de escritura, el desplazamiento de máquina de escribir se mueve menos. Tus archivos no cambian.",
     statusbar: "Barra de estado",
     statusbarEnabled: "Mostrar barra de estado",
     statusbarEnabledHint:
@@ -608,7 +606,7 @@ export default {
     statusbarEol: "Finales de línea",
     statusbarEolHint:
       "LF o CRLF del documento activo. Púlsalo en la barra de estado para cambiarlo.",
-    shortcutFocus: "Activar o desactivar el modo foco",
+    shortcutFocus: "Activar o desactivar el foco de escritura",
     shortcutFullscreen: "Activar o desactivar pantalla completa",
     workspace: "Carpeta",
     showHidden: "Mostrar archivos ocultos",
@@ -771,7 +769,6 @@ export default {
     documents: "Documentos",
     references: "Referencias",
     words: "Palabras",
-    tokens: "Tokens",
     tags: "Etiquetas",
     summary: "Resumen",
     incompleteReferences: "Enlaces incompletos",

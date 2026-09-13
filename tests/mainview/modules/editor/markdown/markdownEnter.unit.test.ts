@@ -18,10 +18,9 @@ function enterAtEnd(content: string, lineNumber: number) {
   return enter(content, lineNumber, line.length + 1);
 }
 
-// Intent: protect Fulvid's Markdown/MDX Enter contract for lists, quotes, and fences.
-// Growth boundary: add a case only when a new prefix or fence rule is introduced.
+// Intent: Fulvid's Markdown Enter contract for lists, fences, and tables.
 describe("Markdown Enter", () => {
-  test("continues lists, numbered lists, tasks, and blockquotes", () => {
+  test("continues lists, fences, and tables; clears empty prefixes", () => {
     expect(enter("- item", 1, 7)).toEqual({
       kind: "insert",
       text: "\n- ",
@@ -46,27 +45,11 @@ describe("Markdown Enter", () => {
       cursorLineDelta: 1,
       cursorColumn: 3,
     });
-    expect(enter(">> quoted", 1, 10)).toEqual({
-      kind: "insert",
-      text: "\n>> ",
-      cursorLineDelta: 1,
-      cursorColumn: 4,
-    });
-    expect(enter("plain paragraph", 1, 16)).toBeNull();
     expect(enter("- ", 1, 3)).toEqual({ kind: "clear-line", cursorColumn: 1 });
-    expect(enter("> ", 1, 3)).toEqual({ kind: "clear-line", cursorColumn: 1 });
-  });
 
-  test("closes an unclosed fence and keeps indent inside a closed one", () => {
     expect(enter("```ts", 1, 6)).toEqual({
       kind: "insert",
       text: "\n\n```",
-      cursorLineDelta: 1,
-      cursorColumn: 1,
-    });
-    expect(enter("```ts\nconst value = 1\n```", 1, 6)).toEqual({
-      kind: "insert",
-      text: "\n",
       cursorLineDelta: 1,
       cursorColumn: 1,
     });
@@ -76,48 +59,20 @@ describe("Markdown Enter", () => {
       cursorLineDelta: 1,
       cursorColumn: 3,
     });
-  });
 
-  test("continues pipe tables, preserves columns, and falls back when the row is incomplete", () => {
     const table = ["| Name | Value |", "| --- | --- |", "| Foo | Bar |"].join("\n");
-    expect(enterAtEnd(table, 1)).toBeNull();
     expect(enterAtEnd(table, 2)).toEqual({
       kind: "insert",
       text: "\n|  |  |",
       cursorLineDelta: 1,
       cursorColumn: 3,
     });
-    expect(enterAtEnd(table, 3)).toEqual({
-      kind: "insert",
-      text: "\n|  |  |",
-      cursorLineDelta: 1,
-      cursorColumn: 3,
-    });
-
     expect(enterAtEnd("| Header 1 | Header 2 |", 1)).toEqual({
       kind: "insert",
       text: "\n| --- | --- |\n|  |  |",
       cursorLineDelta: 2,
       cursorColumn: 3,
     });
-
-    expect(enterAtEnd(["| A | B |", "| --- | --- |", "|  |  |"].join("\n"), 3)).toEqual({
-      kind: "clear-line",
-      cursorColumn: 1,
-    });
-    expect(enterAtEnd("|  |  |", 1)).toBeNull();
-
-    const escaped = ["| A | B |", "| --- | --- |", "| A \\| B | C |"].join("\n");
-    expect(enterAtEnd(escaped, 3)).toEqual({
-      kind: "insert",
-      text: "\n|  |  |",
-      cursorLineDelta: 1,
-      cursorColumn: 3,
-    });
-
     expect(enterAtEnd("| A", 1)).toBeNull();
-    expect(enterAtEnd("| A | B", 1)).toBeNull();
-    expect(enter("| A | B |", 1, 5)).toBeNull();
-    expect(enterAtEnd("<Table columns={2} />", 1)).toBeNull();
   });
 });

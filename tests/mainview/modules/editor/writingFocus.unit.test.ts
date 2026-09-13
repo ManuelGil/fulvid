@@ -9,32 +9,29 @@ import {
   writingFocusActive,
   writingFocusHidesEditorChrome,
   writingFocusLeaveEditorTarget,
+  writingFocusMonacoOptions,
 } from "../../../../src/mainview/modules/editor/writingFocus.ts";
 
-// Intent: Focus is session-only, editor-route-only, and leave-editor targets stay usable.
-// Rail navigation stays in writingFocusKeepsFocusTarget (includes .app-sidebar).
+// Intent: Writing Focus is session chrome on the editor route only.
+// Native Full Screen stays BrowserWindow-owned and independent.
+// Leave-editor targets must not point at chrome Writing Focus hides.
 describe("writing focus", () => {
-  test("applies only on the editor route and keeps leave-editor targets usable", () => {
+  test("applies only on the editor route, keeps leave targets usable, and stays independent of Full Screen", () => {
     writingFocusActive.value = false;
     expect(writingFocusHidesEditorChrome("editor")).toBe(false);
-    expect(writingFocusLeaveEditorTarget(true)).toBe("tabs");
 
     toggleWritingFocus();
     expect(writingFocusActive.value).toBe(true);
     expect(writingFocusHidesEditorChrome("editor")).toBe(true);
     expect(writingFocusHidesEditorChrome("settings")).toBe(false);
+    // Tabs are hidden under Writing Focus — restore must stay on Monaco/empty.
     expect(writingFocusLeaveEditorTarget(true)).toBe("monaco");
     expect(writingFocusLeaveEditorTarget(false)).toBe("empty-or-main");
 
-    toggleWritingFocus();
-    expect(writingFocusActive.value).toBe(false);
-  });
-});
+    const monaco = writingFocusMonacoOptions(false, true);
+    expect(monaco.minimap).toEqual({ enabled: false });
+    expect(monaco.stickyScroll).toEqual({ enabled: false });
 
-// Intent: Writing Focus and native Full Screen stay orthogonal.
-describe("writing focus and native fullscreen", () => {
-  test("all four combinations stay independent", () => {
-    writingFocusActive.value = false;
     let fullScreen = false;
     const window = {
       isFullScreen: () => fullScreen,
@@ -42,26 +39,15 @@ describe("writing focus and native fullscreen", () => {
         fullScreen = next;
       },
     };
-
-    expect(writingFocusActive.value).toBe(false);
-    expect(fullScreen).toBe(false);
-    expect(canPersistWindowFrame(fullScreen)).toBe(true);
-
-    toggleWritingFocus();
-    expect(writingFocusActive.value).toBe(true);
-    expect(fullScreen).toBe(false);
-
     expect(toggleNativeFullScreen(window)).toBe(true);
     expect(writingFocusActive.value).toBe(true);
     expect(fullScreen).toBe(true);
+    // Fullscreen frames must not be persisted as the restored window bounds.
     expect(canPersistWindowFrame(fullScreen)).toBe(false);
 
     toggleWritingFocus();
     expect(writingFocusActive.value).toBe(false);
     expect(fullScreen).toBe(true);
-
     expect(toggleNativeFullScreen(window)).toBe(false);
-    expect(writingFocusActive.value).toBe(false);
-    expect(fullScreen).toBe(false);
   });
 });

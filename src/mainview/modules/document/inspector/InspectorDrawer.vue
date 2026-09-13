@@ -521,11 +521,7 @@ onBeforeUnmount(() => {
           </FactGroup>
         </FactSection>
 
-        <FactSection
-          v-if="readingNote.summary"
-          :title="documentFactLabel('summary')"
-          :heading-level="3"
-        >
+        <FactSection v-if="readingNote.summary" :title="t('facts.summary')" :heading-level="3">
           <FactStatement>{{ readingNote.summary }}</FactStatement>
         </FactSection>
 

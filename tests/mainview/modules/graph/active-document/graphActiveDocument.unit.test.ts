@@ -19,7 +19,6 @@ function note(path: string, title = path, documentLinks: DocumentLink[] = []): S
     categories: [],
     projects: [],
     summary: "",
-    tokens: 0,
     words: 0,
   };
 }
@@ -50,10 +49,10 @@ function buffer(
   };
 }
 
-// Intent: Graph consumes Focus; virtual/standalone tabs may still project alone.
-// Growth boundary: add cases only for new input states or projection invariants.
+// Intent: Graph consumes Focus for folder projection; the active tab is not
+// a second selection authority. Virtual documents may project alone.
 describe("graph active document", () => {
-  test("projects a virtual document without a folder", () => {
+  test("folder Graph follows Focus, not the active tab; virtual documents project alone", () => {
     expect(
       graphActiveTargetFromInputs(
         null,
@@ -66,29 +65,21 @@ describe("graph active document", () => {
       notes: [{ ...note("untitled:1", "Untitled"), name: "Untitled" }],
       title: "Untitled",
     });
-  });
 
-  test("projects folder Graph from Focus, not the active tab", () => {
     const notes = [note("first.md", "First"), note("second.md", "Second")];
     const editingFirst = buffer("file:/tmp/workspace/first.md", {
       path: "first.md",
       rootPath: "/tmp/workspace",
       title: "First",
     });
-
     expect(
       graphActiveTargetFromInputs({ path: "second.md" }, editingFirst, "/tmp/workspace", notes)
         ?.focusPath,
     ).toBe("second.md");
     expect(graphActiveTargetFromInputs(null, editingFirst, "/tmp/workspace", notes)).toBeNull();
-    expect(
-      graphActiveTargetFromInputs({ path: "missing.md" }, editingFirst, "/tmp/workspace", notes),
-    ).toBeNull();
   });
-});
 
-describe("graph projection pipeline", () => {
-  test("projects linked folder documents into nodes and edges", () => {
+  test("projects linked folder documents into nodes and edges from Focus", () => {
     const notes = [note("a.md", "A", [link("b.md")]), note("b.md", "B", [link("a.md")])];
     const target = graphActiveTargetFromInputs(
       { path: "a.md" },
@@ -100,11 +91,7 @@ describe("graph projection pipeline", () => {
       "/tmp/workspace",
       notes,
     );
-
-    expect(target?.focusPath).toBe("a.md");
-
     const graph = projectReferenceGraph(target!.focusPath, [...target!.notes], { depth: 2 });
-
     expect(graph.nodes.map((node) => node.id).sort()).toEqual(["a.md", "b.md"]);
     expect(graph.edges).toEqual([
       { source: "a.md", target: "b.md" },

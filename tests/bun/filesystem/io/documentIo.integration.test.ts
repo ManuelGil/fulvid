@@ -31,11 +31,16 @@ describe("document I/O", () => {
     const outsideFolder = filesystemErrorMessage("outsideFolder");
 
     try {
+      // Every I/O entry point must refuse the same escapes the path authority does.
       await expect(readDocument(root, "../../../src/etc/passwd.md")).rejects.toThrow(outsideFolder);
+      await expect(readDocument(root, "..\\..\\outside.md")).rejects.toThrow(outsideFolder);
       await expect(writeDocument(root, join(root, "document.md"), "# x\n")).rejects.toThrow(
         outsideFolder,
       );
       await expect(createDocument(root, "notes/../document.md", "# x\n")).rejects.toThrow(
+        outsideFolder,
+      );
+      await expect(createDocument(root, "C:\\Windows\\note.md", "# x\n")).rejects.toThrow(
         outsideFolder,
       );
     } finally {
@@ -106,6 +111,8 @@ describe("document I/O", () => {
         ],
       });
       expect(await readdir(join(root, "notes"))).toEqual(["example.mdx"]);
+      // A successful write leaves only the document — no `.tmp` sibling from the
+      // atomic rename path. That is the observable atomicity contract.
 
       const renamed = await renameDocument(
         root,

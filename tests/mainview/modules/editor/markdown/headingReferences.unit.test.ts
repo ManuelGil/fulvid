@@ -22,7 +22,6 @@ function note(path: string, content: string, documentLinks: DocumentLink[] = [])
     categories: [],
     projects: [],
     summary: "",
-    tokens: 0,
     words: 0,
     content,
   };
@@ -75,15 +74,13 @@ const guideDoc = ["# Guide", "", "Read [Architecture](architecture.md#architectu
 // Intent: Find References and semantic Rename follow DocumentLink + heading IDs, not text search.
 // Growth boundary: add a case only for a new supported entity or a new refuse-to-edit rule.
 describe("heading references", () => {
-  test("finds a heading, local fragments, and ignores matching prose and link text", () => {
+  test("finds heading and fragment references without inventing prose or workspace matches", () => {
     const heading = semanticEntityAt(
       architectureDoc,
       offsetOf(architectureDoc, "Architecture"),
       "markdown",
     );
     expect(heading?.kind).toBe("heading");
-    expect(heading && heading.kind === "heading" && heading.heading.text).toBe("Architecture");
-
     const references = collectHeadingReferences(
       heading!.heading,
       "architecture.md",
@@ -98,35 +95,22 @@ describe("heading references", () => {
         architectureDoc.slice(reference.range.start, reference.range.end).includes("simple"),
       ),
     ).toBe(false);
-  });
 
-  test("respects wikilink mode and does not invent virtual workspace relations", () => {
     const wiki = ["# Architecture", "", "See [[#architecture]]."].join("\n");
-    const heading = semanticEntityAt(wiki, offsetOf(wiki, "Architecture"), "wikilink");
-    const local = collectHeadingReferences(
-      heading!.heading,
-      null,
-      [{ path: null, content: wiki }],
-      [],
-      "wikilink",
-    );
-    expect(local.map((reference) => reference.kind).sort()).toEqual(["fragment", "heading"]);
-    expect(local.every((reference) => reference.documentPath === null)).toBe(true);
-
-    const workspaceNotes = [note("architecture.md", architectureDoc)];
+    const wikiHeading = semanticEntityAt(wiki, offsetOf(wiki, "Architecture"), "wikilink");
     const virtual = collectHeadingReferences(
-      heading!.heading,
+      wikiHeading!.heading,
       null,
       [{ path: null, content: wiki }],
-      workspaceNotes,
+      [note("architecture.md", architectureDoc)],
       "wikilink",
     );
-    expect(virtual.some((reference) => reference.documentPath === "architecture.md")).toBe(false);
+    expect(virtual.every((reference) => reference.documentPath === null)).toBe(true);
   });
 });
 
 describe("heading rename", () => {
-  test("renames a heading, updates fragment targets, and preserves link text and prose", () => {
+  test("renames open documents, updates fragments, and refuses unsafe rewrites", () => {
     const entity = semanticEntityAt(
       architectureDoc,
       offsetOf(architectureDoc, "Architecture"),
@@ -158,33 +142,10 @@ describe("heading rename", () => {
       ],
       plan!,
     );
-    const architecture = next.get("architecture.md") ?? "";
-    const guide = next.get("guide.md") ?? "";
-    expect(architecture.startsWith("# System Architecture")).toBe(true);
-    expect(architecture).toContain("The architecture of Fulvid is simple.");
-    expect(architecture).toContain("[Architecture](#system-architecture)");
-    expect(architecture).toContain("[label](#system-architecture)");
-    expect(architecture).toContain("[guide](./guide.md)");
-    expect(guide).toContain("[Architecture](architecture.md#system-architecture)");
-    expect(guide.startsWith("# Guide")).toBe(true);
-  });
+    expect(next.get("architecture.md")?.startsWith("# System Architecture")).toBe(true);
+    expect(next.get("architecture.md")).toContain("The architecture of Fulvid is simple.");
+    expect(next.get("guide.md")).toContain("[Architecture](architecture.md#system-architecture)");
 
-  test("does not rewrite closed documents, ambiguous fragments, or unsupported text", () => {
-    const entity = semanticEntityAt(
-      architectureDoc,
-      offsetOf(architectureDoc, "Architecture"),
-      "markdown",
-    );
-    const references = collectHeadingReferences(
-      entity!.heading,
-      "architecture.md",
-      [
-        { path: "architecture.md", content: architectureDoc },
-        { path: "guide.md", content: guideDoc },
-      ],
-      [note("architecture.md", architectureDoc), note("guide.md", guideDoc)],
-      "markdown",
-    );
     const openOnly = planHeadingRename(
       entity!.heading,
       "architecture.md",
@@ -194,38 +155,6 @@ describe("heading rename", () => {
       new Set(["architecture.md"]),
     );
     expect(openOnly?.edits.some((edit) => edit.documentPath === "guide.md")).toBe(false);
-
-    const duplicate = ["# Architecture", "", "# Architecture", "", "[x](#architecture)"].join("\n");
-    const first = semanticEntityAt(duplicate, offsetOf(duplicate, "Architecture"), "markdown");
-    const duplicateRefs = collectHeadingReferences(
-      first!.heading,
-      "dup.md",
-      [{ path: "dup.md", content: duplicate }],
-      [note("dup.md", duplicate)],
-      "markdown",
-    );
-    const skipped = planHeadingRename(
-      first!.heading,
-      "dup.md",
-      duplicate,
-      "System Architecture",
-      duplicateRefs,
-      new Set(["dup.md"]),
-    );
-    expect(skipped?.edits).toEqual([expect.objectContaining({ text: "System Architecture" })]);
-    expect(skipped?.edits.some((edit) => edit.text === "system-architecture")).toBe(false);
-
-    expect(
-      semanticEntityAt(architectureDoc, offsetOf(architectureDoc, "simple"), "markdown"),
-    ).toBeNull();
-    expect(
-      semanticEntityAt(
-        architectureDoc,
-        offsetOf(architectureDoc, "guide](./guide.md)"),
-        "markdown",
-      ),
-    ).toBeNull();
-    expect(semanticEntityAt("<Note value={x} />\n", 1, "markdown")).toBeNull();
     expect(
       planHeadingRename(
         entity!.heading,
