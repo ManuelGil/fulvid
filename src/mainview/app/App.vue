@@ -172,8 +172,14 @@ function focusOrReturnToMain(element: HTMLElement | null): void {
     element.focus({ preventScroll: true });
     return;
   }
-  document.getElementById("main-content")?.focus({ preventScroll: true });
+  const main = document.getElementById("main-content");
+  if (isUsableFocusTarget(main)) {
+    main.focus({ preventScroll: true });
+  }
 }
+
+/** Skip sidebar open/close auto-focus when Strong Writing Focus collapses/restores the rail. */
+let suppressSidebarAutoFocus = false;
 
 watch(
   leftSidebarOpen,
@@ -189,6 +195,10 @@ watch(
         closeRightSidebar();
       }
       await nextTick();
+      if (suppressSidebarAutoFocus) {
+        suppressSidebarAutoFocus = false;
+        return;
+      }
       document
         .querySelector<HTMLElement>(
           ".app-sidebar:not(.app-sidebar--compact) .app-sidebar__collapse",
@@ -199,10 +209,16 @@ watch(
 
     if (!open && wasOpen) {
       if (narrowViewport.value && activeRightPanel.value) {
+        suppressSidebarAutoFocus = false;
         leftSidebarReturnFocus = null;
         return;
       }
       await nextTick();
+      if (suppressSidebarAutoFocus) {
+        suppressSidebarAutoFocus = false;
+        leftSidebarReturnFocus = null;
+        return;
+      }
       const compactButton = document.querySelector<HTMLElement>(
         ".app-sidebar--compact .app-sidebar__compact-header .app-sidebar__compact-button",
       );
@@ -670,11 +686,16 @@ watch(editorFocusChrome, (hiding) => {
       leftSidebarBeforeWritingFocus.value = leftSidebarOpen.value;
     }
     // Collapse to the existing compact rail; do not hide/inert the rail.
-    closeLeftSidebar();
+    // Do not auto-focus the rail — leave keyboard focus on Monaco / Quick Actions.
+    if (leftSidebarOpen.value) {
+      suppressSidebarAutoFocus = true;
+      closeLeftSidebar();
+    }
     return;
   }
   if (leftSidebarBeforeWritingFocus.value !== null) {
     if (leftSidebarBeforeWritingFocus.value) {
+      suppressSidebarAutoFocus = true;
       openLeftSidebar();
     }
     leftSidebarBeforeWritingFocus.value = null;

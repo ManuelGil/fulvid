@@ -48,14 +48,25 @@ const annotationsByModel = new WeakMap<TextModel, AnnotationRecord[]>();
 
 /**
  * Monaco hover uses Markdown. Escape so annotation text stays plain and
- * cannot become emphasis, links, or HTML.
+ * cannot become emphasis, links, or HTML. Paired with isTrusted/supportHtml
+ * false on the hover payload in annotationDecoration.
  */
 export function annotationTextAsHoverMarkdown(text: string): string {
-  return text.replace(/([\\`*_{}[\]()#+\-.!|>])/g, "\\$1");
+  return text.replace(/([\\`*_{}[\]()#+\-.!|<>~])/g, "\\$1");
 }
 
+/** Collapse whitespace, drop C0/DEL controls, cap length. Empty → null. */
 export function normalizeAnnotationText(raw: string): string | null {
-  const trimmed = raw.replace(/\s+/g, " ").trim();
+  let withoutControls = "";
+  for (let i = 0; i < raw.length; i += 1) {
+    const code = raw.charCodeAt(i);
+    // Keep tab/LF/CR so whitespace collapse can turn pasted lines into spaces.
+    if (code === 0x7f || (code <= 0x1f && code !== 0x09 && code !== 0x0a && code !== 0x0d)) {
+      continue;
+    }
+    withoutControls += raw[i];
+  }
+  const trimmed = withoutControls.replace(/\s+/g, " ").trim();
   if (!trimmed) {
     return null;
   }
@@ -81,7 +92,11 @@ function annotationDecoration(
       ...(visible
         ? {
             glyphMarginClassName: DOCUMENT_ANNOTATION_GLYPH_CLASS,
-            glyphMarginHoverMessage: { value: annotationTextAsHoverMarkdown(text) },
+            glyphMarginHoverMessage: {
+              value: annotationTextAsHoverMarkdown(text),
+              isTrusted: false,
+              supportHtml: false,
+            },
           }
         : {
             glyphMarginClassName: null,
@@ -151,10 +166,6 @@ export function listDocumentAnnotations(api: MonacoApi, model: TextModel): Docum
   }
 
   return annotations.sort((left, right) => comparePosition(left.position, right.position));
-}
-
-export function documentAnnotationCount(api: MonacoApi, model: TextModel): number {
-  return listDocumentAnnotations(api, model).length;
 }
 
 export function findAnnotationOnLine(
@@ -357,4 +368,19 @@ export function clearDocumentAnnotations(model: TextModel): number {
   );
   writeRecords(model, []);
   return records.length;
+}
+
+/** Quick Action label mode from whether the cursor line already has an annotation. */
+export type DocumentAnnotationQuickActionMode = "add" | "edit";
+
+export function documentAnnotationQuickActionMode(
+  hasAnnotationAtCurrentLine: boolean,
+): DocumentAnnotationQuickActionMode {
+  return hasAnnotationAtCurrentLine ? "edit" : "add";
+}
+
+export function documentAnnotationQuickActionLabelKey(
+  mode: DocumentAnnotationQuickActionMode,
+): "documentAnnotations.addTitle" | "documentAnnotations.editTitle" {
+  return mode === "edit" ? "documentAnnotations.editTitle" : "documentAnnotations.addTitle";
 }

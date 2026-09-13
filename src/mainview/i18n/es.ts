@@ -93,8 +93,8 @@ export default {
     focus: "Enfocar",
     preview: "Vista previa",
     hidePreview: "Ocultar vista previa",
-    showAnnotations: "Mostrar anotaciones",
-    hideAnnotations: "Ocultar anotaciones",
+    showAnnotations: "Mostrar anotaciones del documento",
+    hideAnnotations: "Ocultar anotaciones del documento",
     focusMode: "Modo foco",
     exitFocusMode: "Salir del modo foco",
     find: "Buscar",
@@ -522,7 +522,7 @@ export default {
       "Negrita, listas, enlaces y tablas encima del editor. Las mismas acciones siguen en el teclado y en el menú Editar si lo dejas desactivado.",
     showDocumentAnnotations: "Mostrar anotaciones del documento",
     showDocumentAnnotationsHint:
-      "Preferencia inicial para los glifos de anotación en el margen del editor. Mostrar/Ocultar en la sesión (acciones rápidas o Vista) puede diferir hasta que cambies este ajuste, restablezcas o reinicies Fulvid. Las notas de anotación no se guardan.",
+      "Preferencia inicial para los glifos de anotación en el margen del editor. Mostrar/Ocultar en la sesión (menú Vista) puede diferir hasta que cambies este ajuste, restablezcas o reinicies Fulvid. Las notas de anotación no se guardan.",
     shortcutBold: "Aplicar negrita a la selección",
     shortcutItalic: "Aplicar cursiva a la selección",
     shortcutInlineCode: "Envolver la selección en código en línea",
@@ -665,7 +665,7 @@ export default {
     shortcutReplace: "Reemplazar en el documento activo",
     shortcutOutline: "Abrir el esquema del documento activo",
     shortcutDocumentAnnotations:
-      "Añadir, editar, quitar, siguiente, anterior, borrar y mostrar/ocultar anotaciones temporales (menús Navegar y Vista; acciones rápidas, sin atajo de teclado)",
+      "Notas temporales en el margen del editor. Las acciones rápidas Añadir/Editar anotación usan la línea del cursor; haz clic en el margen de glifos o usa Navegar para añadir, editar, quitar, siguiente, anterior o borrar. Mostrar/Ocultar está en Vista. Las notas son solo de sesión y no se guardan en el archivo.",
     shortcutLeftSidebar: "Mostrar u ocultar navegación y carpeta",
     shortcutFind: "Buscar un documento",
     shortcutQuickOpen: "Apertura rápida - abrir un documento por nombre o ruta en la carpeta",

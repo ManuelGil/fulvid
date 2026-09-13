@@ -93,8 +93,8 @@ export default {
     focus: "Focus",
     preview: "Preview",
     hidePreview: "Hide preview",
-    showAnnotations: "Show annotations",
-    hideAnnotations: "Hide annotations",
+    showAnnotations: "Show document annotations",
+    hideAnnotations: "Hide document annotations",
     focusMode: "Focus mode",
     exitFocusMode: "Exit focus mode",
     find: "Find",
@@ -514,7 +514,7 @@ export default {
       "Bold, lists, links, and tables sit above the editor. The same actions stay on the keyboard and the Edit menu if you leave this off.",
     showDocumentAnnotations: "Show document annotations",
     showDocumentAnnotationsHint:
-      "Preferred default for annotation glyphs in the editor margin. Session Show/Hide (Quick Actions or View) can diverge until you change this setting, reset settings, or restart Fulvid. Annotation notes themselves are never saved.",
+      "Preferred default for annotation glyphs in the editor margin. Session Show/Hide (View menu) can diverge until you change this setting, reset settings, or restart Fulvid. Annotation notes themselves are never saved.",
     shortcutBold: "Bold the current selection",
     shortcutItalic: "Italicize the current selection",
     shortcutInlineCode: "Wrap the current selection in inline code",
@@ -651,7 +651,7 @@ export default {
     shortcutReplace: "Replace in the active document",
     shortcutOutline: "Open the active document outline",
     shortcutDocumentAnnotations:
-      "Add, edit, remove, next, previous, clear, and show/hide temporary document annotations (Navigate and View menus; Quick Actions)",
+      "Temporary line notes in the editor margin. Quick Actions Add/Edit annotation uses the cursor line; click the glyph margin or use Navigate for add, edit, remove, next, previous, or clear. Show/Hide is on View. Notes are session-only and never saved to the file.",
     shortcutLeftSidebar: "Show or hide navigation and folder",
     shortcutFind: "Find a document",
     shortcutQuickOpen: "Quick Open - open a document by name or path in the folder",

@@ -145,7 +145,9 @@ function onKeydown(event: KeyboardEvent): void {
     return;
   }
   if (event.key === "Tab" && !props.nested) {
-    restoreFocusOnClose = false;
+    // Dismiss and return focus to the opener (More / menu trigger). Do not
+    // leave focus on a detached menuitem or document body.
+    event.preventDefault();
     emit("close");
     return;
   }

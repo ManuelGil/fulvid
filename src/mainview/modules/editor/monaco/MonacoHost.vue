@@ -75,6 +75,7 @@ let stopThemeWatch: (() => void) | null = null;
 let stopEditorKeyWatch: monaco.IDisposable | null = null;
 let stopScrollWatch: monaco.IDisposable | null = null;
 let stopContentWatch: monaco.IDisposable | null = null;
+let stopCursorWatch: monaco.IDisposable | null = null;
 let languageRegistration: monaco.IDisposable | null = null;
 let frontmatterRegistration: monaco.IDisposable | null = null;
 let colorScheme: MediaQueryList | null = null;
@@ -214,9 +215,14 @@ function disposeBackToTopWidget(): void {
 
 function emitCommandState(): void {
   const model = editor?.getModel();
+  const position = editor?.getPosition();
+  const hasAnnotationAtCursor = Boolean(
+    model && position && findAnnotationOnLine(monaco, model, position.lineNumber),
+  );
   emit("commandState", {
     canUndo: Boolean(model?.canUndo()),
     canRedo: Boolean(model?.canRedo()),
+    hasAnnotationAtCursor,
   });
 }
 
@@ -442,6 +448,10 @@ function mountEditor(): void {
     if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
       return;
     }
+    // Left button only — do not open annotate on right/middle click.
+    if (!event.event.leftButton) {
+      return;
+    }
     const lineNumber = event.target.position?.lineNumber;
     if (!lineNumber) {
       return;
@@ -454,6 +464,7 @@ function mountEditor(): void {
     updateBackToTopLabel();
   });
   stopContentWatch = editor.onDidChangeModelContent(queueCommandState);
+  stopCursorWatch = editor.onDidChangeCursorPosition(queueCommandState);
   stopEditorKeyWatch = editor.onKeyDown((event) => {
     if (event.keyCode === monaco.KeyCode.Escape) {
       emit("escape");
@@ -606,7 +617,7 @@ function upsertAnnotationAtLine(
   if (!model) {
     return null;
   }
-  return upsertDocumentAnnotationOnLine(
+  const result = upsertDocumentAnnotationOnLine(
     monaco,
     model,
     lineNumber,
@@ -614,6 +625,8 @@ function upsertAnnotationAtLine(
     text,
     documentAnnotationsVisible.value,
   );
+  queueCommandState();
+  return result;
 }
 
 function removeAnnotationAtLine(lineNumber: number): DocumentAnnotation | null {
@@ -621,7 +634,9 @@ function removeAnnotationAtLine(lineNumber: number): DocumentAnnotation | null {
   if (!model) {
     return null;
   }
-  return removeDocumentAnnotationOnLine(monaco, model, lineNumber);
+  const removed = removeDocumentAnnotationOnLine(monaco, model, lineNumber);
+  queueCommandState();
+  return removed;
 }
 
 function goToDocumentAnnotation(direction: "next" | "previous"): boolean {
@@ -635,6 +650,7 @@ function goToDocumentAnnotation(direction: "next" | "previous"): boolean {
     return false;
   }
   revealPosition(target.position.lineNumber, target.position.column);
+  queueCommandState();
   return true;
 }
 
@@ -643,7 +659,9 @@ function clearAnnotationsInDocument(): number {
   if (!model) {
     return 0;
   }
-  return clearDocumentAnnotations(model);
+  const cleared = clearDocumentAnnotations(model);
+  queueCommandState();
+  return cleared;
 }
 
 function find(): void {
@@ -796,6 +814,8 @@ onBeforeUnmount(() => {
   stopScrollWatch = null;
   stopContentWatch?.dispose();
   stopContentWatch = null;
+  stopCursorWatch?.dispose();
+  stopCursorWatch = null;
   stopAnnotationMouseWatch?.dispose();
   stopAnnotationMouseWatch = null;
   stopLocaleWatch?.();

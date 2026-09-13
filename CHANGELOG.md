@@ -11,8 +11,14 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Added
 
-- Session-local document annotations: short plain-text notes on tracked positions in the open document (Navigate menu; glyph margin). Not persistent; not part of the Markdown/MDX file.
-- Show/Hide annotations presentation (Quick Actions and View menu), with Settings → Editor preferred default. Hiding does not delete annotations.
+- Session-local document annotations: short plain-text notes on tracked positions in the open document. Primary entry: Quick Actions **Add annotation** / **Edit annotation** (same `annotateDocument` command as Navigate → Annotate and the glyph margin). Not persistent; not part of the Markdown/MDX file.
+- Show/Hide document annotations presentation (View menu), with Settings → Editor preferred default. Hiding does not delete annotations.
+
+### Changed
+
+- Document annotations discoverability: Quick Actions primary action is contextual Add/Edit annotation in the Edit group; Show/Hide stays on View. Preview / Annotation / Focus stay ahead of clipboard when the toolbar is narrow; Highlighter icon; guide in [docs/ANNOTATIONS.md](docs/ANNOTATIONS.md).
+- Quick Actions overflow ranking documented and covered by unit tests; Global Search uses a distinct `file-search` icon from local Find.
+- Quick Actions declare explicit `subgroup`, `order`, and `overflowOrder` so visibility and More-menu order are not tied to array position. Toolbar `group` follows the user interaction model (not feature ownership).
 
 ## [0.5.0] - 2026-09-12
 

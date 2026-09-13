@@ -4,6 +4,8 @@ import {
   annotationTextAsHoverMarkdown,
   applyDocumentAnnotationPresentation,
   clearDocumentAnnotations,
+  documentAnnotationQuickActionLabelKey,
+  documentAnnotationQuickActionMode,
   findDocumentAnnotationNear,
   listDocumentAnnotations,
   nextDocumentAnnotationIndex,
@@ -118,12 +120,31 @@ describe("document annotations", () => {
   test("annotation text is normalized, capped, and escaped for Monaco hover Markdown", () => {
     expect(normalizeAnnotationText("  hello   world  ")).toBe("hello world");
     expect(normalizeAnnotationText("   ")).toBeNull();
+    expect(normalizeAnnotationText("note\u0000with\u0007controls")).toBe("notewithcontrols");
     expect(normalizeAnnotationText("x".repeat(DOCUMENT_ANNOTATION_TEXT_MAX + 40))?.length).toBe(
       DOCUMENT_ANNOTATION_TEXT_MAX,
     );
     expect(annotationTextAsHoverMarkdown("see *this* and [link](x)")).toBe(
       "see \\*this\\* and \\[link\\]\\(x\\)",
     );
+    expect(annotationTextAsHoverMarkdown("a <b>tag</b>")).toBe("a \\<b\\>tag\\</b\\>");
+    expect(annotationTextAsHoverMarkdown("strike ~~me~~")).toBe("strike \\~\\~me\\~\\~");
+  });
+
+  test("visible annotation hover stays untrusted plain Markdown", () => {
+    const model = createFakeModel();
+    const api = fakeApi as never;
+    const added = upsertDocumentAnnotationOnLine(api, model as never, 2, 1, "note <b>x</b>", true);
+    expect(added?.action).toBe("added");
+    if (!added || added.action === "capped") {
+      throw new Error("expected annotation to be added");
+    }
+    const hover = model.decorationOptions(added.annotation.decorationId)?.glyphMarginHoverMessage;
+    expect(hover).toMatchObject({
+      value: "note \\<b\\>x\\</b\\>",
+      isTrusted: false,
+      supportHtml: false,
+    });
   });
 
   test("hiding annotations clears glyph presentation without deleting annotation state", () => {
@@ -131,22 +152,28 @@ describe("document annotations", () => {
     const api = fakeApi as never;
     const added = upsertDocumentAnnotationOnLine(api, model as never, 4, 1, "keep me", true);
     expect(added?.action).toBe("added");
+    if (!added || added.action === "capped") {
+      throw new Error("expected annotation to be added");
+    }
     expect(listDocumentAnnotations(api, model as never)).toHaveLength(1);
-    const id = added?.annotation.decorationId;
-    expect(id).toBeTruthy();
-    expect(model.decorationOptions(id!).glyphMarginClassName).toBeTruthy();
+    const id = added.annotation.decorationId;
+    expect(model.decorationOptions(id)?.glyphMarginClassName).toBeTruthy();
 
     applyDocumentAnnotationPresentation(api, model as never, false);
     const listed = listDocumentAnnotations(api, model as never);
     expect(listed).toHaveLength(1);
     expect(listed[0]?.text).toBe("keep me");
-    expect(model.decorationOptions(listed[0]!.decorationId).glyphMarginClassName).toBeNull();
-    expect(model.decorationOptions(listed[0]!.decorationId).glyphMarginHoverMessage).toBeNull();
+    const hiddenId = listed[0]?.decorationId;
+    expect(hiddenId).toBeTruthy();
+    expect(model.decorationOptions(hiddenId!)?.glyphMarginClassName).toBeNull();
+    expect(model.decorationOptions(hiddenId!)?.glyphMarginHoverMessage).toBeNull();
 
     applyDocumentAnnotationPresentation(api, model as never, true);
     const shown = listDocumentAnnotations(api, model as never);
     expect(shown).toHaveLength(1);
-    expect(model.decorationOptions(shown[0]!.decorationId).glyphMarginClassName).toBeTruthy();
+    const shownId = shown[0]?.decorationId;
+    expect(shownId).toBeTruthy();
+    expect(model.decorationOptions(shownId!)?.glyphMarginClassName).toBeTruthy();
 
     clearDocumentAnnotations(model as never);
     expect(listDocumentAnnotations(api, model as never)).toHaveLength(0);
@@ -163,5 +190,23 @@ describe("document annotation visibility", () => {
     syncDocumentAnnotationsVisibleFromPreference(false);
     expect(documentAnnotationsVisible.value).toBe(false);
     setDocumentAnnotationsVisible(true);
+  });
+});
+
+describe("document annotation quick action mode", () => {
+  test("no annotation at current line → Add annotation", () => {
+    expect(documentAnnotationQuickActionMode(false)).toBe("add");
+    expect(documentAnnotationQuickActionLabelKey("add")).toBe("documentAnnotations.addTitle");
+  });
+
+  test("annotation at current line → Edit annotation", () => {
+    expect(documentAnnotationQuickActionMode(true)).toBe("edit");
+    expect(documentAnnotationQuickActionLabelKey("edit")).toBe("documentAnnotations.editTitle");
+  });
+
+  test("mode follows position changes", () => {
+    expect(documentAnnotationQuickActionMode(false)).toBe("add");
+    expect(documentAnnotationQuickActionMode(true)).toBe("edit");
+    expect(documentAnnotationQuickActionMode(false)).toBe("add");
   });
 });

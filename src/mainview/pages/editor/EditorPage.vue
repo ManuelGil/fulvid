@@ -67,6 +67,7 @@ import {
 } from "../../modules/editor/document/documentSession";
 import { notify } from "../../app/notify";
 import { confirmDialog, promptFilename, promptText } from "../../app/dialogs";
+import { isUsableFocusTarget } from "../../app/usableFocusTarget";
 import { settings } from "../../modules/settings/settingsStore";
 import {
   layout,
@@ -419,11 +420,14 @@ function leaveEditor(): void {
     return;
   }
   const emptyAction = document.querySelector<HTMLElement>(".editor-empty-workspace button");
-  if (emptyAction) {
+  if (isUsableFocusTarget(emptyAction)) {
     emptyAction.focus({ preventScroll: true });
     return;
   }
-  document.getElementById("main-content")?.focus({ preventScroll: true });
+  const main = document.getElementById("main-content");
+  if (isUsableFocusTarget(main)) {
+    main.focus({ preventScroll: true });
+  }
 }
 
 function restoreEditorChromeFocus(): void {
@@ -438,11 +442,14 @@ function restoreEditorChromeFocus(): void {
       return;
     }
     const emptyAction = document.querySelector<HTMLElement>(".editor-empty-workspace button");
-    if (emptyAction) {
+    if (isUsableFocusTarget(emptyAction)) {
       emptyAction.focus({ preventScroll: true });
       return;
     }
-    document.getElementById("main-content")?.focus({ preventScroll: true });
+    const main = document.getElementById("main-content");
+    if (isUsableFocusTarget(main)) {
+      main.focus({ preventScroll: true });
+    }
   });
 }
 
@@ -795,6 +802,11 @@ const unregisterCommands = [
 
 onBeforeUnmount(() => {
   unregisterCommands.forEach((unregister) => unregister());
+  editorCommandState.value = {
+    canUndo: false,
+    canRedo: false,
+    hasAnnotationAtCursor: false,
+  };
 });
 
 function closeMenu(): void {
