@@ -55,6 +55,8 @@ HTML Export is a separate dialog that writes `.html` only, using the Preview ren
 
 `/editor` fills the main slot. The shell owns the application menu, Quick Actions, left sidebar (navigation and Folder lifecycle), right sidebar, and optional Statusbar. Those regions are siblings. On the editor route, Writing Focus collapses the left sidebar to the compact rail (restored on exit), hides shell chrome without mutating settings persistence, expands the editor surface, and may keep a quiet document-location line when Settings -> Document location is Main panel (`documentLocation` projection). PageShell owns Writing Focus padding/gap so rhythm styles cannot reintroduce vertical space above Monaco. Native Full Screen is owned by the Bun host `BrowserWindow`, not by the shell. Window title updates use one host capability (`setWindowTitle`) when that destination is selected.
 
+The WebView/browser default context menu (including Inspect Element) is suppressed at app start (`suppressNativeContextMenu.ts`). Contextual actions use Fulvid-owned `ContextMenu.vue` where the product already provides them. Do not add a global context-menu manager.
+
 ### Quick Actions toolbar
 
 Owner: shell (`QuickActionsToolbar.vue` + `commands.ts`). Not the Markdown format bar (`EditorToolbar.vue`), which is editor-page chrome.
