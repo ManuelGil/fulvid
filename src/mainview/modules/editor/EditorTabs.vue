@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 
 import type { DocumentBuffer } from "./document/documentBuffers";
 import { isDocumentDirty } from "./document/documentBuffers";
+import { documentLocationFromBuffer, tabLabelsForBuffers } from "./document/documentLocation";
 import ContextMenu, { type ContextMenuAction } from "../../shell/ContextMenu.vue";
 import AppIcon from "../../shell/AppIcon.vue";
 
@@ -27,6 +28,16 @@ const menuOpen = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
 const menuTarget = ref<string | null>(null);
+
+const tabLabels = computed(() => tabLabelsForBuffers(props.buffers));
+
+function tabLabel(buffer: DocumentBuffer): string {
+  return tabLabels.value.get(buffer.id) ?? buffer.title;
+}
+
+function tabTooltip(buffer: DocumentBuffer): string {
+  return documentLocationFromBuffer(buffer)?.full ?? buffer.title;
+}
 
 const menuActions = computed<readonly ContextMenuAction[]>(() => [
   { id: "close", label: t("actions.close") },
@@ -151,16 +162,18 @@ defineExpose({ focusActiveTab });
           :aria-selected="activeId === buffer.id"
           :tabindex="activeId === buffer.id ? 0 : -1"
           :aria-label="
-            isDocumentDirty(buffer) ? `${buffer.title}, ${t('tabs.unsavedChanges')}` : buffer.title
+            isDocumentDirty(buffer)
+              ? `${tabLabel(buffer)}, ${t('tabs.unsavedChanges')}`
+              : tabLabel(buffer)
           "
           aria-haspopup="menu"
           :aria-expanded="menuOpen && menuTarget === buffer.id"
           aria-controls="document-editor-panel"
-          :title="buffer.absolutePath ?? buffer.title"
+          :title="tabTooltip(buffer)"
           @keydown="onTabKeydown($event, buffers.indexOf(buffer))"
           @click="emit('activate', buffer.id)"
         >
-          <span class="editor-tabs__title">{{ buffer.title }}</span>
+          <span class="editor-tabs__title">{{ tabLabel(buffer) }}</span>
           <span
             v-if="isDocumentDirty(buffer)"
             class="editor-tabs__dirty"
@@ -172,7 +185,7 @@ defineExpose({ focusActiveTab });
         <button
           class="editor-tabs__close"
           type="button"
-          :aria-label="t('tabs.close', { name: buffer.title })"
+          :aria-label="t('tabs.close', { name: tabLabel(buffer) })"
           @click="closeTab(buffer.id)"
         >
           <AppIcon name="close" :size="13" />

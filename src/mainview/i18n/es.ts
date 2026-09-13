@@ -93,6 +93,8 @@ export default {
     focus: "Enfocar",
     preview: "Vista previa",
     hidePreview: "Ocultar vista previa",
+    showAnnotations: "Mostrar anotaciones del documento",
+    hideAnnotations: "Ocultar anotaciones del documento",
     focusMode: "Modo foco",
     exitFocusMode: "Salir del modo foco",
     find: "Buscar",
@@ -511,9 +513,18 @@ export default {
     typewriterScrolling: "Desplazamiento de máquina de escribir",
     typewriterScrollingHint:
       "Solo en el modo foco (Vista > Modo foco). Mantiene cerca del centro la línea que estás escribiendo.\n\nCon el modo foco activo, Intro acerca la línea nueva al centro. El movimiento reducido desplaza menos. Desactívalo si quieres el modo foco sin recentrar.",
+    documentLocation: "Ubicación del documento",
+    documentLocationHint:
+      "Dónde Fulvid muestra la ruta del documento activo. La misma identidad se proyecta en todas partes; mostrar una ruta no concede acceso a la carpeta.\n\nPanel principal: ruta discreta en el editor. Título de ventana: Fulvid - ruta en la ventana del sistema. Oculta: las pestañas, el Explorador y la accesibilidad conservan la identidad sin una línea de ruta persistente.",
+    documentLocationMainPanel: "Panel principal",
+    documentLocationWindowTitle: "Título de ventana",
+    documentLocationHidden: "Oculta",
     markdownFormatBar: "Mostrar barra de formato Markdown",
     markdownFormatBarHint:
       "Negrita, listas, enlaces y tablas encima del editor. Las mismas acciones siguen en el teclado y en el menú Editar si lo dejas desactivado.",
+    showDocumentAnnotations: "Mostrar anotaciones del documento",
+    showDocumentAnnotationsHint:
+      "Preferencia inicial para los glifos de anotación en el margen del editor. Mostrar/Ocultar en la sesión (menú Vista) puede diferir hasta que cambies este ajuste, restablezcas o reinicies Fulvid. Las notas de anotación no se guardan.",
     shortcutBold: "Aplicar negrita a la selección",
     shortcutItalic: "Aplicar cursiva a la selección",
     shortcutInlineCode: "Envolver la selección en código en línea",
@@ -655,9 +666,11 @@ export default {
     shortcutLocalFind: "Buscar en el documento activo",
     shortcutReplace: "Reemplazar en el documento activo",
     shortcutOutline: "Abrir el esquema del documento activo",
+    shortcutDocumentAnnotations:
+      "Notas temporales de línea. Añade o edita desde Acciones rápidas, el margen de glifos o Navegar. Mostrar/Ocultar está en Vista. Solo de sesión; no se guardan en el archivo.",
     shortcutLeftSidebar: "Mostrar u ocultar navegación y carpeta",
     shortcutFind: "Buscar un documento",
-    shortcutQuickOpen: "Apertura rápida — abrir un documento por nombre o ruta en la carpeta",
+    shortcutQuickOpen: "Apertura rápida - abrir un documento por nombre o ruta en la carpeta",
     shortcutNew: "Crear un documento nuevo sin título",
     shortcutOpenFile: "Abrir un archivo",
     shortcutSave: "Guardar el documento activo",
@@ -687,6 +700,15 @@ export default {
       "Cambia al momento los menús, Ajustes y mensajes de Fulvid. Tus documentos se quedan en el idioma en que los escribiste.",
     english: "Inglés",
     spanish: "Español",
+    resetToDefaults: "Restablecer ajustes",
+    resetToDefaultsHint:
+      "Devuelve los ajustes de Fulvid a sus valores predeterminados. No cambia documentos, pestañas abiertas, carpeta ni archivos.",
+    resetToDefaultsAction: "Restablecer valores",
+    resetToDefaultsTitle: "¿Restablecer ajustes?",
+    resetToDefaultsMessage:
+      "Esto restaura los ajustes de Fulvid a sus valores predeterminados.\nTus documentos y archivos no se modifican.",
+    resetToDefaultsConfirm: "Restablecer",
+    resetToDefaultsDone: "Ajustes restaurados a los valores predeterminados",
   },
   preview: {
     dense:
@@ -700,6 +722,25 @@ export default {
     mdxInert: "El MDX se muestra como texto y no se ejecuta.",
     frontmatterIncomplete: "Este frontmatter está incompleto, así que se queda visible como texto.",
     failed: "No se pudo mostrar la vista previa de este documento.",
+  },
+  documentAnnotations: {
+    annotate: "Anotar",
+    remove: "Quitar anotación",
+    next: "Anotación siguiente",
+    previous: "Anotación anterior",
+    clear: "Borrar anotaciones",
+    addTitle: "Añadir anotación",
+    editTitle: "Editar anotación",
+    textLabel: "Anotación",
+    added: "Anotación añadida en la línea {line}",
+    updated: "Anotación actualizada en la línea {line}",
+    removed: "Anotación quitada de la línea {line}",
+    cleared: "Se borraron {count} anotaciones",
+    none: "No hay anotaciones en este documento",
+    noneAtCursor: "No hay anotación en esta línea",
+    capped: "Límite de anotaciones alcanzado ({max})",
+    shown: "Anotaciones visibles",
+    hidden: "Anotaciones ocultas",
   },
   status: {
     label: "Estado del documento",

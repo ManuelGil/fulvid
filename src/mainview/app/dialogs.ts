@@ -1,6 +1,6 @@
 /**
- * Small promise-based dialogs for filename input, confirmation, and Quick Open.
- * Rendered by DialogHost.vue — not a modal framework.
+ * Small promise-based dialogs for filename input, plain text, confirmation, and Quick Open.
+ * Rendered by DialogHost.vue - not a modal framework.
  */
 import { shallowRef } from "vue";
 
@@ -12,11 +12,30 @@ export type FilenamePromptRequest = {
   resolve: (value: string | null) => void;
 };
 
+export type TextPromptRequest = {
+  kind: "text";
+  title: string;
+  label: string;
+  value: string;
+  maxLength: number;
+  resolve: (value: string | null) => void;
+};
+
 export type ConfirmPromptRequest = {
   kind: "confirm";
   title?: string;
   message: string;
+  /** Defaults to the shared Confirm label. */
+  confirmLabel?: string;
+  /** Which action receives initial focus. Defaults to confirm. */
+  initialFocus?: "confirm" | "cancel";
   resolve: (value: boolean) => void;
+};
+
+export type ConfirmDialogOptions = {
+  title?: string;
+  confirmLabel?: string;
+  initialFocus?: "confirm" | "cancel";
 };
 
 export type QuickOpenPromptRequest = {
@@ -24,7 +43,8 @@ export type QuickOpenPromptRequest = {
   resolve: (path: string | null) => void;
 };
 
-export type DialogRequest = FilenamePromptRequest | ConfirmPromptRequest | QuickOpenPromptRequest;
+export type DialogRequest =
+  FilenamePromptRequest | TextPromptRequest | ConfirmPromptRequest | QuickOpenPromptRequest;
 
 export const activeDialog = shallowRef<DialogRequest | null>(null);
 
@@ -33,7 +53,7 @@ function dismissCurrentDialog(): void {
   if (!current) {
     return;
   }
-  if (current.kind === "filename" || current.kind === "quickOpen") {
+  if (current.kind === "filename" || current.kind === "text" || current.kind === "quickOpen") {
     current.resolve(null);
   } else {
     current.resolve(false);
@@ -61,12 +81,38 @@ export function promptFilename(options: {
   });
 }
 
-export function confirmDialog(message: string, title?: string): Promise<boolean> {
+/** Plain-text prompt for short session notes (annotations). Not a form framework. */
+export function promptText(options: {
+  title: string;
+  label: string;
+  initialValue?: string;
+  maxLength: number;
+}): Promise<string | null> {
+  return new Promise((resolve) => {
+    replaceDialog({
+      kind: "text",
+      title: options.title,
+      label: options.label,
+      value: options.initialValue ?? "",
+      maxLength: options.maxLength,
+      resolve,
+    });
+  });
+}
+
+export function confirmDialog(
+  message: string,
+  titleOrOptions?: string | ConfirmDialogOptions,
+): Promise<boolean> {
+  const options =
+    typeof titleOrOptions === "string" ? { title: titleOrOptions } : (titleOrOptions ?? {});
   return new Promise((resolve) => {
     replaceDialog({
       kind: "confirm",
-      title,
+      title: options.title,
       message,
+      confirmLabel: options.confirmLabel,
+      initialFocus: options.initialFocus,
       resolve,
     });
   });
@@ -95,7 +141,7 @@ export function cancelDialog(): void {
     return;
   }
   closeDialog();
-  if (current.kind === "filename" || current.kind === "quickOpen") {
+  if (current.kind === "filename" || current.kind === "text" || current.kind === "quickOpen") {
     current.resolve(null);
   } else {
     current.resolve(false);
@@ -113,6 +159,20 @@ export function submitFilename(value: string): void {
   }
   closeDialog();
   current.resolve(trimmed);
+}
+
+export function submitText(value: string): void {
+  const current = activeDialog.value;
+  if (!current || current.kind !== "text") {
+    return;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return;
+  }
+  const limited = current.maxLength > 0 ? trimmed.slice(0, current.maxLength) : trimmed;
+  closeDialog();
+  current.resolve(limited);
 }
 
 export function submitConfirm(confirmed: boolean): void {

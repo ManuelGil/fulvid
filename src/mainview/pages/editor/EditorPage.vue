@@ -27,9 +27,7 @@ import { patchSettings } from "../../modules/settings/settingsStore";
 import {
   applyScannedNote,
   clearRecentWorkspaces,
-  closeWorkspace,
   copyPath,
-  copyWorkspacePath,
   errorMessage,
   isLoading,
   loadingStatus,
@@ -38,7 +36,6 @@ import {
   recentWorkspaces,
   reopenLastWorkspace,
   revealPath,
-  revealWorkspaceInExplorer,
   refreshWorkspace,
   relativeDocumentPath,
   selectRecentWorkspace,
@@ -69,7 +66,8 @@ import {
   pendingReveal,
 } from "../../modules/editor/document/documentSession";
 import { notify } from "../../app/notify";
-import { confirmDialog, promptFilename } from "../../app/dialogs";
+import { confirmDialog, promptFilename, promptText } from "../../app/dialogs";
+import { isUsableFocusTarget } from "../../app/usableFocusTarget";
 import { settings } from "../../modules/settings/settingsStore";
 import {
   layout,
@@ -100,6 +98,14 @@ import {
   saveDocument,
   selectDocument,
 } from "../../modules/editor/document/documentBuffers";
+import {
+  DOCUMENT_ANNOTATION_MAX,
+  DOCUMENT_ANNOTATION_TEXT_MAX,
+} from "../../modules/editor/document/documentAnnotations";
+import {
+  documentLocationFromBuffer,
+  showsMainPanelDocumentLocation,
+} from "../../modules/editor/document/documentLocation";
 
 const MonacoHost = defineAsyncComponent(() => import("../../modules/editor/monaco/MonacoHost.vue"));
 const PreviewPane = defineAsyncComponent(
@@ -114,6 +120,28 @@ type MonacoHostHandle = {
   runEditorAction: (action: "undo" | "redo" | "fold" | "unfold") => Promise<void>;
   runMonacoAction: (actionId: string) => Promise<void>;
   runMarkdownAction: (action: MarkdownFormatAction) => void;
+  currentCursorPosition: () => { lineNumber: number; column: number };
+  findAnnotationAtLine: (lineNumber: number) => {
+    position: { lineNumber: number; column: number };
+    text: string;
+  } | null;
+  upsertAnnotationAtLine: (
+    lineNumber: number,
+    column: number,
+    text: string,
+  ) => {
+    action: "added" | "updated" | "capped";
+    annotation?: { position: { lineNumber: number; column: number }; text: string };
+    position?: { lineNumber: number; column: number };
+    count: number;
+  } | null;
+  removeAnnotationAtLine: (lineNumber: number) => {
+    position: { lineNumber: number; column: number };
+    text: string;
+  } | null;
+  goToNextDocumentAnnotation: () => boolean;
+  goToPreviousDocumentAnnotation: () => boolean;
+  clearDocumentAnnotations: () => number;
 };
 
 type PreviewPaneHandle = {
@@ -152,10 +180,52 @@ const otherRecents = computed(() =>
   }),
 );
 
-const pageTitle = computed(
-  () =>
-    activeBuffer.value?.title ??
-    (workspace.value ? workspaceName(workspace.value.path) : t("workspace.title")),
+const pageLocation = computed(() => documentLocationFromBuffer(activeBuffer.value));
+
+const showMainPanelLocation = computed(() =>
+  showsMainPanelDocumentLocation(settings.value.editor.documentLocation),
+);
+
+const pageTitle = computed(() => {
+  const location = pageLocation.value;
+  const folderOrApp = workspace.value ? workspaceName(workspace.value.path) : t("workspace.title");
+
+  if (!showMainPanelLocation.value || !location) {
+    return folderOrApp;
+  }
+
+  // Writing Focus: quiet document location when the destination is main-panel.
+  if (writingFocusActive.value) {
+    return location.label;
+  }
+
+  // Normal: show relative path only when it adds hierarchy beyond the tab basename.
+  if (location.kind === "workspace" && location.full.includes("/")) {
+    return location.label;
+  }
+
+  return folderOrApp;
+});
+
+const pageTitleHint = computed(() => {
+  if (!showMainPanelLocation.value) {
+    return undefined;
+  }
+  const location = pageLocation.value;
+  if (!location) {
+    return undefined;
+  }
+  if (writingFocusActive.value) {
+    return location.full;
+  }
+  if (location.kind === "workspace" && location.full.includes("/")) {
+    return location.full;
+  }
+  return undefined;
+});
+
+const showWritingFocusLocationChrome = computed(
+  () => writingFocusActive.value && showMainPanelLocation.value && Boolean(pageLocation.value),
 );
 
 const activeBufferPath = computed(() => {
@@ -350,11 +420,14 @@ function leaveEditor(): void {
     return;
   }
   const emptyAction = document.querySelector<HTMLElement>(".editor-empty-workspace button");
-  if (emptyAction) {
+  if (isUsableFocusTarget(emptyAction)) {
     emptyAction.focus({ preventScroll: true });
     return;
   }
-  document.getElementById("main-content")?.focus({ preventScroll: true });
+  const main = document.getElementById("main-content");
+  if (isUsableFocusTarget(main)) {
+    main.focus({ preventScroll: true });
+  }
 }
 
 function restoreEditorChromeFocus(): void {
@@ -369,11 +442,14 @@ function restoreEditorChromeFocus(): void {
       return;
     }
     const emptyAction = document.querySelector<HTMLElement>(".editor-empty-workspace button");
-    if (emptyAction) {
+    if (isUsableFocusTarget(emptyAction)) {
       emptyAction.focus({ preventScroll: true });
       return;
     }
-    document.getElementById("main-content")?.focus({ preventScroll: true });
+    const main = document.getElementById("main-content");
+    if (isUsableFocusTarget(main)) {
+      main.focus({ preventScroll: true });
+    }
   });
 }
 
@@ -411,6 +487,81 @@ function createNewDocument(): void {
 
 function findInEditor(): void {
   monacoHostRef.value?.find();
+}
+
+async function annotateAtLine(lineNumber: number, column: number): Promise<void> {
+  const host = monacoHostRef.value;
+  if (!host) {
+    return;
+  }
+  const existing = host.findAnnotationAtLine(lineNumber);
+  const entered = await promptText({
+    title: existing ? t("documentAnnotations.editTitle") : t("documentAnnotations.addTitle"),
+    label: t("documentAnnotations.textLabel"),
+    initialValue: existing?.text ?? "",
+    maxLength: DOCUMENT_ANNOTATION_TEXT_MAX,
+  });
+  if (!entered) {
+    return;
+  }
+  const result = host.upsertAnnotationAtLine(
+    lineNumber,
+    existing?.position.column ?? column,
+    entered,
+  );
+  if (!result) {
+    return;
+  }
+  if (result.action === "capped") {
+    notify(t("documentAnnotations.capped", { max: DOCUMENT_ANNOTATION_MAX }));
+    return;
+  }
+  const line = result.annotation?.position.lineNumber ?? lineNumber;
+  if (result.action === "updated") {
+    notify(t("documentAnnotations.updated", { line }));
+    return;
+  }
+  notify(t("documentAnnotations.added", { line }));
+}
+
+async function annotateAtCursor(): Promise<void> {
+  const cursor = monacoHostRef.value?.currentCursorPosition() ?? { lineNumber: 1, column: 1 };
+  await annotateAtLine(cursor.lineNumber, cursor.column);
+}
+
+function removeAnnotationAtCursor(): void {
+  const host = monacoHostRef.value;
+  if (!host) {
+    return;
+  }
+  const cursor = host.currentCursorPosition();
+  const removed = host.removeAnnotationAtLine(cursor.lineNumber);
+  if (!removed) {
+    notify(t("documentAnnotations.noneAtCursor"));
+    return;
+  }
+  notify(t("documentAnnotations.removed", { line: removed.position.lineNumber }));
+}
+
+function goToNextDocumentAnnotation(): void {
+  if (!(monacoHostRef.value?.goToNextDocumentAnnotation() ?? false)) {
+    notify(t("documentAnnotations.none"));
+  }
+}
+
+function goToPreviousDocumentAnnotation(): void {
+  if (!(monacoHostRef.value?.goToPreviousDocumentAnnotation() ?? false)) {
+    notify(t("documentAnnotations.none"));
+  }
+}
+
+function clearDocumentAnnotationsInEditor(): void {
+  const cleared = monacoHostRef.value?.clearDocumentAnnotations() ?? 0;
+  if (cleared === 0) {
+    notify(t("documentAnnotations.none"));
+    return;
+  }
+  notify(t("documentAnnotations.cleared", { count: cleared }));
 }
 
 function replaceInEditor(): void {
@@ -637,6 +788,11 @@ const unregisterCommands = [
   ),
   registerCommandHandler("renameHeading", () => runMonacoEditorAction("editor.action.rename")),
   registerCommandHandler("togglePreview", togglePreview),
+  registerCommandHandler("annotateDocument", () => void annotateAtCursor()),
+  registerCommandHandler("removeAnnotation", removeAnnotationAtCursor),
+  registerCommandHandler("nextAnnotation", goToNextDocumentAnnotation),
+  registerCommandHandler("previousAnnotation", goToPreviousDocumentAnnotation),
+  registerCommandHandler("clearAnnotations", clearDocumentAnnotationsInEditor),
   ...MARKDOWN_COMMANDS.map((command) =>
     registerCommandHandler(command.id, () => {
       monacoHostRef.value?.runMarkdownAction(command.action);
@@ -646,6 +802,11 @@ const unregisterCommands = [
 
 onBeforeUnmount(() => {
   unregisterCommands.forEach((unregister) => unregister());
+  editorCommandState.value = {
+    canUndo: false,
+    canRedo: false,
+    hasAnnotationAtCursor: false,
+  };
 });
 
 function closeMenu(): void {
@@ -675,53 +836,6 @@ async function runMenuAction(id: string): Promise<void> {
     return;
   }
   await action.run();
-}
-
-function workspaceMenuActions(): MenuAction[] {
-  return [
-    {
-      id: "reveal",
-      label: t("actions.reveal"),
-      run: () => revealWorkspaceInExplorer(),
-    },
-    {
-      id: "copy",
-      label: t("actions.copy"),
-      run: () => copyWorkspacePath(),
-    },
-    {
-      id: "open",
-      label: t("actions.openEllipsis"),
-      run: openWorkspace,
-    },
-    {
-      id: "close",
-      label: t("actions.close"),
-      run: closeWorkspace,
-      danger: true,
-    },
-  ];
-}
-
-function onWorkspaceContextMenu(event: MouseEvent): void {
-  if (!workspace.value) {
-    return;
-  }
-
-  (event.currentTarget as HTMLElement).focus();
-  openMenu(event, workspaceMenuActions());
-}
-
-function onWorkspaceContextKeydown(event: KeyboardEvent): void {
-  if (
-    !workspace.value ||
-    !(["Enter", " ", "ContextMenu"].includes(event.key) || (event.shiftKey && event.key === "F10"))
-  ) {
-    return;
-  }
-  event.preventDefault();
-  const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
-  openMenuAt(bounds.left, bounds.bottom, workspaceMenuActions());
 }
 
 function onRecentContextMenu(event: MouseEvent, path: string): void {
@@ -802,27 +916,19 @@ onBeforeUnmount(() => {
 
 <template>
   <PageShell
-    :title="pageTitle"
+    :title="
+      writingFocusActive && !showWritingFocusLocationChrome
+        ? (pageLocation?.full ?? pageTitle)
+        : pageTitle
+    "
+    :title-hint="pageTitleHint"
+    :embedded="writingFocusActive && !showWritingFocusLocationChrome"
+    :writing-focus="writingFocusActive"
+    :quiet-identity="showWritingFocusLocationChrome"
     fill
     rhythm="immediate"
-    :class="{ 'editor-page-shell--writing-focus': writingFocusActive }"
   >
-    <template #header>
-      <button
-        v-if="workspace && !writingFocusActive"
-        class="editor-page__path"
-        type="button"
-        :title="t('workspace.rightClickActions')"
-        :aria-label="t('workspace.rightClickActions')"
-        aria-haspopup="menu"
-        :aria-expanded="menuOpen"
-        @contextmenu="onWorkspaceContextMenu"
-        @keydown="onWorkspaceContextKeydown"
-      >
-        {{ workspace.path }}
-      </button>
-    </template>
-    <div class="editor-page">
+    <div class="editor-page" :class="{ 'editor-page--writing-focus': writingFocusActive }">
       <p v-if="errorMessage" class="editor-page__error" role="alert">
         {{ errorMessage }}
       </p>
@@ -903,18 +1009,16 @@ onBeforeUnmount(() => {
         >
           {{ loadingStatus ?? t("workspace.looking") }}
         </p>
-        <div :hidden="writingFocusActive" :inert="writingFocusActive">
-          <EditorTabs
-            v-if="openBuffers.length > 0"
-            ref="editorTabsRef"
-            :buffers="openBuffers"
-            :active-id="activeId"
-            @activate="selectDocument"
-            @close="closeEditorDocument"
-            @new="createNewDocument"
-            @close-others="closeOtherDocuments"
-          />
-        </div>
+        <EditorTabs
+          v-if="openBuffers.length > 0 && !writingFocusActive"
+          ref="editorTabsRef"
+          :buffers="openBuffers"
+          :active-id="activeId"
+          @activate="selectDocument"
+          @close="closeEditorDocument"
+          @new="createNewDocument"
+          @close-others="closeOtherDocuments"
+        />
 
         <EditorToolbar
           v-if="settings.editor.showMarkdownFormatBar && activeBuffer && !writingFocusActive"
@@ -931,7 +1035,7 @@ onBeforeUnmount(() => {
             id="document-editor-panel"
             class="editor-page__editor-column"
             role="tabpanel"
-            aria-labelledby="active-document-tab"
+            :aria-labelledby="writingFocusActive ? undefined : 'active-document-tab'"
             :aria-label="t('workspace.editorArea')"
           >
             <MonacoHost
@@ -948,6 +1052,7 @@ onBeforeUnmount(() => {
               @escape="leaveEditor"
               @scroll="syncPreviewScroll"
               @command-state="onCommandState"
+              @annotate-line="(lineNumber) => void annotateAtLine(lineNumber, 1)"
             />
             <p v-else class="editor-page__empty-editor">
               {{ t("workspace.chooseDocument") }}
@@ -1013,12 +1118,25 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+.editor-page--writing-focus {
+  gap: 0;
+}
+
 .editor-page__editor-shell {
   display: flex;
   flex-direction: column;
   gap: $space-related;
   flex: 1;
   min-width: 0;
+  min-height: 0;
+}
+
+.editor-page--writing-focus .editor-page__editor-shell,
+.editor-page--writing-focus .editor-page__document-split {
+  gap: 0;
+}
+
+.editor-page--writing-focus .editor-page__editor {
   min-height: 0;
 }
 
@@ -1059,23 +1177,6 @@ onBeforeUnmount(() => {
 .editor-page__empty-editor {
   margin: 0;
   color: $text-muted;
-}
-
-.editor-page__path {
-  @include page-path;
-  display: block;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: context-menu;
-  max-width: 36rem;
-
-  &:focus-visible {
-    outline: 2px solid $focus-ring;
-    outline-offset: 2px;
-  }
 }
 
 .editor-page__loading {
@@ -1227,11 +1328,5 @@ onBeforeUnmount(() => {
   font-family: $font-mono;
   font-size: $font-caption;
   overflow-wrap: anywhere;
-}
-</style>
-
-<style lang="scss">
-.editor-page-shell--writing-focus > .page-shell__header {
-  display: none;
 }
 </style>

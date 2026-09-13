@@ -8,7 +8,7 @@
  *   file   -> openOrActivate       (the buffer table, which calls selectDocument)
  *   folder -> selectRecentWorkspace (the folder lifecycle, which scans and loads)
  *
- * It writes no Focus state and no active tab of its own — `openOrActivate`
+ * It writes no Focus state and no active tab of its own - `openOrActivate`
  * pairs Focus through `selectDocument`, and it must stay the only thing that
  * does. Dirty buffers, open tabs and confirmations behave as they do for any
  * other open, because it is the same open.

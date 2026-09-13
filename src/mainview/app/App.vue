@@ -42,6 +42,10 @@ import {
   selectDocument,
 } from "../modules/editor/document/documentBuffers";
 import {
+  documentLocationFromBuffer,
+  windowTitleForDocumentLocation,
+} from "../modules/editor/document/documentLocation";
+import {
   activeId,
   nextMruDocument,
   pendingReveal,
@@ -60,6 +64,7 @@ import {
   CONTEXTUAL_WIDTH_LIMITS,
   leftSidebarOpen,
   layout,
+  openLeftSidebar,
   openRightSidebar,
   rightSidebar,
   setContextualWidth,
@@ -88,6 +93,11 @@ import {
   writingFocusActive,
   writingFocusHidesEditorChrome,
 } from "../modules/editor/writingFocus";
+import {
+  documentAnnotationsVisible,
+  syncDocumentAnnotationsVisibleFromPreference,
+  toggleDocumentAnnotationsVisible,
+} from "../modules/editor/document/documentAnnotationVisibility";
 import { isUsableFocusTarget } from "./usableFocusTarget";
 import {
   renderDocumentTemplate,
@@ -163,8 +173,14 @@ function focusOrReturnToMain(element: HTMLElement | null): void {
     element.focus({ preventScroll: true });
     return;
   }
-  document.getElementById("main-content")?.focus({ preventScroll: true });
+  const main = document.getElementById("main-content");
+  if (isUsableFocusTarget(main)) {
+    main.focus({ preventScroll: true });
+  }
 }
+
+/** Skip sidebar open/close auto-focus when Strong Writing Focus collapses/restores the rail. */
+let suppressSidebarAutoFocus = false;
 
 watch(
   leftSidebarOpen,
@@ -180,6 +196,10 @@ watch(
         closeRightSidebar();
       }
       await nextTick();
+      if (suppressSidebarAutoFocus) {
+        suppressSidebarAutoFocus = false;
+        return;
+      }
       document
         .querySelector<HTMLElement>(
           ".app-sidebar:not(.app-sidebar--compact) .app-sidebar__collapse",
@@ -190,10 +210,16 @@ watch(
 
     if (!open && wasOpen) {
       if (narrowViewport.value && activeRightPanel.value) {
+        suppressSidebarAutoFocus = false;
         leftSidebarReturnFocus = null;
         return;
       }
       await nextTick();
+      if (suppressSidebarAutoFocus) {
+        suppressSidebarAutoFocus = false;
+        leftSidebarReturnFocus = null;
+        return;
+      }
       const compactButton = document.querySelector<HTMLElement>(
         ".app-sidebar--compact .app-sidebar__compact-header .app-sidebar__compact-button",
       );
@@ -602,6 +628,7 @@ const unregisterNativeMenu = onApplicationMenuClicked((action) => {
 });
 
 onMounted(() => {
+  syncDocumentAnnotationsVisibleFromPreference(settings.value.editor.showDocumentAnnotations);
   void resolveApplicationMenuSupport().then(() => {
     void syncNativeApplicationMenu(presentedApplicationMenus.value);
   });
@@ -632,9 +659,12 @@ const routeLabel = computed(() => {
 
 const routeAnnouncement = computed(() => {
   const workspaceLabel = workspace.value ? workspaceName(workspace.value.path) : "";
-  const documentLabel = activeBuffer.value
-    ? `${activeBuffer.value.title}${
-        isDocumentDirty(activeBuffer.value) ? ` · ${t("tabs.unsavedChanges")}` : ""
+  const location = documentLocationFromBuffer(activeBuffer.value);
+  const documentLabel = location
+    ? `${location.full}${
+        activeBuffer.value && isDocumentDirty(activeBuffer.value)
+          ? ` · ${t("tabs.unsavedChanges")}`
+          : ""
       }`
     : validatedFocus.value
       ? noteTitle(validatedFocus.value.path, workspace.value?.scannedNotes ?? [])
@@ -647,6 +677,55 @@ const focusModeAnnouncement = ref("");
 watch(writingFocusActive, (active) => {
   focusModeAnnouncement.value = active ? t("actions.focusMode") : t("actions.exitFocusMode");
 });
+
+/** Restore left sidebar after Strong Writing Focus collapses it. */
+const leftSidebarBeforeWritingFocus = ref<boolean | null>(null);
+
+watch(editorFocusChrome, (hiding) => {
+  if (hiding) {
+    if (leftSidebarBeforeWritingFocus.value === null) {
+      leftSidebarBeforeWritingFocus.value = leftSidebarOpen.value;
+    }
+    // Collapse to the existing compact rail; do not hide/inert the rail.
+    // Do not auto-focus the rail — leave keyboard focus on Monaco / Quick Actions.
+    if (leftSidebarOpen.value) {
+      suppressSidebarAutoFocus = true;
+      closeLeftSidebar();
+    }
+    return;
+  }
+  if (leftSidebarBeforeWritingFocus.value !== null) {
+    if (leftSidebarBeforeWritingFocus.value) {
+      suppressSidebarAutoFocus = true;
+      openLeftSidebar();
+    }
+    leftSidebarBeforeWritingFocus.value = null;
+  }
+});
+
+watch(
+  [
+    () => activeBuffer.value?.id,
+    () => activeBuffer.value?.path,
+    () => activeBuffer.value?.title,
+    () => activeBuffer.value?.absolutePath,
+    () => settings.value.editor.documentLocation,
+  ],
+  () => {
+    const location = documentLocationFromBuffer(activeBuffer.value);
+    const title = windowTitleForDocumentLocation(
+      "Fulvid",
+      location,
+      settings.value.editor.documentLocation,
+    );
+    void desktopRequest()
+      .setWindowTitle({ title })
+      .catch(() => {
+        // Host title is presentation-only; failure must not block editing.
+      });
+  },
+  { immediate: true },
+);
 
 const liveAnnouncement = computed(() =>
   [routeAnnouncement.value, focusModeAnnouncement.value].filter(Boolean).join(" · "),
@@ -854,6 +933,7 @@ const applicationMenuState = computed<ApplicationMenuState>(() => {
     rightSidebarOpen: Boolean(activeRightPanel.value),
     statusbarEnabled: settings.value.appearance.statusbar.enabled,
     writingFocus: writingFocusActive.value,
+    documentAnnotationsVisible: documentAnnotationsVisible.value,
     canUndo: editorCommandState.value.canUndo,
     canRedo: editorCommandState.value.canRedo,
   };
@@ -893,6 +973,10 @@ const unregisterCommands = [
   registerCommandHandler("newDocumentDaily", () => createNewDocumentFromTemplate("daily")),
   registerCommandHandler("newDocumentProject", () => createNewDocumentFromTemplate("project")),
   registerCommandHandler("toggleWritingFocus", toggleWritingFocus),
+  registerCommandHandler("toggleDocumentAnnotations", () => {
+    const visible = toggleDocumentAnnotationsVisible();
+    notify(t(visible ? "documentAnnotations.shown" : "documentAnnotations.hidden"));
+  }),
   registerCommandHandler("openFile", openFileDocument),
   registerCommandHandler("openWorkspace", openWorkspace),
   registerCommandHandler("closeWorkspace", closeWorkspace),
@@ -987,6 +1071,11 @@ const editorCommandIds = new Set<CommandId>([
   "renameHeading",
   "togglePreview",
   "deleteSelection",
+  "annotateDocument",
+  "removeAnnotation",
+  "nextAnnotation",
+  "previousAnnotation",
+  "clearAnnotations",
   ...MARKDOWN_COMMANDS.map((command) => command.id),
 ]);
 
@@ -1030,7 +1119,6 @@ onBeforeUnmount(() => {
       'app-shell--search': route.name === APP_ROUTE_NAMES.search,
       'app-shell--graph': route.name === APP_ROUTE_NAMES.graph,
       'app-shell--settings': route.name === APP_ROUTE_NAMES.settings,
-      'app-shell--writing-focus': editorFocusChrome,
     }"
   >
     <a class="skip-link" href="#main-content">{{ t("app.skipToContent") }}</a>
@@ -1058,8 +1146,7 @@ onBeforeUnmount(() => {
       <AppSidebar
         :compact="!leftSidebarOpen"
         :overlay="narrowViewport && leftSidebarOpen"
-        :hidden="editorFocusChrome"
-        :inert="editorFocusChrome || (overlayOpen && !leftSidebarOpen)"
+        :inert="overlayOpen && !leftSidebarOpen"
       />
       <button
         v-if="leftSidebarOpen && !editorFocusChrome"

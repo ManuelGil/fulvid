@@ -16,9 +16,8 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Session ownership | `DocumentSession.activeId` owns the editor selection. The active buffer never derives from Focus |
 | Selection seam | UI selection uses `selectDocument`. `activateDocument` is session-internal |
 | Focus ownership | Focus is folder-scoped Graph/Context metadata. Graph consumes Focus and does not own it |
-| Writing Focus ⊥ Full Screen | Writing Focus is session editor chrome only. Native Full Screen is BrowserWindow state on the host. Either may be on, off, or combined; neither owns the other, grants, containment, Preview, or document selection |
-| Quit and dirty buffers | When Settings → Confirm before closing is on, Quit asks before discarding unsaved tabs, using the same confirmation owner as closing dirty tabs. Host `quitApplication` runs only after that gate |
-| Extension UI boundary | Future UI contributions (if any) go `extension → declared capability/command → existing owner → presentation`. They never own Monaco, filesystem/grants, BrowserWindow, Focus policy, Graph, Preview HTML, Vue internals, or arbitrary DOM/SVG. Icon identifiers are closed declarative names (`appIcons` / `CommandIcon`), not executable or injectable markup. Fixtures under `extensions/` are not loaded |
+| Writing Focus / Full Screen | Writing Focus is session editor chrome only. Native Full Screen is BrowserWindow state on the host. Either may be on, off, or combined; neither owns the other, grants, containment, Preview, or document selection |
+| Document location | Editor chrome projects `DocumentBuffer` fields into a compact relative path (or Untitled / standalone basename). Settings choose main panel, window title, or hidden. Tabs use basename unless open tabs collide (then add segments until unique). Path display is not navigation and not authorization |
 | Search ownership | Local find uses the active Monaco model. Global Search uses folder document content |
 | Quick Open ownership | Quick Open matches document identity (`title`, filename, relative path) from `workspace.scannedNotes` in the open Folder only. It does not search content, own a scan, or bypass `openOrActivate` / filesystem containment |
 | Semantic rename | F2 renames a heading or fragment in document text. It never renames a file or document ID |
@@ -26,6 +25,7 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Folder startup | `workspaceStartup` is `none` or `last`. Untitled is available in both cases |
 | Folder preflight | Opening a folder loads it only when the scan found `.md` / `.markdown` / `.mdx`, or when the scan was partial. A complete scan with none of those files is said out loud and does not become the open folder. Preflight does not grant access, execute MDX, or walk the tree a second time |
 | Line endings | EOL is document state on the Monaco model. Existing files keep LF or CRLF. Untitled and files with no line break use `editor.defaultEol` (not the OS). Explicit change uses the model and persists only through the existing Save path |
+| Document annotations | Session-local plain-text notes on model-owned Monaco decorations. Presentation visibility is separate from existence. They do not dirty the document, write disk, or persist annotation content across close/reopen. Not Graph, Search, Outline, Preview, or diagnostics. See [ANNOTATIONS.md](./ANNOTATIONS.md) |
 
 ## Graph
 

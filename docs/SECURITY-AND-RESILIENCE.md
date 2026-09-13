@@ -108,14 +108,12 @@ Unreadable or vanished entries during a scan are skipped and counted. That is a 
 
 Automated coverage that is actually in the repository:
 
-- **Unit tests** — Preview inertness and density timing; link resolution scale and semantics; RPC parameter shape and size; `selectDocument` ↔ Focus pairing; Writing Focus ⊥ native Full Screen; extension fixture contracts
-- **Integration tests** — folder containment (lexical and canonical, including symlinks); grants; External Open resolve path; scan skip of unreadable or vanished entries; scan ceilings; document I/O and exclusive create; RPC error containment
-- **Smoke** — real editing loop; optional packaged launch (`bun run smoke:compatibility`)
-- **Compatibility CI** — package and launch on the images in [compatibility.md](./compatibility.md). That is runtime compatibility, not a filesystem red team
-- **Contributor gate** — `bun run validate` (format, translations, lint, types, tests, web build, doctor)
-- **Dependency health** — frozen lockfile and advisory audit (`bun run deps:check`)
-
-These layers are the Security Harness v0 surface: they protect stable trust and ownership frontiers in place. There is no separate `tests/security-harness/` tree and no second security owner in production code.
+- **Unit tests** - Preview inertness and density timing; link resolution scale and semantics; RPC parameter shape and size
+- **Integration tests** - folder containment (lexical and canonical, including symlinks); grants; scan skip of unreadable or vanished entries; scan ceilings; document I/O and exclusive create; RPC error containment
+- **Smoke** - real editing loop; optional packaged launch (`bun run smoke:compatibility`)
+- **Compatibility CI** - package and launch on the images in [compatibility.md](./compatibility.md). That is runtime compatibility, not a filesystem red team
+- **Contributor gate** - `bun run validate` (format, translations, lint, types, tests, web build, doctor)
+- **Dependency health** - frozen lockfile and advisory audit (`bun run deps:check`)
 
 Adversarial harnesses used in the 2026-09-09 review are **not** in the repository. They were sandbox scripts. What landed is the regression tests each finding earned. Treat that review as a completed campaign, not as a repeating CI job.
 
@@ -153,7 +151,7 @@ Re-read this document and re-run the relevant tests (and, when the change is lar
 
 Standing properties above. Details of a completed review: [security/2026-09-09-red-team.md](./security/2026-09-09-red-team.md).
 
-### 2026-09-09 — Linux x64 adversarial review (Fulvid 0.1.0)
+### 2026-09-09 - Linux x64 adversarial review (Fulvid 0.1.0)
 
 Attacks were executed, not only read from source. **No trust-boundary vulnerability was found.** Five defects (two robustness, two performance, one packaging) were found, fixed, and covered by regression tests in the same cycle.
 

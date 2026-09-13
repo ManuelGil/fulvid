@@ -3,7 +3,7 @@
  *
  * This is the shape every future adapter should have: read whatever the channel
  * provides, classify it, hand it to `enqueueExternalOpenRequest`, and stop. It
- * decides nothing about access — a path it produces is refused exactly as any
+ * decides nothing about access - a path it produces is refused exactly as any
  * other would be.
  *
  * Status today: `Fulvid.app`/`fulvid.exe`/`/usr/bin/fulvid` are launched through
@@ -35,8 +35,8 @@ function resourceArguments(argv: readonly string[]): string[] {
  * Classify each launch argument into an explicit request.
  *
  * argv carries no kind, so the adapter has to look: that is the conversion this
- * layer exists to do. A path that is neither a file nor a directory — missing,
- * or a socket or device — produces no request at all, because there is nothing
+ * layer exists to do. A path that is neither a file nor a directory - missing,
+ * or a socket or device - produces no request at all, because there is nothing
  * for either lifecycle to open. Whether the file may then be *read* stays the
  * resolver's decision, not this function's.
  */

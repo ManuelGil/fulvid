@@ -1,6 +1,6 @@
 /**
  * Whether a restore target can actually receive focus.
- * Hidden Focus chrome uses `inert`; do not return those nodes to the user.
+ * Skip disconnected, disabled, or inert nodes (overlays; statusbar while Focus).
  */
 export function isUsableFocusTarget(element: EventTarget | null): element is HTMLElement {
   if (element === null || typeof HTMLElement === "undefined") {
@@ -33,5 +33,8 @@ export function restoreUsableFocus(previous: EventTarget | null): void {
     emptyAction.focus({ preventScroll: true });
     return;
   }
-  document.getElementById("main-content")?.focus({ preventScroll: true });
+  const main = document.getElementById("main-content");
+  if (isUsableFocusTarget(main)) {
+    main.focus({ preventScroll: true });
+  }
 }

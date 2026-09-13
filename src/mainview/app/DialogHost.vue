@@ -8,6 +8,7 @@ import {
   submitConfirm,
   submitFilename,
   submitQuickOpen,
+  submitText,
 } from "./dialogs";
 import { quickOpenCandidatesFromNotes } from "../modules/quickOpen/quickOpenCandidates";
 import { matchQuickOpenCandidates } from "../modules/quickOpen/quickOpenMatch";
@@ -19,12 +20,13 @@ const dialogHostRef = ref<HTMLElement | null>(null);
 const filenameInputRef = ref<HTMLInputElement | null>(null);
 const filenameValue = ref("");
 const confirmButtonRef = ref<HTMLButtonElement | null>(null);
+const cancelButtonRef = ref<HTMLButtonElement | null>(null);
 const quickOpenInputRef = ref<HTMLInputElement | null>(null);
 const quickOpenQuery = ref("");
 const quickOpenSelectedIndex = ref(0);
 let previousFocus: HTMLElement | null = null;
 
-/** Live Folder projection — refresh / close Folder updates the list. */
+/** Live Folder projection - refresh / close Folder updates the list. */
 const quickOpenCandidates = computed(() => {
   if (activeDialog.value?.kind !== "quickOpen") {
     return [];
@@ -62,7 +64,7 @@ watch(
 
     await nextTick();
 
-    if (dialog.kind === "filename") {
+    if (dialog.kind === "filename" || dialog.kind === "text") {
       filenameValue.value = dialog.value;
       const input = filenameInputRef.value;
       input?.focus({ preventScroll: true });
@@ -77,6 +79,10 @@ watch(
       return;
     }
 
+    if (dialog.kind === "confirm" && dialog.initialFocus === "cancel") {
+      cancelButtonRef.value?.focus({ preventScroll: true });
+      return;
+    }
     confirmButtonRef.value?.focus({ preventScroll: true });
   },
   { flush: "post" },
@@ -132,6 +138,10 @@ function onDialogKeydown(event: KeyboardEvent): void {
 }
 
 function onFilenameSubmit(): void {
+  if (activeDialog.value?.kind === "text") {
+    submitText(filenameValue.value);
+    return;
+  }
   submitFilename(filenameValue.value);
 }
 
@@ -221,7 +231,7 @@ function onBackdropPointerDown(event: PointerEvent): void {
       @keydown.stop="onDialogKeydown"
     >
       <form
-        v-if="activeDialog.kind === 'filename'"
+        v-if="activeDialog.kind === 'filename' || activeDialog.kind === 'text'"
         class="dialog"
         role="dialog"
         aria-modal="true"
@@ -239,8 +249,9 @@ function onBackdropPointerDown(event: PointerEvent): void {
             v-model="filenameValue"
             class="dialog__input"
             type="text"
-            spellcheck="false"
+            :spellcheck="activeDialog.kind === 'text'"
             autocomplete="off"
+            :maxlength="activeDialog.kind === 'text' ? activeDialog.maxLength : undefined"
           />
         </label>
         <div class="dialog__actions">
@@ -350,7 +361,12 @@ function onBackdropPointerDown(event: PointerEvent): void {
           {{ activeDialog.message }}
         </p>
         <div class="dialog__actions">
-          <button class="dialog__button dialog__button--quiet" type="button" @click="cancelDialog">
+          <button
+            ref="cancelButtonRef"
+            class="dialog__button dialog__button--quiet"
+            type="button"
+            @click="cancelDialog"
+          >
             {{ t("dialog.cancel") }}
           </button>
           <button
@@ -359,7 +375,7 @@ function onBackdropPointerDown(event: PointerEvent): void {
             type="button"
             @click="submitConfirm(true)"
           >
-            {{ t("dialog.confirm") }}
+            {{ activeDialog.confirmLabel ?? t("dialog.confirm") }}
           </button>
         </div>
       </div>

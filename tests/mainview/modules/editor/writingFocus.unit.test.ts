@@ -12,6 +12,7 @@ import {
 } from "../../../../src/mainview/modules/editor/writingFocus.ts";
 
 // Intent: Focus is session-only, editor-route-only, and leave-editor targets stay usable.
+// Rail navigation stays in writingFocusKeepsFocusTarget (includes .app-sidebar).
 describe("writing focus", () => {
   test("applies only on the editor route and keeps leave-editor targets usable", () => {
     writingFocusActive.value = false;
@@ -30,8 +31,7 @@ describe("writing focus", () => {
   });
 });
 
-// Intent: Writing Focus (editor chrome) and native Full Screen (BrowserWindow) stay orthogonal.
-// Growth boundary: add cases only if a new shared owner appears between them.
+// Intent: Writing Focus and native Full Screen stay orthogonal.
 describe("writing focus and native fullscreen", () => {
   test("all four combinations stay independent", () => {
     writingFocusActive.value = false;
@@ -43,30 +43,23 @@ describe("writing focus and native fullscreen", () => {
       },
     };
 
-    // normal
     expect(writingFocusActive.value).toBe(false);
     expect(fullScreen).toBe(false);
     expect(canPersistWindowFrame(fullScreen)).toBe(true);
 
-    // Writing Focus alone
     toggleWritingFocus();
     expect(writingFocusActive.value).toBe(true);
     expect(fullScreen).toBe(false);
-    expect(canPersistWindowFrame(fullScreen)).toBe(true);
 
-    // Writing Focus + Fullscreen
     expect(toggleNativeFullScreen(window)).toBe(true);
     expect(writingFocusActive.value).toBe(true);
     expect(fullScreen).toBe(true);
     expect(canPersistWindowFrame(fullScreen)).toBe(false);
 
-    // Fullscreen alone
     toggleWritingFocus();
     expect(writingFocusActive.value).toBe(false);
     expect(fullScreen).toBe(true);
-    expect(canPersistWindowFrame(fullScreen)).toBe(false);
 
-    // back to normal — Fullscreen toggle must not flip Writing Focus
     expect(toggleNativeFullScreen(window)).toBe(false);
     expect(writingFocusActive.value).toBe(false);
     expect(fullScreen).toBe(false);

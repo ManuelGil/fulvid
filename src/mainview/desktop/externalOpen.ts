@@ -3,7 +3,7 @@
  *
  * An external open request says one thing: "something outside Fulvid asked to
  * open this resource." It is an expression of intent, never a grant of access.
- * Nothing here carries authority — the host resolves every request through the
+ * Nothing here carries authority - the host resolves every request through the
  * same checks a native dialog goes through, and a request for a path the host
  * refuses is simply refused.
  *
@@ -52,8 +52,8 @@ export type ExternalOpenRequest = {
 /**
  * What the host hands back once it has applied its own authority.
  *
- * The renderer receives a grant snapshot or an authorized root — the same
- * shapes the file and folder dialogs produce — never a bare path to act on.
+ * The renderer receives a grant snapshot or an authorized root - the same
+ * shapes the file and folder dialogs produce - never a bare path to act on.
  * That keeps "the renderer must not gain a generic absolute-path read" true.
  */
 export type ResolvedExternalOpen =

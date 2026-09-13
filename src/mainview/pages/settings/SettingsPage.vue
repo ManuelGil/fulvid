@@ -1,13 +1,18 @@
 <script setup lang="ts">
 /**
  * Single Settings surface. Categories are in-page sections (`#settings-{id}`),
- * not routes or separate stores. Keep the form here so `patchSettings` remains
- * the only write path.
+ * not routes or separate stores. Writes go through `patchSettings` or
+ * `resetSettingsToDefaults` on the settings store.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import PageShell from "../../shell/PageShell.vue";
-import { patchSettings, settings } from "../../modules/settings/settingsStore";
+import {
+  patchSettings,
+  resetSettingsToDefaults,
+  settings,
+} from "../../modules/settings/settingsStore";
 import type { FulvidSettings, StatusbarIndicator } from "../../modules/settings/settingsStore";
+import { syncDocumentAnnotationsVisibleFromPreference } from "../../modules/editor/document/documentAnnotationVisibility";
 import {
   THEME_FAMILIES,
   themeOptionsForFamily,
@@ -20,6 +25,8 @@ import {
 } from "../../../../package.json";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+import { confirmDialog } from "../../app/dialogs";
+import { notify } from "../../app/notify";
 
 type SettingsCategory =
   | "general"
@@ -212,6 +219,9 @@ function setEditor<K extends keyof FulvidSettings["editor"]>(
   value: FulvidSettings["editor"][K],
 ): void {
   patchSettings({ editor: { ...settings.value.editor, [key]: value } });
+  if (key === "showDocumentAnnotations" && typeof value === "boolean") {
+    syncDocumentAnnotationsVisibleFromPreference(value);
+  }
 }
 
 function setStatusbarEnabled(enabled: boolean): void {
@@ -265,6 +275,20 @@ function setPreviewEnabled(enabled: boolean): void {
 
 function setLocale(locale: FulvidSettings["locale"]): void {
   patchSettings({ locale });
+}
+
+async function onResetSettings(): Promise<void> {
+  const confirmed = await confirmDialog(t("settings.resetToDefaultsMessage"), {
+    title: t("settings.resetToDefaultsTitle"),
+    confirmLabel: t("settings.resetToDefaultsConfirm"),
+    initialFocus: "cancel",
+  });
+  if (!confirmed) {
+    return;
+  }
+  resetSettingsToDefaults();
+  syncDocumentAnnotationsVisibleFromPreference(settings.value.editor.showDocumentAnnotations);
+  notify(t("settings.resetToDefaultsDone"));
 }
 </script>
 
@@ -331,6 +355,25 @@ function setLocale(locale: FulvidSettings["locale"]): void {
                 <option value="es">{{ t("settings.spanish") }}</option>
               </select>
             </label>
+
+            <div class="settings-reset" aria-labelledby="settings-reset-heading">
+              <div class="settings-reset__copy">
+                <p id="settings-reset-heading" class="settings-option__name">
+                  {{ t("settings.resetToDefaults") }}
+                </p>
+                <p id="settings-reset-hint" class="settings-option__hint">
+                  {{ t("settings.resetToDefaultsHint") }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="settings-reset__button"
+                aria-describedby="settings-reset-hint"
+                @click="onResetSettings"
+              >
+                {{ t("settings.resetToDefaultsAction") }}
+              </button>
+            </div>
           </section>
 
           <section
@@ -649,6 +692,31 @@ function setLocale(locale: FulvidSettings["locale"]): void {
             </label>
 
             <label class="settings-option">
+              <span class="settings-option__copy">
+                <span class="settings-option__name">{{ t("settings.documentLocation") }}</span>
+                <span class="settings-option__hint">{{ t("settings.documentLocationHint") }}</span>
+              </span>
+              <select
+                class="settings-option__control"
+                :value="settings.editor.documentLocation"
+                :aria-label="t('settings.documentLocation')"
+                @change="
+                  setEditor(
+                    'documentLocation',
+                    ($event.target as HTMLSelectElement)
+                      .value as FulvidSettings['editor']['documentLocation'],
+                  )
+                "
+              >
+                <option value="main-panel">{{ t("settings.documentLocationMainPanel") }}</option>
+                <option value="window-title">
+                  {{ t("settings.documentLocationWindowTitle") }}
+                </option>
+                <option value="hidden">{{ t("settings.documentLocationHidden") }}</option>
+              </select>
+            </label>
+
+            <label class="settings-option">
               <input
                 class="settings-option__control"
                 type="checkbox"
@@ -661,6 +729,25 @@ function setLocale(locale: FulvidSettings["locale"]): void {
                 <span class="settings-option__name">{{ t("settings.markdownFormatBar") }}</span>
                 <span class="settings-option__hint">
                   {{ t("settings.markdownFormatBarHint") }}
+                </span>
+              </span>
+            </label>
+
+            <label class="settings-option">
+              <input
+                class="settings-option__control"
+                type="checkbox"
+                :checked="settings.editor.showDocumentAnnotations"
+                @change="
+                  setEditor('showDocumentAnnotations', ($event.target as HTMLInputElement).checked)
+                "
+              />
+              <span class="settings-option__copy">
+                <span class="settings-option__name">{{
+                  t("settings.showDocumentAnnotations")
+                }}</span>
+                <span class="settings-option__hint">
+                  {{ t("settings.showDocumentAnnotationsHint") }}
                 </span>
               </span>
             </label>
@@ -1282,6 +1369,10 @@ function setLocale(locale: FulvidSettings["locale"]): void {
                   ><kbd>Shift</kbd><kbd>O</kbd>
                 </dt>
                 <dd>{{ t("settings.shortcutOutline") }}</dd>
+              </div>
+              <div class="settings-shortcuts__row">
+                <dt>{{ t("menu.navigate") }}</dt>
+                <dd>{{ t("settings.shortcutDocumentAnnotations") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
                 <dt>
@@ -1927,6 +2018,28 @@ function setLocale(locale: FulvidSettings["locale"]): void {
     border-color: $border-subtle;
     background: color-mix(in srgb, $selection 34%, transparent);
   }
+}
+
+.settings-reset {
+  display: flex;
+  align-items: flex-start;
+  gap: $space-compact;
+  margin-top: $space-related;
+  padding: $space-compact;
+  border: 1px solid $border-subtle;
+  border-radius: $radius;
+}
+
+.settings-reset__copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settings-reset__button {
+  @include quiet-button;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  white-space: nowrap;
 }
 
 .settings-option__control {

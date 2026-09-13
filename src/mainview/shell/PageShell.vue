@@ -7,6 +7,8 @@ import { useId } from "vue";
 withDefaults(
   defineProps<{
     title: string;
+    /** Full identity for tooltip when `title` is compact or truncated. */
+    titleHint?: string;
     question?: string;
     /** Document under Focus, when any. */
     regarding?: string;
@@ -15,6 +17,16 @@ withDefaults(
     wide?: boolean;
     fill?: boolean;
     embedded?: boolean;
+    /**
+     * Writing Focus: reclaim shell padding/gap for the editor surface.
+     * Owned here so rhythm styles cannot override from higher specificity.
+     */
+    writingFocus?: boolean;
+    /**
+     * Writing Focus + Document location main-panel: keep a compact identity
+     * line without the normal header spacing.
+     */
+    quietIdentity?: boolean;
     /**
      * Interaction rhythm - coherent differentiation across questions.
      * calm: exists · browse: organize · immediate: recover · spatial: locate
@@ -35,6 +47,8 @@ const titleId = useId();
     :class="{
       'page-shell--fill': fill,
       'page-shell--embedded': embedded,
+      'page-shell--writing-focus': writingFocus,
+      'page-shell--quiet-identity': writingFocus && quietIdentity,
       [`page-shell--${rhythm}`]: Boolean(rhythm),
     }"
     role="region"
@@ -52,7 +66,9 @@ const titleId = useId();
       <div v-if="!embedded" class="page-shell__heading">
         <p v-if="within" class="page-shell__within">{{ within }}</p>
         <p v-if="question" class="page-shell__question">{{ question }}</p>
-        <h1 :id="titleId" class="page-shell__title">{{ title }}</h1>
+        <h1 :id="titleId" class="page-shell__title" :title="titleHint || undefined">
+          {{ title }}
+        </h1>
         <p v-if="regarding" class="page-shell__regarding">{{ regarding }}</p>
       </div>
 
@@ -444,5 +460,57 @@ const titleId = useId();
   &.page-shell--fill .page-shell__fill {
     margin-top: $space-tight;
   }
+}
+
+/*
+ * Writing Focus layout lives on PageShell so rhythm/header rules in this file
+ * cannot win on specificity and reintroduce vertical gap above the editor.
+ */
+.page-shell.page-shell--writing-focus {
+  gap: 0;
+  padding: 0;
+}
+
+.page-shell.page-shell--writing-focus > .page-shell__header {
+  display: none;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.page-shell.page-shell--writing-focus.page-shell--quiet-identity > .page-shell__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  /* Bottom padding stays 0 so identity sits against the editor surface. */
+  padding: $space-tight $space-compact 0;
+}
+
+.page-shell.page-shell--writing-focus.page-shell--quiet-identity .page-shell__heading {
+  gap: 0;
+}
+
+.page-shell.page-shell--writing-focus.page-shell--quiet-identity .page-shell__title {
+  max-width: min(100%, 40rem);
+  overflow: hidden;
+  color: $text-muted;
+  font-size: $font-caption;
+  font-weight: 500;
+  font-family: $font-mono;
+  letter-spacing: 0;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-shell.page-shell--writing-focus .page-shell__fill {
+  margin: 0;
+}
+
+.page-shell.page-shell--writing-focus .page-shell__fill,
+.page-shell.page-shell--writing-focus .page-shell__fill-content {
+  gap: 0;
+  min-height: 0;
 }
 </style>

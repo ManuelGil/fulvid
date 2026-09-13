@@ -93,6 +93,8 @@ export default {
     focus: "Focus",
     preview: "Preview",
     hidePreview: "Hide preview",
+    showAnnotations: "Show document annotations",
+    hideAnnotations: "Hide document annotations",
     focusMode: "Focus mode",
     exitFocusMode: "Exit focus mode",
     find: "Find",
@@ -503,9 +505,18 @@ export default {
     typewriterScrolling: "Typewriter scrolling",
     typewriterScrollingHint:
       "Only in Focus mode (View > Focus mode). Keeps the line you are typing near the middle of the editor.\n\nWith Focus mode on, Enter moves the new line toward the center. Reduced motion uses a smaller shift. Turn this off if you want Focus mode without recentering.",
+    documentLocation: "Document location",
+    documentLocationHint:
+      "Where Fulvid shows the active document path. The same identity is projected everywhere; showing a path never grants folder access.\n\nMain panel: quiet path in the editor. Window title: Fulvid - path on the OS window. Hidden: tabs, Explorer, and accessibility keep identity without a persistent path line.",
+    documentLocationMainPanel: "Main panel",
+    documentLocationWindowTitle: "Window title",
+    documentLocationHidden: "Hidden",
     markdownFormatBar: "Show Markdown formatting bar",
     markdownFormatBarHint:
       "Bold, lists, links, and tables sit above the editor. The same actions stay on the keyboard and the Edit menu if you leave this off.",
+    showDocumentAnnotations: "Show document annotations",
+    showDocumentAnnotationsHint:
+      "Preferred default for annotation glyphs in the editor margin. Session Show/Hide (View menu) can diverge until you change this setting, reset settings, or restart Fulvid. Annotation notes themselves are never saved.",
     shortcutBold: "Bold the current selection",
     shortcutItalic: "Italicize the current selection",
     shortcutInlineCode: "Wrap the current selection in inline code",
@@ -641,9 +652,11 @@ export default {
     shortcutLocalFind: "Find in the active document",
     shortcutReplace: "Replace in the active document",
     shortcutOutline: "Open the active document outline",
+    shortcutDocumentAnnotations:
+      "Temporary line notes. Add or edit from Quick Actions, the glyph margin, or Navigate. Show/Hide is on View. Session-only; never saved to the file.",
     shortcutLeftSidebar: "Show or hide navigation and folder",
     shortcutFind: "Find a document",
-    shortcutQuickOpen: "Quick Open — open a document by name or path in the folder",
+    shortcutQuickOpen: "Quick Open - open a document by name or path in the folder",
     shortcutNew: "Create a new untitled document",
     shortcutOpenFile: "Open a file",
     shortcutSave: "Save the active document",
@@ -673,6 +686,15 @@ export default {
       "Changes Fulvid's menus, Settings, and messages right away. Your documents stay in whatever language you wrote them in.",
     english: "English",
     spanish: "Spanish",
+    resetToDefaults: "Reset settings",
+    resetToDefaultsHint:
+      "Restore Fulvid settings to their default values. Your documents, open tabs, Folder, and files are not changed.",
+    resetToDefaultsAction: "Reset to defaults",
+    resetToDefaultsTitle: "Reset settings?",
+    resetToDefaultsMessage:
+      "This restores Fulvid's settings to their default values.\nYour documents and files will not be changed.",
+    resetToDefaultsConfirm: "Reset",
+    resetToDefaultsDone: "Settings restored to defaults",
   },
   preview: {
     dense:
@@ -686,6 +708,25 @@ export default {
     mdxInert: "MDX is shown as text and does not run.",
     frontmatterIncomplete: "This frontmatter is incomplete, so it stays visible as text.",
     failed: "Preview could not show this document.",
+  },
+  documentAnnotations: {
+    annotate: "Annotate",
+    remove: "Remove annotation",
+    next: "Next annotation",
+    previous: "Previous annotation",
+    clear: "Clear annotations",
+    addTitle: "Add annotation",
+    editTitle: "Edit annotation",
+    textLabel: "Annotation",
+    added: "Annotation added on line {line}",
+    updated: "Annotation updated on line {line}",
+    removed: "Annotation removed from line {line}",
+    cleared: "Cleared {count} annotations",
+    none: "No annotations in this document",
+    noneAtCursor: "No annotation on this line",
+    capped: "Annotation limit reached ({max})",
+    shown: "Annotations shown",
+    hidden: "Annotations hidden",
   },
   status: {
     label: "Document status",

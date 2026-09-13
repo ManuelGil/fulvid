@@ -47,7 +47,7 @@ export type MonacoEditorPreferences = {
  *
  * `autoIndent` is Monaco indent-on-enter/paste. It does not gate Fulvid's
  * list/quote/fence/table continuation (`markdownEnter`), which stays on.
- * Focus mode overlays minimap, sticky scroll, and typewriter separately.
+ * Writing Focus overlays minimap, sticky scroll, and typewriter separately.
  */
 export function monacoEditorPreferences(editorSettings: EditorSettings): MonacoEditorPreferences {
   return {
