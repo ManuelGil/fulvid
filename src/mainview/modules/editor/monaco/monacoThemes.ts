@@ -22,7 +22,8 @@ export const THEME_PREFERENCES = [
 
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
-export const DEFAULT_THEME: ThemePreference = "dark";
+/** First-run / missing preference: follow the OS light/dark preference. */
+export const DEFAULT_THEME: ThemePreference = "system";
 
 export const THEME_FAMILIES = [
   { id: "system", label: "settings.themeFamilySystem" },

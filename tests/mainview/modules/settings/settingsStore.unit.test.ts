@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  appearanceDatasetFor,
   defaultSettings,
   patchSettings,
   resetSettingsToDefaults,
@@ -10,8 +11,12 @@ import {
 
 // Intent: persisted settings stay backward-compatible and fail-closed.
 // Unknown product concepts (Context root, templates) must not hydrate.
+// First-run appearance follows the OS (theme = system); explicit light/dark win.
 describe("settings migration", () => {
   test("keeps valid fields, migrates legacy values, and rejects unsupported enums", () => {
+    expect(defaultSettings().appearance.theme).toBe("system");
+    expect(sanitizeSettings({}).appearance.theme).toBe("system");
+
     const next = sanitizeSettings({
       locale: "es",
       appearance: {
@@ -33,7 +38,8 @@ describe("settings migration", () => {
     });
 
     expect(next.locale).toBe("es");
-    expect(next.appearance.theme).toBe("dark");
+    // Invalid theme falls back to the same first-run default (system), not an arbitrary skin.
+    expect(next.appearance.theme).toBe("system");
     expect(next.editor.fontSize).toBe(14);
     expect(next.editor.defaultEol).toBe("lf");
     expect(next.workspace.workspaceStartup).toBe("last");
@@ -44,8 +50,11 @@ describe("settings migration", () => {
     expect(next).not.toHaveProperty("contextRoots");
     expect(sanitizeSettings({ locale: "fr" }).locale).toBe("en");
     expect(sanitizeSettings({ appearance: { theme: "constructor" } }).appearance.theme).toBe(
-      "dark",
+      "system",
     );
+    expect(sanitizeSettings({ appearance: { theme: "light" } }).appearance.theme).toBe("light");
+    expect(sanitizeSettings({ appearance: { theme: "dark" } }).appearance.theme).toBe("dark");
+    expect(appearanceDatasetFor(defaultSettings().appearance).theme).toBe("system");
     expect(sanitizeSettings({ editor: { defaultEol: "crlf" } }).editor.defaultEol).toBe("crlf");
   });
 });
