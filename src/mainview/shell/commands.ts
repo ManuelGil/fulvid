@@ -82,7 +82,10 @@ export function toAriaKeyshortcuts(shortcut?: string): string | undefined {
   return shortcut.replaceAll("Ctrl+", "Control+").replaceAll("Cmd+", "Meta+");
 }
 
-/** Closed Quick Action / command icon names (must resolve via `resolveAppIconName`). */
+/**
+ * Closed command / Quick Action icon vocabulary (subset of AppIcon names).
+ * Single source for `CommandIcon` — do not accept arbitrary strings as icons.
+ */
 export const COMMAND_ICONS = [
   "document",
   "new-document",

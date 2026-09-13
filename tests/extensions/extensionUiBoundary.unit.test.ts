@@ -20,16 +20,15 @@ async function readManifest(id: string): Promise<FixtureManifest> {
 }
 
 // Intent: presentation may gain seams later; authority must not travel with UI.
-// Growth boundary: real contribution/icon contracts only — not product UI coverage.
 describe("extension UI boundary", () => {
-  test("rejects unknown application icon identifiers", () => {
+  test("rejects arbitrary application icon identifiers", () => {
     expect(resolveAppIconName("focus")).toBe("focus");
     expect(resolveAppIconName("missing-icon")).toBeNull();
     expect(resolveAppIconName("<svg/onload=1>")).toBeNull();
     expect(resolveAppIconName("javascript:alert(1)")).toBeNull();
   });
 
-  test("keeps command icons inside the closed AppIcon set", () => {
+  test("keeps command icons inside the closed AppIcon vocabulary", () => {
     for (const icon of COMMAND_ICONS) {
       expect(isCommandIcon(icon)).toBe(true);
       expect(resolveAppIconName(icon)).toBe(icon);
@@ -44,14 +43,14 @@ describe("extension UI boundary", () => {
     }
   });
 
-  test("keeps Quick Actions usable in Writing Focus without inventing overlay chrome", () => {
+  test("keeps Quick Actions usable during Writing Focus", () => {
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".quick-actions");
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain("[data-application-menu]");
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".toast-host");
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".dialog-host");
   });
 
-  test("fixture commands stay host actions without UI injection fields", async () => {
+  test("forbids fixture authority over Monaco, filesystem, or injectable UI", async () => {
     const dirs = (await readdir(EXTENSIONS_ROOT, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory() && entry.name.startsWith("local."))
       .map((entry) => entry.name)

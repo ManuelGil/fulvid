@@ -1134,6 +1134,7 @@ onBeforeUnmount(() => {
       >
         <ApplicationMenu :menus="presentedApplicationMenus" @command="runCommand" />
       </div>
+      <!-- Writing Focus must not hide/inert this row: Quick Actions stay a capability. -->
       <div class="app-shell__actions-row" :inert="overlayOpen">
         <QuickActionsToolbar
           :explorer-open="activeRightPanel === 'explorer'"

@@ -53,7 +53,7 @@ HTML Export is a separate dialog that writes `.html` only, using the Preview ren
 
 ## Shell
 
-`/editor` fills the main slot. The shell owns the application menu, Quick Actions, left sidebar (navigation and Folder lifecycle), right sidebar, and optional Statusbar. Those regions are siblings. On the editor route, Writing Focus collapses the left sidebar to the compact rail (restored on exit), hides shell chrome without mutating settings persistence, expands the editor surface, and may keep a quiet document-location line when Settings -> Document location is Main panel (`documentLocation` projection). PageShell owns Writing Focus padding/gap so rhythm styles cannot reintroduce vertical space above Monaco. Native Full Screen is owned by the Bun host `BrowserWindow`, not by the shell. Window title updates use one host capability (`setWindowTitle`) when that destination is selected.
+`/editor` fills the main slot. The shell owns the application menu, Quick Actions, left sidebar (navigation and Folder lifecycle), right sidebar, and optional Statusbar. Those regions are siblings. On the editor route, Writing Focus collapses the left sidebar to the compact rail (restored on exit), hides shell chrome without mutating settings persistence, expands the editor surface, and may keep a quiet document-location line when Settings -> Document location is Main panel (`documentLocation` projection). Capability surfaces listed in `WRITING_FOCUS_KEPT_SELECTORS` stay usable (hide chrome, not capabilities — especially Quick Actions). PageShell owns Writing Focus padding/gap so rhythm styles cannot reintroduce vertical space above Monaco. Native Full Screen is owned by the Bun host `BrowserWindow`, not by the shell. Window title updates use one host capability (`setWindowTitle`) when that destination is selected.
 
 ### Quick Actions toolbar
 
@@ -87,18 +87,22 @@ The right sidebar shows one panel: Explorer, Search options (on `/search`), Docu
 
 ### Extension UI boundary
 
-Presentation may become extension-capable later; **authority does not**.
+Presentation may become extension-capable later; **authority does not**. An extension is never an owner.
+
+Path: `extension → declared capability / command → existing owner → existing presentation`.
 
 | Category | Surfaces / rules |
 | --- | --- |
-| **Current** | No loader. Fixtures under [`extensions/`](../extensions/) declare inert host actions only and are **not** loaded |
-| **Future seam** | Declared host actions (`notify`, `createUntitledFromTemplate`); contributions to Quick Actions / Application Menu **only** as `command → existing owner → UI`. Icons are closed declarative names (`appIcons.ts` / `CommandIcon`) |
+| **Current** | No loader, contribution registry, or placement API. Fixtures under [`extensions/`](../extensions/) declare inert host actions only and are **not** loaded. Icons are a closed declarative vocabulary (`appIcons.ts` / `CommandIcon`); `AppIcon.vue` is presentation only |
+| **Future seam** | Declared host actions (`notify`, `createUntitledFromTemplate`); contributions to Quick Actions / Application Menu **only** as `command → existing owner → UI` |
 | **Core-controlled** | Focus, dirty state, document selection, Writing Focus policy, grants, filesystem, Graph, Preview inertness, native Full Screen, right-rail panel set, Statusbar indicators, tabs chrome |
 | **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, IPC, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution |
 
-There is **no** contribution registry, placement API, or loader today. See [`extensions/README.md`](../extensions/README.md) and `tests/extensions/`.
+Do not add a second command bus. Do not let a button call filesystem or Monaco directly. Do not fix a UI problem by inventing a second owner of the same behavior.
 
-Do not add a second command bus. Do not let a button call filesystem or Monaco directly.
+Boundary contract tests: `tests/extensions/` (fixture set + UI boundary). Those tests fail if the closed icon vocabulary, Writing Focus capability keep-list, or forbidden fixture authorities are weakened.
+
+See [`extensions/README.md`](../extensions/README.md).
 
 ## Document links
 

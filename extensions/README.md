@@ -35,17 +35,19 @@ Do not add product-shaped packs (bug report, meeting, ADR, etc.) here. Those age
 | Discovery / loader | **Not implemented** |
 | Lua / wasmoon | **Not implemented** |
 
-Contract tests: `tests/extensions/extensionFixtures.unit.test.ts` (permanent set size, allowed capabilities/actions, no executable artifacts). UI boundary harness: `tests/extensions/extensionUiBoundary.unit.test.ts` (icons, Writing Focus keep-list, forbidden authorities).
-
 ## UI extension boundary
+
+Path: `extension → declared capability / command → existing owner → presentation`. An extension is never an owner.
 
 | Kind | Meaning today |
 | --- | --- |
-| **Current capability** | Fixtures declare inert host actions only (`notify`, `createUntitledFromTemplate`). Not loaded. |
-| **Future extension seam** | Contributions to Quick Actions / Application Menu only as `command → owner → UI`. Closed Lucide/AppIcon names as presentation data. |
-| **Forbidden** | Monaco, filesystem/grants, BrowserWindow, IPC, process, network, Vue internals, arbitrary HTML/SVG/DOM, MDX execution, Focus/Graph policy |
+| **Current** | Fixtures declare inert host actions only (`notify`, `createUntitledFromTemplate`). Not loaded. No loader, Lua runtime, contribution registry, or placement API |
+| **Future seam** | Contributions to Quick Actions / Application Menu only as `command → existing owner → UI`. Closed AppIcon / `CommandIcon` names as presentation data |
+| **Forbidden** | Monaco, filesystem/grants, BrowserWindow, IPC, process, network, Vue internals, arbitrary HTML/SVG/DOM, MDX execution, Focus / Writing Focus / Graph policy |
 
-Path: `extension → capability → owner → presentation`. Never: `extension → Vue/Monaco/filesystem`.
+Never: `extension → Vue/Monaco/filesystem`. Do not invent a second owner to “make an extension work.”
+
+Contract tests: `tests/extensions/extensionFixtures.unit.test.ts` and `extensionUiBoundary.unit.test.ts`. They fail if the closed icon vocabulary, Writing Focus capability keep-list, forbidden fixture authorities, or permanent fixture set are weakened.
 
 ## Layout
 

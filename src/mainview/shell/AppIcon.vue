@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * Fulvid chrome icons via Lucide. Named imports keep unused icons out of the bundle.
+ * Presentation only: renders a known `IconName` from `appIcons.ts`.
+ * Not an icon registry, extension API, or place to load arbitrary components.
  * Monaco Codicons are remapped separately in monacoLucideIcons.ts.
  */
 import { computed } from "vue";

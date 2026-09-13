@@ -26,10 +26,11 @@ export function writingFocusLeaveEditorTarget(
 }
 
 /**
- * Regions that stay keyboard-usable while Writing Focus hides editor chrome.
- * Quick Actions stays because toggleWritingFocus lives there; menu/dialogs/toasts
- * are session chrome, not inert writing surface. Sidebar stays so rail navigation
- * remains available (hide chrome, not capabilities).
+ * Capability surfaces that stay usable while Writing Focus hides secondary chrome.
+ * This is not a visibility exception list: hide chrome, not capabilities.
+ * Keep Quick Actions (Focus toggle lives there), application menu, dialogs,
+ * toasts, context menus, skip/main, Monaco/Preview/empty state, and sidebar rail.
+ * Do not inert/hide the Quick Actions container just because surrounding chrome is dimmed.
  */
 export const WRITING_FOCUS_KEPT_SELECTORS = [
   ".monaco-editor",

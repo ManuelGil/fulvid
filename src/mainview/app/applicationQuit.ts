@@ -1,7 +1,9 @@
 /**
- * Quit may call the host quit RPC only after the same confirmClose gate
- * used when closing dirty tabs. Dirty state stays in documentBuffers;
- * confirmation UI stays in dialogs; this file is not a lifecycle owner.
+ * Quit confirmation gate — not a lifecycle or dirty-state owner.
+ *
+ * documentBuffers → dirty count; dialogs → confirm UI; this module → whether
+ * to ask; host → native quit. Menu Quit must stay a command (not OS quit role)
+ * so the renderer gate cannot be bypassed. Do not duplicate dirty state here.
  */
 export function shouldConfirmQuit(options: {
   dirtyCount: number;

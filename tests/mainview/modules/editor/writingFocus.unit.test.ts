@@ -11,8 +11,8 @@ import {
   writingFocusLeaveEditorTarget,
 } from "../../../../src/mainview/modules/editor/writingFocus.ts";
 
-// Intent: Focus is session-only, editor-route-only, and leave-editor targets stay usable.
-// Rail navigation stays in writingFocusKeepsFocusTarget (includes .app-sidebar).
+// Intent: Writing Focus is session/editor-route only; leave-editor targets stay usable.
+// Capability keep-list (WRITING_FOCUS_KEPT_SELECTORS) includes Quick Actions and .app-sidebar.
 describe("writing focus", () => {
   test("applies only on the editor route and keeps leave-editor targets usable", () => {
     writingFocusActive.value = false;

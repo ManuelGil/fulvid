@@ -4,7 +4,7 @@ import { confirmAndQuit, shouldConfirmQuit } from "../../../src/mainview/app/app
 
 // Intent: Quit must not discard dirty buffers silently when confirmClose is on.
 describe("application quit guard", () => {
-  test("asks before quitting only when confirmClose is on and a buffer is dirty", () => {
+  test("asks before quitting when dirty documents require confirmation", () => {
     expect(shouldConfirmQuit({ dirtyCount: 0, confirmCloseEnabled: true })).toBe(false);
     expect(shouldConfirmQuit({ dirtyCount: 2, confirmCloseEnabled: false })).toBe(false);
     expect(shouldConfirmQuit({ dirtyCount: 1, confirmCloseEnabled: true })).toBe(true);
