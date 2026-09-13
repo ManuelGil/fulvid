@@ -69,7 +69,7 @@ The renderer is untrusted. It may ask for a document inside a folder the person 
 
 ## Persisted state
 
-Persisted state is treated as potentially corrupt or tampered with. Settings, layout, context roots, and folder approvals each sanitize on read: an invalid part is discarded and its default applied, and Fulvid still starts. Persisted state can never grant a capability. A recent-folder entry does not authorize a folder.
+Persisted state is treated as potentially corrupt or tampered with. Settings, layout, and folder approvals each sanitize on read: an invalid part is discarded and its default applied, and Fulvid still starts. Persisted state can never grant a capability. A recent-folder entry does not authorize a folder.
 
 ## Content Security Policy
 

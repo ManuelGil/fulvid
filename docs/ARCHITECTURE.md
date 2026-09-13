@@ -19,7 +19,6 @@ Every user-visible behavior has **one owner**. Pages and the shell choose what i
 | Graph | Focus-scoped visualization of resolved links |
 | Document Context | References and facts for the focused or peeked document |
 | Focus | Folder-scoped Graph/Context target; Peek |
-| Context | Scoping facts and link resolution to a context root |
 | Settings | Persistence in `settingsStore.ts` |
 | Filesystem | Scan and document I/O through one RPC boundary |
 

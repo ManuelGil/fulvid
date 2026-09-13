@@ -31,7 +31,7 @@ import {
   errorMessage,
   isLoading,
   loadingStatus,
-  contextNotes,
+  workspaceNotes,
   openWorkspace,
   recentWorkspaces,
   reopenLastWorkspace,
@@ -248,7 +248,7 @@ const activeDocumentContent = computed(() => {
 
 const activeDocumentNotes = computed(() => {
   const buffer = activeBuffer.value;
-  return buffer?.rootPath && buffer.rootPath === workspace.value?.path ? contextNotes.value : [];
+  return buffer?.rootPath && buffer.rootPath === workspace.value?.path ? workspaceNotes.value : [];
 });
 
 watch(
@@ -1098,7 +1098,7 @@ onBeforeUnmount(() => {
       :x="menuX"
       :y="menuY"
       :actions="menuActions"
-      :label="t('workspace.actions')"
+      :label="t('workspace.recentFolderActions')"
       @select="runMenuAction"
       @close="closeMenu"
     />

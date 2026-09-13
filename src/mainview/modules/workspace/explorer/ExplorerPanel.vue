@@ -15,14 +15,9 @@ import {
   renameDocumentBuffer,
 } from "../../editor/document/documentBuffers";
 import {
-  activeContextLabel,
   copyWorkspacePath,
-  clearContextRoot,
-  contextRoot,
-  hasCustomContext,
   refreshWorkspace,
   revealWorkspaceInExplorer,
-  setContextRoot,
   workspace,
   applyRenamedNote,
   applyScannedNote,
@@ -37,7 +32,12 @@ import {
   notifyFilesystemError,
   renameDocument,
 } from "../filesystem/workspaceScanner";
-import { explorerContextMenuLabelKey, explorerPathActionLabelKeys } from "./explorerContextMenu";
+import {
+  explorerContextMenuLabelKey,
+  explorerFileContextActionIds,
+  explorerFolderContextActionIds,
+  explorerPathActionLabelKeys,
+} from "./explorerContextMenu";
 import { settings } from "../../settings/settingsStore";
 
 type VisibleRow = {
@@ -102,23 +102,26 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
   }
 
   if (entry.kind === "file") {
-    return [
-      { id: "rename", label: t("files.rename") },
-      { id: "reveal", label: t(explorerPathActionLabelKeys.reveal) },
-      { id: "copy", label: t(explorerPathActionLabelKeys.copy) },
-      { id: "delete", label: t("files.delete"), danger: true },
-    ];
+    return explorerFileContextActionIds().map((id) => {
+      if (id === "rename") {
+        return { id, label: t("files.rename") };
+      }
+      if (id === "reveal") {
+        return { id, label: t(explorerPathActionLabelKeys.reveal) };
+      }
+      if (id === "copy") {
+        return { id, label: t(explorerPathActionLabelKeys.copy) };
+      }
+      return { id, label: t("files.delete"), danger: true };
+    });
   }
 
-  const contextIsAlreadySet = hasCustomContext.value && contextRoot.value === entry.path;
-  return [
-    {
-      id: contextIsAlreadySet ? "clear-context" : "set-context",
-      label: contextIsAlreadySet ? t("context.clearRoot") : t("context.setRoot"),
-    },
-    { id: "reveal", label: t(explorerPathActionLabelKeys.reveal) },
-    { id: "copy", label: t(explorerPathActionLabelKeys.copy) },
-  ];
+  return explorerFolderContextActionIds().map((id) => {
+    if (id === "reveal") {
+      return { id, label: t(explorerPathActionLabelKeys.reveal) };
+    }
+    return { id, label: t(explorerPathActionLabelKeys.copy) };
+  });
 });
 
 const contextMenuLabel = computed(() => {
@@ -340,10 +343,6 @@ async function runContextAction(id: string): Promise<void> {
     await revealWorkspaceInExplorer(entry.path);
   } else if (id === "copy" && entry) {
     await copyWorkspacePath(entry.path);
-  } else if (id === "set-context" && entry?.kind === "directory") {
-    setContextRoot(entry.path);
-  } else if (id === "clear-context") {
-    clearContextRoot();
   }
 }
 
@@ -458,10 +457,7 @@ onBeforeUnmount(() => {
   <section class="explorer-panel" :aria-label="t('files.title')">
     <header class="explorer-panel__toolbar">
       <span class="explorer-panel__root" :title="workspaceRoot ?? undefined">
-        {{
-          activeContextLabel ??
-          (workspaceRoot ? workspaceRoot.split(/[\\/]/).pop() : t("workspace.noWorkspace"))
-        }}
+        {{ workspaceRoot ? workspaceRoot.split(/[\\/]/).pop() : t("workspace.noWorkspace") }}
       </span>
       <div class="explorer-panel__actions">
         <button

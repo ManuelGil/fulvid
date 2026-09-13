@@ -6,11 +6,13 @@ import {
 } from "../../../src/mainview/modules/editor/editorTabContextMenu.ts";
 import {
   explorerContextMenuLabelKey,
+  explorerFileContextActionIds,
+  explorerFolderContextActionIds,
   explorerPathActionLabelKeys,
 } from "../../../src/mainview/modules/workspace/explorer/explorerContextMenu.ts";
 
-// Intent: object-context menus name their object and copy/reveal paths accurately.
-// Growth boundary: add a case only if file/folder naming or path-action keys change.
+// Intent: object-context menus expose only product-grounded actions for each object.
+// Growth boundary: add a case only if Explorer/tab action sets or naming change.
 describe("object context menu semantics", () => {
   test("names Explorer menus by entry kind", () => {
     expect(explorerContextMenuLabelKey("file")).toBe("files.documentActions");
@@ -20,6 +22,14 @@ describe("object context menu semantics", () => {
   test("uses Copy Path and Reveal in Folder for Explorer path actions", () => {
     expect(explorerPathActionLabelKeys.copy).toBe("menu.copyPath");
     expect(explorerPathActionLabelKeys.reveal).toBe("menu.revealInFolder");
+  });
+
+  test("Explorer file actions are filesystem document operations only", () => {
+    expect([...explorerFileContextActionIds()]).toEqual(["rename", "reveal", "copy", "delete"]);
+  });
+
+  test("Explorer folder actions are filesystem only (no Context root)", () => {
+    expect([...explorerFolderContextActionIds()]).toEqual(["reveal", "copy"]);
   });
 
   test("omits Close others when fewer than two tabs are open", () => {

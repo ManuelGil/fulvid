@@ -26,7 +26,7 @@ import {
 import { readDocument } from "../../workspace/filesystem/workspaceScanner";
 import { settings } from "../../settings/settingsStore";
 import { i18n } from "../../../i18n";
-import { contextNotes, workspace } from "../../../app/workspaceState";
+import { workspaceNotes, workspace } from "../../../app/workspaceState";
 import { openOrActivate } from "../document/documentBuffers";
 import {
   fenceLanguageQuery,
@@ -81,7 +81,7 @@ function scheduleAllMarkers(): void {
  * each keystroke in a large folder rebuild a multi-megabyte string.
  */
 function contextSignature(): string {
-  return contextNotes.value
+  return workspaceNotes.value
     .map(
       (note) =>
         `${note.path}\u0000${note.content?.length ?? 0}\u0000${
@@ -129,7 +129,7 @@ function contextForModel(model: monaco.editor.ITextModel): DocumentContext | nul
   }
   return {
     rootPath: registration.rootPath,
-    notes: contextNotes.value,
+    notes: workspaceNotes.value,
   };
 }
 

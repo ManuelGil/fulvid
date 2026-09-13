@@ -3,16 +3,10 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
-import {
-  activeContextLabel,
-  hasCustomContext,
-  workspace,
-  workspaceName,
-} from "../../app/workspaceState";
+import { workspace, workspaceName } from "../../app/workspaceState";
 import { formatDocumentCount } from "../document/context/context";
 import { openBuffers } from "../editor/document/documentBuffers";
 import PageShell from "../../shell/PageShell.vue";
-import { isContextSearchScope, searchScopeQuery } from "./searchScope";
 import {
   countActiveSearchFilters,
   parseSearchOptions,
@@ -38,9 +32,6 @@ const router = useRouter();
 
 const options = computed(() => parseSearchOptions(route.query));
 const activeFilters = computed(() => countActiveSearchFilters(options.value));
-const isContextScope = computed(() =>
-  isContextSearchScope(route.query.scope, hasCustomContext.value),
-);
 const standaloneDocumentCount = computed(
   () => openBuffers.value.filter((buffer) => buffer.rootPath === null).length,
 );
@@ -50,19 +41,8 @@ const scopeDescription = computed(() => {
       count: formatDocumentCount(standaloneDocumentCount.value),
     });
   }
-  if (isContextScope.value) {
-    return t("search.sidebarContextScope", {
-      name: activeContextLabel.value ?? t("search.scopeContext"),
-    });
-  }
   return t("search.sidebarScope", { name: workspaceName(workspace.value.path) });
 });
-
-function setScope(scope: "folder" | "context"): void {
-  void router.replace({
-    query: searchScopeQuery(route.query, scope),
-  });
-}
 
 function patchOptions(patch: Partial<SearchOptions>): void {
   if (patch.strategy && searchStrategyUsesScore(patch.strategy)) {
@@ -106,33 +86,6 @@ function patchOptions(patch: Partial<SearchOptions>): void {
       </select>
       <p id="search-strategy-sidebar-hint" class="search-sidebar__hint">
         {{ t(`search.strategyHint.${options.strategy}`) }}
-      </p>
-    </fieldset>
-
-    <fieldset v-if="workspace" class="search-sidebar__field">
-      <legend>{{ t("search.scope") }}</legend>
-      <label class="search-sidebar__option">
-        <input
-          type="radio"
-          name="search-scope"
-          :checked="!isContextScope"
-          @change="setScope('folder')"
-        />
-        <span>{{ t("search.scopeFolder") }}</span>
-      </label>
-      <label class="search-sidebar__option">
-        <input
-          type="radio"
-          name="search-scope"
-          value="context"
-          :checked="isContextScope"
-          :disabled="!hasCustomContext"
-          @change="setScope('context')"
-        />
-        <span>{{ activeContextLabel ?? t("search.scopeContext") }}</span>
-      </label>
-      <p v-if="!hasCustomContext" class="search-sidebar__hint">
-        {{ t("search.contextUnavailable") }}
       </p>
     </fieldset>
 

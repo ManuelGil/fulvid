@@ -76,8 +76,6 @@ export default {
     documentReferences: "Ver documentos cercanos",
   },
   actions: {
-    reveal: "Mostrar",
-    copy: "Copiar",
     open: "Abrir",
     openEllipsis: "Abrir...",
     close: "Cerrar",
@@ -200,6 +198,7 @@ export default {
     actions: "Acciones de la carpeta",
     recent: "Recientes",
     recentWorkspaces: "Carpetas recientes",
+    recentFolderActions: "Acciones de carpeta reciente",
     looking: "Buscando en la carpeta...",
     listing: "Cargando carpetas...",
     loadingDocuments: "Buscando documentos...",
@@ -304,7 +303,6 @@ export default {
     scope: "Ámbito",
     scopeLabel: "Ámbito · {scope}",
     scopeFolder: "Carpeta actual",
-    scopeContext: "Contexto actual",
     scopeStandalone: "Documentos abiertos",
     scopeAllDocuments: "Todos los documentos",
     filters: "Filtros",
@@ -378,10 +376,7 @@ export default {
     sidebarTitle: "Opciones de búsqueda",
     sidebarText: "Dónde buscar y cómo encontrar coincidencias.",
     sidebarScope: "Buscando en {name}",
-    sidebarContextScope: "Buscando en {name}",
     sidebarStandaloneScope: "Buscando en {count} documentos abiertos.",
-    contextUnavailable:
-      "Define una carpeta de contexto para buscar en una parte más pequeña de esta carpeta.",
     advanced: "Avanzado",
   },
   graph: {
@@ -789,9 +784,6 @@ export default {
     inbound: "{count} entrantes",
   },
   context: {
-    entireWorkspace: "Toda la carpeta",
-    setRoot: "Usar carpeta como contexto",
-    clearRoot: "Usar toda la carpeta como contexto",
     oneDocument: "1 documento",
     manyDocuments: "{count} documentos",
     incompleteOne: "{count} referencia incompleta aquí.",

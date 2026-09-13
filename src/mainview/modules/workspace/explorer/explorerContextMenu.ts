@@ -10,3 +10,15 @@ export const explorerPathActionLabelKeys = {
   reveal: "menu.revealInFolder",
   copy: "menu.copyPath",
 } as const;
+
+export type ExplorerContextActionId = "rename" | "reveal" | "copy" | "delete";
+
+/** File row: filesystem document operations only. */
+export function explorerFileContextActionIds(): readonly ExplorerContextActionId[] {
+  return ["rename", "reveal", "copy", "delete"];
+}
+
+/** Folder row: filesystem reveal and path copy only. */
+export function explorerFolderContextActionIds(): readonly ExplorerContextActionId[] {
+  return ["reveal", "copy"];
+}

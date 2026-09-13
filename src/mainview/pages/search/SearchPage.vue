@@ -9,16 +9,14 @@ import EmptyState from "../../shell/EmptyState.vue";
 import PageShell from "../../shell/PageShell.vue";
 import { pendingReveal } from "../../modules/editor/document/documentSession";
 import { closeRightSidebar, openRightSidebar } from "../../app/layoutStore";
-import { formatDocumentCount, pathRelativeToContext } from "../../modules/document/context/context";
+import { formatDocumentCount } from "../../modules/document/context/context";
 import {
-  contextNotes,
-  contextRoot,
   copyPath,
   copyWorkspacePath,
-  hasCustomContext,
   revealPath,
   revealWorkspaceInExplorer,
   workspace,
+  workspaceNotes,
 } from "../../app/workspaceState";
 import {
   openBuffers,
@@ -30,7 +28,6 @@ import { APP_ROUTE_NAMES } from "../../app/router";
 
 import { notifyFilesystemError } from "../../modules/workspace/filesystem/workspaceScanner";
 import { notesWithOpenBufferContent } from "../../modules/search/searchableNotes";
-import { isContextSearchScope } from "../../modules/search/searchScope";
 import {
   countActiveSearchFilters,
   parseSearchOptions,
@@ -71,16 +68,9 @@ const contextMenu = ref({ open: false, x: 0, y: 0, index: -1 });
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const searchOptions = computed(() => parseSearchOptions(route.query));
-const workspaceNotes = computed(() => workspace.value?.scannedNotes ?? []);
-const isContextScope = computed(() =>
-  isContextSearchScope(route.query.scope, hasCustomContext.value),
-);
-const searchScopeNotes = computed(() =>
-  isContextScope.value ? contextNotes.value : workspaceNotes.value,
-);
 const searchableNotes = computed(() =>
   filterNotesByFileType(
-    notesWithOpenBufferContent(searchScopeNotes.value, openBuffers.value, workspace.value?.path),
+    notesWithOpenBufferContent(workspaceNotes.value, openBuffers.value, workspace.value?.path),
     searchOptions.value.fileType,
   ),
 );
@@ -157,10 +147,7 @@ const resultGroups = computed(() => {
   return limitSearchGroups(grouped, MAX_RESULTS).map((group) => ({
     note: group.note,
     totalMatches: totals.get(group.note.path) ?? group.matches.length,
-    relativePath: pathRelativeToContext(
-      group.note.path,
-      isContextScope.value ? (contextRoot.value ?? "") : "",
-    ),
+    relativePath: group.note.path,
     rows: group.matches.map((match) => {
       const index = rowIndex;
       rowIndex += 1;
@@ -190,9 +177,6 @@ const activeFilters = computed(() => countActiveSearchFilters(searchOptions.valu
 const scopeLabel = computed(() => {
   if (!workspace.value) {
     return t("search.scopeStandalone");
-  }
-  if (isContextScope.value) {
-    return t("search.scopeContext");
   }
   return t("search.scopeFolder");
 });
