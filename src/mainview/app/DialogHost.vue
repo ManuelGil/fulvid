@@ -8,6 +8,7 @@ import {
   submitConfirm,
   submitFilename,
   submitQuickOpen,
+  submitText,
 } from "./dialogs";
 import { quickOpenCandidatesFromNotes } from "../modules/quickOpen/quickOpenCandidates";
 import { matchQuickOpenCandidates } from "../modules/quickOpen/quickOpenMatch";
@@ -63,7 +64,7 @@ watch(
 
     await nextTick();
 
-    if (dialog.kind === "filename") {
+    if (dialog.kind === "filename" || dialog.kind === "text") {
       filenameValue.value = dialog.value;
       const input = filenameInputRef.value;
       input?.focus({ preventScroll: true });
@@ -137,6 +138,10 @@ function onDialogKeydown(event: KeyboardEvent): void {
 }
 
 function onFilenameSubmit(): void {
+  if (activeDialog.value?.kind === "text") {
+    submitText(filenameValue.value);
+    return;
+  }
   submitFilename(filenameValue.value);
 }
 
@@ -226,7 +231,7 @@ function onBackdropPointerDown(event: PointerEvent): void {
       @keydown.stop="onDialogKeydown"
     >
       <form
-        v-if="activeDialog.kind === 'filename'"
+        v-if="activeDialog.kind === 'filename' || activeDialog.kind === 'text'"
         class="dialog"
         role="dialog"
         aria-modal="true"
@@ -244,8 +249,9 @@ function onBackdropPointerDown(event: PointerEvent): void {
             v-model="filenameValue"
             class="dialog__input"
             type="text"
-            spellcheck="false"
+            :spellcheck="activeDialog.kind === 'text'"
             autocomplete="off"
+            :maxlength="activeDialog.kind === 'text' ? activeDialog.maxLength : undefined"
           />
         </label>
         <div class="dialog__actions">

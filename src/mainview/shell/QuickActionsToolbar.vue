@@ -8,8 +8,14 @@ import { editorCommandState } from "../modules/editor/editorCommandState";
 import { activeBuffer } from "../modules/editor/document/documentBuffers";
 import { writingFocusActive } from "../modules/editor/writingFocus";
 import {
+  documentAnnotationQuickActionLabelKey,
+  documentAnnotationQuickActionMode,
+} from "../modules/editor/document/documentAnnotations";
+import {
+  orderQuickActionsInGroup,
   quickActionGroupOrder,
   quickActions,
+  selectQuickActionsForVisibleCount,
   toAriaKeyshortcuts,
   type CommandId,
   type QuickActionDefinition,
@@ -29,32 +35,15 @@ const overflowY = ref(0);
 const visibleCount = ref(quickActions.length);
 let resizeObserver: ResizeObserver | null = null;
 
-const QUICK_ACTION_TIER_RANK: Record<QuickActionDefinition["tier"], number> = {
-  core: 0,
-  secondary: 1,
-  overflow: 2,
-};
-
-function actionsForVisibleCount(count: number): QuickActionDefinition[] {
-  const visibleIds = new Set(
-    quickActions
-      .map((action, index) => ({ action, index }))
-      .sort(
-        (left, right) =>
-          QUICK_ACTION_TIER_RANK[left.action.tier] - QUICK_ACTION_TIER_RANK[right.action.tier] ||
-          left.index - right.index,
-      )
-      .slice(0, count)
-      .map(({ action }) => action.id),
-  );
-
-  return quickActions.filter((action) => visibleIds.has(action.id));
-}
-
-const visibleActions = computed(() => actionsForVisibleCount(visibleCount.value));
+const visibleActions = computed(() =>
+  selectQuickActionsForVisibleCount(quickActions, visibleCount.value),
+);
 const overflowActions = computed(() => {
   const visibleIds = new Set(visibleActions.value.map((action) => action.id));
-  return quickActions.filter((action) => !visibleIds.has(action.id));
+  const hidden = quickActions.filter((action) => !visibleIds.has(action.id));
+  return quickActionGroupOrder.flatMap((group) =>
+    orderQuickActionsInGroup(hidden.filter((action) => action.group === group)),
+  );
 });
 
 const visibleGroups = computed(() => {
@@ -63,7 +52,9 @@ const visibleGroups = computed(() => {
     .map((group) => ({
       id: group,
       label: t(`app.quickActionGroups.${group}`),
-      actions: quickActions.filter((action) => action.group === group && visibleIds.has(action.id)),
+      actions: orderQuickActionsInGroup(
+        quickActions.filter((action) => action.group === group && visibleIds.has(action.id)),
+      ),
     }))
     .filter((group) => group.actions.length > 0);
 });
@@ -71,7 +62,9 @@ const visibleGroups = computed(() => {
 const overflowMenuActions = computed((): ContextMenuAction[] => {
   const actions: ContextMenuAction[] = [];
   for (const group of quickActionGroupOrder) {
-    const groupActions = overflowActions.value.filter((action) => action.group === group);
+    const groupActions = orderQuickActionsInGroup(
+      overflowActions.value.filter((action) => action.group === group),
+    );
     if (groupActions.length === 0) {
       continue;
     }
@@ -84,6 +77,7 @@ const overflowMenuActions = computed((): ContextMenuAction[] => {
         label: localizedLabel(action),
         shortcut: action.shortcut,
         ariaShortcut: toAriaKeyshortcuts(action.shortcut),
+        disabled: isDisabled(action),
       })),
     );
   }
@@ -93,6 +87,13 @@ const overflowMenuActions = computed((): ContextMenuAction[] => {
 function localizedLabel(action: QuickActionDefinition): string {
   if (action.id === "togglePreview") {
     return t(settings.value.preview.enabled ? "actions.hidePreview" : "actions.preview");
+  }
+  if (action.id === "annotateDocument") {
+    return t(
+      documentAnnotationQuickActionLabelKey(
+        documentAnnotationQuickActionMode(editorCommandState.value.hasAnnotationAtCursor),
+      ),
+    );
   }
   if (action.id === "toggleWritingFocus") {
     return t(writingFocusActive.value ? "actions.exitFocusMode" : "actions.focusMode");
@@ -115,7 +116,8 @@ function isDisabled(action: QuickActionDefinition): boolean {
     action.id === "copy" ||
     action.id === "paste" ||
     action.id === "find" ||
-    action.id === "replace"
+    action.id === "replace" ||
+    action.id === "annotateDocument"
   ) {
     return !activeBuffer.value;
   }
@@ -179,7 +181,7 @@ function measureVisibleActions(): void {
 
   let nextCount = quickActions.length;
   for (let count = quickActions.length; count >= 1; count -= 1) {
-    const visibleActionsForCount = actionsForVisibleCount(count);
+    const visibleActionsForCount = selectQuickActionsForVisibleCount(quickActions, count);
     const groupActionCounts = quickActionGroupOrder.map(
       (group) => visibleActionsForCount.filter((action) => action.group === group).length,
     );
@@ -226,8 +228,12 @@ function closeOverflowMenu(): void {
 }
 
 function selectOverflowAction(id: string): void {
+  const action = quickActions.find((entry) => entry.id === id);
+  if (!action || isDisabled(action)) {
+    return;
+  }
   closeOverflowMenu();
-  void props.runCommand(id as CommandId);
+  void props.runCommand(action.id);
 }
 
 onMounted(() => {

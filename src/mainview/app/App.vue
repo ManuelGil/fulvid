@@ -92,6 +92,11 @@ import {
   writingFocusActive,
   writingFocusHidesEditorChrome,
 } from "../modules/editor/writingFocus";
+import {
+  documentAnnotationsVisible,
+  syncDocumentAnnotationsVisibleFromPreference,
+  toggleDocumentAnnotationsVisible,
+} from "../modules/editor/document/documentAnnotationVisibility";
 import { isUsableFocusTarget } from "./usableFocusTarget";
 import {
   renderDocumentTemplate,
@@ -167,8 +172,14 @@ function focusOrReturnToMain(element: HTMLElement | null): void {
     element.focus({ preventScroll: true });
     return;
   }
-  document.getElementById("main-content")?.focus({ preventScroll: true });
+  const main = document.getElementById("main-content");
+  if (isUsableFocusTarget(main)) {
+    main.focus({ preventScroll: true });
+  }
 }
+
+/** Skip sidebar open/close auto-focus when Strong Writing Focus collapses/restores the rail. */
+let suppressSidebarAutoFocus = false;
 
 watch(
   leftSidebarOpen,
@@ -184,6 +195,10 @@ watch(
         closeRightSidebar();
       }
       await nextTick();
+      if (suppressSidebarAutoFocus) {
+        suppressSidebarAutoFocus = false;
+        return;
+      }
       document
         .querySelector<HTMLElement>(
           ".app-sidebar:not(.app-sidebar--compact) .app-sidebar__collapse",
@@ -194,10 +209,16 @@ watch(
 
     if (!open && wasOpen) {
       if (narrowViewport.value && activeRightPanel.value) {
+        suppressSidebarAutoFocus = false;
         leftSidebarReturnFocus = null;
         return;
       }
       await nextTick();
+      if (suppressSidebarAutoFocus) {
+        suppressSidebarAutoFocus = false;
+        leftSidebarReturnFocus = null;
+        return;
+      }
       const compactButton = document.querySelector<HTMLElement>(
         ".app-sidebar--compact .app-sidebar__compact-header .app-sidebar__compact-button",
       );
@@ -606,6 +627,7 @@ const unregisterNativeMenu = onApplicationMenuClicked((action) => {
 });
 
 onMounted(() => {
+  syncDocumentAnnotationsVisibleFromPreference(settings.value.editor.showDocumentAnnotations);
   void resolveApplicationMenuSupport().then(() => {
     void syncNativeApplicationMenu(presentedApplicationMenus.value);
   });
@@ -664,11 +686,16 @@ watch(editorFocusChrome, (hiding) => {
       leftSidebarBeforeWritingFocus.value = leftSidebarOpen.value;
     }
     // Collapse to the existing compact rail; do not hide/inert the rail.
-    closeLeftSidebar();
+    // Do not auto-focus the rail — leave keyboard focus on Monaco / Quick Actions.
+    if (leftSidebarOpen.value) {
+      suppressSidebarAutoFocus = true;
+      closeLeftSidebar();
+    }
     return;
   }
   if (leftSidebarBeforeWritingFocus.value !== null) {
     if (leftSidebarBeforeWritingFocus.value) {
+      suppressSidebarAutoFocus = true;
       openLeftSidebar();
     }
     leftSidebarBeforeWritingFocus.value = null;
@@ -905,6 +932,7 @@ const applicationMenuState = computed<ApplicationMenuState>(() => {
     rightSidebarOpen: Boolean(activeRightPanel.value),
     statusbarEnabled: settings.value.appearance.statusbar.enabled,
     writingFocus: writingFocusActive.value,
+    documentAnnotationsVisible: documentAnnotationsVisible.value,
     canUndo: editorCommandState.value.canUndo,
     canRedo: editorCommandState.value.canRedo,
   };
@@ -944,6 +972,10 @@ const unregisterCommands = [
   registerCommandHandler("newDocumentDaily", () => createNewDocumentFromTemplate("daily")),
   registerCommandHandler("newDocumentProject", () => createNewDocumentFromTemplate("project")),
   registerCommandHandler("toggleWritingFocus", toggleWritingFocus),
+  registerCommandHandler("toggleDocumentAnnotations", () => {
+    const visible = toggleDocumentAnnotationsVisible();
+    notify(t(visible ? "documentAnnotations.shown" : "documentAnnotations.hidden"));
+  }),
   registerCommandHandler("openFile", openFileDocument),
   registerCommandHandler("openWorkspace", openWorkspace),
   registerCommandHandler("closeWorkspace", closeWorkspace),
@@ -1021,6 +1053,11 @@ const editorCommandIds = new Set<CommandId>([
   "renameHeading",
   "togglePreview",
   "deleteSelection",
+  "annotateDocument",
+  "removeAnnotation",
+  "nextAnnotation",
+  "previousAnnotation",
+  "clearAnnotations",
   ...MARKDOWN_COMMANDS.map((command) => command.id),
 ]);
 

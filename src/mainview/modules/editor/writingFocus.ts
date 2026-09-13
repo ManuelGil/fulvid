@@ -14,7 +14,7 @@ export function writingFocusHidesEditorChrome(routeName: unknown): boolean {
 
 /**
  * Where to send keyboard focus when leaving Monaco or restoring editor chrome.
- * Focus mode must not target hidden tabs.
+ * Writing Focus must not target hidden tabs.
  */
 export function writingFocusLeaveEditorTarget(
   hasOpenDocument: boolean,

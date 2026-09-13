@@ -12,6 +12,7 @@ import {
   settings,
 } from "../../modules/settings/settingsStore";
 import type { FulvidSettings, StatusbarIndicator } from "../../modules/settings/settingsStore";
+import { syncDocumentAnnotationsVisibleFromPreference } from "../../modules/editor/document/documentAnnotationVisibility";
 import {
   THEME_FAMILIES,
   themeOptionsForFamily,
@@ -218,6 +219,9 @@ function setEditor<K extends keyof FulvidSettings["editor"]>(
   value: FulvidSettings["editor"][K],
 ): void {
   patchSettings({ editor: { ...settings.value.editor, [key]: value } });
+  if (key === "showDocumentAnnotations" && typeof value === "boolean") {
+    syncDocumentAnnotationsVisibleFromPreference(value);
+  }
 }
 
 function setStatusbarEnabled(enabled: boolean): void {
@@ -283,6 +287,7 @@ async function onResetSettings(): Promise<void> {
     return;
   }
   resetSettingsToDefaults();
+  syncDocumentAnnotationsVisibleFromPreference(settings.value.editor.showDocumentAnnotations);
   notify(t("settings.resetToDefaultsDone"));
 }
 </script>
@@ -724,6 +729,25 @@ async function onResetSettings(): Promise<void> {
                 <span class="settings-option__name">{{ t("settings.markdownFormatBar") }}</span>
                 <span class="settings-option__hint">
                   {{ t("settings.markdownFormatBarHint") }}
+                </span>
+              </span>
+            </label>
+
+            <label class="settings-option">
+              <input
+                class="settings-option__control"
+                type="checkbox"
+                :checked="settings.editor.showDocumentAnnotations"
+                @change="
+                  setEditor('showDocumentAnnotations', ($event.target as HTMLInputElement).checked)
+                "
+              />
+              <span class="settings-option__copy">
+                <span class="settings-option__name">{{
+                  t("settings.showDocumentAnnotations")
+                }}</span>
+                <span class="settings-option__hint">
+                  {{ t("settings.showDocumentAnnotationsHint") }}
                 </span>
               </span>
             </label>
@@ -1345,6 +1369,10 @@ async function onResetSettings(): Promise<void> {
                   ><kbd>Shift</kbd><kbd>O</kbd>
                 </dt>
                 <dd>{{ t("settings.shortcutOutline") }}</dd>
+              </div>
+              <div class="settings-shortcuts__row">
+                <dt>{{ t("menu.navigate") }}</dt>
+                <dd>{{ t("settings.shortcutDocumentAnnotations") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
                 <dt>

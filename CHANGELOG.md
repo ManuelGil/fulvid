@@ -9,7 +9,18 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-12
+
 ### Added
+
+- Session-local document annotations: short plain-text notes on tracked positions in the open document. Primary entry: Quick Actions **Add annotation** / **Edit annotation** (same `annotateDocument` command as Navigate → Annotate and the glyph margin). Not persistent; not part of the Markdown/MDX file.
+- Show/Hide document annotations presentation (View menu), with Settings → Editor preferred default. Hiding does not delete annotations.
+
+### Changed
+
+- Document annotations discoverability: Quick Actions primary action is contextual Add/Edit annotation in the Edit group; Show/Hide stays on View. Preview / Annotation / Writing Focus stay ahead of clipboard when the toolbar is narrow; Highlighter icon; guide in [docs/ANNOTATIONS.md](docs/ANNOTATIONS.md).
+- Quick Actions use explicit `subgroup`, `order`, and `overflowOrder` so toolbar and More-menu order are not tied to array position. Groups follow the user interaction model (not feature ownership). Global Search uses a distinct `file-search` icon from local Find.
+- More menu mirrors disabled Quick Actions. Writing Focus no longer steals keyboard focus to the sidebar rail when collapsing or restoring it.
 
 ## [0.5.0] - 2026-09-12
 
@@ -73,7 +84,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.6.0
 [0.5.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.5.0
 [0.4.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.3.0

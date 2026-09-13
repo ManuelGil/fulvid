@@ -21,7 +21,7 @@ Keep pull requests focused.
 - Folder I/O uses `assertWithinWorkspace`. Standalone Open and Save As use host dialogs and grants. No generic absolute-path read/write RPC.
 - Preview and Export HTML share `renderMarkdownPreview`. Do not add a second Markdown renderer.
 - Dispose canvas, workers, and observers with their owner ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#resources)).
-- Presentation tokens: [`src/mainview/styles/`](src/mainview/styles/). Chrome icons: [`AppIcon.vue`](src/mainview/shell/AppIcon.vue). Do not fork Monaco or edit `node_modules` for icons; widget Codicons are remapped in `monacoLucideIcons.ts`. Launcher icon: [`assets/README.md`](assets/README.md).
+- Presentation tokens: [`src/mainview/styles/`](src/mainview/styles/). Chrome icons: [`AppIcon.vue`](src/mainview/shell/AppIcon.vue). Quick Actions rules (groups, overflow tiers, a11y): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#quick-actions-toolbar). Do not fork Monaco or edit `node_modules` for icons; widget Codicons are remapped in `monacoLucideIcons.ts`. Launcher icon: [`assets/README.md`](assets/README.md).
 - UI wording: [docs/I18N.md](docs/I18N.md). Settings hints should say what changes, when it applies, and give a concrete example.
 - Releases: [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). Actions is the main path. The Linux Makefile is a local helper.
 - User-facing changes: add an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) in the same change. When a version is released, move those entries under that version and open a new `Unreleased` section. Do not reconstruct a version from git history at the last minute, log every commit, or rewrite a published version except to fix a factual error.
@@ -36,6 +36,34 @@ TypeScript 6 is deliberate: TypeScript 7 has no programmatic API yet, and `vue-t
 Builds use the system webview (`bundleCEF: false`): WKWebView, WebView2, or WebKitGTK.
 
 During `bun run dev`, Vite prebundles Vue and selected Monaco entrypoints (`optimizeDeps.include`) and sets `optimizeDeps.noDiscovery`. The Monaco worker stays outside `optimizeDeps`; optimizing that entry breaks the worker on WebKitGTK. Production uses a separate Rolldown group for Monaco.
+
+### Linux Wayland + `dev:hmr` console noise
+
+Electrobun 2.0.1's Linux native wrapper forces `GDK_BACKEND=x11`, so a Wayland session runs the GTK/WebKitGTK window through XWayland. On that path you may see:
+
+```text
+X11 Error: GLXBadWindow (code 168)
+ERROR: WebKit encountered an internal error. This is a WebKit bug.
+... WebLoaderStrategy.cpp ... internallyFailedLoadTimerFired()
+```
+
+Classification (reproduced on Ubuntu 24.04 / Wayland / AMD Mesa / WebKitGTK 2.52.x / Electrobun 2.0.1):
+
+| Message | When | Meaning |
+| --- | --- | --- |
+| `GLXBadWindow` | HMR and `views://` (no Vite) | XWayland/GLX + WebKit accelerated compositing under Electrobun's forced X11 backend. Not Fulvid application logic. |
+| `internallyFailedLoadTimerFired` | Mainly while loading from Vite HMR (`http://127.0.0.1:5173`) | WebKitGTK NetworkProcess internal failures during concurrent Vite module loads. Does **not** appear on the packaged `views://` path in the same session. |
+
+Impact: the window still starts (`Fulvid started`); Fulvid remains interactive in normal use. These lines are runtime diagnostics, not a Fulvid Annotations/filesystem/security failure.
+
+What Fulvid does:
+
+- `scripts/devHmr.ts` defaults `WEBKIT_DISABLE_COMPOSITING_MODE=1` on Linux when unset (same profile as Linux compatibility CI), which removes `GLXBadWindow` during HMR without swallowing stderr.
+- Does **not** filter or hide WebKit/GLX messages.
+- Does **not** switch to CEF, add a WebView watchdog, or auto-restart the renderer.
+- Does **not** set compositing env in packaged production code; override locally if needed: `WEBKIT_DISABLE_COMPOSITING_MODE=1`.
+
+Upstream direction: Electrobun native Wayland support (remove forced `GDK_BACKEND=x11`) is the real fix when a Fulvid-compatible Electrobun release ships it. Re-test HMR after any Electrobun upgrade.
 
 When upgrading the desktop stack, re-check:
 

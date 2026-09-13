@@ -20,12 +20,14 @@ import {
   Eye,
   FileCode,
   FilePlus,
+  FileSearch,
   FileText,
   Folder,
   FolderOpen,
   Focus,
   FoldVertical,
   Heading,
+  Highlighter,
   House,
   Image,
   Italic,
@@ -80,6 +82,8 @@ export type IconName =
   | "close-all"
   | "preview"
   | "focus"
+  | "annotations"
+  | "file-search"
   | "dirty"
   | "chevron-down"
   | "chevron-right"
@@ -128,6 +132,10 @@ const icons: Record<IconName, FunctionalComponent> = {
   "close-all": CopyX,
   preview: Eye,
   focus: Focus,
+  // Margin markers on a line — not sticky-notes, comments, or bookmarks.
+  annotations: Highlighter,
+  // Folder-wide content search — distinct from local Monaco find (`search`).
+  "file-search": FileSearch,
   dirty: Circle,
   "chevron-down": ChevronDown,
   "chevron-right": ChevronRight,

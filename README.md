@@ -49,6 +49,10 @@ Search in two places. Local find is the editor's own find (`Ctrl/Cmd+F`). Global
 
 Preview the active buffer as inert HTML. Export HTML uses that same renderer and writes a `.html` file. Export cannot overwrite a Markdown or MDX note.
 
+Pin a short temporary note on a line with **document annotations**. Use Quick Actions **Add annotation** / **Edit annotation** (or the glyph margin / Navigate menu). Show/Hide in View is presentation only. Notes are session-local: they never write to the file and they disappear when the tab closes or Fulvid quits. Details: [docs/ANNOTATIONS.md](docs/ANNOTATIONS.md).
+
+![Add annotation from Quick Actions](assets/screenshots/annotations-add.png)
+
 Look at an Outline of headings, or at Document Context for references and facts taken from the focused folder document. Graph shows that document among the documents it actually links to. It is a map of resolved links, not a knowledge base and not a score of how "good" a note is.
 
 The chrome is English or Spanish. Document text, filenames, and link targets are never translated.
@@ -116,7 +120,7 @@ You can keep using git, another editor, or a static generator on the same tree. 
 
 The editor is the center of the window. Explorer, Search, Graph, and Settings are there when you need them. They do not replace the writing surface.
 
-Keyboard shortcuts cover the usual desktop habits: new file, save, find, follow a link, rename a heading (`F2`), find heading references (`Shift+F12`), Quick Open (`Ctrl/Cmd+P`) to jump to a document by name in the open folder, Global Search (`Ctrl/Cmd+Shift+F`), Focus mode (`Ctrl/Cmd+Shift+Enter`) that quiets editor chrome while you type, and native Full Screen (`F11`, or `Ctrl+Cmd+F` on macOS). There is no Command Palette. Monaco is the only editor.
+Keyboard shortcuts cover the usual desktop habits: new file, save, find, follow a link, rename a heading (`F2`), find heading references (`Shift+F12`), Quick Open (`Ctrl/Cmd+P`) to jump to a document by name in the open folder, Global Search (`Ctrl/Cmd+Shift+F`), Writing Focus (`Ctrl/Cmd+Shift+Enter`) that quiets editor chrome while you type, and native Full Screen (`F11`, or `Ctrl+Cmd+F` on macOS). There is no Command Palette. Monaco is the only editor.
 
 File dialogs are native. The app uses the system webview (WebKitGTK on Linux, WebView2 on Windows, WKWebView on macOS). On Linux the application menu is an HTML bar; Electrobun's native menu exists on macOS and Windows.
 
@@ -130,8 +134,9 @@ The files remain portable. Take the folder to another machine, or open it in som
 2. Open a `.md` or `.mdx` file from Explorer, a tab, or a resolved link.
 3. Edit the source.
 4. Turn on Preview when you want to read the page shape. Turn it off when you want the text back.
-5. Save. The file on disk is what you just wrote.
-6. Keep using the same files in git or another tool. Fulvid does not need to stay running for the files to remain valid.
+5. Optionally use Quick Actions **Add annotation** (or the glyph margin / Navigate → Annotate) for a temporary line note while you rewrite. Hide glyphs from View when you want a quieter margin.
+6. Save. The file on disk is what you just wrote.
+7. Keep using the same files in git or another tool. Fulvid does not need to stay running for the files to remain valid.
 
 A small public folder for trying this locally lives in [`examples/demo-workspace/`](examples/demo-workspace/).
 
@@ -219,6 +224,7 @@ If you want to help, start with the README you are reading, then [CONTRIBUTING.m
 The README is the public introduction. These documents go deeper when you need them:
 
 - [Concepts](docs/CONCEPTS.md) - product vocabulary
+- [Document annotations](docs/ANNOTATIONS.md) - session-local line notes in the editor
 - [Architecture](docs/ARCHITECTURE.md) - who owns which behavior
 - [Contributing](CONTRIBUTING.md) - how to work in the repo
 - [Distribution](docs/DISTRIBUTION.md) - packaging and GitHub Releases

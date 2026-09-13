@@ -12,7 +12,7 @@ Every user-visible behavior has **one owner**. Pages and the shell choose what i
 | --- | --- |
 | Document Session | Open documents and `activeId` |
 | Document buffers | Monaco models, dirty/`savedVersionId`, virtual vs persisted identity, grants, `selectDocument`, `openOrActivate` |
-| Editor | Commands, Preview split, Outline, Monaco host, Writing Focus chrome overlay |
+| Editor | Commands, Preview split, Outline, Monaco host, Writing Focus chrome overlay, session document annotations |
 | Explorer | Folder file tree in the right sidebar |
 | Search | `/search` and Search sidebar options (content strategies) |
 | Quick Open | Keyboard document picker by identity in the open Folder (`Ctrl/Cmd+P`); not content search; not a Command Palette |
@@ -54,6 +54,34 @@ HTML Export is a separate dialog that writes `.html` only, using the Preview ren
 ## Shell
 
 `/editor` fills the main slot. The shell owns the application menu, Quick Actions, left sidebar (navigation and Folder lifecycle), right sidebar, and optional Statusbar. Those regions are siblings. On the editor route, Writing Focus collapses the left sidebar to the compact rail (restored on exit), hides shell chrome without mutating settings persistence, expands the editor surface, and may keep a quiet document-location line when Settings -> Document location is Main panel (`documentLocation` projection). PageShell owns Writing Focus padding/gap so rhythm styles cannot reintroduce vertical space above Monaco. Native Full Screen is owned by the Bun host `BrowserWindow`, not by the shell. Window title updates use one host capability (`setWindowTitle`) when that destination is selected.
+
+### Quick Actions toolbar
+
+Owner: shell (`QuickActionsToolbar.vue` + `commands.ts`). Not the Markdown format bar (`EditorToolbar.vue`), which is editor-page chrome.
+
+`quickActions` is **shell command metadata** for this toolbar. It is not a generic command/action registry.
+
+**Groups describe the user's interaction model, not feature ownership.** Command handlers and module ownership stay where they already are; toolbar `group` / `subgroup` only answer what kind of interaction the button represents.
+
+| Concern | Rule |
+| --- | --- |
+| Declaration | Every Quick Action sets `group`, `subgroup`, `tier`, `order`, `overflowOrder`, Lucide alias via `AppIcon`, and label key |
+| Groups | `file` → `edit` → `search` → `fulvid` (separators only: File \| Edit \| Search \| Fulvid \| More) |
+| Subgroups | Exact taxonomy: file `document`/`workspace`; edit `document`/`history`/`clipboard`; search `document`/`workspace`; fulvid `view`/`mode`/`panels`. Metadata only — no subgroup separators |
+| Priority (`tier`) | `core` > `secondary` > `overflow` |
+| `order` | Presentation only: within a group, `subgroup` then `order` (toolbar and More). Independent of `overflowOrder` |
+| `overflowOrder` | Leave order only: within a tier, lower leaves first. Independent of `order`. Prefer unique values per tier; equal values fall back to command `id` |
+| Selection | `selectQuickActionsForVisibleCount` owns visibility via `tier` → `overflowOrder` (not array index) |
+| Annotation | Edit / `document` — contextual Add/Edit on the open document (`annotateDocument`). Not a Fulvid chrome action; Show/Hide stays View + Settings |
+| Fulvid surfaces | `view` (Preview), `mode` (Writing Focus), `panels` (Explorer). One visual Fulvid group; no subgroup separators |
+| Overflow stickiness | Preview > Annotation > Writing Focus > Explorer (remain visible longer). Preview / Annotation / Focus stay ahead of clipboard. Explorer is overflow-tolerant (Folder / left nav remain). Focus may enter More earlier (`Ctrl/Cmd+Shift+Enter`; Focus keeps `.quick-actions`) |
+| Icons | Toolbar → `AppIcon` → Lucide only. Semantic aliases (`annotations` → Highlighter) |
+| Geometry | Icon ~15px; hit target `--hit-min` (36px); group gap 1px; toolbar gap `$space-compact`; divider `$space-tight` |
+| Labels | `aria-label` is the localized action string (contextual for Preview, annotation Add/Edit, Focus). `title` may append `(shortcut)` when a shortcut exists |
+| Toggles | `aria-pressed` only for Preview, Writing Focus, and Explorer — never for Add/Edit annotation |
+| More menu | Same metadata and `group → subgroup → order`. Disabled toolbar actions stay disabled in More |
+
+Do not add a ToolbarManager, action plugin registry, or parallel Focus/Full Screen toolbar. Writing Focus keeps `.quick-actions` usable; Full Screen does not change Quick Action ownership.
 
 The right sidebar shows one panel: Explorer, Search options (on `/search`), Document Context, or Outline. Search, Graph, and Settings are pages. Sidebars do not own `activeId`.
 
