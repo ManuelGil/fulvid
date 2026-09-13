@@ -443,6 +443,11 @@ export default {
   settings: {
     title: "Ajustes",
     question: "Apariencia, editor y carpeta",
+    searchLabel: "Buscar un ajuste",
+    searchPlaceholder: "Buscar ajustes",
+    searchClear: "Limpiar",
+    searchResults: "Resultados de búsqueda de ajustes",
+    searchNoResults: 'Ningún ajuste coincide con "{query}".',
     general: "General",
     editor: "Editor",
     editorTypography: "Tipografía",

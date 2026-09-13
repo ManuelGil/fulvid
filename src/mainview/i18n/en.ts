@@ -437,6 +437,11 @@ export default {
   settings: {
     title: "Settings",
     question: "Appearance, editor, and folder",
+    searchLabel: "Find a setting",
+    searchPlaceholder: "Search settings",
+    searchClear: "Clear",
+    searchResults: "Settings search results",
+    searchNoResults: 'No settings match "{query}".',
     general: "General",
     editor: "Editor",
     editorTypography: "Typography",

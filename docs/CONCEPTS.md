@@ -59,7 +59,7 @@ Title, aliases, tags, and links come from the document body and optional frontma
 
 ## Settings
 
-Groups: General, Editor, Appearance, Markdown, Preview, Folder, Accessibility, Keyboard. Interface scale never changes Monaco document typography. General includes Reset settings, which restores persisted preferences to built-in defaults without changing documents, tabs, Folder, or files. Layout widths stay in layout state, not settings.
+Groups: General, Editor, Appearance, Markdown, Preview, Folder, Accessibility, Keyboard. Interface scale never changes Monaco document typography. General includes Reset settings, which restores persisted preferences to built-in defaults without changing documents, tabs, Folder, or files. Layout widths stay in layout state, not settings. Settings Search finds preferences on this page by label, description, and category in the current language; it does not search documents or the folder.
 
 The initial appearance of Fulvid follows the operating system preference (`system`). Choosing Light or Dark in Settings forces that skin; an explicit persisted choice takes priority over the default.
 
