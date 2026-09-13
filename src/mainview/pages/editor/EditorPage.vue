@@ -731,6 +731,9 @@ async function closeOtherDocuments(targetId?: string): Promise<void> {
     return;
   }
   const others = openBuffers.value.filter((buffer) => buffer.id !== target.id);
+  if (others.length === 0) {
+    return;
+  }
   if (
     others.some(isDocumentDirty) &&
     settings.value.workspace.confirmClose &&
@@ -848,12 +851,12 @@ function onRecentContextMenu(event: MouseEvent, path: string): void {
     },
     {
       id: "reveal",
-      label: t("actions.reveal"),
+      label: t("menu.revealInFolder"),
       run: () => revealPath(path),
     },
     {
       id: "copy",
-      label: t("actions.copy"),
+      label: t("menu.copyPath"),
       run: () => copyPath(path),
     },
   ]);
@@ -873,12 +876,12 @@ function onRecentContextKeydown(event: KeyboardEvent, path: string): void {
     },
     {
       id: "reveal",
-      label: t("actions.reveal"),
+      label: t("menu.revealInFolder"),
       run: () => revealPath(path),
     },
     {
       id: "copy",
-      label: t("actions.copy"),
+      label: t("menu.copyPath"),
       run: () => copyPath(path),
     },
   ]);

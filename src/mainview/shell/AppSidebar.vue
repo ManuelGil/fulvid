@@ -37,8 +37,8 @@ const props = withDefaults(defineProps<{ compact?: boolean; overlay?: boolean }>
 const currentName = computed(() => (workspace.value ? workspaceName(workspace.value.path) : null));
 
 const workspaceMenuActions = computed<readonly ContextMenuAction[]>(() => [
-  { id: "reveal", label: t("actions.reveal") },
-  { id: "copy", label: t("actions.copy") },
+  { id: "reveal", label: t("menu.revealInFolder") },
+  { id: "copy", label: t("menu.copyPath") },
   { id: "open", label: t("actions.openEllipsis") },
   { id: "close", label: t("actions.close"), danger: true },
 ]);

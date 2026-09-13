@@ -196,7 +196,7 @@ export default {
     continueWith: "Continuar con {name}",
     noWorkspaceText: "Para el Explorador, Buscar y el Grafo hace falta una carpeta.",
     chooseDocument: "Crea o abre un documento para empezar a escribir.",
-    rightClickActions: "Clic derecho para Mostrar, Copiar, Abrir... o Cerrar",
+    rightClickActions: "Clic derecho para Mostrar en la carpeta, Copiar ruta, Abrir... o Cerrar",
     actions: "Acciones de la carpeta",
     recent: "Recientes",
     recentWorkspaces: "Carpetas recientes",
@@ -253,6 +253,7 @@ export default {
     title: "Explorador",
     openFirst: "Abre una carpeta para explorar archivos",
     documentActions: "Acciones del documento",
+    folderActions: "Acciones de la carpeta",
     newDocument: "Nuevo archivo",
     newDocumentName: "Nombre del archivo",
     rename: "Renombrar",
@@ -268,6 +269,7 @@ export default {
   },
   search: {
     question: "Busca en tus documentos",
+    resultActions: "Acciones del resultado",
     inputLabel: "Buscar",
     placeholder: {
       literal: "Buscar...",
@@ -424,7 +426,7 @@ export default {
     beside: "Junto a {name}",
     width: "Ancho del contexto del documento",
     pathActions: "Acciones de ruta",
-    rightClickPath: "Clic derecho para Copiar o Mostrar",
+    rightClickPath: "Clic derecho para Copiar ruta o Mostrar en la carpeta",
     continueExploring: "Usar este como documento activo.",
     whereIsDocument: "¿Dónde está este documento?",
     close: "Cerrar contexto del documento",

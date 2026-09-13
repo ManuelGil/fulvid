@@ -194,7 +194,7 @@ export default {
     continueWith: "Continue with {name}",
     noWorkspaceText: "You'll need a folder for Explorer, Search, and Graph.",
     chooseDocument: "Create or open a document to start writing.",
-    rightClickActions: "Right-click for Reveal, Copy, Open..., Close",
+    rightClickActions: "Right-click for Reveal in Folder, Copy Path, Open..., Close",
     actions: "Folder actions",
     recent: "Recent",
     recentWorkspaces: "Recent folders",
@@ -251,6 +251,7 @@ export default {
     title: "Explorer",
     openFirst: "Open a folder to browse files",
     documentActions: "Document actions",
+    folderActions: "Folder actions",
     newDocument: "New file",
     newDocumentName: "File name",
     rename: "Rename",
@@ -266,6 +267,7 @@ export default {
   },
   search: {
     question: "Search your documents",
+    resultActions: "Search result actions",
     inputLabel: "Search for",
     placeholder: {
       literal: "Search for...",
@@ -417,7 +419,7 @@ export default {
     beside: "Beside {name}",
     width: "Document context width",
     pathActions: "Path actions",
-    rightClickPath: "Right-click for Copy or Reveal",
+    rightClickPath: "Right-click for Copy Path or Reveal in Folder",
     continueExploring: "Use this as the active document.",
     whereIsDocument: "Where is this document?",
     close: "Close document context",

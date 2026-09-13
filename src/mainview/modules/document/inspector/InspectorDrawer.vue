@@ -191,8 +191,8 @@ let inspectorResizeCleanup: (() => void) | null = null;
 let previousFocus: HTMLElement | null = null;
 
 const pathMenuActions = computed<readonly ContextMenuAction[]>(() => [
-  { id: "copy", label: t("actions.copy") },
-  { id: "reveal", label: t("actions.reveal") },
+  { id: "copy", label: t("menu.copyPath") },
+  { id: "reveal", label: t("menu.revealInFolder") },
   ...(!onGraph.value ? [{ id: "graph", label: t("actions.seeWhere") }] : []),
 ]);
 

@@ -242,7 +242,7 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
   if (workspace.value || row.note.path.includes("/") || row.note.path.includes("\\")) {
     return [
       { id: "open", label: t("actions.open") },
-      { id: "reveal", label: t("actions.reveal") },
+      { id: "reveal", label: t("menu.revealInFolder") },
       { id: "copy", label: t("menu.copyPath") },
     ];
   }
@@ -729,7 +729,7 @@ onBeforeUnmount(() => {
       :x="contextMenu.x"
       :y="contextMenu.y"
       :actions="contextActions"
-      :label="t('actions.noActions')"
+      :label="t('search.resultActions')"
       @select="void runResultAction($event)"
       @close="contextMenu = { ...contextMenu, open: false }"
     />

@@ -37,6 +37,7 @@ import {
   notifyFilesystemError,
   renameDocument,
 } from "../filesystem/workspaceScanner";
+import { explorerContextMenuLabelKey, explorerPathActionLabelKeys } from "./explorerContextMenu";
 import { settings } from "../../settings/settingsStore";
 
 type VisibleRow = {
@@ -103,8 +104,8 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
   if (entry.kind === "file") {
     return [
       { id: "rename", label: t("files.rename") },
-      { id: "reveal", label: t("actions.reveal") },
-      { id: "copy", label: t("actions.copy") },
+      { id: "reveal", label: t(explorerPathActionLabelKeys.reveal) },
+      { id: "copy", label: t(explorerPathActionLabelKeys.copy) },
       { id: "delete", label: t("files.delete"), danger: true },
     ];
   }
@@ -115,9 +116,17 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
       id: contextIsAlreadySet ? "clear-context" : "set-context",
       label: contextIsAlreadySet ? t("context.clearRoot") : t("context.setRoot"),
     },
-    { id: "reveal", label: t("actions.reveal") },
-    { id: "copy", label: t("actions.copy") },
+    { id: "reveal", label: t(explorerPathActionLabelKeys.reveal) },
+    { id: "copy", label: t(explorerPathActionLabelKeys.copy) },
   ];
+});
+
+const contextMenuLabel = computed(() => {
+  const entry = selectedEntry.value;
+  if (!entry) {
+    return t("files.documentActions");
+  }
+  return t(explorerContextMenuLabelKey(entry.kind));
 });
 
 const contextMenu = ref({
@@ -537,7 +546,7 @@ onBeforeUnmount(() => {
       :x="contextMenu.x"
       :y="contextMenu.y"
       :actions="contextActions"
-      :label="t('files.documentActions')"
+      :label="contextMenuLabel"
       @select="runContextAction"
       @close="contextMenu.open = false"
     />

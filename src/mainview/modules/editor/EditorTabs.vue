@@ -5,8 +5,9 @@ import { useI18n } from "vue-i18n";
 import type { DocumentBuffer } from "./document/documentBuffers";
 import { isDocumentDirty } from "./document/documentBuffers";
 import { documentLocationFromBuffer, tabLabelsForBuffers } from "./document/documentLocation";
-import ContextMenu, { type ContextMenuAction } from "../../shell/ContextMenu.vue";
+import ContextMenu from "../../shell/ContextMenu.vue";
 import AppIcon from "../../shell/AppIcon.vue";
+import { canCloseOtherEditorTabs, editorTabContextActions } from "./editorTabContextMenu";
 
 const { t } = useI18n();
 const tabIdPrefix = useId();
@@ -39,10 +40,12 @@ function tabTooltip(buffer: DocumentBuffer): string {
   return documentLocationFromBuffer(buffer)?.full ?? buffer.title;
 }
 
-const menuActions = computed<readonly ContextMenuAction[]>(() => [
-  { id: "close", label: t("actions.close") },
-  { id: "close-others", label: t("tabs.closeOthers") },
-]);
+const menuActions = computed(() =>
+  editorTabContextActions(props.buffers.length, {
+    close: t("actions.close"),
+    closeOthers: t("tabs.closeOthers"),
+  }),
+);
 
 function tabId(index: number): string {
   return `${tabIdPrefix}-tab-${index}`;
@@ -120,6 +123,9 @@ function onMenuSelect(id: string): void {
   if (id === "close") {
     emit("close", target);
   } else if (id === "close-others") {
+    if (!canCloseOtherEditorTabs(props.buffers.length)) {
+      return;
+    }
     emit("closeOthers", target);
   }
   focusActiveTab();
