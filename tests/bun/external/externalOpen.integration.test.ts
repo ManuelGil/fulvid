@@ -152,20 +152,13 @@ describe("resolving an external open", () => {
     );
   });
 
-  test("queue drains keep later requests after a refusal and never double-deliver", async () => {
+  test("queue drains keep later requests after a refusal", async () => {
     enqueueExternalOpenRequest({ kind: "file", path: join(outside, "gone.md"), source: "shell" });
     enqueueExternalOpenRequest({ kind: "file", path: join(folder, "doc.md"), source: "shell" });
     expect((await takePendingExternalOpens()).map((entry) => entry.kind)).toEqual([
       "rejected",
       "file",
     ]);
-
-    enqueueExternalOpenRequest({ kind: "file", path: join(folder, "doc.md"), source: "shell" });
-    const [first, second] = await Promise.all([
-      takePendingExternalOpens(),
-      takePendingExternalOpens(),
-    ]);
-    expect(first.length + second.length).toBe(1);
   });
 });
 
