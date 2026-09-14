@@ -71,6 +71,22 @@ describe("markdown preview", () => {
     expect(images.html).not.toContain("evil.example");
   });
 
+  // Security Harness: import / brace expressions must stay text (never evaluate).
+  // Restored after develop consolidation dropped this case while preview.ts was unchanged.
+  test("MDX import and brace expressions never evaluate", () => {
+    const result = renderMarkdownPreview(
+      "import X from 'evil'\n\nexport const y = 1\n\n{1 + 1}\n\n{(() => 99)()}\n",
+      [],
+      "markdown",
+    );
+
+    expect(result.html).not.toMatch(/>\s*2\s*</);
+    expect(result.html).not.toMatch(/>\s*99\s*</);
+    expect(result.html).not.toContain("<script");
+    expect(result.html).toContain("{1 + 1}");
+    expect(result.html).toContain("import X from");
+  });
+
   test("document links resolve inside the folder and cannot escape it", () => {
     const markdown = renderMarkdownPreview(
       "[Guide](docs/guide.mdx#start) [Missing](missing.md)",
