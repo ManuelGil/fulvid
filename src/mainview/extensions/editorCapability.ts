@@ -1,14 +1,18 @@
 /**
- * Phase 3 editor capability contract (selection transform only).
+ * Phase 3 editor capability contract (experimental, selection transform only).
  *
- * Snapshot/apply protocol — not live Monaco RPC from Bun (avoids deadlock on the
- * in-flight invokeExtensionLuaCommand request):
- *   1. Renderer snapshots primary selection (MonacoHost.getSelectedText)
- *   2. Bun installs editor.getSelection → frozen snapshot; editor.replaceSelection queues
- *   3. After Lua returns, renderer applies via MonacoHost.replacePrimarySelection
+ * Explicit guest surface (requires capability `editor` + `lua`):
+ *   - editor.getSelection() → string (frozen primary-selection snapshot)
+ *   - editor.replaceSelection(text) → queues one replace; applied after return
  *
- * Out of scope for this slice: editor.get (full buffer), filesystem, multi-cursor.
- * Capability isolation ≠ OS sandbox. No host object references enter Lua.
+ * Owner chain:
+ *   Lua → Bun bridge → renderer seam → MonacoHost.getSelectedText /
+ *   MonacoHost.replacePrimarySelection (executeEdits) → dirty/undo via Monaco model
+ *
+ * Absent by design: editor.get, open/activate/selectDocument, filesystem, host.call,
+ * Monaco/ITextModel/IEditor objects, multi-cursor, live mid-invoke editor RPC.
+ *
+ * Capability isolation ≠ OS sandbox.
  */
 import { LUA_SPIKE_LIMITS } from "../../bun/extensions/lua/luaLimits";
 
