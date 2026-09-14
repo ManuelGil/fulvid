@@ -15,7 +15,6 @@ import {
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
 
 import EditorTabs from "../../modules/editor/EditorTabs.vue";
 import EditorToolbar from "../../modules/editor/EditorToolbar.vue";
@@ -42,7 +41,6 @@ import {
   workspace,
   workspaceName,
 } from "../../app/workspaceState";
-import { APP_ROUTE_NAMES } from "../../app/router";
 import {
   describeFilesystemError,
   notifyFilesystemError,
@@ -81,7 +79,7 @@ import {
   writingFocusKeepsFocusTarget,
   writingFocusLeaveEditorTarget,
 } from "../../modules/editor/writingFocus";
-import { registerCommandHandler } from "../../shell/commands";
+import { executeCommand, registerCommandHandler } from "../../shell/commands";
 import {
   attachDocumentBuffer,
   activeBuffer,
@@ -153,7 +151,6 @@ type MenuAction = ContextMenuAction & {
 };
 
 const { t } = useI18n();
-const router = useRouter();
 const menuOpen = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
@@ -478,11 +475,8 @@ function togglePreview(): void {
 }
 
 function createNewDocument(): void {
-  void openOrActivate({ kind: "virtual" })
-    .then(() => router.push({ name: APP_ROUTE_NAMES.editor, query: {} }))
-    .catch((error) => {
-      notifyFilesystemError(error, "workspace.openDocumentError", notify);
-    });
+  // Same command as File → New → New Document and Quick Actions.
+  void executeCommand("newDocument");
 }
 
 function findInEditor(): void {

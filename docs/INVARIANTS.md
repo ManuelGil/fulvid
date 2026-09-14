@@ -18,7 +18,7 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Focus ownership | Focus is folder-scoped Graph/Context metadata. Graph consumes Focus and does not own it |
 | Writing Focus / Full Screen | Writing Focus is session editor chrome only. Native Full Screen is BrowserWindow state on the host. Either may be on, off, or combined; neither owns the other, grants, containment, Preview, or document selection |
 | Document location | Editor chrome projects `DocumentBuffer` fields into a compact relative path (or Untitled / standalone basename). Settings choose main panel, window title, or hidden. Tabs use basename unless open tabs collide (then add segments until unique). Path display is not navigation and not authorization |
-| Search ownership | Local find uses the active Monaco model. Global Search uses folder document content |
+| Search ownership | Local find uses the active Monaco model. Global Search uses Folder scan document bodies (plus open buffer overlays) with exact text or regular expression matching only |
 | Quick Open ownership | Quick Open matches document identity (`title`, filename, relative path) from `workspace.scannedNotes` in the open Folder only. It does not search content, own a scan, or bypass `openOrActivate` / filesystem containment |
 | Semantic rename | F2 renames a heading or fragment in document text. It never renames a file or document ID |
 | Preview and Export | Preview and Export HTML share `renderMarkdownPreview`. Save writes source. Export writes `.html` |

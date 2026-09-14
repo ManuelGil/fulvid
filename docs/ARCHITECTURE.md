@@ -4,17 +4,17 @@ Who owns behavior in Fulvid.
 
 Vocabulary: [CONCEPTS.md](./CONCEPTS.md). Rules: [INVARIANTS.md](./INVARIANTS.md). Graph pipeline: [GRAPH.md](./GRAPH.md).
 
-Every user-visible behavior has **one owner**. Pages and the shell choose what is on screen; they do not own product rules. Reuse the document session, buffers, DocumentLink resolver, Preview renderer, and filesystem RPC. Do not add a second store, parser, renderer, resolver, or lifecycle.
+Every user-visible behavior has **one owner**. Pages and the shell choose what is on screen; they do not own product rules. Reuse the document session, buffers, document-link parse/resolve (`documentLink` + `linkSemantics`), Preview renderer, and filesystem RPC. Do not add a second store, parser, renderer, resolver, or lifecycle.
 
 ## Owners
 
 | Owner | Owns |
 | --- | --- |
 | Document Session | Open documents and `activeId` |
-| Document buffers | Monaco models, dirty/`savedVersionId`, virtual vs persisted identity, grants, `selectDocument`, `openOrActivate` |
+| Document buffers | Monaco models, dirty/`savedVersionId`, virtual vs persisted identity, grants, `selectDocument`, `openOrActivate`. Blank New Document uses an empty model; New Document from README seeds via `documentTemplates.renderDocumentTemplate` (one README body; not a template subsystem) |
 | Editor | Commands, Preview split, Outline, Monaco host, Writing Focus chrome overlay, session document annotations |
 | Explorer | Folder file tree in the right sidebar |
-| Search | `/search` and Search sidebar options (content strategies) |
+| Search | `/search` and Search sidebar options (exact text or regular expression over document bodies) |
 | Quick Open | Keyboard document picker by identity in the open Folder (`Ctrl/Cmd+P`); not content search; not a Command Palette |
 | Graph | Focus-scoped visualization of resolved links |
 | Document Context | References and facts for the focused or peeked document |
@@ -88,7 +88,7 @@ The right sidebar shows one panel: Explorer, Search options (on `/search`), Docu
 
 ## Document links
 
-[`documentLink.ts`](../src/mainview/modules/document/links/documentLink.ts) is the only resolver for the active link mode (Markdown or Wikilink, not both). Scan, Monaco providers, Preview, Export, and Graph use it.
+[`documentLink.ts`](../src/mainview/modules/document/links/documentLink.ts) parses the active link mode (Markdown or Wikilink, not both). Path/stem/alias/title resolution lives in [`linkSemantics.ts`](../src/mainview/modules/document/links/linkSemantics.ts) (`resolveDocumentPath`). Scan, Monaco providers, Preview, Export, Graph, and Document Context reuse that pair — not a second resolver.
 
 `linkMode` default is `"markdown"`. F2 rename applies text edits to open buffers. It does not rename files or change document identity.
 

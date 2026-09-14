@@ -23,7 +23,7 @@ Product copy uses **Folder**, never Workspace. Host code may still use `workspac
 | **Document** | Untitled buffer (`untitled:N`) or a persisted `.md`, `.markdown`, or `.mdx` file |
 | **Tab** | One open buffer in the editor session |
 | **Editor** | Monaco writing surface |
-| **Search** | Folder-wide content search at `/search` (`Ctrl/Cmd+Shift+F`, or `/`) |
+| **Search** | Folder-wide content search at `/search` (`Ctrl/Cmd+Shift+F`, or `/`). Exact text or regular expression over document bodies from the Folder scan (and open buffers). Not Quick Open; not Monaco find |
 | **Quick Open** | Open a document by title, filename, or relative path in the open Folder (`Ctrl/Cmd+P`). Candidates come from the Folder scan (`scannedNotes`), not a second index. Not content search; not a Command Palette |
 | **Graph** | Visualization of resolved document links around Focus |
 | **Preview** | Inert HTML of the active buffer |
@@ -53,7 +53,7 @@ Local find is Monaco (`Ctrl/Cmd+F`). Global Search is `/search` (`Ctrl/Cmd+Shift
 | `.md`, `.markdown` | `markdown` | Standard Markdown |
 | `.mdx` | `mdx` | Same editor; MDX is not executed |
 
-Language id and `linkMode` are independent. New documents default to `.mdx`. Save writes the source file. Export HTML cannot overwrite a note.
+Language id and `linkMode` are independent. New documents default to `.mdx`. **New Document** creates a blank Markdown/MDX buffer or file (`content` empty). **New Document from README** seeds the same creation paths with the single built-in README-shaped Markdown body (`documentTemplates.renderDocumentTemplate`). Both appear under File → New; Quick Actions expose blank as core and README as secondary/More; the editor tab New control creates a blank document. Explorer offers blank and README creation (toolbar and folder context → New). For README creation in Explorer, the H1 uses the immediate parent folder name; without filesystem context the H1 is `README`. Filename prompts stay responsible for file identity; the H1 is independent. Mustache interpolates the title at creation time only. There is no template manager, picker, or additional built-in templates. Save writes the source file. Export HTML cannot overwrite a note.
 
 Title, aliases, tags, and links come from the document body and optional frontmatter. Same inputs produce the same facts.
 

@@ -1,6 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import type { DocumentLink } from "../../../../../src/mainview/modules/document/links/documentLink";
+import {
+  buildFocusGraph,
+  setDocumentLinkSettings,
+} from "../../../../../src/mainview/modules/document/links/linkSemantics";
 import type { ScannedNote } from "../../../../../src/mainview/modules/workspace/filesystem/workspaceTypes.ts";
 import { projectReferenceGraph } from "../../../../../src/mainview/modules/graph/core/graphProjection";
 import {
@@ -52,6 +56,14 @@ function buffer(
 // Intent: Graph consumes Focus for folder projection; the active tab is not
 // a second selection authority. Virtual documents may project alone.
 describe("graph active document", () => {
+  beforeEach(() => {
+    setDocumentLinkSettings({ linkMode: "markdown", resolution: "both" });
+  });
+
+  afterEach(() => {
+    setDocumentLinkSettings({ linkMode: "markdown", resolution: "both" });
+  });
+
   test("folder Graph follows Focus, not the active tab; virtual documents project alone", () => {
     expect(
       graphActiveTargetFromInputs(
@@ -97,5 +109,18 @@ describe("graph active document", () => {
       { source: "a.md", target: "b.md" },
       { source: "b.md", target: "a.md" },
     ]);
+  });
+
+  // Intent: undirected Graph membership ≠ directed Context reach (GRAPH.md).
+  // An incoming-only neighbor must appear on Graph and stay out of buildFocusGraph.
+  test("incoming-only neighbors appear on Graph but not in directed Context reach", () => {
+    const notes = [note("a.md", "A"), note("b.md", "B", [link("a.md")])];
+    const graph = projectReferenceGraph("a.md", notes, { depth: 1 });
+    expect(graph.nodes.map((node) => node.id).sort()).toEqual(["a.md", "b.md"]);
+    expect(buildFocusGraph("a.md", notes, 1)).toEqual({
+      focusPath: "a.md",
+      nodes: [{ id: "a.md", label: "A" }],
+      edges: [],
+    });
   });
 });

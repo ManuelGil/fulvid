@@ -66,6 +66,7 @@
     "graphology": "^0.26.0",
     "marked": "^18.0.12",
     "monaco-editor": "0.56.0",
+    "mustache": "^4.2.0",
     "sigma": "^3.0.3",
     "vue": "^3.5.42",
     "vue-i18n": "^11.4.10",
@@ -74,6 +75,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/bun": "1.4.2",
+    "@types/mustache": "^4.2.6",
     "@vitejs/plugin-vue": "^6.0.8",
     "concurrently": "^10.0.5",
     "electrobun": "2.0.1",

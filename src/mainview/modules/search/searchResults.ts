@@ -72,21 +72,11 @@ export function groupSearchHits(hits: readonly SearchHit[]): SearchDocumentGroup
   return groups;
 }
 
-function groupScore(group: SearchDocumentGroup): number {
-  return Math.max(0, ...group.matches.map((match) => match.score ?? 0));
-}
-
 export function sortSearchGroups(
   groups: readonly SearchDocumentGroup[],
-  sort: "path" | "matches" | "score",
+  sort: "path" | "matches",
 ): SearchDocumentGroup[] {
   return [...groups].sort((left, right) => {
-    if (sort === "score") {
-      const byScore = groupScore(right) - groupScore(left);
-      if (byScore !== 0) {
-        return byScore;
-      }
-    }
     if (sort === "matches") {
       const byCount = right.matches.length - left.matches.length;
       if (byCount !== 0) {

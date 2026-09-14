@@ -10,10 +10,7 @@ import { type MarkdownCommandId } from "../modules/editor/markdown/markdownForma
 
 export type CommandId =
   | "newDocument"
-  | "newDocumentNote"
-  | "newDocumentMeeting"
-  | "newDocumentDaily"
-  | "newDocumentProject"
+  | "newDocumentFromReadme"
   | "openFile"
   | "save"
   | "saveAs"
@@ -169,6 +166,16 @@ export const quickActions: readonly QuickActionDefinition[] = [
     order: 10,
     tier: "core",
     overflowOrder: 60,
+  },
+  {
+    id: "newDocumentFromReadme",
+    label: "actions.newDocumentFromReadme",
+    icon: "document",
+    group: "file",
+    subgroup: "document",
+    order: 15,
+    tier: "secondary",
+    overflowOrder: 75,
   },
   {
     id: "openFile",

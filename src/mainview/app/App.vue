@@ -40,6 +40,7 @@ import {
   openOrActivate,
   selectDocument,
 } from "../modules/editor/document/documentBuffers";
+import { renderDocumentTemplate } from "../modules/editor/document/documentTemplates";
 import {
   documentLocationFromBuffer,
   windowTitleForDocumentLocation,
@@ -98,10 +99,6 @@ import {
   toggleDocumentAnnotationsVisible,
 } from "../modules/editor/document/documentAnnotationVisibility";
 import { isUsableFocusTarget } from "./usableFocusTarget";
-import {
-  renderDocumentTemplate,
-  type DocumentTemplateId,
-} from "../modules/editor/document/documentTemplates";
 import QuickActionsToolbar from "../shell/QuickActionsToolbar.vue";
 import OutlinePanel from "../modules/editor/outline/OutlinePanel.vue";
 import Statusbar from "../shell/Statusbar.vue";
@@ -733,15 +730,19 @@ const liveAnnouncement = computed(() =>
 async function createNewDocument(content?: string): Promise<void> {
   try {
     closeRightSidebar();
-    await openOrActivate({ kind: "virtual", ...(content ? { content } : {}) });
+    if (content === undefined) {
+      await openOrActivate({ kind: "virtual" });
+    } else {
+      await openOrActivate({ kind: "virtual", content });
+    }
     await router.push({ name: APP_ROUTE_NAMES.editor });
   } catch (error) {
     notifyFilesystemError(error, "workspace.openDocumentError", notify);
   }
 }
 
-async function createNewDocumentFromTemplate(id: DocumentTemplateId): Promise<void> {
-  await createNewDocument(renderDocumentTemplate(id));
+async function createNewDocumentFromReadme(): Promise<void> {
+  await createNewDocument(renderDocumentTemplate("readme"));
 }
 
 async function openFileDocument(): Promise<void> {
@@ -967,10 +968,7 @@ function revealOutlinePosition(lineNumber: number, column: number): void {
 
 const unregisterCommands = [
   registerCommandHandler("newDocument", () => createNewDocument()),
-  registerCommandHandler("newDocumentNote", () => createNewDocumentFromTemplate("note")),
-  registerCommandHandler("newDocumentMeeting", () => createNewDocumentFromTemplate("meeting")),
-  registerCommandHandler("newDocumentDaily", () => createNewDocumentFromTemplate("daily")),
-  registerCommandHandler("newDocumentProject", () => createNewDocumentFromTemplate("project")),
+  registerCommandHandler("newDocumentFromReadme", () => createNewDocumentFromReadme()),
   registerCommandHandler("toggleWritingFocus", toggleWritingFocus),
   registerCommandHandler("toggleDocumentAnnotations", () => {
     const visible = toggleDocumentAnnotationsVisible();

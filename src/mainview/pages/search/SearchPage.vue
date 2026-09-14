@@ -33,14 +33,9 @@ import {
   parseSearchOptions,
   searchOptionsQuery,
   toSearchQueryOptions,
-  type SearchOptions,
 } from "../../modules/search/searchOptions";
 import { selectedSearchContext } from "../../modules/search/searchSession";
-import {
-  SEARCH_STRATEGY_IDS,
-  searchStrategyUsesScore,
-  type SearchStrategyId,
-} from "../../modules/search/searchStrategies";
+import { SEARCH_STRATEGY_IDS, type SearchStrategyId } from "../../modules/search/searchStrategies";
 import {
   filterNotesByFileType,
   groupSearchHits,
@@ -49,7 +44,6 @@ import {
   runDocumentSearch,
   sortSearchGroups,
   type SearchMatch,
-  type SearchMatchKind,
 } from "../../modules/search/searchResults";
 
 const MAX_RESULTS = 50;
@@ -87,9 +81,6 @@ const matchingHits = computed(() => searchRun.value.hits);
 const queryIssue = computed(() => searchRun.value.issue);
 
 const queryIssueText = computed(() => {
-  if (queryIssue.value === "invalidPattern") {
-    return t("search.invalidPattern");
-  }
   if (queryIssue.value === "tooExpensive") {
     return t("search.tooExpensive");
   }
@@ -100,9 +91,6 @@ const queryIssueText = computed(() => {
 });
 
 const queryIssueTitle = computed(() => {
-  if (queryIssue.value === "invalidPattern") {
-    return t("search.invalidPatternTitle");
-  }
   if (queryIssue.value === "tooExpensive") {
     return t("search.tooExpensiveTitle");
   }
@@ -111,31 +99,6 @@ const queryIssueTitle = computed(() => {
   }
   return null;
 });
-
-function matchKindLabel(kind: SearchMatchKind | undefined): string | null {
-  if (kind === "heading") {
-    return t("search.patternHeading");
-  }
-  if (kind === "link") {
-    return t("search.patternLink");
-  }
-  if (kind === "wikilink") {
-    return t("search.patternWikilink");
-  }
-  if (kind === "frontmatter") {
-    return t("search.patternFrontmatter");
-  }
-  if (kind === "fence") {
-    return t("search.patternFence");
-  }
-  if (kind === "list") {
-    return t("search.patternList");
-  }
-  if (kind === "path") {
-    return t("search.strategies.path");
-  }
-  return null;
-}
 
 const resultGroups = computed(() => {
   const totals = new Map<string, number>();
@@ -154,7 +117,6 @@ const resultGroups = computed(() => {
       return {
         index,
         match,
-        kindLabel: matchKindLabel(match.kind),
         snippetParts: highlightSearchSnippet(match.snippet, searchTerm.value, searchQuery.value),
       };
     }),
@@ -189,13 +151,7 @@ const filterSummary = computed(() => {
 });
 
 function setStrategy(strategy: SearchStrategyId): void {
-  const patch: Partial<SearchOptions> = { strategy };
-  if (searchStrategyUsesScore(strategy)) {
-    patch.sort = "score";
-  } else if (searchOptions.value.sort === "score") {
-    patch.sort = "path";
-  }
-  void router.replace({ query: searchOptionsQuery(route.query, patch) });
+  void router.replace({ query: searchOptionsQuery(route.query, { strategy }) });
 }
 
 const resultSummary = computed(() => {
@@ -650,10 +606,6 @@ onBeforeUnmount(() => {
                 </template>
               </span>
               <span class="search-result__line">
-                <template v-if="row.kindLabel">
-                  {{ row.kindLabel }}
-                  <span aria-hidden="true"> · </span>
-                </template>
                 {{ t("search.matchLine", { line: row.match.lineNumber }) }}
               </span>
             </button>

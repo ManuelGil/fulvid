@@ -1,9 +1,9 @@
 /**
  * Headings, fences, and closed frontmatter as 1-based line ranges.
  *
- * Used by Outline, folding, Enter, Preview heading ids, Search, and heading
- * rename. Unclosed `---` does not end frontmatter here (unlike Preview, which
- * still renders that body). Anchor slugs strip punctuation and collapse spaces.
+ * Used by Outline, folding, Enter, Preview heading ids, and heading rename.
+ * Unclosed `---` does not end frontmatter here (unlike Preview, which still
+ * renders that body). Anchor slugs strip punctuation and collapse spaces.
  */
 export type MarkdownHeading = {
   lineNumber: number;

@@ -19,9 +19,14 @@ import {
   refreshWorkspace,
   revealWorkspaceInExplorer,
   workspace,
+  workspaceName,
   applyRenamedNote,
   applyScannedNote,
 } from "../../../app/workspaceState";
+import {
+  documentTemplateTitleFromParentPath,
+  renderDocumentTemplate,
+} from "../../editor/document/documentTemplates";
 import { APP_ROUTE_NAMES } from "../../../app/router";
 import { isMarkdownFile, type FileSystemEntry } from "../filesystem/workspaceTypes";
 import {
@@ -116,12 +121,22 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
     });
   }
 
-  return explorerFolderContextActionIds().map((id) => {
-    if (id === "reveal") {
-      return { id, label: t(explorerPathActionLabelKeys.reveal) };
-    }
-    return { id, label: t(explorerPathActionLabelKeys.copy) };
-  });
+  return [
+    {
+      id: "new",
+      label: t("menu.new"),
+      children: [
+        { id: "newDocument", label: t("actions.newDocument") },
+        { id: "newDocumentFromReadme", label: t("actions.newDocumentFromReadme") },
+      ],
+    },
+    ...explorerFolderContextActionIds().map((id) => {
+      if (id === "reveal") {
+        return { id, label: t(explorerPathActionLabelKeys.reveal) };
+      }
+      return { id, label: t(explorerPathActionLabelKeys.copy) };
+    }),
+  ];
 });
 
 const contextMenuLabel = computed(() => {
@@ -230,14 +245,15 @@ function targetDirectory(): string {
   return entry ? parentPath(entry.path) : "";
 }
 
-async function createNewDocument(): Promise<void> {
+async function createExplorerDocument(seed: "blank" | "readme"): Promise<void> {
   const rootPath = workspaceRoot.value;
   if (!rootPath) {
     return;
   }
 
+  const promptTitle = seed === "readme" ? t("files.newDocumentFromReadme") : t("files.newDocument");
   const requestedName = await promptFilename({
-    title: t("files.newDocument"),
+    title: promptTitle,
     label: t("files.newDocumentName"),
   });
   if (!requestedName) {
@@ -251,16 +267,36 @@ async function createNewDocument(): Promise<void> {
     return;
   }
 
-  const relativePath = [targetDirectory(), name].filter(Boolean).join("/");
+  const parentDirectory = targetDirectory();
+  const relativePath = [parentDirectory, name].filter(Boolean).join("/");
+  const content =
+    seed === "readme"
+      ? renderDocumentTemplate("readme", {
+          title: documentTemplateTitleFromParentPath(parentDirectory, workspaceName(rootPath)),
+        })
+      : "";
   try {
-    const result = await createDocument(rootPath, relativePath, "", settings.value.links.linkMode);
+    const result = await createDocument(
+      rootPath,
+      relativePath,
+      content,
+      settings.value.links.linkMode,
+    );
     applyScannedNote(result.note);
-    await loadDirectory(targetDirectory());
+    await loadDirectory(parentDirectory);
     await openOrActivate({ kind: "workspace", rootPath, path: relativePath });
     await router.push({ name: APP_ROUTE_NAMES.editor });
   } catch (error) {
     notifyFilesystemError(error, "workspace.openDocumentError", notify);
   }
+}
+
+function createNewDocument(): Promise<void> {
+  return createExplorerDocument("blank");
+}
+
+function createNewDocumentFromReadme(): Promise<void> {
+  return createExplorerDocument("readme");
 }
 
 async function renameSelectedDocument(): Promise<void> {
@@ -335,7 +371,11 @@ async function deleteSelectedDocument(): Promise<void> {
 async function runContextAction(id: string): Promise<void> {
   contextMenu.value.open = false;
   const entry = selectedEntry.value;
-  if (id === "rename") {
+  if (id === "newDocument") {
+    await createNewDocument();
+  } else if (id === "newDocumentFromReadme") {
+    await createNewDocumentFromReadme();
+  } else if (id === "rename") {
     await renameSelectedDocument();
   } else if (id === "delete") {
     await deleteSelectedDocument();
@@ -466,6 +506,15 @@ onBeforeUnmount(() => {
           :aria-label="t('files.newDocument')"
           :disabled="!workspaceRoot"
           @click="createNewDocument"
+        >
+          <AppIcon name="new-document" :size="14" />
+        </button>
+        <button
+          type="button"
+          :title="t('files.newDocumentFromReadme')"
+          :aria-label="t('files.newDocumentFromReadme')"
+          :disabled="!workspaceRoot"
+          @click="createNewDocumentFromReadme"
         >
           <AppIcon name="document" :size="14" />
         </button>
