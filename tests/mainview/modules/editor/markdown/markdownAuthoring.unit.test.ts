@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildDocumentFromSelection,
   buildMarkdownTableOfContents,
   formatDocumentLink,
   relativeDocumentLinkPath,
@@ -68,6 +69,38 @@ describe("markdown authoring", () => {
 
     expect(relativeDocumentLinkPath("docs/a.md", "docs/b.md")).toBe("./b.md");
     expect(relativeDocumentLinkPath("docs/a.md", "readme.md")).toBe("../readme.md");
+  });
+
+  test("builds a new document body from selection with formatDocumentLink backlink", () => {
+    expect(
+      buildDocumentFromSelection({
+        selection: "Extracted paragraph.",
+        linkMode: "markdown",
+      }),
+    ).toBe("Extracted paragraph.");
+    expect(
+      buildDocumentFromSelection({
+        selection: "Keep trailing spaces  \n",
+        sourcePath: "notes/source.md",
+        sourceLabel: "Source",
+        linkMode: "markdown",
+      }),
+    ).toBe("Keep trailing spaces  \n\n[Source](notes/source.md)\n");
+    expect(
+      buildDocumentFromSelection({
+        selection: "Body",
+        sourcePath: "notes/source.md",
+        sourceLabel: "Source",
+        linkMode: "wikilink",
+      }),
+    ).toBe("Body\n\n[[notes/source.md|Source]]\n");
+    expect(
+      buildDocumentFromSelection({
+        selection: "Body",
+        sourcePath: "notes/source.md",
+        linkMode: "markdown",
+      }),
+    ).not.toMatch(/#L\d|#\d+:\d+/);
   });
 
   test("TOC nests by heading depth with existing anchors for both linkModes", () => {

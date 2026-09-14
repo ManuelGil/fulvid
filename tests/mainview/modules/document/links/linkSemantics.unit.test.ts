@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import {
+  ambiguousOutboundLinks,
   buildFocusGraph,
   noteConnections,
   resolveDocumentPath,
   resolveWorkspaceEdges,
+  uniqueLinkCandidate,
   unresolvedDocumentLinks,
   setDocumentLinkSettings,
 } from "../../../../../src/mainview/modules/document/links/linkSemantics";
@@ -151,10 +153,58 @@ describe("resolution scale", () => {
     ];
     expect(resolveDocumentPath("Shared", duplicated, "both").path).toBe("first.md");
     expect(resolveDocumentPath("dup", duplicated, "both").path).toBe("first.md");
+    expect(resolveDocumentPath("Shared", duplicated, "both").alsoMatches).toEqual(["second.md"]);
+    expect(resolveDocumentPath("dup", duplicated, "both").alsoMatches).toEqual(["second.md"]);
 
     const before = linkedNotes(3, 0);
     expect(resolveDocumentPath("Title 1", before, "both").path).toBe("n1.md");
     const after = before.map((note) => ({ ...note, path: `moved/${note.path}` }));
     expect(resolveDocumentPath("Title 1", after, "both").path).toBe("moved/n1.md");
+  });
+});
+
+describe("duplicate stem and unique incomplete candidates", () => {
+  beforeEach(() => {
+    setDocumentLinkSettings({ linkMode: "wikilink", resolution: "both" });
+  });
+
+  afterEach(() => {
+    setDocumentLinkSettings({ linkMode: "markdown", resolution: "both" });
+  });
+
+  test("keeps first-wins for duplicate stems and reports alsoMatches", () => {
+    const notes = [
+      note("docs/guide.md", [], { name: "guide.md", title: "Guide A" }),
+      note("archive/guide.md", [], { name: "guide.md", title: "Guide B" }),
+    ];
+    const resolved = resolveDocumentPath("guide", notes, "both");
+    expect(resolved.path).toBe("docs/guide.md");
+    expect(resolved.reason).toBe("stem");
+    expect(resolved.alsoMatches).toEqual(["archive/guide.md"]);
+    expect(ambiguousOutboundLinks(note("index.md", ["guide"]), notes)).toEqual([
+      {
+        target: "guide",
+        path: "docs/guide.md",
+        alsoMatches: ["archive/guide.md"],
+      },
+    ]);
+
+    const exact = resolveDocumentPath("archive/guide", notes, "both");
+    expect(exact.path).toBe("archive/guide.md");
+    expect(exact.alsoMatches).toEqual([]);
+  });
+
+  test("uniqueLinkCandidate is null unless exactly one near-match exists", () => {
+    const notes = [
+      note("alpha.md", [], { title: "Alpha Note" }),
+      note("beta.md", [], { title: "Beta Note" }),
+      note("gamma.md", [], { title: "Gamma" }),
+    ];
+    expect(uniqueLinkCandidate("Alpha Note", notes)).toEqual({
+      path: "alpha.md",
+      reason: "title",
+    });
+    expect(uniqueLinkCandidate("Note", notes)).toBeNull();
+    expect(uniqueLinkCandidate("missing", notes)).toBeNull();
   });
 });

@@ -49,6 +49,8 @@ export default {
     link: "Link",
     image: "Image",
     insertLinkNeedsFolder: "Open a folder to insert a document link.",
+    selectionRequired: "Select text in the editor to create a document from it.",
+    trimTrailingWhitespaceNone: "No trailing whitespace to remove.",
     pickLinkTarget: "Link to",
     entireDocument: "Entire document",
     tocEmpty: "This document has no headings for a table of contents.",
@@ -110,6 +112,7 @@ export default {
     openDocumentContext: "Open document context",
     newDocument: "New document",
     newDocumentFromReadme: "New document from README",
+    newDocumentFromSelection: "New document from selection",
     openFile: "Open file",
     save: "Save",
     saveAs: "Save as...",
@@ -118,6 +121,7 @@ export default {
     renameHeading: "Rename heading",
     insertDocumentLink: "Insert document link",
     insertTableOfContents: "Insert table of contents",
+    trimTrailingWhitespace: "Trim trailing whitespace",
     outline: "Outline",
     explorer: "Explorer",
     folder: "Folder",
@@ -461,10 +465,13 @@ export default {
       "Pin the current heading at the top while you scroll through its section. Hidden automatically while Writing Focus is on.",
     editorWhitespace: "Whitespace",
     editorWhitespaceHint:
-      "When spaces and tabs are drawn as dots or arrows.\n\nHidden never shows them. Selection shows them only in the selected text. Always shows them everywhere.",
+      "When spaces and tabs are drawn as dots or arrows.\n\nHidden never shows them. Selection shows them only in the selected text. Always shows them everywhere — including trailing whitespace at line ends.",
     editorWhitespaceNone: "Hidden",
     editorWhitespaceSelection: "Selection",
     editorWhitespaceAll: "Always",
+    trimTrailingWhitespaceOnSave: "Trim trailing whitespace on Save",
+    trimTrailingWhitespaceOnSaveHint:
+      "Before Save or Save As, remove spaces and tabs at the ends of lines with a normal editor edit (undoable). Off by default so Save never surprises you.",
     readingStatistics: "Reading statistics",
     readingStatisticsHint:
       'What the status bar shows for the active document. Updates as you type; saving is not required.\n\nOff hides the count. Word count shows "842 words". Word count + reading time shows "842 words · 4 min read" (about 200 words per minute).\n\nIf the status bar is hidden under Appearance, this information is hidden too.',
@@ -752,6 +759,9 @@ export default {
     sharedMany: "{count} documents are linked to this one.",
     unresolvedOne: "{count} incomplete link does not match a file here.",
     unresolvedMany: "{count} incomplete links do not match a file here.",
+    ambiguousOne: "One link matches more than one document; Fulvid opens the first match.",
+    ambiguousMany:
+      "{count} links match more than one document; Fulvid opens the first match for each.",
     referenceEvidence: "Linked as {links}.",
   },
   links: {
@@ -759,6 +769,7 @@ export default {
     invalid: "This document link is incomplete.",
     missingAnchor: 'Heading "{anchor}" does not exist in that document.',
     candidates: "Possible matches: {items}",
+    alsoMatches: "Also matches: {items}",
     open: "Open {path}",
     unresolvedTitle: "This link does not match a document",
     heading: "Heading #{anchor}: {status}",

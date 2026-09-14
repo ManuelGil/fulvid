@@ -809,6 +809,29 @@ async function onResetSettings(): Promise<void> {
                   <option value="all">{{ t("settings.editorWhitespaceAll") }}</option>
                 </select>
               </label>
+
+              <label class="settings-option" data-settings-id="editor.trimTrailingWhitespaceOnSave">
+                <input
+                  type="checkbox"
+                  :checked="settings.editor.trimTrailingWhitespaceOnSave"
+                  :aria-label="t('settings.trimTrailingWhitespaceOnSave')"
+                  aria-describedby="settings-editor-trim-trailing-hint"
+                  @change="
+                    setEditor(
+                      'trimTrailingWhitespaceOnSave',
+                      ($event.target as HTMLInputElement).checked,
+                    )
+                  "
+                />
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{
+                    t("settings.trimTrailingWhitespaceOnSave")
+                  }}</span>
+                  <span id="settings-editor-trim-trailing-hint" class="settings-option__hint">
+                    {{ t("settings.trimTrailingWhitespaceOnSaveHint") }}
+                  </span>
+                </span>
+              </label>
             </fieldset>
 
             <label class="settings-option" data-settings-id="editor.readingStatistics">

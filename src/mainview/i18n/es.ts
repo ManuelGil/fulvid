@@ -49,6 +49,8 @@ export default {
     link: "Enlace",
     image: "Imagen",
     insertLinkNeedsFolder: "Abre una carpeta para insertar un enlace a un documento.",
+    selectionRequired: "Selecciona texto en el editor para crear un documento a partir de él.",
+    trimTrailingWhitespaceNone: "No hay espacios al final de línea que quitar.",
     pickLinkTarget: "Enlazar a",
     entireDocument: "Documento completo",
     tocEmpty: "Este documento no tiene encabezados para una tabla de contenidos.",
@@ -110,6 +112,7 @@ export default {
     openDocumentContext: "Abrir contexto del documento",
     newDocument: "Nuevo documento",
     newDocumentFromReadme: "Nuevo documento desde README",
+    newDocumentFromSelection: "Nuevo documento desde la selección",
     openFile: "Abrir archivo",
     save: "Guardar",
     saveAs: "Guardar como...",
@@ -118,6 +121,7 @@ export default {
     renameHeading: "Renombrar encabezado",
     insertDocumentLink: "Insertar enlace a documento",
     insertTableOfContents: "Insertar tabla de contenidos",
+    trimTrailingWhitespace: "Quitar espacios al final de línea",
     outline: "Esquema",
     explorer: "Explorador",
     folder: "Carpeta",
@@ -466,10 +470,13 @@ export default {
       "Fijar el encabezado actual arriba mientras recorres su sección. Se oculta automáticamente con el foco de escritura.",
     editorWhitespace: "Espacios en blanco",
     editorWhitespaceHint:
-      "Cuándo se dibujan espacios y tabuladores como puntos o flechas.\n\nOcultos no los muestra nunca. Selección solo en el texto seleccionado. Siempre en todo el documento.",
+      "Cuándo se dibujan espacios y tabuladores como puntos o flechas.\n\nOcultos no los muestra nunca. Selección solo en el texto seleccionado. Siempre en todo el documento, incluidos los espacios al final de línea.",
     editorWhitespaceNone: "Ocultos",
     editorWhitespaceSelection: "Selección",
     editorWhitespaceAll: "Siempre",
+    trimTrailingWhitespaceOnSave: "Quitar espacios al final al guardar",
+    trimTrailingWhitespaceOnSaveHint:
+      "Antes de Guardar o Guardar como, elimina espacios y tabuladores al final de las líneas con una edición normal del editor (se puede deshacer). Desactivado por defecto para que Guardar no sorprenda.",
     readingStatistics: "Estadísticas de lectura",
     readingStatisticsHint:
       'Qué muestra la barra de estado del documento activo. Se actualiza al escribir; no hace falta guardar.\n\nDesactivado oculta el recuento. Número de palabras muestra "842 palabras". Palabras y tiempo de lectura muestra "842 palabras · 4 min de lectura" (unas 200 palabras por minuto).\n\nSi la barra de estado está oculta en Apariencia, esta información también desaparece.',
@@ -764,6 +771,10 @@ export default {
     sharedMany: "{count} documentos están enlazados con este.",
     unresolvedOne: "{count} enlace incompleto no coincide con un archivo aquí.",
     unresolvedMany: "{count} enlaces incompletos no coinciden con un archivo aquí.",
+    ambiguousOne:
+      "Un enlace coincide con más de un documento; Fulvid abre la primera coincidencia.",
+    ambiguousMany:
+      "{count} enlaces coinciden con más de un documento; Fulvid abre la primera coincidencia de cada uno.",
     referenceEvidence: "Enlazado como {links}.",
   },
   links: {
@@ -771,6 +782,7 @@ export default {
     invalid: "Este enlace a un documento está incompleto.",
     missingAnchor: 'El encabezado "{anchor}" no existe en ese documento.',
     candidates: "Posibles coincidencias: {items}",
+    alsoMatches: "También coincide con: {items}",
     open: "Abrir {path}",
     unresolvedTitle: "Este enlace no coincide con un documento",
     heading: "Encabezado #{anchor}: {status}",

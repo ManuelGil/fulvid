@@ -22,6 +22,7 @@ function byId(id: string): QuickActionDefinition {
 const EXPECTED_FULL_DISPLAY_ORDER = [
   "newDocument",
   "newDocumentFromReadme",
+  "newDocumentFromSelection",
   "openFile",
   "save",
   "closeAll",
@@ -29,6 +30,7 @@ const EXPECTED_FULL_DISPLAY_ORDER = [
   "annotateDocument",
   "insertDocumentLink",
   "insertTableOfContents",
+  "trimTrailingWhitespace",
   "undo",
   "redo",
   "cut",
@@ -56,6 +58,7 @@ describe("Quick Actions", () => {
       "annotateDocument",
       "insertDocumentLink",
       "insertTableOfContents",
+      "trimTrailingWhitespace",
       "undo",
       "redo",
       "cut",
@@ -86,7 +89,7 @@ describe("Quick Actions", () => {
     ]);
 
     const visibleIds = new Set(
-      ids(selectQuickActionsForVisibleCount(quickActions, quickActions.length - 7)),
+      ids(selectQuickActionsForVisibleCount(quickActions, quickActions.length - 8)),
     );
     expect(visibleIds.has("toggleWritingFocus")).toBe(true);
     expect(visibleIds.has("cut")).toBe(false);
