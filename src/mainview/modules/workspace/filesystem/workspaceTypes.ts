@@ -27,6 +27,30 @@ export function isMarkdownFile(path: string): boolean {
   return documentFileType(path) !== null;
 }
 
+/**
+ * Explorer create/rename names must be basenames only — same refusal class as
+ * host `requireSafeBasename` (no separators, traversal, or empty stems).
+ */
+export function isSafeDocumentBasename(name: string): boolean {
+  const basenameValue = name.trim();
+  if (
+    !basenameValue ||
+    basenameValue !== name ||
+    basenameValue.length > 255 ||
+    basenameValue === "." ||
+    basenameValue === ".." ||
+    basenameValue.includes("/") ||
+    basenameValue.includes("\\") ||
+    basenameValue.includes("\0") ||
+    basenameValue.includes("..") ||
+    /[.\s]$/.test(basenameValue) ||
+    /^[A-Za-z]:/.test(basenameValue)
+  ) {
+    return false;
+  }
+  return isMarkdownFile(basenameValue);
+}
+
 export interface ScannedNote {
   path: string;
   name: string;
@@ -37,7 +61,6 @@ export interface ScannedNote {
   categories: string[];
   projects: string[];
   summary: string;
-  tokens: number;
   words: number;
   /** Raw document content retained for workspace content search. */
   content?: string;

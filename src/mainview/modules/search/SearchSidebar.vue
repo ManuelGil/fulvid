@@ -3,16 +3,10 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
-import {
-  activeContextLabel,
-  hasCustomContext,
-  workspace,
-  workspaceName,
-} from "../../app/workspaceState";
+import { workspace, workspaceName } from "../../app/workspaceState";
 import { formatDocumentCount } from "../document/context/context";
 import { openBuffers } from "../editor/document/documentBuffers";
 import PageShell from "../../shell/PageShell.vue";
-import { isContextSearchScope, searchScopeQuery } from "./searchScope";
 import {
   countActiveSearchFilters,
   parseSearchOptions,
@@ -22,12 +16,8 @@ import {
   type SearchSort,
 } from "./searchOptions";
 import {
-  DEFAULT_PROXIMITY,
   SEARCH_STRATEGY_IDS,
-  searchStrategyUsesMatchCountSort,
-  searchStrategyUsesScore,
   searchStrategyUsesWholeWord,
-  type SearchPatternKind,
   type SearchStrategyId,
 } from "./searchStrategies";
 import { selectedSearchContext } from "./searchSession";
@@ -38,9 +28,6 @@ const router = useRouter();
 
 const options = computed(() => parseSearchOptions(route.query));
 const activeFilters = computed(() => countActiveSearchFilters(options.value));
-const isContextScope = computed(() =>
-  isContextSearchScope(route.query.scope, hasCustomContext.value),
-);
 const standaloneDocumentCount = computed(
   () => openBuffers.value.filter((buffer) => buffer.rootPath === null).length,
 );
@@ -50,26 +37,10 @@ const scopeDescription = computed(() => {
       count: formatDocumentCount(standaloneDocumentCount.value),
     });
   }
-  if (isContextScope.value) {
-    return t("search.sidebarContextScope", {
-      name: activeContextLabel.value ?? t("search.scopeContext"),
-    });
-  }
   return t("search.sidebarScope", { name: workspaceName(workspace.value.path) });
 });
 
-function setScope(scope: "folder" | "context"): void {
-  void router.replace({
-    query: searchScopeQuery(route.query, scope),
-  });
-}
-
 function patchOptions(patch: Partial<SearchOptions>): void {
-  if (patch.strategy && searchStrategyUsesScore(patch.strategy)) {
-    patch.sort = "score";
-  } else if (patch.strategy && options.value.sort === "score") {
-    patch.sort = "path";
-  }
   void router.replace({
     query: searchOptionsQuery(route.query, patch),
   });
@@ -109,33 +80,6 @@ function patchOptions(patch: Partial<SearchOptions>): void {
       </p>
     </fieldset>
 
-    <fieldset v-if="workspace" class="search-sidebar__field">
-      <legend>{{ t("search.scope") }}</legend>
-      <label class="search-sidebar__option">
-        <input
-          type="radio"
-          name="search-scope"
-          :checked="!isContextScope"
-          @change="setScope('folder')"
-        />
-        <span>{{ t("search.scopeFolder") }}</span>
-      </label>
-      <label class="search-sidebar__option">
-        <input
-          type="radio"
-          name="search-scope"
-          value="context"
-          :checked="isContextScope"
-          :disabled="!hasCustomContext"
-          @change="setScope('context')"
-        />
-        <span>{{ activeContextLabel ?? t("search.scopeContext") }}</span>
-      </label>
-      <p v-if="!hasCustomContext" class="search-sidebar__hint">
-        {{ t("search.contextUnavailable") }}
-      </p>
-    </fieldset>
-
     <fieldset class="search-sidebar__field">
       <legend>{{ t("search.fileType") }}</legend>
       <select
@@ -166,12 +110,7 @@ function patchOptions(patch: Partial<SearchOptions>): void {
         "
       >
         <option value="path">{{ t("search.sortPath") }}</option>
-        <option v-if="searchStrategyUsesMatchCountSort(options.strategy)" value="matches">
-          {{ t("search.sortMatches") }}
-        </option>
-        <option v-if="searchStrategyUsesScore(options.strategy)" value="score">
-          {{ t("search.sortScore") }}
-        </option>
+        <option value="matches">{{ t("search.sortMatches") }}</option>
       </select>
     </fieldset>
 
@@ -201,67 +140,6 @@ function patchOptions(patch: Partial<SearchOptions>): void {
         />
         <span>{{ t("search.wholeWord") }}</span>
       </label>
-    </fieldset>
-
-    <fieldset v-if="options.strategy === 'boolean'" class="search-sidebar__field">
-      <legend>{{ t("search.booleanMode") }}</legend>
-      <label class="search-sidebar__option">
-        <input
-          type="radio"
-          name="search-boolean"
-          :checked="options.booleanMode === 'and'"
-          @change="patchOptions({ booleanMode: 'and' })"
-        />
-        <span>{{ t("search.booleanAnd") }}</span>
-      </label>
-      <label class="search-sidebar__option">
-        <input
-          type="radio"
-          name="search-boolean"
-          :checked="options.booleanMode === 'or'"
-          @change="patchOptions({ booleanMode: 'or' })"
-        />
-        <span>{{ t("search.booleanOr") }}</span>
-      </label>
-    </fieldset>
-
-    <fieldset v-if="options.strategy === 'proximity'" class="search-sidebar__field">
-      <legend>{{ t("search.proximity") }}</legend>
-      <label class="search-sidebar__option">
-        <span>{{ t("search.proximityWindow") }}</span>
-        <input
-          type="number"
-          min="2"
-          max="32"
-          :value="options.proximity"
-          :aria-label="t('search.proximityWindow')"
-          @change="
-            patchOptions({
-              proximity: Number(($event.target as HTMLInputElement).value) || DEFAULT_PROXIMITY,
-            })
-          "
-        />
-      </label>
-    </fieldset>
-
-    <fieldset v-if="options.strategy === 'pattern'" class="search-sidebar__field">
-      <legend>{{ t("search.patternKind") }}</legend>
-      <select
-        :value="options.patternKind"
-        :aria-label="t('search.patternKind')"
-        @change="
-          patchOptions({
-            patternKind: ($event.target as HTMLSelectElement).value as SearchPatternKind,
-          })
-        "
-      >
-        <option value="heading">{{ t("search.patternHeading") }}</option>
-        <option value="link">{{ t("search.patternLink") }}</option>
-        <option value="wikilink">{{ t("search.patternWikilink") }}</option>
-        <option value="frontmatter">{{ t("search.patternFrontmatter") }}</option>
-        <option value="fence">{{ t("search.patternFence") }}</option>
-        <option value="list">{{ t("search.patternList") }}</option>
-      </select>
     </fieldset>
 
     <section v-if="selectedSearchContext" class="search-sidebar__matched">
@@ -372,27 +250,6 @@ function patchOptions(patch: Partial<SearchOptions>): void {
   color: $text-muted;
   font-size: $font-caption;
   line-height: 1.4;
-}
-
-.search-sidebar__advanced {
-  margin-top: $space-group;
-
-  summary {
-    min-height: $hit-min;
-    color: $text-primary;
-    font-size: $font-label;
-    font-weight: 600;
-    cursor: pointer;
-
-    &:focus-visible {
-      outline: 2px solid $focus-ring;
-      outline-offset: 2px;
-    }
-  }
-
-  .search-sidebar__field {
-    margin-top: $space-related;
-  }
 }
 
 .search-sidebar__matched {

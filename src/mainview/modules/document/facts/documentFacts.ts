@@ -7,9 +7,7 @@ export type DocumentFactId =
   | "documents"
   | "references"
   | "words"
-  | "tokens"
   | "tags"
-  | "summary"
   | "incomplete_references"
   | "outbound_references"
   | "inbound_references"
@@ -25,9 +23,7 @@ const FACT_KEYS: Record<DocumentFactId, string> = {
   documents: "facts.documents",
   references: "facts.references",
   words: "facts.words",
-  tokens: "facts.tokens",
   tags: "facts.tags",
-  summary: "facts.summary",
   incomplete_references: "facts.incompleteReferences",
   outbound_references: "facts.outboundReferences",
   inbound_references: "facts.inboundReferences",
@@ -44,17 +40,6 @@ export function documentFact(id: DocumentFactId, value: string): DocumentFact {
     label: documentFactLabel(id),
     value,
   };
-}
-
-/** Compact token counts for document facts, for example 950, 1.2k, or 3.4M. */
-export function formatTokens(tokens: number): string {
-  if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(1)}M`;
-  }
-  if (tokens >= 1_000) {
-    return `${(tokens / 1_000).toFixed(1)}k`;
-  }
-  return tokens.toLocaleString(i18n.global.locale.value);
 }
 
 /** Reference structure for a document. */
@@ -120,10 +105,7 @@ export function formatDocumentFacts(facts: readonly DocumentFact[]): string {
 }
 
 export function documentFactsForNote(note: ScannedNote): DocumentFact[] {
-  const facts: DocumentFact[] = [
-    documentFact("words", note.words.toLocaleString()),
-    documentFact("tokens", formatTokens(note.tokens)),
-  ];
+  const facts: DocumentFact[] = [documentFact("words", note.words.toLocaleString())];
 
   if (note.tags.length > 0) {
     facts.push(documentFact("tags", note.tags.join(", ")));

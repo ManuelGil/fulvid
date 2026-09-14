@@ -13,7 +13,6 @@ function note(
     categories: [],
     projects: [],
     summary: "",
-    tokens: 0,
     words: 0,
     content: "should not appear in candidates",
     ...partial,

@@ -9,6 +9,27 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-13
+
+### Added
+
+- **New Document from README**: create a Markdown document prefilled with a single built-in README-shaped body (title from the parent folder when created in Explorer). Blank **New Document** remains available. File → New, Quick Actions, and Explorer New expose both; the editor tab New control still creates a blank document. Not a template manager or template gallery.
+- **Insert document link** and **Insert table of contents** (Edit menu and Quick Actions): insert a Markdown or Wikilink to a Folder document (optionally a heading) using the active `linkMode`, or a deterministic same-document heading TOC. Ordinary source text only — no live TOC sync and no second document model.
+- Settings Search: find preferences on the Settings page by label, description, and category in the current language. Does not search documents or the Folder.
+- Explorer rename preserves resolvable document references: after a successful filesystem rename, Fulvid rewrites DocumentLink targets that already pointed at that document (open buffers and closed scanned notes), keeping labels and `#` fragments. Partial link-update failures are reported; this is not a multi-file transaction or generic refactor.
+
+### Changed
+
+- Appearance defaults to the operating system light/dark preference (`system`). Choosing Light or Dark in Settings still forces that skin.
+- Global Search keeps exact text and regular expression matching over Folder document bodies (and open buffers). Extra strategies (fuzzy, words, boolean, proximity, pattern, path) are removed; obsolete strategy values in a saved Search URL fall back to literal.
+- Graph and Document Context always use the open Folder. The separate Context root preference is gone.
+- Object menus: clearer Explorer and Search path actions, tab Close others / Close all when several tabs are open, and the native WebView/browser context menu is suppressed so Fulvid’s own menus own right-click.
+
+### Removed
+
+- Global Search strategies beyond literal and regular expression.
+- Context root as a user-facing Folder limit for facts and link resolution.
+
 ## [0.6.0] - 2026-09-12
 
 ### Added
@@ -49,12 +70,12 @@ This file is updated as part of the change, not reconstructed when a version is 
 ### Added
 
 - Native Full Screen from the View menu. Host window fullscreen (not web Document Fullscreen), independent of Writing Focus, and not persisted. F11 on Windows and Linux; Ctrl+Cmd+F on macOS. Normal window bounds are not saved while the window is fullscreen.
-- Writing Focus in Quick Actions (Fulvid group, beside Preview), using the same Focus toggle as the menu and shortcut.
+- Writing Focus in Quick Actions (Fulvid group, beside Preview), using the same Writing Focus toggle as the menu and shortcut.
 - Back to top control in the editor for long documents. It appears after you scroll down and returns to the start of the document without changing the text.
 
 ### Changed
 
-- Writing Focus on the editor route now hides the chrome that gets in the way of writing (sidebars, tabs, format bar, statusbar) while Monaco stays the editor. Session-only; not Graph Focus; not Full Screen. Shortcuts remain Ctrl+Shift+F on Windows and Linux and Cmd+Shift+F on macOS.
+- Writing Focus on the editor route now hides the chrome that gets in the way of writing (sidebars, tabs, format bar, statusbar) while Monaco stays the editor. Session-only; not Graph Focus; not Full Screen. Shortcuts: Ctrl+Shift+Enter on Windows and Linux and Cmd+Shift+Enter on macOS (see Unreleased / 0.4.0 keyboard note — Global Search took Ctrl/Cmd+Shift+F).
 
 ## [0.2.0] - 2026-09-10
 
@@ -84,7 +105,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.7.0
 [0.6.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.6.0
 [0.5.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.5.0
 [0.4.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.4.0

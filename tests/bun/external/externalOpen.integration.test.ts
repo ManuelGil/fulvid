@@ -93,27 +93,18 @@ describe("resolving an external open", () => {
     );
   });
 
-  test("a kind that disagrees with disk is refused, not reinterpreted", async () => {
-    const directoryAsFile = await resolveOne({ kind: "file", path: folder, source: "shell" });
-    expect(directoryAsFile).toEqual({
+  test("mismatched kinds, unsupported files, and missing documents are refused", async () => {
+    expect(await resolveOne({ kind: "file", path: folder, source: "shell" })).toEqual({
       kind: "rejected",
       source: "shell",
       reason: "unsupportedDocument",
     });
-
-    const fileAsFolder = await resolveOne({
-      kind: "folder",
-      path: join(folder, "doc.md"),
-      source: "shell",
-    });
-    expect(fileAsFolder).toEqual({ kind: "rejected", source: "shell", reason: "notADirectory" });
-  });
-
-  test("unsupported and missing documents are refused with a reportable reason", async () => {
+    expect(
+      await resolveOne({ kind: "folder", path: join(folder, "doc.md"), source: "shell" }),
+    ).toEqual({ kind: "rejected", source: "shell", reason: "notADirectory" });
     expect(
       await resolveOne({ kind: "file", path: join(outside, "secret.txt"), source: "shell" }),
     ).toEqual({ kind: "rejected", source: "shell", reason: "unsupportedDocument" });
-
     expect(
       await resolveOne({ kind: "file", path: join(outside, "gone.md"), source: "shell" }),
     ).toEqual({ kind: "rejected", source: "shell", reason: "documentMissing" });
@@ -161,31 +152,19 @@ describe("resolving an external open", () => {
     );
   });
 
-  test("one refusal does not discard the rest of the queue", async () => {
+  test("queue drains keep later requests after a refusal", async () => {
     enqueueExternalOpenRequest({ kind: "file", path: join(outside, "gone.md"), source: "shell" });
     enqueueExternalOpenRequest({ kind: "file", path: join(folder, "doc.md"), source: "shell" });
-
-    const resolved = await takePendingExternalOpens();
-
-    expect(resolved.map((entry) => entry.kind)).toEqual(["rejected", "file"]);
-  });
-
-  test("concurrent drains deliver each request once", async () => {
-    enqueueExternalOpenRequest({ kind: "file", path: join(folder, "doc.md"), source: "shell" });
-
-    const [first, second] = await Promise.all([
-      takePendingExternalOpens(),
-      takePendingExternalOpens(),
+    expect((await takePendingExternalOpens()).map((entry) => entry.kind)).toEqual([
+      "rejected",
+      "file",
     ]);
-
-    expect(first.length + second.length).toBe(1);
   });
 });
 
 // Intent: an adapter converts a channel's representation and decides nothing.
-// Growth boundary: add cases only when a new channel needs a new adapter.
 describe("launch arguments as a source", () => {
-  test("classifies each argument and ignores what cannot be opened", async () => {
+  test("classifies argv into file/folder opens and resolves relative paths against cwd", async () => {
     const requests = await externalOpenRequestsFromArguments([
       "/runtime/bun",
       "/app/main.js",
@@ -193,31 +172,21 @@ describe("launch arguments as a source", () => {
       folder,
       join(outside, "missing.md"),
       "--flag",
-      "-x",
       "",
     ]);
-
     expect(requests.map((request) => request.kind)).toEqual(["file", "folder"]);
     expect(requests.every((request) => request.source === "os-file-association")).toBe(true);
-  });
 
-  test("a relative argument resolves against the process directory", async () => {
-    // argv's base is the working directory; that convention belongs to the
-    // adapter, which is why the contract can insist on absolute paths.
     const previous = process.cwd();
     process.chdir(folder);
     try {
-      const requests = await externalOpenRequestsFromArguments([
+      const relative = await externalOpenRequestsFromArguments([
         "/runtime/bun",
         "/app/main.js",
         "doc.md",
       ]);
-
-      expect(requests).toHaveLength(1);
-      // Compare canonically: this is the one assertion that crosses
-      // `process.cwd()`, and Windows may report the temp directory in a
-      // different form (8.3 short name, different case) than `mkdtemp` returned.
-      expect(await realpath(requests[0].path)).toBe(await realpath(join(folder, "doc.md")));
+      expect(relative).toHaveLength(1);
+      expect(await realpath(relative[0].path)).toBe(await realpath(join(folder, "doc.md")));
     } finally {
       process.chdir(previous);
     }

@@ -15,7 +15,6 @@ function noteFromStandaloneBuffer(buffer: DocumentBuffer): ScannedNote {
     categories: [],
     projects: [],
     summary: "",
-    tokens: 0,
     words: 0,
     content: buffer.model.getValue(),
   };

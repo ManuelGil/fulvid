@@ -34,7 +34,7 @@ Electrobun's CLI (`electrobun.cjs`) and Vite's CLI start with `#!/usr/bin/env no
 | Ubuntu 22.04, Debian 12 | Unsupported. Electrobun 2.0.1 ships Cottontail 0.5.0 (`GLIBC_2.38`, `GLIBCXX_3.4.32`) and `libNativeWrapper.so` (`GLIBC_2.38`, `GLIBCXX_3.4.32`). Ubuntu 22.04 is glibc 2.35; Debian 12 is glibc 2.36 |
 | Ubuntu 20.04, Debian 11, 32-bit | Unsupported |
 
-Build compatibility (Electrobun + Vite + Bun 1.4.0) and runtime compatibility (those shared libraries present at launch) are different. The Linux jobs install the libraries, then package, then launch.
+Build compatibility (Electrobun + Vite + Bun 1.4.2 host/CI) and runtime compatibility (those shared libraries present at launch) are different. The packaged Bun runtime remains Electrobun's Hutch pin (1.4.0 with Electrobun 2.0.1). The Linux jobs install the libraries, then package, then launch.
 
 Local smoke after a Linux package:
 

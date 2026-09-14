@@ -1,12 +1,11 @@
 /**
- * Workspace state - the open workspace, its active context root, and the
- * recent-workspace history. The single owner of workspace loading, including
- * whether a finished scan found documents Fulvid can edit.
+ * Workspace state - the open Folder and recent-folder history. The single owner
+ * of workspace loading, including whether a finished scan found documents
+ * Fulvid can edit.
  */
 import { computed, ref, watch } from "vue";
 
 import {
-  bindFocusToContext,
   bindFocusToWorkspace,
   currentFocus,
   focusDocument,
@@ -32,17 +31,15 @@ import { folderDocumentPreflight, shouldLoadFolderWorkspace } from "./folderPref
 import { settings } from "../modules/settings/settingsStore";
 import { notify } from "./notify";
 import { closeRightSidebar } from "./layoutStore";
-import {
-  clearStoredContextRoot,
-  filterNotesByContextRoot,
-  getStoredContextRoot,
-  isPathWithinContext,
-  normalizeContextRoot,
-  setStoredContextRoot,
-  WORKSPACE_CONTEXT_ROOT,
-} from "../modules/document/context/context";
 import { i18n } from "../i18n";
 import { confirmDialog } from "./dialogs";
+
+/** Abandoned Context-root preference; Folder (workspace) is the only scope. */
+try {
+  localStorage.removeItem("fulvid.contextRoots");
+} catch {
+  // Ignore quota / private-mode failures; absence is the desired state.
+}
 
 export function workspaceName(path: string): string {
   const parts = path.replace(/[/\\]+$/, "").split(/[/\\]/);
@@ -119,11 +116,9 @@ export function clearRecentWorkspaces(): void {
   recentWorkspaces.value = [];
 }
 
-// --- Workspace and context state ---
+// --- Workspace state ---
 
 export const workspace = ref<WorkspaceScan | null>(null);
-/** Relative path within workspace; empty string = workspace root. Null when no workspace is loaded. */
-export const contextRoot = ref<string | null>(null);
 export const isLoading = ref(false);
 /** Activity label while a load/refresh is in flight. */
 export const loadingStatus = ref<string | null>(null);
@@ -247,24 +242,7 @@ function notifyPartialScan(scan: WorkspaceScan): void {
   }
 }
 
-export const hasCustomContext = computed(
-  () => contextRoot.value !== null && contextRoot.value !== WORKSPACE_CONTEXT_ROOT,
-);
-
-/** Sidebar label for the active context folder; null at the workspace root. */
-export const activeContextLabel = computed(() =>
-  hasCustomContext.value && contextRoot.value
-    ? `${normalizeContextRoot(contextRoot.value)}/`
-    : null,
-);
-
-export const contextNotes = computed(() => {
-  if (!workspace.value || contextRoot.value === null) {
-    return [];
-  }
-
-  return filterNotesByContextRoot(workspace.value.scannedNotes, contextRoot.value);
-});
+export const workspaceNotes = computed(() => workspace.value?.scannedNotes ?? []);
 
 export function applyScannedNote(note: ScannedNote): void {
   const scannedNotes = workspace.value?.scannedNotes;
@@ -299,40 +277,16 @@ export function applyRenamedNote(previousPath: string, note: ScannedNote): void 
 }
 
 /**
- * The current focus, valid only when it belongs to the open workspace and
- * the active context. Shared by every surface that renders the focus.
+ * The current focus, valid only when it belongs to the open Folder.
+ * Shared by every surface that renders the focus.
  */
 export const validatedFocus = computed(() => {
   const workspacePath = workspace.value?.path ?? null;
-  if (
-    !isFocusValidForWorkspace(currentFocus.value, workspacePath) ||
-    !isPathWithinContext(currentFocus.value?.path ?? "", contextRoot.value)
-  ) {
+  if (!isFocusValidForWorkspace(currentFocus.value, workspacePath)) {
     return null;
   }
   return currentFocus.value;
 });
-
-export function setContextRoot(relativePath: string): void {
-  if (!workspace.value) {
-    return;
-  }
-
-  contextRoot.value = relativePath;
-  setStoredContextRoot(workspace.value.path, relativePath);
-  bindFocusToContext(relativePath);
-}
-
-export function clearContextRoot(): void {
-  if (!workspace.value) {
-    contextRoot.value = null;
-    return;
-  }
-
-  contextRoot.value = WORKSPACE_CONTEXT_ROOT;
-  clearStoredContextRoot(workspace.value.path);
-  bindFocusToContext(WORKSPACE_CONTEXT_ROOT);
-}
 
 async function loadWorkspace(path: string): Promise<void> {
   const requestGeneration = ++workspaceRequestGeneration;
@@ -361,7 +315,6 @@ async function loadWorkspace(path: string): Promise<void> {
     notifyPartialScan(scan);
     attachBuffersToWorkspace(path);
     recentWorkspaces.value = addRecentWorkspace(path);
-    contextRoot.value = getStoredContextRoot(path) ?? WORKSPACE_CONTEXT_ROOT;
     bindFocusToWorkspace(path);
     if (activeBuffer.value?.rootPath === path && activeBuffer.value.path) {
       focusDocument(activeBuffer.value.path);
@@ -445,7 +398,6 @@ export async function closeWorkspace(): Promise<void> {
     return;
   }
   workspace.value = null;
-  contextRoot.value = null;
   errorMessage.value = null;
   isLoading.value = false;
   setLoadingStatus(null);
@@ -461,7 +413,6 @@ export async function refreshWorkspace(options: { silent?: boolean } = {}): Prom
     return;
   }
 
-  const previousContext = contextRoot.value;
   const requestGeneration = ++workspaceRequestGeneration;
   isLoading.value = true;
   errorMessage.value = null;
@@ -475,9 +426,7 @@ export async function refreshWorkspace(options: { silent?: boolean } = {}): Prom
     workspace.value = scan;
     notifyPartialScan(scan);
     attachBuffersToWorkspace(path);
-    contextRoot.value = previousContext ?? getStoredContextRoot(path) ?? WORKSPACE_CONTEXT_ROOT;
     bindFocusToWorkspace(path);
-    bindFocusToContext(contextRoot.value);
     if (!options.silent) {
       notify(i18n.global.t("workspace.refreshed"));
     }

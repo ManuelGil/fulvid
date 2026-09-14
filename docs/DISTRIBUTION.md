@@ -16,7 +16,7 @@ Release notes for a tag live under [releases/](./releases/) and are copied onto 
 | License | MIT |
 | Version | `package.json` and `electrobun.config.ts` |
 
-Packaging variants may change only `Exec`. Name, Comment, Icon, StartupWMClass, Categories, and MIME stay the same. MIME is `text/markdown;text/x-markdown;` only. Do not add `.mdx` as MIME, and do not add `inode/directory`, until a packaged Fulvid actually receives those paths. Canonical `Exec` is `/usr/bin/fulvid %F`. Variants use `fulvid %F`. `%F` must stay an unquoted argument of its own so the desktop environment can pass local files and folders. The Debian wrapper already forwards those arguments to the Electrobun launcher (`exec /opt/fulvid/bin/launcher "$@"`). The launcher does not yet forward them to the Bun host; see [EXTERNAL-OPEN.md](./EXTERNAL-OPEN.md).
+Packaging variants may change only `Exec`. Name, Comment, Icon, StartupWMClass, Categories, and MIME stay the same. MIME is `text/markdown;text/x-markdown;` only. Do not add `.mdx` as MIME, and do not add `inode/directory`, until a packaged Fulvid actually receives those paths. Canonical `Exec` is `/usr/bin/fulvid %F`. Variants use `fulvid %F`. `%F` must stay an unquoted argument of its own so the desktop environment can pass local files and folders. The Debian wrapper already forwards those arguments to the Electrobun launcher (`exec /opt/fulvid/bin/launcher "$@"`). The launcher does not yet forward them to the Bun host (Electrobun [#483](https://github.com/blackboardsh/electrobun/issues/483); see [EXTERNAL-OPEN.md](./EXTERNAL-OPEN.md) Upstream Watch).
 
 ## Artifacts
 

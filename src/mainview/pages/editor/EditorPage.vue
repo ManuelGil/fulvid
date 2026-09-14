@@ -15,7 +15,6 @@ import {
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
 
 import EditorTabs from "../../modules/editor/EditorTabs.vue";
 import EditorToolbar from "../../modules/editor/EditorToolbar.vue";
@@ -31,7 +30,7 @@ import {
   errorMessage,
   isLoading,
   loadingStatus,
-  contextNotes,
+  workspaceNotes,
   openWorkspace,
   recentWorkspaces,
   reopenLastWorkspace,
@@ -42,13 +41,20 @@ import {
   workspace,
   workspaceName,
 } from "../../app/workspaceState";
-import { APP_ROUTE_NAMES } from "../../app/router";
 import {
   describeFilesystemError,
   notifyFilesystemError,
   pickAndSaveHtmlExport,
 } from "../../modules/workspace/filesystem/workspaceScanner";
-import { findMarkdownHeading } from "../../modules/editor/markdown/markdownStructure";
+import {
+  findMarkdownHeading,
+  parseMarkdownStructure,
+} from "../../modules/editor/markdown/markdownStructure";
+import {
+  buildMarkdownTableOfContents,
+  formatDocumentLink,
+  relativeDocumentLinkPath,
+} from "../../modules/editor/markdown/markdownAuthoring";
 import {
   escapeHtml,
   exportMarkdownPreviewDocument,
@@ -66,7 +72,13 @@ import {
   pendingReveal,
 } from "../../modules/editor/document/documentSession";
 import { notify } from "../../app/notify";
-import { confirmDialog, promptFilename, promptText } from "../../app/dialogs";
+import {
+  confirmDialog,
+  promptFilename,
+  promptPick,
+  promptQuickOpen,
+  promptText,
+} from "../../app/dialogs";
 import { isUsableFocusTarget } from "../../app/usableFocusTarget";
 import { settings } from "../../modules/settings/settingsStore";
 import {
@@ -81,7 +93,7 @@ import {
   writingFocusKeepsFocusTarget,
   writingFocusLeaveEditorTarget,
 } from "../../modules/editor/writingFocus";
-import { registerCommandHandler } from "../../shell/commands";
+import { executeCommand, registerCommandHandler } from "../../shell/commands";
 import {
   attachDocumentBuffer,
   activeBuffer,
@@ -120,6 +132,7 @@ type MonacoHostHandle = {
   runEditorAction: (action: "undo" | "redo" | "fold" | "unfold") => Promise<void>;
   runMonacoAction: (actionId: string) => Promise<void>;
   runMarkdownAction: (action: MarkdownFormatAction) => void;
+  insertTextAtCursor: (text: string) => void;
   currentCursorPosition: () => { lineNumber: number; column: number };
   findAnnotationAtLine: (lineNumber: number) => {
     position: { lineNumber: number; column: number };
@@ -153,7 +166,6 @@ type MenuAction = ContextMenuAction & {
 };
 
 const { t } = useI18n();
-const router = useRouter();
 const menuOpen = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
@@ -248,7 +260,7 @@ const activeDocumentContent = computed(() => {
 
 const activeDocumentNotes = computed(() => {
   const buffer = activeBuffer.value;
-  return buffer?.rootPath && buffer.rootPath === workspace.value?.path ? contextNotes.value : [];
+  return buffer?.rootPath && buffer.rootPath === workspace.value?.path ? workspaceNotes.value : [];
 });
 
 watch(
@@ -478,11 +490,99 @@ function togglePreview(): void {
 }
 
 function createNewDocument(): void {
-  void openOrActivate({ kind: "virtual" })
-    .then(() => router.push({ name: APP_ROUTE_NAMES.editor, query: {} }))
-    .catch((error) => {
-      notifyFilesystemError(error, "workspace.openDocumentError", notify);
+  // Same command as File → New → New Document and Quick Actions.
+  void executeCommand("newDocument");
+}
+
+function contentForWorkspaceDocument(path: string): string | null {
+  const current = activeBuffer.value;
+  if (current?.path === path) {
+    return current.model.getValue();
+  }
+  const rootPath = workspace.value?.path;
+  if (rootPath) {
+    const live = getDocumentBuffer(rootPath, path);
+    if (live) {
+      return live.model.getValue();
+    }
+  }
+  return workspaceNotes.value.find((note) => note.path === path)?.content ?? null;
+}
+
+async function insertDocumentLink(): Promise<void> {
+  const host = monacoHostRef.value;
+  if (!host) {
+    return;
+  }
+  if (!workspace.value) {
+    notify(t("markdown.insertLinkNeedsFolder"));
+    return;
+  }
+
+  const path = await promptQuickOpen();
+  if (!path) {
+    return;
+  }
+
+  const note = workspaceNotes.value.find((candidate) => candidate.path === path);
+  const content = contentForWorkspaceDocument(path);
+  const headings = content ? parseMarkdownStructure(content).headings : [];
+  let anchor: string | undefined;
+  let label = note?.title || note?.name || path;
+
+  if (headings.length > 0) {
+    const picked = await promptPick({
+      title: t("markdown.pickLinkTarget"),
+      items: [
+        { id: "", label: t("markdown.entireDocument"), detail: path },
+        ...headings.map((heading) => ({
+          id: heading.anchor,
+          label: heading.text,
+          detail: `#${heading.anchor}`,
+        })),
+      ],
     });
+    if (picked === null) {
+      return;
+    }
+    if (picked) {
+      anchor = picked;
+      const heading = headings.find((entry) => entry.anchor === picked);
+      if (heading) {
+        label = heading.text;
+      }
+    }
+  }
+
+  const sourcePath = activeBuffer.value?.path ?? "";
+  const sameDocument = Boolean(sourcePath && sourcePath === path);
+  const target =
+    sameDocument && anchor ? "" : sourcePath ? relativeDocumentLinkPath(sourcePath, path) : path;
+
+  const link = formatDocumentLink({
+    label,
+    target,
+    anchor,
+    linkMode: settings.value.links.linkMode,
+  });
+  host.insertTextAtCursor(link);
+}
+
+function insertTableOfContents(): void {
+  const host = monacoHostRef.value;
+  const buffer = activeBuffer.value;
+  if (!host || !buffer) {
+    return;
+  }
+  const headings = parseMarkdownStructure(buffer.model.getValue()).headings;
+  const toc = buildMarkdownTableOfContents(headings, {
+    linkMode: settings.value.links.linkMode,
+  });
+  if (!toc) {
+    notify(t("markdown.tocEmpty"));
+    return;
+  }
+  host.insertTextAtCursor(toc);
 }
 
 function findInEditor(): void {
@@ -731,6 +831,9 @@ async function closeOtherDocuments(targetId?: string): Promise<void> {
     return;
   }
   const others = openBuffers.value.filter((buffer) => buffer.id !== target.id);
+  if (others.length === 0) {
+    return;
+  }
   if (
     others.some(isDocumentDirty) &&
     settings.value.workspace.confirmClose &&
@@ -787,6 +890,8 @@ const unregisterCommands = [
     runMonacoEditorAction("editor.action.goToReferences"),
   ),
   registerCommandHandler("renameHeading", () => runMonacoEditorAction("editor.action.rename")),
+  registerCommandHandler("insertDocumentLink", () => void insertDocumentLink()),
+  registerCommandHandler("insertTableOfContents", insertTableOfContents),
   registerCommandHandler("togglePreview", togglePreview),
   registerCommandHandler("annotateDocument", () => void annotateAtCursor()),
   registerCommandHandler("removeAnnotation", removeAnnotationAtCursor),
@@ -848,12 +953,12 @@ function onRecentContextMenu(event: MouseEvent, path: string): void {
     },
     {
       id: "reveal",
-      label: t("actions.reveal"),
+      label: t("menu.revealInFolder"),
       run: () => revealPath(path),
     },
     {
       id: "copy",
-      label: t("actions.copy"),
+      label: t("menu.copyPath"),
       run: () => copyPath(path),
     },
   ]);
@@ -873,12 +978,12 @@ function onRecentContextKeydown(event: KeyboardEvent, path: string): void {
     },
     {
       id: "reveal",
-      label: t("actions.reveal"),
+      label: t("menu.revealInFolder"),
       run: () => revealPath(path),
     },
     {
       id: "copy",
-      label: t("actions.copy"),
+      label: t("menu.copyPath"),
       run: () => copyPath(path),
     },
   ]);
@@ -1034,7 +1139,7 @@ onBeforeUnmount(() => {
           <section
             id="document-editor-panel"
             class="editor-page__editor-column"
-            role="tabpanel"
+            :role="writingFocusActive ? undefined : 'tabpanel'"
             :aria-labelledby="writingFocusActive ? undefined : 'active-document-tab'"
             :aria-label="t('workspace.editorArea')"
           >
@@ -1095,7 +1200,7 @@ onBeforeUnmount(() => {
       :x="menuX"
       :y="menuY"
       :actions="menuActions"
-      :label="t('workspace.actions')"
+      :label="t('workspace.recentFolderActions')"
       @select="runMenuAction"
       @close="closeMenu"
     />

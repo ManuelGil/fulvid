@@ -10,12 +10,13 @@ import {
   writingFocusActive,
   writingFocusHidesEditorChrome,
   writingFocusLeaveEditorTarget,
+  writingFocusMonacoOptions,
 } from "../../../../src/mainview/modules/editor/writingFocus.ts";
 
-// Intent: Writing Focus is session/editor-route only; leave-editor targets stay usable.
-// Capability keep-list (WRITING_FOCUS_KEPT_SELECTORS) includes Quick Actions and .app-sidebar.
+// Intent: Writing Focus is session chrome on the editor route only.
+// Keep-list ownership stays here — hide chrome, not capabilities.
 describe("writing focus", () => {
-  test("applies only on the editor route and keeps leave-editor targets usable", () => {
+  test("applies only on the editor route, keeps leave targets usable, and preserves capability surfaces", () => {
     writingFocusActive.value = false;
     expect(writingFocusHidesEditorChrome("editor")).toBe(false);
     expect(writingFocusLeaveEditorTarget(true)).toBe("tabs");
@@ -24,6 +25,7 @@ describe("writing focus", () => {
     expect(writingFocusActive.value).toBe(true);
     expect(writingFocusHidesEditorChrome("editor")).toBe(true);
     expect(writingFocusHidesEditorChrome("settings")).toBe(false);
+    // Tabs are hidden under Writing Focus — restore must stay on Monaco/empty.
     expect(writingFocusLeaveEditorTarget(true)).toBe("monaco");
     expect(writingFocusLeaveEditorTarget(false)).toBe("empty-or-main");
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".quick-actions");
@@ -31,12 +33,16 @@ describe("writing focus", () => {
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".toast-host");
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".dialog-host");
 
+    const monaco = writingFocusMonacoOptions(false, true);
+    expect(monaco.minimap).toEqual({ enabled: false });
+    expect(monaco.stickyScroll).toEqual({ enabled: false });
+
     toggleWritingFocus();
     expect(writingFocusActive.value).toBe(false);
   });
 });
 
-// Intent: Writing Focus and native Full Screen stay orthogonal.
+// Intent: Writing Focus and native Full Screen stay orthogonal (all four combinations).
 describe("writing focus and native fullscreen", () => {
   test("all four combinations stay independent", () => {
     writingFocusActive.value = false;

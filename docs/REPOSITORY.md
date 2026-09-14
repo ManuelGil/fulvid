@@ -16,14 +16,14 @@ extensions/              Extension-boundary fixtures (copy into userData/extensi
 src/bun/                 Desktop host and filesystem RPC
 src/bun/extensions/      Declarative extension discovery (userData/extensions)
 src/bun/filesystem/      io/, rpc/, scanning/, security/
+src/mainview/extensions/ Manifest contract + registry / host action dispatch
 src/mainview/pages/      Routes: editor/, search/, graph/, settings/
 src/mainview/modules/    workspace/, editor/, search/, quickOpen/, graph/, document/, settings/
-src/mainview/extensions/ Manifest contract + registry / host action dispatch
 src/mainview/app/        Bootstrap, router, layout, folder lifecycle
-src/mainview/shell/      Menus, sidebars, AppIcon.vue / appIcons.ts
+src/mainview/shell/      Menus, sidebars, AppIcon.vue
 src/mainview/i18n/       EN/ES catalogs; see I18N.md
 src/mainview/styles/
-tests/                   Mirrors src/bun, src/mainview, scripts/, and extensions/
+tests/                   Mirrors src/bun, src/mainview, and scripts/
 scripts/                 validate, doctor, icons, smoke, compatibility smoke
 packaging/linux/         Manual Linux release and desktop/metainfo stubs
 packaging/windows/       Windows packaging (Actions)
@@ -46,7 +46,7 @@ docs/
 | Outline | `modules/editor/outline/OutlinePanel.vue` |
 | Preview | `modules/editor/preview/PreviewPane.vue` |
 
-Tests mirror `src/`, `scripts/`, and `extensions/`. Names are `.unit.test.ts`, `.integration.test.ts`, and `.smoke.test.ts`. Unit tests are the exception; see [CONTRIBUTING.md](../CONTRIBUTING.md#testing). Smoke is `bun run smoke`, not part of `bun run test`. Security and architecture frontiers are protected by those existing layers (filesystem, External Open, Focus/selection, Graph projection, Preview inertness, Writing Focus ⊥ Full Screen, extension fixtures) — not by a separate `tests/security-harness/` tree.
+Tests mirror `src/` and `scripts/`. Names are `.unit.test.ts`, `.integration.test.ts`, and `.smoke.test.ts`. Unit tests are the exception; see [CONTRIBUTING.md](../CONTRIBUTING.md#testing). Smoke is `bun run smoke`, not part of `bun run test`.
 
 Product copy uses **Folder**. Host code may keep `workspace*` identifiers.
 

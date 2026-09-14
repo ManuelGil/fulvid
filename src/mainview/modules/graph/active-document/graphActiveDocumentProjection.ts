@@ -32,7 +32,6 @@ function scannedNoteForBuffer(buffer: GraphActiveBufferInput): ScannedNote {
     categories: [],
     projects: [],
     summary: "",
-    tokens: 0,
     words: 0,
   };
 }

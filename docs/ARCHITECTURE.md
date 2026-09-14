@@ -4,22 +4,21 @@ Who owns behavior in Fulvid.
 
 Vocabulary: [CONCEPTS.md](./CONCEPTS.md). Rules: [INVARIANTS.md](./INVARIANTS.md). Graph pipeline: [GRAPH.md](./GRAPH.md).
 
-Every user-visible behavior has **one owner**. Pages and the shell choose what is on screen; they do not own product rules. Reuse the document session, buffers, DocumentLink resolver, Preview renderer, and filesystem RPC. Do not add a second store, parser, renderer, resolver, or lifecycle.
+Every user-visible behavior has **one owner**. Pages and the shell choose what is on screen; they do not own product rules. Reuse the document session, buffers, document-link parse/resolve (`documentLink` + `linkSemantics`), Preview renderer, and filesystem RPC. Do not add a second store, parser, renderer, resolver, or lifecycle.
 
 ## Owners
 
 | Owner | Owns |
 | --- | --- |
 | Document Session | Open documents and `activeId` |
-| Document buffers | Monaco models, dirty/`savedVersionId`, virtual vs persisted identity, grants, `selectDocument`, `openOrActivate` |
+| Document buffers | Monaco models, dirty/`savedVersionId`, virtual vs persisted identity, grants, `selectDocument`, `openOrActivate`. Blank New Document uses an empty model; New Document from README seeds via `documentTemplates.renderDocumentTemplate` (one README body; not a template subsystem) |
 | Editor | Commands, Preview split, Outline, Monaco host, Writing Focus chrome overlay, session document annotations |
 | Explorer | Folder file tree in the right sidebar |
-| Search | `/search` and Search sidebar options (content strategies) |
+| Search | `/search` and Search sidebar options (exact text or regular expression over document bodies) |
 | Quick Open | Keyboard document picker by identity in the open Folder (`Ctrl/Cmd+P`); not content search; not a Command Palette |
 | Graph | Focus-scoped visualization of resolved links |
 | Document Context | References and facts for the focused or peeked document |
 | Focus | Folder-scoped Graph/Context target; Peek |
-| Context | Scoping facts and link resolution to a context root |
 | Settings | Persistence in `settingsStore.ts` |
 | Filesystem | Scan and document I/O through one RPC boundary |
 
@@ -53,7 +52,9 @@ HTML Export is a separate dialog that writes `.html` only, using the Preview ren
 
 ## Shell
 
-`/editor` fills the main slot. The shell owns the application menu, Quick Actions, left sidebar (navigation and Folder lifecycle), right sidebar, and optional Statusbar. Those regions are siblings. On the editor route, Writing Focus collapses the left sidebar to the compact rail (restored on exit), hides shell chrome without mutating settings persistence, expands the editor surface, and may keep a quiet document-location line when Settings -> Document location is Main panel (`documentLocation` projection). Capability surfaces listed in `WRITING_FOCUS_KEPT_SELECTORS` stay usable (hide chrome, not capabilities — especially Quick Actions). PageShell owns Writing Focus padding/gap so rhythm styles cannot reintroduce vertical space above Monaco. Native Full Screen is owned by the Bun host `BrowserWindow`, not by the shell. Window title updates use one host capability (`setWindowTitle`) when that destination is selected.
+`/editor` fills the main slot. The shell owns the application menu, Quick Actions, left sidebar (navigation and Folder lifecycle), right sidebar, and optional Statusbar. Those regions are siblings. On the editor route, Writing Focus collapses the left sidebar to the compact rail (restored on exit), hides shell chrome without mutating settings persistence, expands the editor surface, and may keep a quiet document-location line when Settings -> Document location is Main panel (`documentLocation` projection). PageShell owns Writing Focus padding/gap so rhythm styles cannot reintroduce vertical space above Monaco. Native Full Screen is owned by the Bun host `BrowserWindow`, not by the shell. Window title updates use one host capability (`setWindowTitle`) when that destination is selected.
+
+The WebView/browser default context menu (including Inspect Element) is suppressed at app start (`suppressNativeContextMenu.ts`). Contextual actions use Fulvid-owned `ContextMenu.vue` where the product already provides them. Do not add a global context-menu manager.
 
 ### Quick Actions toolbar
 
@@ -74,14 +75,14 @@ Owner: shell (`QuickActionsToolbar.vue` + `commands.ts`). Not the Markdown forma
 | Selection | `selectQuickActionsForVisibleCount` owns visibility via `tier` → `overflowOrder` (not array index) |
 | Annotation | Edit / `document` — contextual Add/Edit on the open document (`annotateDocument`). Not a Fulvid chrome action; Show/Hide stays View + Settings |
 | Fulvid surfaces | `view` (Preview), `mode` (Writing Focus), `panels` (Explorer). One visual Fulvid group; no subgroup separators |
-| Overflow stickiness | Preview > Annotation > Writing Focus > Explorer (remain visible longer). Preview / Annotation / Focus stay ahead of clipboard. Explorer is overflow-tolerant (Folder / left nav remain). Focus may enter More earlier (`Ctrl/Cmd+Shift+Enter`; Focus keeps `.quick-actions`) |
+| Overflow stickiness | Preview > Annotation > Writing Focus > Explorer (remain visible longer). Preview / Annotation / Writing Focus stay ahead of clipboard. Explorer is overflow-tolerant (Folder / left nav remain). Writing Focus may enter More earlier (`Ctrl/Cmd+Shift+Enter`; Writing Focus keeps `.quick-actions`) |
 | Icons | Toolbar → `AppIcon` → Lucide only. Semantic aliases (`annotations` → Highlighter) |
 | Geometry | Icon ~15px; hit target `--hit-min` (36px); group gap 1px; toolbar gap `$space-compact`; divider `$space-tight` |
-| Labels | `aria-label` is the localized action string (contextual for Preview, annotation Add/Edit, Focus). `title` may append `(shortcut)` when a shortcut exists |
+| Labels | `aria-label` is the localized action string (contextual for Preview, annotation Add/Edit, Writing Focus). `title` may append `(shortcut)` when a shortcut exists |
 | Toggles | `aria-pressed` only for Preview, Writing Focus, and Explorer — never for Add/Edit annotation |
 | More menu | Same metadata and `group → subgroup → order`. Disabled toolbar actions stay disabled in More |
 
-Do not add a ToolbarManager, action plugin registry, or parallel Focus/Full Screen toolbar. Writing Focus keeps `.quick-actions` usable; Full Screen does not change Quick Action ownership.
+Do not add a ToolbarManager, action plugin registry, or parallel Writing Focus/Full Screen toolbar. Writing Focus keeps `.quick-actions` usable; Full Screen does not change Quick Action ownership.
 
 The right sidebar shows one panel: Explorer, Search options (on `/search`), Document Context, or Outline. Search, Graph, and Settings are pages. Sidebars do not own `activeId`.
 
@@ -104,9 +105,14 @@ Discovery: `src/bun/extensions/`. Registry / host dispatch: `src/mainview/extens
 
 See [`extensions/README.md`](../extensions/README.md).
 
+
 ## Document links
 
-[`documentLink.ts`](../src/mainview/modules/document/links/documentLink.ts) is the only resolver for the active link mode (Markdown or Wikilink, not both). Scan, Monaco providers, Preview, Export, and Graph use it.
+[`documentLink.ts`](../src/mainview/modules/document/links/documentLink.ts) parses the active link mode (Markdown or Wikilink, not both). Path/stem/alias/title resolution lives in [`linkSemantics.ts`](../src/mainview/modules/document/links/linkSemantics.ts) (`resolveDocumentPath`). Scan, Monaco providers, Preview, Export, Graph, and Document Context reuse that pair — not a second resolver.
+
+Insert document link / TOC format strings in [`markdownAuthoring.ts`](../src/mainview/modules/editor/markdown/markdownAuthoring.ts) and insert them through Monaco; they reuse `linkMode` and `parseMarkdownStructure` and are not a second document model.
+
+Explorer file rename plans inbound target rewrites in [`documentPathRename.ts`](../src/mainview/modules/document/links/documentPathRename.ts) from the same parse/resolve pair, then applies them through Monaco buffers or existing `writeDocument` — not a refactoring subsystem or link database.
 
 `linkMode` default is `"markdown"`. F2 rename applies text edits to open buffers. It does not rename files or change document identity.
 

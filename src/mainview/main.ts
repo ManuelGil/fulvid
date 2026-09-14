@@ -4,10 +4,13 @@ import App from "./app/App.vue";
 import { createAppRouter } from "./app/router";
 import { applyPendingExternalOpens } from "./app/externalOpen";
 import { bootstrapWorkspace } from "./app/workspaceState";
+import { installNativeContextMenuSuppression } from "./app/suppressNativeContextMenu";
 import { ensureUntitledDocument } from "./modules/editor/document/documentBuffers";
 
 import "./styles/index.scss";
 import { i18n } from "./i18n";
+
+installNativeContextMenuSuppression();
 
 const router = createAppRouter();
 

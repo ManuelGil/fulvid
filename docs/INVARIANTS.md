@@ -17,12 +17,13 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Selection seam | UI selection uses `selectDocument`. `activateDocument` is session-internal |
 | Focus ownership | Focus is folder-scoped Graph/Context metadata. Graph consumes Focus and does not own it |
 | Writing Focus / Full Screen | Writing Focus is session editor chrome only: it may hide or inert secondary chrome but must keep deliberate capability surfaces usable (`WRITING_FOCUS_KEPT_SELECTORS`, including Quick Actions). Native Full Screen is BrowserWindow state on the host. Either may be on, off, or combined; neither owns the other, grants, containment, Preview, or document selection |
-| Quit and dirty buffers | When Settings → Confirm before closing is on, Quit asks before discarding unsaved tabs, using the same confirmation owner as closing dirty tabs. Host `quitApplication` runs only after that gate. Menu Quit is a command, not an OS quit role that bypasses the renderer |
 | Extension UI boundary | Path: `extension → declared capability/command → existing owner → presentation`. An extension is never an owner. Declarative discovery loads `userData/extensions` (`api: 0`); invalid packs fail in isolation. Host actions today: `notify`, `createUntitledFromTemplate`. They never own Monaco, filesystem/grants, BrowserWindow, Focus/Writing Focus policy, Graph, Preview HTML, Vue internals, or arbitrary DOM/SVG. Icon identifiers are closed declarative names (`appIcons` / `CommandIcon`). Repo `extensions/` fixtures document the contract and are not the load path. Do not fix a UI bug by inventing a second owner of the same behavior |
+| Quit and dirty buffers | When Settings → Confirm before closing is on, Quit asks before discarding unsaved tabs, using the same confirmation owner as closing dirty tabs. Host `quitApplication` runs only after that gate. Menu Quit is a command, not an OS quit role that bypasses the renderer |
 | Document location | Editor chrome projects `DocumentBuffer` fields into a compact relative path (or Untitled / standalone basename). Settings choose main panel, window title, or hidden. Tabs use basename unless open tabs collide (then add segments until unique). Path display is not navigation and not authorization |
-| Search ownership | Local find uses the active Monaco model. Global Search uses folder document content |
+| Search ownership | Local find uses the active Monaco model. Global Search uses Folder scan document bodies (plus open buffer overlays) with exact text or regular expression matching only |
 | Quick Open ownership | Quick Open matches document identity (`title`, filename, relative path) from `workspace.scannedNotes` in the open Folder only. It does not search content, own a scan, or bypass `openOrActivate` / filesystem containment |
 | Semantic rename | F2 renames a heading or fragment in document text. It never renames a file or document ID |
+| File rename references | Explorer rename may rewrite DocumentLink targets that already resolved to the renamed path. It reuses parse/resolve and existing writes; it is not a transaction or link index |
 | Preview and Export | Preview and Export HTML share `renderMarkdownPreview`. Save writes source. Export writes `.html` |
 | Folder startup | `workspaceStartup` is `none` or `last`. Untitled is available in both cases |
 | Folder preflight | Opening a folder loads it only when the scan found `.md` / `.markdown` / `.mdx`, or when the scan was partial. A complete scan with none of those files is said out loud and does not become the open folder. Preflight does not grant access, execute MDX, or walk the tree a second time |
@@ -71,7 +72,7 @@ The renderer is untrusted. It may ask for a document inside a folder the person 
 
 ## Persisted state
 
-Persisted state is treated as potentially corrupt or tampered with. Settings, layout, context roots, and folder approvals each sanitize on read: an invalid part is discarded and its default applied, and Fulvid still starts. Persisted state can never grant a capability. A recent-folder entry does not authorize a folder.
+Persisted state is treated as potentially corrupt or tampered with. Settings, layout, and folder approvals each sanitize on read: an invalid part is discarded and its default applied, and Fulvid still starts. Persisted state can never grant a capability. A recent-folder entry does not authorize a folder.
 
 ## Content Security Policy
 

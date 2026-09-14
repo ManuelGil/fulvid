@@ -9,16 +9,14 @@ import EmptyState from "../../shell/EmptyState.vue";
 import PageShell from "../../shell/PageShell.vue";
 import { pendingReveal } from "../../modules/editor/document/documentSession";
 import { closeRightSidebar, openRightSidebar } from "../../app/layoutStore";
-import { formatDocumentCount, pathRelativeToContext } from "../../modules/document/context/context";
+import { formatDocumentCount } from "../../modules/document/context/context";
 import {
-  contextNotes,
-  contextRoot,
   copyPath,
   copyWorkspacePath,
-  hasCustomContext,
   revealPath,
   revealWorkspaceInExplorer,
   workspace,
+  workspaceNotes,
 } from "../../app/workspaceState";
 import {
   openBuffers,
@@ -30,20 +28,14 @@ import { APP_ROUTE_NAMES } from "../../app/router";
 
 import { notifyFilesystemError } from "../../modules/workspace/filesystem/workspaceScanner";
 import { notesWithOpenBufferContent } from "../../modules/search/searchableNotes";
-import { isContextSearchScope } from "../../modules/search/searchScope";
 import {
   countActiveSearchFilters,
   parseSearchOptions,
   searchOptionsQuery,
   toSearchQueryOptions,
-  type SearchOptions,
 } from "../../modules/search/searchOptions";
 import { selectedSearchContext } from "../../modules/search/searchSession";
-import {
-  SEARCH_STRATEGY_IDS,
-  searchStrategyUsesScore,
-  type SearchStrategyId,
-} from "../../modules/search/searchStrategies";
+import { SEARCH_STRATEGY_IDS, type SearchStrategyId } from "../../modules/search/searchStrategies";
 import {
   filterNotesByFileType,
   groupSearchHits,
@@ -52,7 +44,6 @@ import {
   runDocumentSearch,
   sortSearchGroups,
   type SearchMatch,
-  type SearchMatchKind,
 } from "../../modules/search/searchResults";
 
 const MAX_RESULTS = 50;
@@ -71,16 +62,9 @@ const contextMenu = ref({ open: false, x: 0, y: 0, index: -1 });
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const searchOptions = computed(() => parseSearchOptions(route.query));
-const workspaceNotes = computed(() => workspace.value?.scannedNotes ?? []);
-const isContextScope = computed(() =>
-  isContextSearchScope(route.query.scope, hasCustomContext.value),
-);
-const searchScopeNotes = computed(() =>
-  isContextScope.value ? contextNotes.value : workspaceNotes.value,
-);
 const searchableNotes = computed(() =>
   filterNotesByFileType(
-    notesWithOpenBufferContent(searchScopeNotes.value, openBuffers.value, workspace.value?.path),
+    notesWithOpenBufferContent(workspaceNotes.value, openBuffers.value, workspace.value?.path),
     searchOptions.value.fileType,
   ),
 );
@@ -97,9 +81,6 @@ const matchingHits = computed(() => searchRun.value.hits);
 const queryIssue = computed(() => searchRun.value.issue);
 
 const queryIssueText = computed(() => {
-  if (queryIssue.value === "invalidPattern") {
-    return t("search.invalidPattern");
-  }
   if (queryIssue.value === "tooExpensive") {
     return t("search.tooExpensive");
   }
@@ -110,9 +91,6 @@ const queryIssueText = computed(() => {
 });
 
 const queryIssueTitle = computed(() => {
-  if (queryIssue.value === "invalidPattern") {
-    return t("search.invalidPatternTitle");
-  }
   if (queryIssue.value === "tooExpensive") {
     return t("search.tooExpensiveTitle");
   }
@@ -121,31 +99,6 @@ const queryIssueTitle = computed(() => {
   }
   return null;
 });
-
-function matchKindLabel(kind: SearchMatchKind | undefined): string | null {
-  if (kind === "heading") {
-    return t("search.patternHeading");
-  }
-  if (kind === "link") {
-    return t("search.patternLink");
-  }
-  if (kind === "wikilink") {
-    return t("search.patternWikilink");
-  }
-  if (kind === "frontmatter") {
-    return t("search.patternFrontmatter");
-  }
-  if (kind === "fence") {
-    return t("search.patternFence");
-  }
-  if (kind === "list") {
-    return t("search.patternList");
-  }
-  if (kind === "path") {
-    return t("search.strategies.path");
-  }
-  return null;
-}
 
 const resultGroups = computed(() => {
   const totals = new Map<string, number>();
@@ -157,17 +110,13 @@ const resultGroups = computed(() => {
   return limitSearchGroups(grouped, MAX_RESULTS).map((group) => ({
     note: group.note,
     totalMatches: totals.get(group.note.path) ?? group.matches.length,
-    relativePath: pathRelativeToContext(
-      group.note.path,
-      isContextScope.value ? (contextRoot.value ?? "") : "",
-    ),
+    relativePath: group.note.path,
     rows: group.matches.map((match) => {
       const index = rowIndex;
       rowIndex += 1;
       return {
         index,
         match,
-        kindLabel: matchKindLabel(match.kind),
         snippetParts: highlightSearchSnippet(match.snippet, searchTerm.value, searchQuery.value),
       };
     }),
@@ -191,9 +140,6 @@ const scopeLabel = computed(() => {
   if (!workspace.value) {
     return t("search.scopeStandalone");
   }
-  if (isContextScope.value) {
-    return t("search.scopeContext");
-  }
   return t("search.scopeFolder");
 });
 
@@ -205,13 +151,7 @@ const filterSummary = computed(() => {
 });
 
 function setStrategy(strategy: SearchStrategyId): void {
-  const patch: Partial<SearchOptions> = { strategy };
-  if (searchStrategyUsesScore(strategy)) {
-    patch.sort = "score";
-  } else if (searchOptions.value.sort === "score") {
-    patch.sort = "path";
-  }
-  void router.replace({ query: searchOptionsQuery(route.query, patch) });
+  void router.replace({ query: searchOptionsQuery(route.query, { strategy }) });
 }
 
 const resultSummary = computed(() => {
@@ -242,7 +182,7 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
   if (workspace.value || row.note.path.includes("/") || row.note.path.includes("\\")) {
     return [
       { id: "open", label: t("actions.open") },
-      { id: "reveal", label: t("actions.reveal") },
+      { id: "reveal", label: t("menu.revealInFolder") },
       { id: "copy", label: t("menu.copyPath") },
     ];
   }
@@ -666,10 +606,6 @@ onBeforeUnmount(() => {
                 </template>
               </span>
               <span class="search-result__line">
-                <template v-if="row.kindLabel">
-                  {{ row.kindLabel }}
-                  <span aria-hidden="true"> · </span>
-                </template>
                 {{ t("search.matchLine", { line: row.match.lineNumber }) }}
               </span>
             </button>
@@ -729,7 +665,7 @@ onBeforeUnmount(() => {
       :x="contextMenu.x"
       :y="contextMenu.y"
       :actions="contextActions"
-      :label="t('actions.noActions')"
+      :label="t('search.resultActions')"
       @select="void runResultAction($event)"
       @close="contextMenu = { ...contextMenu, open: false }"
     />

@@ -63,7 +63,6 @@ mock.module("../../../../../src/mainview/modules/workspace/filesystem/workspaceS
         categories: [],
         projects: [],
         summary: "",
-        tokens: 0,
         words: 0,
       },
       mtimeMs: 2,
@@ -231,7 +230,6 @@ describe("document buffers", () => {
   });
 
   // Intent: selectDocument is the only UI seam that pairs session activeId with Focus.
-  // Growth boundary: add cases only when a new buffer kind gains or loses folder Focus.
   test("selectDocument pairs folder Focus and clears it for virtual tabs", async () => {
     bindFocusToWorkspace("/workspace");
 
@@ -254,7 +252,7 @@ describe("document buffers", () => {
     expect(currentFocus.value).toEqual({ path: "two.md", workspacePath: "/workspace" });
   });
 
-  test("a failed save leaves the document dirty", async () => {
+  test("dirty state tracks failed saves and versions that were never written", async () => {
     const buffer = await openDocument("/workspace", "one.md");
     buffer.model.setValue("# edited");
     expect(isDocumentDirty(buffer)).toBe(true);
@@ -263,24 +261,14 @@ describe("document buffers", () => {
       throw new Error("fulvid.fs:operationFailed");
     };
     await expect(saveDocument(buffer)).rejects.toThrow("operationFailed");
-
-    // The work is still here and still marked unsaved: a save that did not
-    // reach disk must never produce a clean buffer.
     expect(isDocumentDirty(buffer)).toBe(true);
     expect(buffer.model.getValue()).toBe("# edited");
-  });
 
-  test("a successful save clears dirty for exactly the version it wrote", async () => {
-    const buffer = await openDocument("/workspace", "one.md");
-    buffer.model.setValue("# first");
-
-    // The person keeps typing while the write is actually in flight.
     writeHook = () => {
       buffer.model.setValue("# second");
     };
+    buffer.model.setValue("# first");
     await saveDocument(buffer);
-
-    // The newer text was never written, so the buffer stays dirty for it.
     expect(isDocumentDirty(buffer)).toBe(true);
     expect(buffer.model.getValue()).toBe("# second");
   });
