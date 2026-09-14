@@ -9,6 +9,8 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-14
+
 ### Added
 
 - **New Document from selection**: File → New and Quick Actions open an untitled buffer with the exact selected editor text and, when the source is a folder document, a `formatDocumentLink` backlink (no line-address references). Save As persists it like any other untitled tab.
@@ -116,7 +118,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.8.0
 [0.7.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.7.0
 [0.6.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.6.0
 [0.5.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.5.0
