@@ -27,7 +27,7 @@ import { APP_ROUTE_NAMES } from "./router";
 import { notify } from "./notify";
 import ToastHost from "./ToastHost.vue";
 import DialogHost from "./DialogHost.vue";
-import { activeDialog, promptQuickOpen } from "./dialogs";
+import { activeDialog, promptFilename, promptQuickOpen } from "./dialogs";
 import {
   describeFilesystemError,
   notifyFilesystemError,
@@ -40,7 +40,13 @@ import {
   openOrActivate,
   selectDocument,
 } from "../modules/editor/document/documentBuffers";
-import { renderDocumentTemplate } from "../modules/editor/document/documentTemplates";
+import {
+  documentTemplateTitleFromParentPath,
+  renderDocumentTemplate,
+} from "../modules/editor/document/documentTemplates";
+import { createAndOpenSeededWorkspaceDocument } from "../modules/editor/document/seededWorkspaceDocument";
+import { resolveNewDocumentFileName } from "../modules/editor/document/documentFileNames";
+import { isMarkdownFile } from "../modules/workspace/filesystem/workspaceTypes";
 import {
   documentLocationFromBuffer,
   windowTitleForDocumentLocation,
@@ -741,8 +747,57 @@ async function createNewDocument(content?: string): Promise<void> {
   }
 }
 
+/**
+ * With a folder open: prompt and write a README-shaped file at the Folder root
+ * (File / Quick Actions have no Explorer selection; Explorer New uses the
+ * selected directory). Without a folder: untitled buffer until Save As.
+ */
 async function createNewDocumentFromReadme(): Promise<void> {
-  await createNewDocument(renderDocumentTemplate("readme"));
+  const rootPath = workspace.value?.path;
+  if (!rootPath) {
+    await createNewDocument(
+      renderDocumentTemplate("readme", {
+        title: documentTemplateTitleFromParentPath("", null),
+      }),
+    );
+    return;
+  }
+
+  const requestedName = await promptFilename({
+    title: t("files.newDocumentFromReadme"),
+    label: t("files.newDocumentName"),
+    initialValue: `README.${settings.value.links.defaultExtension}`,
+  });
+  if (!requestedName) {
+    return;
+  }
+  const fileName = resolveNewDocumentFileName(requestedName, settings.value.links.defaultExtension);
+  if (!fileName) {
+    const withExtension = requestedName.includes(".")
+      ? requestedName
+      : `${requestedName}.${settings.value.links.defaultExtension}`;
+    notify(
+      isMarkdownFile(withExtension) ? t("filesystemErrors.unsafeName") : t("files.supportedOnly"),
+    );
+    return;
+  }
+
+  try {
+    closeRightSidebar();
+    await createAndOpenSeededWorkspaceDocument({
+      rootPath,
+      parentRelativePath: "",
+      fileName,
+      content: renderDocumentTemplate("readme", {
+        title: documentTemplateTitleFromParentPath("", workspaceName(rootPath)),
+      }),
+      linkMode: settings.value.links.linkMode,
+    });
+    void refreshWorkspace({ silent: true });
+    await router.push({ name: APP_ROUTE_NAMES.editor });
+  } catch (error) {
+    notifyFilesystemError(error, "workspace.openDocumentError", notify);
+  }
 }
 
 async function openFileDocument(): Promise<void> {
@@ -1045,11 +1100,13 @@ const editorCommandIds = new Set<CommandId>([
   "indentLines",
   "outdentLines",
   "duplicateSelection",
+  "trimTrailingWhitespace",
   "find",
   "replace",
   "findReferences",
   "renameHeading",
   "insertDocumentLink",
+  "newDocumentFromSelection",
   "insertTableOfContents",
   "togglePreview",
   "deleteSelection",

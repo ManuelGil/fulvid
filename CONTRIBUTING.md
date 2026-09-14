@@ -70,6 +70,7 @@ When upgrading the desktop stack, re-check:
 | Trigger | Where | Why it matters |
 | --- | --- | --- |
 | Electrobun upgrade that documents Linux ApplicationMenu | `electrobunApplicationMenu.ts`, `applicationMenu.ts`, HTML menubar in `App.vue` | Electrobun 2.0.1 implements the native bar on macOS and Windows only. Linux uses the HTML fallback on purpose. Switch Linux to native only after a packaged GTK/WebKitGTK build shows a real native bar, and confirm the HTML bar is gone. |
+| Electrobun stable launcher argv forward, file associations, or single-instance | [docs/EXTERNAL-OPEN.md](docs/EXTERNAL-OPEN.md) Upstream Watch | Packaged Open-with / associations / warm start stay deferred on Electrobun gaps (#483/#554, #551, #465), not on Bun. Do not invent IPC workarounds. |
 | Electrobun / webview / `views://` change, enabling CEF, or Vite HMR change | `src/mainview/index.html` CSP, `src/bun/index.ts` view URL | `script-src` / `worker-src` / `style-src` are unset. Vite HMR inlines scripts, Monaco injects styles, and `'self'` on `views://` is unverified. Re-test `bun run dev:hmr` and a packaged build on each OS. |
 | Monaco or Vite worker-strategy change | `monacoSetup.ts`, `computeComposedGraph.ts`, `vite.config.ts` | Workers are Vite `?worker` constructors. The Monaco import uses a filesystem path because 0.56's `exports` map doubles `esm/vs`. |
 | Bun/runtime gains compare-and-replace | `writeAtomically` / `writeDocument` in `documentIo.ts` | Save is mtime `stat` then temp+rename. That is not an indivisible check+replace. Do not add advisory locks in the meantime. |
@@ -104,6 +105,6 @@ Compatibility CI is three separate workflows (Linux, Windows, macOS). They packa
 
 ## Dependencies
 
-Bun 1.4.0 and `bun.lock` are authoritative. Run `bun run deps:check` before dependency changes. `bun run deps:outdated` lists updates without applying them. Recheck nested `brace-expansion` when upgrading Bun or Vue tooling. `package.json` `overrides` pin transitive advisories; do not drop a pin without an advisory or a replacement.
+Bun 1.4.2 (host/CI) and `bun.lock` are authoritative for development scripts. Electrobun 2.0.1's Hutch toolchain still pins **Bun 1.4.0** for the packaged `mainProcess: "bun"` runtime — that app runtime is not the host Bun. Run `bun run deps:check` before dependency changes. `bun run deps:outdated` lists updates without applying them. Recheck nested `brace-expansion` when upgrading Bun or Vue tooling. `package.json` `overrides` pin transitive advisories; do not drop a pin without an advisory or a replacement.
 
 Monthly security automation is `.github/workflows/dependency-security.yml`. It is maintainer process, not packaging.

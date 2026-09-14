@@ -144,6 +144,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     hintKey: "settings.editorWhitespaceHint",
   },
   {
+    id: "editor.trimTrailingWhitespaceOnSave",
+    category: "editor",
+    labelKey: "settings.trimTrailingWhitespaceOnSave",
+    hintKey: "settings.trimTrailingWhitespaceOnSaveHint",
+    terms: ["trailing", "trim", "whitespace", "espacios"],
+  },
+  {
     id: "editor.readingStatistics",
     category: "editor",
     labelKey: "settings.readingStatistics",

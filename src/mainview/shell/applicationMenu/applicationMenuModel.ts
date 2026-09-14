@@ -261,6 +261,12 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
           label: "actions.newDocumentFromReadme",
           availability: "always",
         },
+        {
+          type: "command",
+          id: "newDocumentFromSelection",
+          label: "actions.newDocumentFromSelection",
+          availability: "hasTab",
+        },
       ],
     },
     { type: "separator", id: "file-separator-new" },
@@ -439,6 +445,12 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
           id: "duplicateSelection",
           label: "menu.duplicateSelection",
           shortcut: "Ctrl/Cmd+Shift+D",
+          availability: "hasDocument",
+        },
+        {
+          type: "command",
+          id: "trimTrailingWhitespace",
+          label: "actions.trimTrailingWhitespace",
           availability: "hasDocument",
         },
         {

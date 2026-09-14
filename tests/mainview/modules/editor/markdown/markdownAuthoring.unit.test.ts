@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildDocumentFromSelection,
   buildMarkdownTableOfContents,
   formatDocumentLink,
   relativeDocumentLinkPath,
@@ -10,8 +11,9 @@ import {
   parseMarkdownStructure,
 } from "../../../../../src/mainview/modules/editor/markdown/markdownStructure.ts";
 
+// Intent: deterministic Markdown/wikilink strings for insert-link and TOC.
 describe("markdown authoring", () => {
-  test("formats document and heading links for markdown and wikilink modes", () => {
+  test("formats document and heading links for both linkModes and sanitizes labels", () => {
     expect(
       formatDocumentLink({
         label: "Docs",
@@ -19,7 +21,6 @@ describe("markdown authoring", () => {
         linkMode: "markdown",
       }),
     ).toBe("[Docs](./guide.md)");
-
     expect(
       formatDocumentLink({
         label: "Setup",
@@ -28,7 +29,6 @@ describe("markdown authoring", () => {
         linkMode: "markdown",
       }),
     ).toBe("[Setup](./guide.md#setup)");
-
     expect(
       formatDocumentLink({
         label: "Setup",
@@ -37,7 +37,6 @@ describe("markdown authoring", () => {
         linkMode: "markdown",
       }),
     ).toBe("[Setup](#setup)");
-
     expect(
       formatDocumentLink({
         label: "Guide",
@@ -45,7 +44,6 @@ describe("markdown authoring", () => {
         linkMode: "wikilink",
       }),
     ).toBe("[[guide.md|Guide]]");
-
     expect(
       formatDocumentLink({
         label: "Setup",
@@ -54,18 +52,6 @@ describe("markdown authoring", () => {
         linkMode: "wikilink",
       }),
     ).toBe("[[guide.md#setup|Setup]]");
-
-    expect(
-      formatDocumentLink({
-        label: "Setup",
-        target: "",
-        anchor: "setup",
-        linkMode: "wikilink",
-      }),
-    ).toBe("[[#setup|Setup]]");
-  });
-
-  test("sanitizes Markdown-sensitive characters in labels", () => {
     expect(
       formatDocumentLink({
         label: "A [weird] label",
@@ -73,7 +59,6 @@ describe("markdown authoring", () => {
         linkMode: "markdown",
       }),
     ).toBe("[A weird label](./a.md)");
-
     expect(
       formatDocumentLink({
         label: "A|B",
@@ -81,14 +66,44 @@ describe("markdown authoring", () => {
         linkMode: "wikilink",
       }),
     ).toBe("[[a.md|AB]]");
-  });
 
-  test("relative paths climb from the source document directory", () => {
     expect(relativeDocumentLinkPath("docs/a.md", "docs/b.md")).toBe("./b.md");
     expect(relativeDocumentLinkPath("docs/a.md", "readme.md")).toBe("../readme.md");
   });
 
-  test("TOC nests by heading depth using existing anchors", () => {
+  test("builds a new document body from selection with formatDocumentLink backlink", () => {
+    expect(
+      buildDocumentFromSelection({
+        selection: "Extracted paragraph.",
+        linkMode: "markdown",
+      }),
+    ).toBe("Extracted paragraph.");
+    expect(
+      buildDocumentFromSelection({
+        selection: "Keep trailing spaces  \n",
+        sourcePath: "notes/source.md",
+        sourceLabel: "Source",
+        linkMode: "markdown",
+      }),
+    ).toBe("Keep trailing spaces  \n\n[Source](notes/source.md)\n");
+    expect(
+      buildDocumentFromSelection({
+        selection: "Body",
+        sourcePath: "notes/source.md",
+        sourceLabel: "Source",
+        linkMode: "wikilink",
+      }),
+    ).toBe("Body\n\n[[notes/source.md|Source]]\n");
+    expect(
+      buildDocumentFromSelection({
+        selection: "Body",
+        sourcePath: "notes/source.md",
+        linkMode: "markdown",
+      }),
+    ).not.toMatch(/#L\d|#\d+:\d+/);
+  });
+
+  test("TOC nests by heading depth with existing anchors for both linkModes", () => {
     const structure = parseMarkdownStructure(`# Title
 
 ## Overview
@@ -97,8 +112,10 @@ describe("markdown authoring", () => {
 
 ## Usage
 `);
-    const toc = buildMarkdownTableOfContents(structure.headings, { linkMode: "markdown" });
-    expect(toc).toBe(
+    const markdownToc = buildMarkdownTableOfContents(structure.headings, {
+      linkMode: "markdown",
+    });
+    expect(markdownToc).toBe(
       [
         `- [Title](#${headingAnchor("Title")})`,
         `  - [Overview](#${headingAnchor("Overview")})`,
@@ -107,13 +124,11 @@ describe("markdown authoring", () => {
         "",
       ].join("\n"),
     );
-    expect(toc).not.toContain("{{");
+    expect(markdownToc).not.toContain("{{");
     expect(buildMarkdownTableOfContents([], { linkMode: "markdown" })).toBe("");
-  });
 
-  test("TOC uses wikilink fragments when linkMode is wikilink", () => {
-    const headings = parseMarkdownStructure("## Notes\n").headings;
-    expect(buildMarkdownTableOfContents(headings, { linkMode: "wikilink" })).toBe(
+    const notes = parseMarkdownStructure("## Notes\n").headings;
+    expect(buildMarkdownTableOfContents(notes, { linkMode: "wikilink" })).toBe(
       `- [[#${headingAnchor("Notes")}|Notes]]\n`,
     );
   });

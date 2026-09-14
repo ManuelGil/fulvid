@@ -106,7 +106,7 @@ function permissionDenied(syscall: string, target: string): NodeJS.ErrnoExceptio
 }
 
 describe("scanning a hostile or live folder", () => {
-  test("an unreadable subdirectory or document is skipped, not fatal", async () => {
+  test("skips hostile entries without failing, and keeps empty vs skipped-only scans distinct", async () => {
     const deniedRoot = await makeWorkspace();
     const denied = resolve(join(deniedRoot, "denied"));
     try {
@@ -127,6 +127,7 @@ describe("scanning a hostile or live folder", () => {
       );
       expect(deniedScan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
       expect(deniedScan.skipped).toBeGreaterThan(0);
+      expect(deniedScan.truncated).toBe(false);
     } finally {
       await rm(deniedRoot, { recursive: true, force: true });
     }
@@ -152,9 +153,8 @@ describe("scanning a hostile or live folder", () => {
     } finally {
       await rm(midRoot, { recursive: true, force: true });
     }
-  });
 
-  test("empty complete scans and skipped-only scans stay distinct for folder honesty", async () => {
+    // Empty-of-documents (skipped=0) must not look like a skipped-only folder.
     const emptyRoot = await makeWorkspace();
     try {
       await writeFile(join(emptyRoot, "readme.txt"), "not a document\n");
@@ -166,27 +166,27 @@ describe("scanning a hostile or live folder", () => {
       await rm(emptyRoot, { recursive: true, force: true });
     }
 
-    const deniedRoot = await makeWorkspace();
-    const denied = resolve(join(deniedRoot, "denied"));
+    const skippedOnlyRoot = await makeWorkspace();
+    const skippedDenied = resolve(join(skippedOnlyRoot, "denied"));
     try {
-      await mkdir(denied);
-      await writeFile(join(denied, "hidden.md"), "# Hidden\n");
-      const skipped = await scanWorkspace(
-        deniedRoot,
+      await mkdir(skippedDenied);
+      await writeFile(join(skippedDenied, "hidden.md"), "# Hidden\n");
+      const skippedOnly = await scanWorkspace(
+        skippedOnlyRoot,
         { linkMode: "markdown" },
         {
           beforeReadDirectory: (directory) => {
-            if (resolve(directory) === denied) {
+            if (resolve(directory) === skippedDenied) {
               throw permissionDenied("scandir", directory);
             }
           },
         },
       );
-      expect(skipped.scannedNotes).toEqual([]);
-      expect(skipped.skipped).toBeGreaterThan(0);
-      expect(skipped.truncated).toBe(false);
+      expect(skippedOnly.scannedNotes).toEqual([]);
+      expect(skippedOnly.skipped).toBeGreaterThan(0);
+      expect(skippedOnly.truncated).toBe(false);
     } finally {
-      await rm(deniedRoot, { recursive: true, force: true });
+      await rm(skippedOnlyRoot, { recursive: true, force: true });
     }
   });
 });

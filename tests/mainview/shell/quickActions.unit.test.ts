@@ -22,6 +22,7 @@ function byId(id: string): QuickActionDefinition {
 const EXPECTED_FULL_DISPLAY_ORDER = [
   "newDocument",
   "newDocumentFromReadme",
+  "newDocumentFromSelection",
   "openFile",
   "save",
   "closeAll",
@@ -29,6 +30,7 @@ const EXPECTED_FULL_DISPLAY_ORDER = [
   "annotateDocument",
   "insertDocumentLink",
   "insertTableOfContents",
+  "trimTrailingWhitespace",
   "undo",
   "redo",
   "cut",
@@ -45,7 +47,7 @@ const EXPECTED_FULL_DISPLAY_ORDER = [
 // Intent: Quick Actions follow the interaction model, not source order.
 // Overflow keeps writing/preview chrome ahead of clipboard and folder chrome.
 describe("Quick Actions", () => {
-  test("toolbar order follows the interaction model even when definitions are reversed", () => {
+  test("orders by interaction model and keeps Writing Focus over clipboard when space is scarce", () => {
     const reversed = quickActions.slice().reverse();
     expect(ids(selectQuickActionsForVisibleCount(reversed, reversed.length))).toEqual([
       ...EXPECTED_FULL_DISPLAY_ORDER,
@@ -56,6 +58,7 @@ describe("Quick Actions", () => {
       "annotateDocument",
       "insertDocumentLink",
       "insertTableOfContents",
+      "trimTrailingWhitespace",
       "undo",
       "redo",
       "cut",
@@ -64,9 +67,7 @@ describe("Quick Actions", () => {
     ]);
     expect(byId("annotateDocument").group).toBe("edit");
     expect(byId("toggleWritingFocus").group).toBe("fulvid");
-  });
 
-  test("when space is scarce, core document actions and Writing Focus outrank clipboard and Explorer", () => {
     expect(ids(selectQuickActionsForVisibleCount(quickActions, 5))).toEqual([
       "newDocument",
       "openFile",
@@ -87,10 +88,8 @@ describe("Quick Actions", () => {
       "toggleWritingFocus",
     ]);
 
-    // Leave the lowest-priority secondary/overflow actions (clipboard, Explorer,
-    // TOC, …) while Writing Focus still survives one notch above Cut.
     const visibleIds = new Set(
-      ids(selectQuickActionsForVisibleCount(quickActions, quickActions.length - 7)),
+      ids(selectQuickActionsForVisibleCount(quickActions, quickActions.length - 8)),
     );
     expect(visibleIds.has("toggleWritingFocus")).toBe(true);
     expect(visibleIds.has("cut")).toBe(false);

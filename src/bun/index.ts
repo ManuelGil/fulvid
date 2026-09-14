@@ -62,9 +62,9 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
 });
 
 // Launch arguments are the only external open source wired today. Electrobun
-// 2.0.1's packaged launcher does not forward them to this process. Queuing
-// before the window opens means a request is waiting when the renderer first
-// asks for it.
+// 2.0.1's packaged launcher does not forward them to this process (upstream
+// #483; Fulvid confirmation #554). Queuing before the window opens means a
+// request is waiting when the renderer first asks for it.
 for (const request of await externalOpenRequestsFromArguments(process.argv)) {
   enqueueExternalOpenRequest(request);
 }

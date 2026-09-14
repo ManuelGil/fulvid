@@ -586,11 +586,20 @@ onBeforeUnmount(() => {
               :key="entry.link"
               class="inspector-panel__incomplete"
             >
-              <code class="inspector-panel__unresolved">{{
+              <button
+                v-if="entry.candidates.length === 1"
+                type="button"
+                class="inspector-panel__unresolved inspector-panel__unresolved--action"
+                :title="t('links.open', { path: entry.candidates[0].relativePath })"
+                @click="openConnectedDocument(entry.candidates[0].path)"
+              >
+                {{ formatUnresolvedLink(entry.link) }}
+              </button>
+              <code v-else class="inspector-panel__unresolved">{{
                 formatUnresolvedLink(entry.link)
               }}</code>
               <ul
-                v-if="entry.candidates.length > 0"
+                v-if="entry.candidates.length > 1"
                 class="inspector-panel__candidate-list"
                 :aria-label="t('inspector.possibleMatches')"
               >
@@ -599,6 +608,19 @@ onBeforeUnmount(() => {
                     :title="candidate.title"
                     :path="candidate.relativePath"
                     @click="peekDocument(candidate.path)"
+                  />
+                </li>
+              </ul>
+              <ul
+                v-else-if="entry.candidates.length === 1"
+                class="inspector-panel__candidate-list"
+                :aria-label="t('inspector.possibleMatches')"
+              >
+                <li>
+                  <NotePreview
+                    :title="entry.candidates[0].title"
+                    :path="entry.candidates[0].relativePath"
+                    @click="openConnectedDocument(entry.candidates[0].path)"
                   />
                 </li>
               </ul>
@@ -846,5 +868,21 @@ onBeforeUnmount(() => {
   color: $text-muted;
   font-family: $font-mono;
   font-size: $font-label;
+}
+
+.inspector-panel__unresolved--action {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $text-link;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+  }
 }
 </style>

@@ -57,12 +57,19 @@ describe("external open contract", () => {
     await expect(takePendingExternalOpens()).resolves.toEqual([]);
   });
 
-  test("the pending queue is bounded and drains once", async () => {
+  test("the pending queue is bounded, drains once, and never double-delivers", async () => {
     for (let index = 0; index < MAX_PENDING_EXTERNAL_OPENS + 20; index += 1) {
       enqueueExternalOpenRequest({ kind: "file", path: `/a${index}.md`, source: "shell" });
     }
     const drained = await takePendingExternalOpens();
     expect(drained).toHaveLength(MAX_PENDING_EXTERNAL_OPENS);
     await expect(takePendingExternalOpens()).resolves.toEqual([]);
+
+    enqueueExternalOpenRequest({ kind: "file", path: "/once.md", source: "shell" });
+    const [first, second] = await Promise.all([
+      takePendingExternalOpens(),
+      takePendingExternalOpens(),
+    ]);
+    expect(first.length + second.length).toBe(1);
   });
 });

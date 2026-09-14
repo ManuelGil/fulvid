@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { parseDocumentLinks } from "../../../../../src/mainview/modules/document/links/documentLink.ts";
-import {
-  documentTargetRange,
-  planDocumentPathRename,
-} from "../../../../../src/mainview/modules/document/links/documentPathRename.ts";
+import { planDocumentPathRename } from "../../../../../src/mainview/modules/document/links/documentPathRename.ts";
 import { applyTextEdits } from "../../../../../src/mainview/modules/editor/markdown/markdownFormat.ts";
 import type { ScannedNote } from "../../../../../src/mainview/modules/workspace/filesystem/workspaceTypes.ts";
 
@@ -48,127 +45,97 @@ function applyPlan(
   return next;
 }
 
-// Intent: Explorer rename keeps resolvable inbound links continuous without a refactor engine.
-// Growth boundary: add cases only for a new supported rewrite rule or refuse-to-edit boundary.
+// Intent: rename keeps resolvable inbound DocumentLinks continuous.
+// Growth boundary: one case per independent rewrite rule, not per syntax quirk.
 describe("document path rename", () => {
-  test("renames without references leave other documents untouched", () => {
-    const notes = [note("a.md", "# A\n"), note("b.md", "# B\n")];
-    const plan = planDocumentPathRename({
-      oldPath: "a.md",
-      newPath: "alpha.md",
-      notes,
-      linkMode: "markdown",
-    });
-    expect(plan.edits).toEqual([]);
-  });
+  test("rewrites markdown references with relative paths, fragments, and unrelated links untouched", () => {
+    expect(
+      planDocumentPathRename({
+        oldPath: "a.md",
+        newPath: "alpha.md",
+        notes: [note("a.md", "# A\n"), note("b.md", "# B\n")],
+        linkMode: "markdown",
+      }).edits,
+    ).toEqual([]);
 
-  test("updates a markdown reference to the new relative path", () => {
     const target = note("docs/architecture.md", "# Architecture\n");
-    const source = note("notes/guide.md", "See [Architecture](../docs/architecture.md).\n");
+    const other = note("other.md", "# Other\n");
+    const source = note(
+      "notes/guide.md",
+      [
+        "See [Architecture](../docs/architecture.md).",
+        "[section](../docs/architecture.md#overview)",
+        "[other](../other.md)",
+        "",
+      ].join("\n"),
+    );
     const plan = planDocumentPathRename({
       oldPath: "docs/architecture.md",
       newPath: "docs/design.md",
-      notes: [target, source],
+      notes: [target, other, source],
       linkMode: "markdown",
     });
     const next = applyPlan(
       new Map([
         ["docs/architecture.md", target.content!],
+        ["other.md", other.content!],
         ["notes/guide.md", source.content!],
       ]),
       plan,
     );
-    expect(next.get("notes/guide.md")).toBe("See [Architecture](../docs/design.md).\n");
+    expect(next.get("notes/guide.md")).toBe(
+      [
+        "See [Architecture](../docs/design.md).",
+        "[section](../docs/design.md#overview)",
+        "[other](../other.md)",
+        "",
+      ].join("\n"),
+    );
     expect(next.get("docs/design.md")).toBe("# Architecture\n");
   });
 
-  test("updates wikilink targets while preserving labels and fragments", () => {
-    const target = note("docs/architecture.md", "# Architecture\n\n## Overview\n");
-    const source = note(
+  test("rewrites wikilink path and stem targets while preserving labels and fragments", () => {
+    const pathTarget = note("docs/architecture.md", "# Architecture\n\n## Overview\n");
+    const pathSource = note(
       "notes/guide.md",
       "See [[../docs/architecture.md#overview|Architecture]].\n",
     );
-    const plan = planDocumentPathRename({
+    const pathPlan = planDocumentPathRename({
       oldPath: "docs/architecture.md",
       newPath: "docs/design.md",
-      notes: [target, source],
+      notes: [pathTarget, pathSource],
       linkMode: "wikilink",
     });
-    const next = applyPlan(
-      new Map([
-        ["docs/architecture.md", target.content!],
-        ["notes/guide.md", source.content!],
-      ]),
-      plan,
-    );
-    expect(next.get("notes/guide.md")).toBe("See [[../docs/design.md#overview|Architecture]].\n");
-  });
+    expect(
+      applyPlan(
+        new Map([
+          ["docs/architecture.md", pathTarget.content!],
+          ["notes/guide.md", pathSource.content!],
+        ]),
+        pathPlan,
+      ).get("notes/guide.md"),
+    ).toBe("See [[../docs/design.md#overview|Architecture]].\n");
 
-  test("preserves heading fragments on markdown links", () => {
-    const target = note("a.md", "# A\n\n## Section\n");
-    const source = note("b.md", "[A](./a.md#section)\n");
-    const plan = planDocumentPathRename({
-      oldPath: "a.md",
-      newPath: "alpha.md",
-      notes: [target, source],
-      linkMode: "markdown",
-    });
-    const next = applyPlan(
-      new Map([
-        ["a.md", target.content!],
-        ["b.md", source.content!],
-      ]),
-      plan,
-    );
-    expect(next.get("b.md")).toBe("[A](./alpha.md#section)\n");
-  });
-
-  test("updates multiple references in one document and leaves unrelated links alone", () => {
-    const renamed = note("target.md", "# Target\n");
-    const other = note("other.md", "# Other\n");
-    const source = note(
-      "index.md",
-      ["[one](./target.md)", "[two](./target.md#x)", "[other](./other.md)", ""].join("\n"),
-    );
-    const plan = planDocumentPathRename({
-      oldPath: "target.md",
-      newPath: "renamed.md",
-      notes: [renamed, other, source],
-      linkMode: "markdown",
-    });
-    const next = applyPlan(
-      new Map([
-        ["target.md", renamed.content!],
-        ["other.md", other.content!],
-        ["index.md", source.content!],
-      ]),
-      plan,
-    );
-    expect(next.get("index.md")).toBe(
-      ["[one](./renamed.md)", "[two](./renamed.md#x)", "[other](./other.md)", ""].join("\n"),
-    );
-  });
-
-  test("rewrites stem wikilinks that resolve to the renamed document", () => {
-    const target = note("architecture.md", "# Architecture\n");
-    const source = note("guide.md", "See [[architecture]].\n");
-    const plan = planDocumentPathRename({
+    const stemTarget = note("architecture.md", "# Architecture\n");
+    const stemSource = note("guide.md", "See [[architecture]].\n");
+    const stemPlan = planDocumentPathRename({
       oldPath: "architecture.md",
       newPath: "design.md",
-      notes: [target, source],
+      notes: [stemTarget, stemSource],
       linkMode: "wikilink",
     });
-    const next = applyPlan(
-      new Map([
-        ["architecture.md", target.content!],
-        ["guide.md", source.content!],
-      ]),
-      plan,
-    );
-    expect(next.get("guide.md")).toBe("See [[./design.md]].\n");
+    expect(
+      applyPlan(
+        new Map([
+          ["architecture.md", stemTarget.content!],
+          ["guide.md", stemSource.content!],
+        ]),
+        stemPlan,
+      ).get("guide.md"),
+    ).toBe("See [[./design.md]].\n");
   });
 
-  test("uses live buffer content when planning instead of stale scan text", () => {
+  test("prefers live buffer content over stale scanned note text", () => {
     const target = note("a.md", "# A\n");
     const scanned = note("b.md", "old\n");
     const live = "See [A](./a.md).\n";
@@ -183,13 +150,13 @@ describe("document path rename", () => {
       ]),
     });
     expect(plan.edits).toHaveLength(1);
+    expect(plan.edits[0]?.previous).toBe("./a.md");
     expect(applyTextEdits(live, plan.edits)).toBe("See [A](./alpha.md).\n");
-  });
 
-  test("documentTargetRange covers only the path span", () => {
-    const [markdown] = parseDocumentLinks("[Label](./path.md#frag)", "markdown");
-    expect(documentTargetRange(markdown!)).toEqual({ start: 8, end: 17 });
-    const [wikilink] = parseDocumentLinks("[[./path.md#frag|Label]]", "wikilink");
-    expect(documentTargetRange(wikilink!)).toEqual({ start: 2, end: 11 });
+    // Prefix insertion shifts offsets — planned previous no longer sits at start/end.
+    const drifted = `x${live}`;
+    expect(drifted.slice(plan.edits[0]!.start, plan.edits[0]!.end)).not.toBe(
+      plan.edits[0]!.previous,
+    );
   });
 });

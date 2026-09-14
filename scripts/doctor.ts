@@ -19,8 +19,8 @@ type Check = {
   fix?: string;
 };
 
-/** Bun version used by the release and validate workflows. */
-const EXPECTED_BUN = "1.4.0";
+/** Bun version used by the release and validate workflows (minimum acceptable). */
+const EXPECTED_BUN = "1.4.2";
 
 type LinuxLibrary = { file: string; package: string };
 

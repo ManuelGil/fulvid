@@ -73,6 +73,34 @@ export function formatDocumentLink(input: FormatDocumentLinkInput): string {
   return `[${label}](${href || "#"})`;
 }
 
+export type DocumentFromSelectionInput = {
+  selection: string;
+  /** Folder-relative path of the source document when a backlink should be appended. */
+  sourcePath?: string;
+  sourceLabel?: string;
+  linkMode: LinkSyntax;
+};
+
+/**
+ * Body for a new untitled document seeded from the editor selection.
+ * Optional backlink uses {@link formatDocumentLink} only - never line addresses.
+ * The selected text is preserved exactly; the link is appended after it.
+ */
+export function buildDocumentFromSelection(input: DocumentFromSelectionInput): string {
+  const body = input.selection;
+  const sourcePath = input.sourcePath?.trim();
+  if (!sourcePath) {
+    return body;
+  }
+  const link = formatDocumentLink({
+    label: input.sourceLabel?.trim() || sourcePath,
+    target: sourcePath,
+    linkMode: input.linkMode,
+  });
+  const separator = body.length === 0 || body.endsWith("\n") ? "\n" : "\n\n";
+  return `${body}${separator}${link}\n`;
+}
+
 export type TableOfContentsOptions = {
   linkMode: LinkSyntax;
 };

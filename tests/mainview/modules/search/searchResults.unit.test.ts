@@ -27,7 +27,7 @@ function note(path: string, content: string): ScannedNote {
 // Intent: body-search coordinates, matching flags, and inert snippets.
 // Snippet highlighting must treat markup as plain text — never as HTML.
 describe("global document search", () => {
-  test("finds body text, keeps every match grouped, and treats markup as plain text", () => {
+  test("finds and groups body matches with matching flags, treating markup as plain text", () => {
     const hits = searchDocuments(
       [
         note("guide.md", "# Guide\n\nThe unique phrase is here."),
@@ -58,15 +58,13 @@ describe("global document search", () => {
       { text: "em", match: true },
       { text: "> here", match: false },
     ]);
-  });
 
-  test("honors case sensitive, whole word, and regular expression matching", () => {
-    const notes = [note("words.md", "Search searching SEARCH")];
-    expect(searchDocuments(notes, "search", { caseSensitive: true })).toHaveLength(1);
+    const words = [note("words.md", "Search searching SEARCH")];
+    expect(searchDocuments(words, "search", { caseSensitive: true })).toHaveLength(1);
     expect(
-      searchDocuments(notes, "search", { wholeWord: true }).map((hit) => hit.match.offset),
+      searchDocuments(words, "search", { wholeWord: true }).map((hit) => hit.match.offset),
     ).toEqual([0, 17]);
-    expect(searchDocuments(notes, "search(ing)?", { regex: true })).toHaveLength(3);
+    expect(searchDocuments(words, "search(ing)?", { regex: true })).toHaveLength(3);
     expect(searchQueryIssue("(unclosed", { regex: true })).toBe("invalidRegex");
   });
 });

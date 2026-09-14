@@ -32,10 +32,15 @@ import {
   documentTemplateTitleFromParentPath,
   renderDocumentTemplate,
 } from "../../editor/document/documentTemplates";
+import { createAndOpenSeededWorkspaceDocument } from "../../editor/document/seededWorkspaceDocument";
+import { resolveNewDocumentFileName } from "../../editor/document/documentFileNames";
 import { APP_ROUTE_NAMES } from "../../../app/router";
-import { isMarkdownFile, type FileSystemEntry } from "../filesystem/workspaceTypes";
 import {
-  createDocument,
+  isMarkdownFile,
+  isSafeDocumentBasename,
+  type FileSystemEntry,
+} from "../filesystem/workspaceTypes";
+import {
   deleteDocument,
   describeFilesystemError,
   listDirectory,
@@ -131,8 +136,8 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
       id: "new",
       label: t("menu.new"),
       children: [
-        { id: "newDocument", label: t("actions.newDocument") },
-        { id: "newDocumentFromReadme", label: t("actions.newDocumentFromReadme") },
+        { id: "newDocument", label: t("files.newDocument") },
+        { id: "newDocumentFromReadme", label: t("files.newDocumentFromReadme") },
       ],
     },
     ...explorerFolderContextActionIds().map((id) => {
@@ -260,20 +265,23 @@ async function createExplorerDocument(seed: "blank" | "readme"): Promise<void> {
   const requestedName = await promptFilename({
     title: promptTitle,
     label: t("files.newDocumentName"),
+    initialValue: seed === "readme" ? `README.${settings.value.links.defaultExtension}` : undefined,
   });
   if (!requestedName) {
     return;
   }
-  const name = requestedName.includes(".")
-    ? requestedName
-    : `${requestedName}.${settings.value.links.defaultExtension}`;
-  if (!isMarkdownFile(name)) {
-    notify(t("files.supportedOnly"));
+  const name = resolveNewDocumentFileName(requestedName, settings.value.links.defaultExtension);
+  if (!name) {
+    const withExtension = requestedName.includes(".")
+      ? requestedName
+      : `${requestedName}.${settings.value.links.defaultExtension}`;
+    notify(
+      isMarkdownFile(withExtension) ? t("filesystemErrors.unsafeName") : t("files.supportedOnly"),
+    );
     return;
   }
 
   const parentDirectory = targetDirectory();
-  const relativePath = [parentDirectory, name].filter(Boolean).join("/");
   const content =
     seed === "readme"
       ? renderDocumentTemplate("readme", {
@@ -281,15 +289,14 @@ async function createExplorerDocument(seed: "blank" | "readme"): Promise<void> {
         })
       : "";
   try {
-    const result = await createDocument(
+    await createAndOpenSeededWorkspaceDocument({
       rootPath,
-      relativePath,
+      parentRelativePath: parentDirectory,
+      fileName: name,
       content,
-      settings.value.links.linkMode,
-    );
-    applyScannedNote(result.note);
+      linkMode: settings.value.links.linkMode,
+    });
     await loadDirectory(parentDirectory);
-    await openOrActivate({ kind: "workspace", rootPath, path: relativePath });
     await router.push({ name: APP_ROUTE_NAMES.editor });
   } catch (error) {
     notifyFilesystemError(error, "workspace.openDocumentError", notify);
@@ -317,6 +324,10 @@ async function renameSelectedDocument(): Promise<void> {
     initialValue: entry.name,
   });
   if (!nextName || nextName === entry.name || !isMarkdownFile(nextName)) {
+    return;
+  }
+  if (!isSafeDocumentBasename(nextName)) {
+    notify(t("filesystemErrors.unsafeName"));
     return;
   }
 
@@ -362,7 +373,6 @@ async function renameSelectedDocument(): Promise<void> {
       const applied = await applyDocumentPathRenamePlan({
         rootPath,
         plan,
-        contentByPath,
         linkMode,
       });
       for (const note of applied.notes) {

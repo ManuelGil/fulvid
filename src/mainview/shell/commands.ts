@@ -11,6 +11,7 @@ import { type MarkdownCommandId } from "../modules/editor/markdown/markdownForma
 export type CommandId =
   | "newDocument"
   | "newDocumentFromReadme"
+  | "newDocumentFromSelection"
   | "openFile"
   | "save"
   | "saveAs"
@@ -35,6 +36,7 @@ export type CommandId =
   | "indentLines"
   | "outdentLines"
   | "duplicateSelection"
+  | "trimTrailingWhitespace"
   | "find"
   | "replace"
   | "findReferences"
@@ -182,6 +184,16 @@ export const quickActions: readonly QuickActionDefinition[] = [
     overflowOrder: 75,
   },
   {
+    id: "newDocumentFromSelection",
+    label: "actions.newDocumentFromSelection",
+    icon: "document",
+    group: "file",
+    subgroup: "document",
+    order: 16,
+    tier: "secondary",
+    overflowOrder: 76,
+  },
+  {
     id: "openFile",
     label: "actions.openFile",
     shortcut: "Ctrl/Cmd+O",
@@ -254,6 +266,15 @@ export const quickActions: readonly QuickActionDefinition[] = [
     order: 30,
     tier: "overflow",
     overflowOrder: 45,
+  },
+  {
+    id: "trimTrailingWhitespace",
+    label: "actions.trimTrailingWhitespace",
+    group: "edit",
+    subgroup: "document",
+    order: 40,
+    tier: "overflow",
+    overflowOrder: 48,
   },
   {
     id: "undo",

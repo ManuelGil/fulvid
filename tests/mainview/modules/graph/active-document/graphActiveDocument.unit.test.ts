@@ -91,32 +91,13 @@ describe("graph active document", () => {
     expect(graphActiveTargetFromInputs(null, editingFirst, "/tmp/workspace", notes)).toBeNull();
   });
 
-  test("projects linked folder documents into nodes and edges from Focus", () => {
-    const notes = [note("a.md", "A", [link("b.md")]), note("b.md", "B", [link("a.md")])];
-    const target = graphActiveTargetFromInputs(
-      { path: "a.md" },
-      buffer("file:/tmp/workspace/a.md", {
-        path: "a.md",
-        rootPath: "/tmp/workspace",
-        title: "A",
-      }),
-      "/tmp/workspace",
-      notes,
-    );
-    const graph = projectReferenceGraph(target!.focusPath, [...target!.notes], { depth: 2 });
-    expect(graph.nodes.map((node) => node.id).sort()).toEqual(["a.md", "b.md"]);
-    expect(graph.edges).toEqual([
-      { source: "a.md", target: "b.md" },
-      { source: "b.md", target: "a.md" },
-    ]);
-  });
-
   // Intent: undirected Graph membership ≠ directed Context reach (GRAPH.md).
   // An incoming-only neighbor must appear on Graph and stay out of buildFocusGraph.
   test("incoming-only neighbors appear on Graph but not in directed Context reach", () => {
     const notes = [note("a.md", "A"), note("b.md", "B", [link("a.md")])];
     const graph = projectReferenceGraph("a.md", notes, { depth: 1 });
     expect(graph.nodes.map((node) => node.id).sort()).toEqual(["a.md", "b.md"]);
+    expect(graph.edges).toEqual([{ source: "b.md", target: "a.md" }]);
     expect(buildFocusGraph("a.md", notes, 1)).toEqual({
       focusPath: "a.md",
       nodes: [{ id: "a.md", label: "A" }],

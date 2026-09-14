@@ -1,6 +1,7 @@
 /** Inspector context helpers - narrative only. */
 import type { ScannedNote } from "../../workspace/filesystem/workspaceTypes";
 import {
+  ambiguousOutboundLinks,
   buildFocusGraph,
   candidateNotesForLink,
   noteConnections,
@@ -43,6 +44,7 @@ export function buildReadingGuidance(focusPath: string, notes: ScannedNote[]): s
 
   const { references, referencedBy } = noteConnections(focusPath, notes);
   const incomplete = unresolvedDocumentLinks(note, notes);
+  const ambiguous = ambiguousOutboundLinks(note, notes);
   const paragraphs: string[] = [];
 
   if (references.length === 0 && referencedBy.length === 0) {
@@ -59,6 +61,15 @@ export function buildReadingGuidance(focusPath: string, notes: ScannedNote[]): s
       if (incompleteHasCandidates(incomplete, notes)) {
         paragraphs.push(i18n.global.t("context.nearbyHint"));
       }
+    }
+    if (ambiguous.length > 0) {
+      paragraphs.push(
+        ambiguous.length === 1
+          ? i18n.global.t("context.ambiguousOne")
+          : i18n.global.t("context.ambiguousMany", {
+              count: ambiguous.length.toLocaleString(i18n.global.locale.value),
+            }),
+      );
     }
     return paragraphs;
   }
@@ -85,6 +96,16 @@ export function buildReadingGuidance(focusPath: string, notes: ScannedNote[]): s
     if (incompleteHasCandidates(incomplete, notes)) {
       paragraphs.push(i18n.global.t("context.nearbyHint"));
     }
+  }
+
+  if (ambiguous.length > 0) {
+    paragraphs.push(
+      ambiguous.length === 1
+        ? i18n.global.t("context.ambiguousOne")
+        : i18n.global.t("context.ambiguousMany", {
+            count: ambiguous.length.toLocaleString(i18n.global.locale.value),
+          }),
+    );
   }
 
   return paragraphs;

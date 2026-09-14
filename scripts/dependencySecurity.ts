@@ -45,7 +45,7 @@ type AuditSnapshot = {
   production: readonly SecurityAdvisory[];
 };
 
-const MINIMUM_BUN_VERSION = "1.4.0";
+const MINIMUM_BUN_VERSION = "1.4.2";
 const SECURITY_MARKER = "<!-- fulvid-security-dependency-maintenance -->";
 const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, "g");
 

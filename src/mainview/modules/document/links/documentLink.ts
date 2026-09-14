@@ -41,6 +41,8 @@ export interface LinkResolution {
   link: DocumentLink;
   path: string | null;
   reason: LinkResolutionReason;
+  /** See {@link resolveDocumentPath} `alsoMatches`. */
+  alsoMatches: string[];
 }
 
 const EXTERNAL_TARGET_RE = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i;
@@ -248,5 +250,6 @@ export function resolveDocumentLink(
     link,
     path: resolved.path,
     reason: resolved.reason,
+    alsoMatches: resolved.alsoMatches,
   };
 }

@@ -17,7 +17,11 @@
 import * as monaco from "monaco-editor/editor";
 import { watch } from "vue";
 
-import { candidateNotesForLink, resolveDocumentPath } from "../../document/links/linkSemantics";
+import {
+  candidateNotesForLink,
+  resolveDocumentPath,
+  uniqueLinkCandidate,
+} from "../../document/links/linkSemantics";
 import {
   parseDocumentLinks,
   resolveDocumentLink,
@@ -1162,24 +1166,24 @@ function createProviders(api: typeof monaco): monaco.IDisposable[] {
           undefined,
           sourcePath ?? undefined,
         );
-        if (!resolved.path) {
+        const targetPath =
+          resolved.path ?? uniqueLinkCandidate(link.target, context.notes)?.path ?? null;
+        if (!targetPath) {
           return undefined;
         }
-        const targetNote = context.notes.find((note) => note.path === resolved.path);
-        const targetContent = resolved.path
-          ? contentForPath(context, resolved.path)
-          : targetNote?.content;
+        const targetContent = contentForPath(context, targetPath);
         const targetPosition =
-          targetContent && link.anchor
+          targetContent && link.anchor && resolved.path
             ? revealPositionForAnchor(targetContent, link.anchor)
             : undefined;
         return [
           {
-            uri: link.anchor
-              ? api.Uri.file(absolutePath(context.rootPath, resolved.path)).with({
-                  fragment: link.anchor,
-                })
-              : api.Uri.file(absolutePath(context.rootPath, resolved.path)),
+            uri:
+              link.anchor && resolved.path
+                ? api.Uri.file(absolutePath(context.rootPath, targetPath)).with({
+                    fragment: link.anchor,
+                  })
+                : api.Uri.file(absolutePath(context.rootPath, targetPath)),
             range: new api.Range(
               targetPosition?.lineNumber ?? 1,
               targetPosition?.column ?? 1,
@@ -1237,13 +1241,6 @@ function createProviders(api: typeof monaco): monaco.IDisposable[] {
           undefined,
           sourcePath ?? undefined,
         );
-        const candidates = resolved.path ? [] : candidateNotesForLink(link.target, context.notes);
-        const candidateText =
-          candidates.length > 0
-            ? `\n\n${i18n.global.t("links.candidates", {
-                items: candidates.map((candidate) => candidate.path).join(", "),
-              })}`
-            : "";
         const targetContent = resolved.path ? contentForPath(context, resolved.path) : null;
         const targetHeading =
           resolved.path && link.anchor && targetContent
@@ -1257,12 +1254,25 @@ function createProviders(api: typeof monaco): monaco.IDisposable[] {
                 : i18n.global.t("links.missingAnchorStatus"),
             })}`
           : "";
+        const alsoMatchesText =
+          resolved.path && resolved.alsoMatches.length > 0
+            ? `\n\n${i18n.global.t("links.alsoMatches", {
+                items: resolved.alsoMatches.join(", "),
+              })}`
+            : "";
+        const candidates = resolved.path ? [] : candidateNotesForLink(link.target, context.notes);
+        const candidateText =
+          candidates.length > 0
+            ? `\n\n${i18n.global.t("links.candidates", {
+                items: candidates.map((candidate) => candidate.path).join(", "),
+              })}`
+            : "";
         return {
           range: rangeForLink(model, link),
           contents: [
             {
               value: resolved.path
-                ? `**${link.label ?? link.target}**\n\n${resolved.path}${headingText}`
+                ? `**${link.label ?? link.target}**\n\n${resolved.path}${headingText}${alsoMatchesText}`
                 : `**${i18n.global.t("links.unresolvedTitle")}**\n\n${link.target}${candidateText}`,
             },
           ],
@@ -1381,12 +1391,15 @@ function createProviders(api: typeof monaco): monaco.IDisposable[] {
           context,
           documentLinksForModel(model),
         ).filter((link) => rangeForLink(model, link).intersectRanges(range));
-        const actions = unresolved.flatMap((link) =>
-          candidateNotesForLink(link.target, context.notes).map((candidate) => ({
+        const actions = unresolved.flatMap((link) => {
+          const candidates = candidateNotesForLink(link.target, context.notes);
+          const preferred = candidates.length === 1;
+          return candidates.map((candidate) => ({
             title: i18n.global.t("links.linkTo", {
               path: candidate.path,
             }),
             kind: "quickfix",
+            isPreferred: preferred,
             edit: {
               edits: [
                 {
@@ -1399,8 +1412,8 @@ function createProviders(api: typeof monaco): monaco.IDisposable[] {
                 },
               ],
             },
-          })),
-        );
+          }));
+        });
         return { actions, dispose() {} };
       },
     }),
