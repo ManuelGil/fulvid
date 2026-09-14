@@ -136,27 +136,63 @@ Electrobun 2.0.1's launcher drops the arguments. Verified against
 `package/src/launcher/main.zig` in v2.0.1: it collects OS arguments, consumes
 them for uninstall parsing and the private `--automation` flag, then spawns the
 runtime as `[runtime, Resources/main.js]` without appending the rest. The child
-inherits the environment, which this layer does not read.
+inherits the environment, which this layer does not read. The same spawn shape
+is still present in Electrobun `v2.0.2-beta.27` (not a stable release).
 
 So `fulvid note.md` reaches the launcher and stops there. The argv adapter works
 when the host runs directly, which is how it is tested.
 
-**This is an Electrobun change, not a Fulvid one.** Fulvid must not work around
-it with an environment variable, socket, named pipe, localhost listener, or
-daemon. Any of those would be the second authority this layer exists to avoid.
+**This is an Electrobun launcher capability gap, not a Bun limitation.** Host Bun
+and the Hutch-pinned Bun runtime both accept `process.argv` / `Bun.argv` normally
+when the process is started with those arguments. Fulvid must not work around
+the missing forward with an environment variable, socket, named pipe, localhost
+listener, or daemon. Any of those would be the second authority this layer
+exists to avoid.
+
+#### Upstream tracking (Electrobun)
+
+| Concern | Upstream | Role for Fulvid |
+| --- | --- | --- |
+| Argv forwarding (Linux/Windows launcher) | [blackboardsh/electrobun#483](https://github.com/blackboardsh/electrobun/issues/483) | **Primary** open request: packaged launcher must append remaining OS arguments when spawning the app runtime |
+| Argv drop on Electrobun 2.0.1 Linux | [blackboardsh/electrobun#554](https://github.com/blackboardsh/electrobun/issues/554) | Independent Fulvid reproduction / confirmation of #483 against 2.0.1 — not a separate defect class |
+| macOS Markdown / existing UTI associations | [blackboardsh/electrobun#551](https://github.com/blackboardsh/electrobun/issues/551) | Independent: `fileAssociations` must be able to claim existing types such as Markdown, not only app-specific UTIs |
+| Single-instance / running-instance handoff | [blackboardsh/electrobun#465](https://github.com/blackboardsh/electrobun/issues/465) | Independent: a second launch must be able to route an open to an already running instance without a Fulvid-invented IPC surface |
 
 ### Deliberately not done
 
 | Not done | Why |
 | --- | --- |
 | `.mdx` and `inode/directory` MIME | Advertising a handler before delivery works only opens a blank window. There is no IANA type for MDX either |
-| Windows registry association | Electrobun 2.0.1 registers none, and Explorer would pass the path to the same launcher that drops it |
-| macOS `fileAssociations` | macOS delivers `file:` URLs on `open-url`, not argv. That is a different adapter, and it would need a drain after startup |
-| Single-instance / warm start | A second `fulvid note.md` is a second process with its own bounded queue. Handing a request across processes is a communication surface |
+| Windows registry association | Electrobun 2.0.1 registers none usefully for Markdown, and Explorer would pass the path to the same launcher that drops argv (#483 / #554) |
+| macOS `fileAssociations` for Markdown | Blocked on #551 (existing UTI) plus a post-startup `open-url` adapter; argv is the wrong channel on macOS |
+| Single-instance / warm start | Blocked on #465. A second `fulvid note.md` is a second process with its own bounded queue. Cross-process handoff is a communication surface Fulvid will not invent |
 | Browser extension | No channel exists or is designed |
 
 A `.desktop` entry cannot hand a path to an already running instance either;
 that needs D-Bus activation or a lock Fulvid does not have.
+
+## Upstream Watch
+
+Packaged Native OS Integration (Open with / associations / warm start) stays
+**deferred** until a **stable** Electrobun release closes the gaps above. Do not
+treat `2.0.2-beta.*` as delivery. Reopen Fulvid work only when:
+
+1. **Argv forwarding** — A stable Electrobun release documents and ships launcher
+   forwarding of remaining OS arguments to the Bun (or Cottontail) host on Linux
+   and Windows (#483 closed or equivalent in release notes). Re-verify with a
+   packaged Fulvid build; Fulvid already has the argv adapter and Linux `%F`
+   desktop wiring.
+2. **File associations** — Stable Electrobun can register for existing types
+   such as Markdown on macOS (#551) and can register Windows/Linux associations
+   that actually reach the host once argv forwarding exists. Only then expand
+   MIME / registry / `fileAssociations` beyond the prepared Linux Markdown MIME.
+3. **Running-instance handoff** — Stable Electrobun provides an official
+   single-instance or open-url-to-running-instance contract (#465) that Fulvid
+   can drain through the existing external-open queue without sockets, pipes,
+   daemons, or a second authority.
+
+Until then: keep the external-open funnel as the sole authority; keep desktop
+`Exec=… %F` ready; do not advertise handlers Fulvid cannot receive.
 
 ## Adding an adapter later
 
