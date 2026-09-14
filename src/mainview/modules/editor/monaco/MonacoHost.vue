@@ -813,6 +813,18 @@ async function runMonacoAction(actionId: string): Promise<void> {
   queueCommandState();
 }
 
+function getSelectedText(): string {
+  if (!editor) {
+    return "";
+  }
+  const model = editor.getModel();
+  const selection = editor.getSelection();
+  if (!model || !selection || selection.isEmpty()) {
+    return "";
+  }
+  return model.getValueInRange(selection);
+}
+
 defineExpose({
   find,
   focus,
@@ -822,6 +834,7 @@ defineExpose({
   runMonacoAction,
   runMarkdownAction,
   insertTextAtCursor,
+  getSelectedText,
   currentCursorPosition,
   findAnnotationAtLine,
   upsertAnnotationAtLine,

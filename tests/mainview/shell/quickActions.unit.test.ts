@@ -22,6 +22,7 @@ function byId(id: string): QuickActionDefinition {
 const EXPECTED_FULL_DISPLAY_ORDER = [
   "newDocument",
   "newDocumentFromReadme",
+  "newDocumentFromSelection",
   "openFile",
   "save",
   "closeAll",

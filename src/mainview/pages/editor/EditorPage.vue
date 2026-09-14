@@ -51,10 +51,12 @@ import {
   parseMarkdownStructure,
 } from "../../modules/editor/markdown/markdownStructure";
 import {
+  buildDocumentFromSelection,
   buildMarkdownTableOfContents,
   formatDocumentLink,
   relativeDocumentLinkPath,
 } from "../../modules/editor/markdown/markdownAuthoring";
+import { suggestUntitledSaveBasename } from "../../modules/editor/document/documentFileNames";
 import {
   escapeHtml,
   exportMarkdownPreviewDocument,
@@ -83,6 +85,7 @@ import { isUsableFocusTarget } from "../../app/usableFocusTarget";
 import { settings } from "../../modules/settings/settingsStore";
 import {
   layout,
+  closeRightSidebar,
   openRightSidebar,
   setPreviewRatio,
   PREVIEW_RATIO_LIMITS,
@@ -133,6 +136,7 @@ type MonacoHostHandle = {
   runMonacoAction: (actionId: string) => Promise<void>;
   runMarkdownAction: (action: MarkdownFormatAction) => void;
   insertTextAtCursor: (text: string) => void;
+  getSelectedText: () => string;
   currentCursorPosition: () => { lineNumber: number; column: number };
   findAnnotationAtLine: (lineNumber: number) => {
     position: { lineNumber: number; column: number };
@@ -324,7 +328,10 @@ async function saveAsEditorDocument(): Promise<void> {
   const requestedName = await promptFilename({
     title: t("actions.saveAs"),
     label: t("workspace.saveAsName"),
-    initialValue: buffer.kind === "virtual" ? `untitled.${defaultExtension}` : buffer.title,
+    initialValue:
+      buffer.kind === "virtual"
+        ? suggestUntitledSaveBasename(buffer.model.getValue(), defaultExtension)
+        : buffer.title,
   });
   if (requestedName === null) {
     return;
@@ -492,6 +499,44 @@ function togglePreview(): void {
 function createNewDocument(): void {
   // Same command as File → New → New Document and Quick Actions.
   void executeCommand("newDocument");
+}
+
+async function createDocumentFromSelection(): Promise<void> {
+  const host = monacoHostRef.value;
+  if (!host) {
+    notify(t("markdown.selectionRequired"));
+    return;
+  }
+  const selection = host.getSelectedText();
+  if (!selection.trim()) {
+    notify(t("markdown.selectionRequired"));
+    return;
+  }
+
+  const buffer = activeBuffer.value;
+  const sourcePath =
+    buffer?.path && buffer.rootPath && buffer.rootPath === workspace.value?.path
+      ? buffer.path
+      : undefined;
+  const sourceLabel = sourcePath
+    ? workspaceNotes.value.find((note) => note.path === sourcePath)?.title || sourcePath
+    : undefined;
+
+  const content = buildDocumentFromSelection({
+    selection,
+    sourcePath,
+    sourceLabel,
+    linkMode: settings.value.links.linkMode,
+  });
+
+  try {
+    closeRightSidebar();
+    await openOrActivate({ kind: "virtual", content });
+    await nextTick();
+    monacoHostRef.value?.focus();
+  } catch (error) {
+    notifyFilesystemError(error, "workspace.openDocumentError", notify);
+  }
 }
 
 function contentForWorkspaceDocument(path: string): string | null {
@@ -891,6 +936,7 @@ const unregisterCommands = [
   ),
   registerCommandHandler("renameHeading", () => runMonacoEditorAction("editor.action.rename")),
   registerCommandHandler("insertDocumentLink", () => void insertDocumentLink()),
+  registerCommandHandler("newDocumentFromSelection", () => void createDocumentFromSelection()),
   registerCommandHandler("insertTableOfContents", insertTableOfContents),
   registerCommandHandler("togglePreview", togglePreview),
   registerCommandHandler("annotateDocument", () => void annotateAtCursor()),

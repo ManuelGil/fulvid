@@ -261,6 +261,12 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
           label: "actions.newDocumentFromReadme",
           availability: "always",
         },
+        {
+          type: "command",
+          id: "newDocumentFromSelection",
+          label: "actions.newDocumentFromSelection",
+          availability: "hasTab",
+        },
       ],
     },
     { type: "separator", id: "file-separator-new" },

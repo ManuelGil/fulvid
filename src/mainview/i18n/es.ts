@@ -49,6 +49,7 @@ export default {
     link: "Enlace",
     image: "Imagen",
     insertLinkNeedsFolder: "Abre una carpeta para insertar un enlace a un documento.",
+    selectionRequired: "Selecciona texto en el editor para crear un documento a partir de él.",
     pickLinkTarget: "Enlazar a",
     entireDocument: "Documento completo",
     tocEmpty: "Este documento no tiene encabezados para una tabla de contenidos.",
@@ -110,6 +111,7 @@ export default {
     openDocumentContext: "Abrir contexto del documento",
     newDocument: "Nuevo documento",
     newDocumentFromReadme: "Nuevo documento desde README",
+    newDocumentFromSelection: "Nuevo documento desde la selección",
     openFile: "Abrir archivo",
     save: "Guardar",
     saveAs: "Guardar como...",
@@ -761,6 +763,10 @@ export default {
     sharedMany: "{count} documentos están enlazados con este.",
     unresolvedOne: "{count} enlace incompleto no coincide con un archivo aquí.",
     unresolvedMany: "{count} enlaces incompletos no coinciden con un archivo aquí.",
+    ambiguousOne:
+      "Un enlace coincide con más de un documento; Fulvid abre la primera coincidencia.",
+    ambiguousMany:
+      "{count} enlaces coinciden con más de un documento; Fulvid abre la primera coincidencia de cada uno.",
     referenceEvidence: "Enlazado como {links}.",
   },
   links: {
@@ -768,6 +774,7 @@ export default {
     invalid: "Este enlace a un documento está incompleto.",
     missingAnchor: 'El encabezado "{anchor}" no existe en ese documento.',
     candidates: "Posibles coincidencias: {items}",
+    alsoMatches: "También coincide con: {items}",
     open: "Abrir {path}",
     unresolvedTitle: "Este enlace no coincide con un documento",
     heading: "Encabezado #{anchor}: {status}",

@@ -114,7 +114,21 @@ function resolveSourceRelativeTarget(
   return segments.join("/");
 }
 
-function resolveNotePath(target: string, notesByStem: Map<string, ScannedNote[]>): string | null {
+type StemResolution = {
+  path: string;
+  /** Other scanned paths that share the stem when first-wins applied. */
+  alsoMatches: string[];
+};
+
+/**
+ * Stem lookup. Unique stems resolve cleanly. Duplicate stems still resolve to
+ * the first note in scan order (product contract), but report the other paths
+ * in `alsoMatches` unless the target already names an exact path among them.
+ */
+function resolveNotePath(
+  target: string,
+  notesByStem: Map<string, ScannedNote[]>,
+): StemResolution | null {
   const normalized = normalizeTarget(target);
   const stem = normalized.split("/").pop() ?? normalized;
   const candidates = notesByStem.get(stem.toLowerCase());
@@ -124,13 +138,30 @@ function resolveNotePath(target: string, notesByStem: Map<string, ScannedNote[]>
   }
 
   if (candidates.length === 1) {
-    return candidates[0].path;
+    return { path: candidates[0].path, alsoMatches: [] };
   }
 
   const exact = candidates.find(
     (note) => normalizeTarget(note.path).toLowerCase() === normalized.toLowerCase(),
   );
-  return exact?.path ?? candidates[0].path;
+  if (exact) {
+    return { path: exact.path, alsoMatches: [] };
+  }
+
+  return {
+    path: candidates[0].path,
+    alsoMatches: candidates.slice(1).map((note) => note.path),
+  };
+}
+
+function firstWinsGroup(group: ScannedNote[] | undefined): StemResolution | null {
+  if (!group || group.length === 0) {
+    return null;
+  }
+  return {
+    path: group[0].path,
+    alsoMatches: group.slice(1).map((note) => note.path),
+  };
 }
 
 /**
@@ -141,13 +172,14 @@ function resolveNotePath(target: string, notesByStem: Map<string, ScannedNote[]>
  * That made every link O(notes), and a folder-wide pass O(notes^2): 2000 notes
  * took over ten seconds, and the scanner allows 5000.
  *
- * The maps keep the previous semantics exactly: first note wins, in scan order.
+ * Groups keep scan order. Resolution is first-wins; callers that need honesty
+ * about collisions read `alsoMatches` from {@link resolveDocumentPath}.
  */
 type NoteIndex = {
   byPath: Map<string, ScannedNote>;
   byStem: Map<string, ScannedNote[]>;
-  byAlias: Map<string, ScannedNote>;
-  byTitle: Map<string, ScannedNote>;
+  byAlias: Map<string, ScannedNote[]>;
+  byTitle: Map<string, ScannedNote[]>;
 };
 
 /**
@@ -156,11 +188,20 @@ type NoteIndex = {
  */
 const noteIndexes = new WeakMap<ScannedNote[], NoteIndex>();
 
+function pushIndexed(map: Map<string, ScannedNote[]>, key: string, note: ScannedNote): void {
+  const group = map.get(key);
+  if (group) {
+    group.push(note);
+  } else {
+    map.set(key, [note]);
+  }
+}
+
 function buildNoteIndex(notes: ScannedNote[]): NoteIndex {
   const byPath = new Map<string, ScannedNote>();
   const byStem = new Map<string, ScannedNote[]>();
-  const byAlias = new Map<string, ScannedNote>();
-  const byTitle = new Map<string, ScannedNote>();
+  const byAlias = new Map<string, ScannedNote[]>();
+  const byTitle = new Map<string, ScannedNote[]>();
 
   for (const note of notes) {
     const pathKey = normalizeTarget(note.path).toLowerCase();
@@ -168,27 +209,15 @@ function buildNoteIndex(notes: ScannedNote[]): NoteIndex {
       byPath.set(pathKey, note);
     }
 
-    const stemKey = normalizeTarget(note.name).toLowerCase();
-    const stemGroup = byStem.get(stemKey);
-    if (stemGroup) {
-      stemGroup.push(note);
-    } else {
-      byStem.set(stemKey, [note]);
-    }
+    pushIndexed(byStem, normalizeTarget(note.name).toLowerCase(), note);
 
     // Empty keys are indexed too: `notes.find` matched them before, and this
     // has to resolve identically, not merely sensibly.
     for (const alias of note.aliases) {
-      const aliasKey = normalizeLinkText(alias);
-      if (!byAlias.has(aliasKey)) {
-        byAlias.set(aliasKey, note);
-      }
+      pushIndexed(byAlias, normalizeLinkText(alias), note);
     }
 
-    const titleKey = normalizeLinkText(note.title);
-    if (!byTitle.has(titleKey)) {
-      byTitle.set(titleKey, note);
-    }
+    pushIndexed(byTitle, normalizeLinkText(note.title), note);
   }
 
   return { byPath, byStem, byAlias, byTitle };
@@ -206,28 +235,46 @@ function noteIndex(notes: ScannedNote[]): NoteIndex {
 
 export type DocumentResolutionReason = "exact-path" | "stem" | "alias" | "title" | null;
 
+export type DocumentPathResolution = {
+  path: string | null;
+  reason: DocumentResolutionReason;
+  /**
+   * Other scanned paths that share the same stem, alias, or title key when
+   * resolution still returns a path (first-wins). Empty when unique, exact, or
+   * unresolved. Not persisted - derived from the current scan only.
+   */
+  alsoMatches: string[];
+};
+
 /**
  * Map a link target string to a scanned note path.
  *
  * Resolution is evidence-only (path, stem, alias, title). It does not create
- * documents, rewrite links, or consult open buffers.
+ * documents, rewrite links, or consult open buffers. Duplicate keys remain
+ * first-wins; `alsoMatches` makes that collision visible.
  */
 export function resolveDocumentPath(
   target: string,
   notes: ScannedNote[],
   resolution: LinkResolutionMode = activeDocumentLinkSettings.resolution,
   sourcePath?: string,
-): { path: string | null; reason: DocumentResolutionReason } {
+): DocumentPathResolution {
+  const unresolved = (): DocumentPathResolution => ({
+    path: null,
+    reason: null,
+    alsoMatches: [],
+  });
+
   const sourceRelativeTarget = resolveSourceRelativeTarget(target, sourcePath);
   if (sourceRelativeTarget === null) {
-    return { path: null, reason: null };
+    return unresolved();
   }
   if (!sourceRelativeTarget && sourcePath) {
-    return { path: sourcePath, reason: "exact-path" };
+    return { path: sourcePath, reason: "exact-path", alsoMatches: [] };
   }
   const normalizedTarget = normalizeTarget(sourceRelativeTarget).toLowerCase();
   if (!normalizedTarget) {
-    return { path: null, reason: null };
+    return unresolved();
   }
 
   const targetWithoutDecorators = sourceRelativeTarget
@@ -244,29 +291,29 @@ export function resolveDocumentPath(
   if (resolution !== "stem" && hasPathHint) {
     const exactPath = index.byPath.get(normalizedTarget);
     if (exactPath) {
-      return { path: exactPath.path, reason: "exact-path" };
+      return { path: exactPath.path, reason: "exact-path", alsoMatches: [] };
     }
   }
 
   if (resolution !== "path") {
-    const stemPath = resolveNotePath(target, index.byStem);
-    if (stemPath) {
-      return { path: stemPath, reason: "stem" };
+    const stemHit = resolveNotePath(target, index.byStem);
+    if (stemHit) {
+      return { path: stemHit.path, reason: "stem", alsoMatches: stemHit.alsoMatches };
     }
 
     const normalizedLink = normalizeLinkText(target);
-    const aliasMatch = index.byAlias.get(normalizedLink);
-    if (aliasMatch) {
-      return { path: aliasMatch.path, reason: "alias" };
+    const aliasHit = firstWinsGroup(index.byAlias.get(normalizedLink));
+    if (aliasHit) {
+      return { path: aliasHit.path, reason: "alias", alsoMatches: aliasHit.alsoMatches };
     }
 
-    const titleMatch = index.byTitle.get(normalizedLink);
-    if (titleMatch) {
-      return { path: titleMatch.path, reason: "title" };
+    const titleHit = firstWinsGroup(index.byTitle.get(normalizedLink));
+    if (titleHit) {
+      return { path: titleHit.path, reason: "title", alsoMatches: titleHit.alsoMatches };
     }
   }
 
-  return { path: null, reason: null };
+  return unresolved();
 }
 
 function linksForNote(note: ScannedNote): LinkLike[] {
@@ -506,6 +553,51 @@ export function candidateNotesForLink(
   );
 
   return matches.slice(0, limit);
+}
+
+/**
+ * Single near-match for an unresolved target, or null when zero or several.
+ * Ask for two candidates so a truncated limit cannot fake uniqueness.
+ */
+export function uniqueLinkCandidate(link: string, notes: ScannedNote[]): LinkCandidate | null {
+  const candidates = candidateNotesForLink(link, notes, 2);
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+/**
+ * Active-mode outbound links that resolve while other notes share the key.
+ * First-wins still applies; this only surfaces the collision.
+ */
+export function ambiguousOutboundLinks(
+  note: ScannedNote,
+  notes: ScannedNote[],
+): Array<{ target: string; path: string; alsoMatches: string[] }> {
+  const ambiguous: Array<{ target: string; path: string; alsoMatches: string[] }> = [];
+  const seen = new Set<string>();
+
+  for (const link of linksForNote(note)) {
+    const resolved = resolveDocumentPath(
+      link.target,
+      notes,
+      activeDocumentLinkSettings.resolution,
+      note.path,
+    );
+    if (!resolved.path || resolved.alsoMatches.length === 0) {
+      continue;
+    }
+    const key = link.target.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    ambiguous.push({
+      target: link.target,
+      path: resolved.path,
+      alsoMatches: resolved.alsoMatches,
+    });
+  }
+
+  return ambiguous;
 }
 
 /**

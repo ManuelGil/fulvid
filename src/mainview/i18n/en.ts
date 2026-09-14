@@ -49,6 +49,7 @@ export default {
     link: "Link",
     image: "Image",
     insertLinkNeedsFolder: "Open a folder to insert a document link.",
+    selectionRequired: "Select text in the editor to create a document from it.",
     pickLinkTarget: "Link to",
     entireDocument: "Entire document",
     tocEmpty: "This document has no headings for a table of contents.",
@@ -110,6 +111,7 @@ export default {
     openDocumentContext: "Open document context",
     newDocument: "New document",
     newDocumentFromReadme: "New document from README",
+    newDocumentFromSelection: "New document from selection",
     openFile: "Open file",
     save: "Save",
     saveAs: "Save as...",
@@ -749,6 +751,9 @@ export default {
     sharedMany: "{count} documents are linked to this one.",
     unresolvedOne: "{count} incomplete link does not match a file here.",
     unresolvedMany: "{count} incomplete links do not match a file here.",
+    ambiguousOne: "One link matches more than one document; Fulvid opens the first match.",
+    ambiguousMany:
+      "{count} links match more than one document; Fulvid opens the first match for each.",
     referenceEvidence: "Linked as {links}.",
   },
   links: {
@@ -756,6 +761,7 @@ export default {
     invalid: "This document link is incomplete.",
     missingAnchor: 'Heading "{anchor}" does not exist in that document.',
     candidates: "Possible matches: {items}",
+    alsoMatches: "Also matches: {items}",
     open: "Open {path}",
     unresolvedTitle: "This link does not match a document",
     heading: "Heading #{anchor}: {status}",
