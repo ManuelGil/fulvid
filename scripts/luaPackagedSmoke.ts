@@ -1,18 +1,20 @@
 /**
  * Packaged Electrobun gate for the Lua/Wasm extension runtime.
  *
- * Canary/stable Linux trees keep the app payload in Resources/*.tar.zst.
- * This smoke extracts that archive (when needed), confirms `bun/glue.wasm`
- * ships beside the host entry, instantiates wasmoon from those bytes, and
- * runs discovery + notify + isolation against a temp userData/extensions.
+ * After a canary/stable Electrobun package under build/, this smoke:
+ *   1. Locates bun/glue.wasm (expanded tree or Resources/*.tar.zst)
+ *   2. Instantiates wasmoon from those packaged bytes (not CDN / not bare node_modules)
+ *   3. Discovers a valid Lua fixture + an invalid neighbor under temp userData/extensions
+ *   4. Invokes ui.notify and confirms isolation
+ *   5. Probes execution interrupt + memory ceiling against the packaged Wasm module
  *
- * Usage:
- *   bun run build:canary   # or release
+ * Usage (after packaging on this platform):
+ *   bun run build:canary   # or packaging/{linux,windows,macos}/package.*
  *   bun run smoke:lua-packaged
  */
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -55,40 +57,84 @@ function preferNewest(paths: string[]): string | null {
     .sort((a, b) => b.mtime - a.mtime)[0]!.path;
 }
 
-function extractTarZst(archive: string, destination: string): void {
-  mkdirSyncRecursive(destination);
-  // Prefer system zstd; Electrobun packages also ship zig-zstd beside launcher.
-  const zstd = existsSync("/usr/bin/zstd")
-    ? "/usr/bin/zstd"
-    : findFiles(join(root, "build"), (path) => path.endsWith("/bin/zig-zstd"))[0];
-  if (!zstd) {
-    throw new Error("zstd not available to extract Electrobun Resources/*.tar.zst");
-  }
-  execFileSync("bash", ["-lc", `"${zstd}" -d -c "${archive}" | tar -x -C "${destination}"`], {
-    stdio: "inherit",
-  });
+function normalizePath(path: string): string {
+  return path.replaceAll("\\", "/");
 }
 
-function mkdirSyncRecursive(path: string): void {
-  if (!existsSync(path)) {
-    execFileSync("mkdir", ["-p", path]);
+function findZstdBinary(): string {
+  const candidates = [
+    process.platform === "win32" ? "C:\\Program Files\\zstd\\zstd.exe" : "",
+    "/usr/bin/zstd",
+    "/usr/local/bin/zstd",
+    ...findFiles(join(root, "build"), (path) => {
+      const normalized = normalizePath(path);
+      return (
+        normalized.endsWith("/bin/zig-zstd") ||
+        normalized.endsWith("/bin/zig-zstd.exe") ||
+        normalized.endsWith("/bin/zstd") ||
+        normalized.endsWith("/bin/zstd.exe")
+      );
+    }),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  const which = spawnSync(process.platform === "win32" ? "where" : "which", ["zstd"], {
+    encoding: "utf8",
+  });
+  if (which.status === 0) {
+    const first = which.stdout.trim().split(/\r?\n/)[0];
+    if (first) {
+      return first;
+    }
+  }
+
+  throw new Error("zstd not available to extract Electrobun Resources/*.tar.zst");
+}
+
+function extractTarZst(archive: string, destination: string): void {
+  mkdirSync(destination, { recursive: true });
+  const zstd = findZstdBinary();
+  // Portable pipe: zstd decompress → tar extract (GitHub runners ship tar on win/mac/linux).
+  const shell =
+    process.platform === "win32"
+      ? {
+          command: "cmd.exe",
+          args: ["/d", "/s", "/c", `"${zstd}" -d -c "${archive}" | tar -xf - -C "${destination}"`],
+        }
+      : {
+          command: "/bin/sh",
+          args: ["-c", `"${zstd}" -d -c "${archive}" | tar -x -C "${destination}"`],
+        };
+  const result = spawnSync(shell.command, shell.args, {
+    stdio: "inherit",
+    windowsVerbatimArguments: process.platform === "win32",
+  });
+  if (result.status !== 0) {
+    throw new Error(`failed to extract ${archive} (exit ${String(result.status)})`);
   }
 }
 
 async function resolvePackagedGlueWasm(): Promise<{ gluePath: string; cleanup: string | null }> {
   const buildRoot = join(root, "build");
   const expanded = preferNewest(
-    findFiles(buildRoot, (path) => path.replaceAll("\\", "/").endsWith("/bun/glue.wasm")),
+    findFiles(buildRoot, (path) => normalizePath(path).endsWith("/bun/glue.wasm")),
   );
   if (expanded) {
     return { gluePath: expanded, cleanup: null };
   }
 
+  // Prefer in-app Resources payloads over top-level update bundles when both exist.
   const archives = findFiles(buildRoot, (path) => path.endsWith(".tar.zst"));
-  const archive = preferNewest(archives);
+  const resourceArchives = archives.filter((path) => normalizePath(path).includes("/Resources/"));
+  const archive = preferNewest(resourceArchives.length > 0 ? resourceArchives : archives);
   if (!archive) {
     throw new Error(
-      "No packaged Fulvid tree found under build/. Run bun run build:canary (or release) first.",
+      "No packaged Fulvid tree found under build/. Package this platform first (build:canary or packaging/*/package.*).",
     );
   }
 
@@ -96,7 +142,7 @@ async function resolvePackagedGlueWasm(): Promise<{ gluePath: string; cleanup: s
   console.log(`lua packaged smoke: extracting ${archive}`);
   extractTarZst(archive, extractRoot);
   const gluePath = preferNewest(
-    findFiles(extractRoot, (path) => path.replaceAll("\\", "/").endsWith("/bun/glue.wasm")),
+    findFiles(extractRoot, (path) => normalizePath(path).endsWith("/bun/glue.wasm")),
   );
   if (!gluePath) {
     await rm(extractRoot, { recursive: true, force: true });
@@ -107,9 +153,65 @@ async function resolvePackagedGlueWasm(): Promise<{ gluePath: string; cleanup: s
   return { gluePath, cleanup: extractRoot };
 }
 
+async function probePackagedBudgets(gluePath: string): Promise<void> {
+  const { LuaFactory } = await import("wasmoon");
+  const factory = new LuaFactory(gluePath);
+
+  const timeoutEngine = await factory.createEngine({
+    openStandardLibs: true,
+    injectObjects: false,
+    enableProxy: false,
+    functionTimeout: 100,
+    traceAllocations: true,
+  });
+  timeoutEngine.global.setMemoryMax(512 * 1024);
+  const started = Date.now();
+  try {
+    const thread = timeoutEngine.global.newThread();
+    thread.loadString("while true do end");
+    await thread.run(0, { timeout: 100 });
+    throw new Error("packaged interrupt probe completed without timeout");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/thread timeout exceeded/i.test(message)) {
+      throw new Error(`packaged interrupt probe failed unexpectedly: ${message}`, { cause: error });
+    }
+  }
+  if (Date.now() - started > 2_000) {
+    throw new Error("packaged interrupt probe exceeded 2s recovery budget");
+  }
+  timeoutEngine.global.close();
+
+  const memoryEngine = await factory.createEngine({
+    openStandardLibs: true,
+    injectObjects: false,
+    enableProxy: false,
+    functionTimeout: 5_000,
+    traceAllocations: true,
+  });
+  memoryEngine.global.setMemoryMax(256 * 1024);
+  try {
+    await memoryEngine.doString(`
+      local t = {}
+      for i = 1, 1000000 do
+        t[i] = string.rep("x", 1024)
+      end
+    `);
+    throw new Error("packaged memory probe completed without OOM");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/not enough memory/i.test(message)) {
+      throw new Error(`packaged memory probe failed unexpectedly: ${message}`, { cause: error });
+    }
+  }
+  memoryEngine.global.close();
+  console.log("  interrupt + memory budgets (packaged Wasm): passed");
+}
+
 async function main(): Promise<void> {
   const { gluePath, cleanup } = await resolvePackagedGlueWasm();
   console.log(`lua packaged smoke: glue.wasm → ${gluePath}`);
+  console.log(`lua packaged smoke: platform ${process.platform}/${process.arch}`);
 
   const { LuaFactory } = await import("wasmoon");
   const { configureExtensionDiscovery, discoverExtensions, resetExtensionDiscoveryForTests } =
@@ -137,11 +239,12 @@ async function main(): Promise<void> {
   }
   engine.global.close();
 
-  // Confirm the bundled host entry exists beside glue.wasm (no CDN path).
   const bundledHost = join(dirname(gluePath), "index.js");
   if (!existsSync(bundledHost)) {
     throw new Error(`packaged Bun host entry missing beside glue.wasm: ${bundledHost}`);
   }
+
+  await probePackagedBudgets(gluePath);
 
   const userData = await mkdtemp(join(tmpdir(), "fulvid-lua-packaged-"));
   const extensions = join(userData, "extensions");

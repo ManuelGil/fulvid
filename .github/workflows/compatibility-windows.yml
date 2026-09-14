@@ -75,6 +75,9 @@ jobs:
       - name: Compatibility smoke
         run: bun run smoke:compatibility
 
+      - name: Lua packaged smoke
+        run: bun run smoke:lua-packaged
+
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
