@@ -20,7 +20,7 @@ src/mainview/pages/      Routes: editor/, search/, graph/, settings/
 src/mainview/modules/    workspace/, editor/, search/, quickOpen/, graph/, document/, settings/
 src/mainview/extensions/ Manifest contract + registry / host action dispatch
 src/mainview/app/        Bootstrap, router, layout, folder lifecycle
-src/mainview/shell/      Menus, sidebars, AppIcon.vue
+src/mainview/shell/      Menus, sidebars, AppIcon.vue / appIcons.ts
 src/mainview/i18n/       EN/ES catalogs; see I18N.md
 src/mainview/styles/
 tests/                   Mirrors src/bun, src/mainview, scripts/, and extensions/

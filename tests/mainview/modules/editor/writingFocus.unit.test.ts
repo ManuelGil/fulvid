@@ -5,6 +5,7 @@ import {
   toggleNativeFullScreen,
 } from "../../../../src/bun/windowFullScreen.ts";
 import {
+  WRITING_FOCUS_KEPT_SELECTORS,
   toggleWritingFocus,
   writingFocusActive,
   writingFocusHidesEditorChrome,
@@ -25,6 +26,10 @@ describe("writing focus", () => {
     expect(writingFocusHidesEditorChrome("settings")).toBe(false);
     expect(writingFocusLeaveEditorTarget(true)).toBe("monaco");
     expect(writingFocusLeaveEditorTarget(false)).toBe("empty-or-main");
+    expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".quick-actions");
+    expect(WRITING_FOCUS_KEPT_SELECTORS).toContain("[data-application-menu]");
+    expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".toast-host");
+    expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".dialog-host");
 
     toggleWritingFocus();
     expect(writingFocusActive.value).toBe(false);
