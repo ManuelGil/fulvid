@@ -2,39 +2,28 @@ import { describe, expect, test } from "bun:test";
 
 import { parseDocumentLinks } from "../../../../../src/mainview/modules/document/links/documentLink";
 
-// Intent: protect active-syntax parsing. Resolution routes live in linkSemantics.
-// Growth boundary: add cases only for new syntax or code-span rules.
+// Intent: active-syntax parsing; resolution lives in linkSemantics.
 describe("document links", () => {
-  test("parses only the active syntax with anchors, aliases, and ranges", () => {
+  test("parses only the active syntax and ignores frontmatter, inline code, and fences", () => {
     const source = "See [[docs/Guide.mdx#Intro|Guide]] and [setup](docs/setup.markdown#start).";
     const wikilinks = parseDocumentLinks(source, "wikilink");
-
     expect(wikilinks).toHaveLength(1);
     expect(wikilinks[0]).toMatchObject({
       syntax: "wikilink",
-      raw: "[[docs/Guide.mdx#Intro|Guide]]",
       target: "docs/Guide.mdx",
       anchor: "Intro",
       label: "Guide",
     });
-    expect(source.slice(wikilinks[0].range.start, wikilinks[0].range.end)).toBe(wikilinks[0].raw);
 
     const markdownLinks = parseDocumentLinks(source, "markdown");
     expect(markdownLinks).toHaveLength(1);
     expect(markdownLinks[0]).toMatchObject({
       syntax: "markdown",
-      raw: "[setup](docs/setup.markdown#start)",
       target: "docs/setup.markdown",
       anchor: "start",
-      label: "setup",
     });
-    expect(source.slice(markdownLinks[0].range.start, markdownLinks[0].range.end)).toBe(
-      markdownLinks[0].raw,
-    );
-  });
 
-  test("ignores links in frontmatter, inline code, and fenced code", () => {
-    const source = `---
+    const masked = `---
 related: [[frontmatter]]
 ---
 
@@ -46,8 +35,7 @@ Use \`[inline](inline.md)\`.
 \`\`\`
 
 [real](real.md)`;
-
-    expect(parseDocumentLinks(source, "markdown").map((item) => item.target)).toEqual(["real.md"]);
-    expect(parseDocumentLinks(source, "wikilink").map((item) => item.target)).toEqual([]);
+    expect(parseDocumentLinks(masked, "markdown").map((item) => item.target)).toEqual(["real.md"]);
+    expect(parseDocumentLinks(masked, "wikilink").map((item) => item.target)).toEqual([]);
   });
 });

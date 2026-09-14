@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * Single Settings surface. Categories are in-page sections (`#settings-{id}`),
- * not routes or separate stores. Writes go through `patchSettings` or
- * `resetSettingsToDefaults` on the settings store.
+ * Single Settings surface. Categories switch in-page via `?section=` (one
+ * panel at a time). Local Settings Search projects catalog metadata onto the
+ * real controls; writes still go only through `patchSettings` /
+ * `resetSettingsToDefaults`.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import PageShell from "../../shell/PageShell.vue";
@@ -12,6 +13,10 @@ import {
   settings,
 } from "../../modules/settings/settingsStore";
 import type { FulvidSettings, StatusbarIndicator } from "../../modules/settings/settingsStore";
+import {
+  focusSettingsSearchTarget,
+  matchSettingsSearch,
+} from "../../modules/settings/settingsSearch";
 import { syncDocumentAnnotationsVisibleFromPreference } from "../../modules/editor/document/documentAnnotationVisibility";
 import {
   THEME_FAMILIES,
@@ -119,9 +124,30 @@ const selectedCategory = ref<SettingsCategory>(categoryFromRoute(route.query.sec
 const compactCategoryNav = ref(false);
 let compactCategoryNavMedia: MediaQueryList | null = null;
 
+/** Local UI state only — never persisted. */
+const searchQuery = ref("");
+const searchSelectedIndex = ref(0);
+
 const categoryTabOrientation = computed(() =>
   compactCategoryNav.value ? "horizontal" : "vertical",
 );
+
+const searchActive = computed(() => searchQuery.value.trim().length > 0);
+const searchResults = computed(() => matchSettingsSearch(searchQuery.value, t));
+const searchActiveOptionId = computed(() => {
+  if (!searchActive.value || searchResults.value.length === 0) {
+    return undefined;
+  }
+  return `settings-search-option-${searchSelectedIndex.value}`;
+});
+
+watch(searchResults, (results) => {
+  if (results.length === 0) {
+    searchSelectedIndex.value = 0;
+    return;
+  }
+  searchSelectedIndex.value = Math.min(searchSelectedIndex.value, results.length - 1);
+});
 
 watch(
   () => route.query.section,
@@ -130,7 +156,13 @@ watch(
   },
 );
 
+function clearSettingsSearch(): void {
+  searchQuery.value = "";
+  searchSelectedIndex.value = 0;
+}
+
 function selectCategory(category: SettingsCategory): void {
+  clearSettingsSearch();
   selectedCategory.value = category;
   void router.replace({
     query: {
@@ -138,6 +170,66 @@ function selectCategory(category: SettingsCategory): void {
       section: category,
     },
   });
+}
+
+async function activateSettingsSearchResult(index: number): Promise<void> {
+  const hit = searchResults.value[index];
+  if (!hit) {
+    return;
+  }
+  const { id, category } = hit;
+  // Switch category while results still hide the panel, then reveal the target.
+  selectedCategory.value = category;
+  await router.replace({
+    query: {
+      ...route.query,
+      section: category,
+    },
+  });
+  clearSettingsSearch();
+  await nextTick();
+  await nextTick();
+  focusSettingsSearchTarget(id);
+}
+
+function onSettingsSearchKeydown(event: KeyboardEvent): void {
+  if (event.key === "Escape") {
+    if (!searchQuery.value) {
+      return;
+    }
+    event.preventDefault();
+    clearSettingsSearch();
+    return;
+  }
+
+  if (!searchActive.value) {
+    return;
+  }
+
+  const lastIndex = searchResults.value.length - 1;
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    if (lastIndex < 0) {
+      return;
+    }
+    searchSelectedIndex.value = Math.min(searchSelectedIndex.value + 1, lastIndex);
+    return;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    if (lastIndex < 0) {
+      return;
+    }
+    searchSelectedIndex.value = Math.max(searchSelectedIndex.value - 1, 0);
+    return;
+  }
+  if (event.key === "Enter") {
+    if (lastIndex < 0) {
+      return;
+    }
+    event.preventDefault();
+    void activateSettingsSearchResult(searchSelectedIndex.value);
+  }
 }
 
 function onCategoryKeydown(event: KeyboardEvent, index: number): void {
@@ -321,7 +413,76 @@ async function onResetSettings(): Promise<void> {
       </nav>
 
       <div class="settings-page__content">
+        <div class="settings-search">
+          <label class="settings-search__field">
+            <span class="visually-hidden">{{ t("settings.searchLabel") }}</span>
+            <input
+              id="settings-search-query"
+              v-model="searchQuery"
+              class="settings-search__input"
+              type="search"
+              spellcheck="false"
+              autocomplete="off"
+              :placeholder="t('settings.searchPlaceholder')"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              :aria-controls="
+                searchActive && searchResults.length > 0 ? 'settings-search-results' : undefined
+              "
+              :aria-expanded="searchActive && searchResults.length > 0"
+              :aria-activedescendant="searchActiveOptionId"
+              @keydown="onSettingsSearchKeydown"
+            />
+          </label>
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="settings-search__clear"
+            :aria-label="t('settings.searchClear')"
+            @click="clearSettingsSearch"
+          >
+            {{ t("settings.searchClear") }}
+          </button>
+        </div>
+
         <div
+          v-if="searchActive"
+          class="settings-search-panel"
+          role="region"
+          :aria-label="t('settings.searchResults')"
+        >
+          <p v-if="searchResults.length === 0" class="settings-search-empty" role="status">
+            {{ t("settings.searchNoResults", { query: searchQuery.trim() }) }}
+          </p>
+          <ul
+            v-else
+            id="settings-search-results"
+            class="settings-search-results"
+            role="listbox"
+            :aria-label="t('settings.searchResults')"
+          >
+            <li
+              v-for="(result, index) in searchResults"
+              :id="`settings-search-option-${index}`"
+              :key="result.id"
+              role="option"
+              class="settings-search-results__item"
+              :class="{ 'is-selected': searchSelectedIndex === index }"
+              :aria-selected="searchSelectedIndex === index"
+              @pointerdown.prevent="activateSettingsSearchResult(index)"
+            >
+              <span class="settings-search-results__category">{{ result.categoryLabel }}</span>
+              <span class="settings-search-results__label">{{ result.label }}</span>
+              <span v-if="result.hint" class="settings-search-results__hint">{{
+                result.hint
+              }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <div
+          v-else
           id="settings-panel"
           class="settings-page__sections"
           role="tabpanel"
@@ -336,7 +497,7 @@ async function onResetSettings(): Promise<void> {
             <h2 id="settings-general" class="settings-section__title">
               {{ t("settings.general") }}
             </h2>
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="general.locale">
               <span class="settings-option__copy">
                 <span class="settings-option__name">{{ t("settings.locale") }}</span>
                 <span id="settings-locale-hint" class="settings-option__hint">
@@ -356,7 +517,11 @@ async function onResetSettings(): Promise<void> {
               </select>
             </label>
 
-            <div class="settings-reset" aria-labelledby="settings-reset-heading">
+            <div
+              class="settings-reset"
+              data-settings-id="general.reset"
+              aria-labelledby="settings-reset-heading"
+            >
               <div class="settings-reset__copy">
                 <p id="settings-reset-heading" class="settings-option__name">
                   {{ t("settings.resetToDefaults") }}
@@ -387,7 +552,7 @@ async function onResetSettings(): Promise<void> {
 
             <fieldset class="settings-field">
               <legend class="settings-field__label">{{ t("settings.editorTypography") }}</legend>
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.fontSize">
                 <span class="settings-option__copy">
                   <span class="settings-option__name">{{ t("settings.editorFontSize") }}</span>
                   <span id="settings-editor-font-size-hint" class="settings-option__hint">
@@ -407,7 +572,7 @@ async function onResetSettings(): Promise<void> {
                 />
               </label>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.fontFamily">
                 <span class="settings-option__copy">
                   <span class="settings-option__name">{{ t("settings.editorFontFamily") }}</span>
                   <span id="settings-editor-font-family-hint" class="settings-option__hint">
@@ -432,7 +597,7 @@ async function onResetSettings(): Promise<void> {
                 </select>
               </label>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.lineHeight">
                 <span class="settings-option__copy">
                   <span class="settings-option__name">{{ t("settings.editorLineHeight") }}</span>
                   <span id="settings-editor-line-height-hint" class="settings-option__hint">
@@ -462,7 +627,7 @@ async function onResetSettings(): Promise<void> {
 
             <fieldset class="settings-field">
               <legend class="settings-field__label">{{ t("settings.editorEditing") }}</legend>
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.tabSize">
                 <span class="settings-option__copy">
                   <span class="settings-option__name">{{ t("settings.editorTabSize") }}</span>
                   <span id="settings-editor-tab-size-hint" class="settings-option__hint">
@@ -488,7 +653,7 @@ async function onResetSettings(): Promise<void> {
                 </select>
               </label>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.defaultEol">
                 <span class="settings-option__copy">
                   <span class="settings-option__name">{{ t("settings.editorDefaultEol") }}</span>
                   <span id="settings-editor-default-eol-hint" class="settings-option__hint">
@@ -512,7 +677,7 @@ async function onResetSettings(): Promise<void> {
                 </select>
               </label>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.insertSpaces">
                 <input
                   class="settings-option__control"
                   type="checkbox"
@@ -528,7 +693,7 @@ async function onResetSettings(): Promise<void> {
                 </span>
               </label>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.autoIndent">
                 <input
                   class="settings-option__control"
                   type="checkbox"
@@ -544,7 +709,7 @@ async function onResetSettings(): Promise<void> {
                 </span>
               </label>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.wordWrap">
                 <span class="settings-option__copy">
                   <span class="settings-option__name">{{ t("settings.editorWordWrap") }}</span>
                   <span id="settings-editor-word-wrap-hint" class="settings-option__hint">
@@ -572,7 +737,7 @@ async function onResetSettings(): Promise<void> {
 
             <fieldset class="settings-field">
               <legend class="settings-field__label">{{ t("settings.editorDisplay") }}</legend>
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.lineNumbers">
                 <input
                   class="settings-option__control"
                   type="checkbox"
@@ -588,7 +753,7 @@ async function onResetSettings(): Promise<void> {
                 </span>
               </label>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.minimap">
                 <input
                   class="settings-option__control"
                   type="checkbox"
@@ -604,7 +769,7 @@ async function onResetSettings(): Promise<void> {
                 </span>
               </label>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.stickyScroll">
                 <input
                   class="settings-option__control"
                   type="checkbox"
@@ -620,7 +785,7 @@ async function onResetSettings(): Promise<void> {
                 </span>
               </label>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="editor.whitespace">
                 <span class="settings-option__copy">
                   <span class="settings-option__name">{{ t("settings.editorWhitespace") }}</span>
                   <span id="settings-editor-whitespace-hint" class="settings-option__hint">
@@ -646,7 +811,7 @@ async function onResetSettings(): Promise<void> {
               </label>
             </fieldset>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="editor.readingStatistics">
               <span class="settings-option__copy">
                 <span class="settings-option__name">{{ t("settings.readingStatistics") }}</span>
                 <span id="settings-editor-reading-statistics-hint" class="settings-option__hint">
@@ -673,7 +838,7 @@ async function onResetSettings(): Promise<void> {
               </select>
             </label>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="editor.typewriterScrolling">
               <input
                 class="settings-option__control"
                 type="checkbox"
@@ -691,7 +856,7 @@ async function onResetSettings(): Promise<void> {
               </span>
             </label>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="editor.documentLocation">
               <span class="settings-option__copy">
                 <span class="settings-option__name">{{ t("settings.documentLocation") }}</span>
                 <span class="settings-option__hint">{{ t("settings.documentLocationHint") }}</span>
@@ -716,7 +881,7 @@ async function onResetSettings(): Promise<void> {
               </select>
             </label>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="editor.markdownFormatBar">
               <input
                 class="settings-option__control"
                 type="checkbox"
@@ -733,7 +898,7 @@ async function onResetSettings(): Promise<void> {
               </span>
             </label>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="editor.showDocumentAnnotations">
               <input
                 class="settings-option__control"
                 type="checkbox"
@@ -762,7 +927,10 @@ async function onResetSettings(): Promise<void> {
               {{ t("settings.appearance") }}
             </h2>
 
-            <fieldset class="settings-field settings-field--themes">
+            <fieldset
+              class="settings-field settings-field--themes"
+              data-settings-id="appearance.theme"
+            >
               <legend class="settings-field__label">{{ t("settings.theme") }}</legend>
               <p class="settings-field__hint">{{ t("settings.themeHint") }}</p>
               <div
@@ -880,7 +1048,7 @@ async function onResetSettings(): Promise<void> {
               <legend class="settings-field__label">{{ t("settings.interfaceScale") }}</legend>
               <p class="settings-field__hint">{{ t("settings.interfaceScaleHint") }}</p>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="appearance.interfaceTextSize">
                 <span class="settings-option__copy">
                   <span class="settings-option__name">{{ t("settings.interfaceTextSize") }}</span>
                   <span id="settings-interface-text-size-hint" class="settings-option__hint">
@@ -905,7 +1073,7 @@ async function onResetSettings(): Promise<void> {
                 </select>
               </label>
 
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="appearance.iconSize">
                 <span class="settings-option__copy">
                   <span class="settings-option__name">{{ t("settings.interfaceIconSize") }}</span>
                   <span id="settings-interface-icon-size-hint" class="settings-option__hint">
@@ -930,7 +1098,7 @@ async function onResetSettings(): Promise<void> {
                 </select>
               </label>
 
-              <div class="settings-density">
+              <div class="settings-density" data-settings-id="appearance.density">
                 <div class="settings-density__copy">
                   <span class="settings-option__name">{{ t("settings.density") }}</span>
                   <span id="settings-density-hint" class="settings-option__hint">
@@ -986,7 +1154,7 @@ async function onResetSettings(): Promise<void> {
 
             <fieldset class="settings-field">
               <legend class="settings-field__label">{{ t("settings.statusbar") }}</legend>
-              <label class="settings-option">
+              <label class="settings-option" data-settings-id="appearance.statusbarEnabled">
                 <input
                   class="settings-option__control"
                   type="checkbox"
@@ -1004,6 +1172,7 @@ async function onResetSettings(): Promise<void> {
                 v-for="indicator in STATUSBAR_INDICATORS"
                 :key="indicator.key"
                 class="settings-option"
+                :data-settings-id="`appearance.statusbar.${indicator.key}`"
               >
                 <input
                   class="settings-option__control"
@@ -1033,7 +1202,7 @@ async function onResetSettings(): Promise<void> {
               {{ t("settings.workspace") }}
             </h2>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="workspace.showHidden">
               <input
                 class="settings-option__control"
                 type="checkbox"
@@ -1050,7 +1219,7 @@ async function onResetSettings(): Promise<void> {
               </span>
             </label>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="workspace.confirmClose">
               <input
                 class="settings-option__control"
                 type="checkbox"
@@ -1068,7 +1237,7 @@ async function onResetSettings(): Promise<void> {
               </span>
             </label>
 
-            <fieldset class="settings-field">
+            <fieldset data-settings-id="workspace.startup" class="settings-field">
               <legend class="settings-field__label">{{ t("settings.workspaceStartup") }}</legend>
               <label class="settings-option">
                 <input
@@ -1116,7 +1285,7 @@ async function onResetSettings(): Promise<void> {
               {{ t("settings.accessibility") }}
             </h2>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="accessibility.reducedMotion">
               <input
                 class="settings-option__control"
                 type="checkbox"
@@ -1143,7 +1312,7 @@ async function onResetSettings(): Promise<void> {
               {{ t("settings.markdown") }}
             </h2>
 
-            <fieldset class="settings-field">
+            <fieldset data-settings-id="markdown.linkMode" class="settings-field">
               <legend class="settings-field__label">{{ t("settings.linkMode") }}</legend>
               <p class="settings-field__hint">{{ t("settings.linkModeHint") }}</p>
               <label class="settings-option">
@@ -1178,7 +1347,7 @@ async function onResetSettings(): Promise<void> {
               </label>
             </fieldset>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="markdown.resolution">
               <span class="settings-option__copy">
                 <span class="settings-option__name">{{ t("settings.resolution") }}</span>
                 <span id="settings-resolution-hint" class="settings-option__hint">
@@ -1203,7 +1372,7 @@ async function onResetSettings(): Promise<void> {
               </select>
             </label>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="markdown.defaultExtension">
               <span class="settings-option__copy">
                 <span class="settings-option__name">{{ t("settings.defaultExtension") }}</span>
                 <span id="settings-default-extension-hint" class="settings-option__hint">
@@ -1228,7 +1397,7 @@ async function onResetSettings(): Promise<void> {
               </select>
             </label>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="markdown.showOutgoingLinks">
               <input
                 class="settings-option__control"
                 type="checkbox"
@@ -1246,7 +1415,7 @@ async function onResetSettings(): Promise<void> {
               </span>
             </label>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="markdown.showIncomingLinks">
               <input
                 class="settings-option__control"
                 type="checkbox"
@@ -1274,7 +1443,7 @@ async function onResetSettings(): Promise<void> {
               {{ t("settings.preview") }}
             </h2>
 
-            <label class="settings-option">
+            <label class="settings-option" data-settings-id="preview.enabled">
               <input
                 class="settings-option__control"
                 type="checkbox"
@@ -1295,7 +1464,12 @@ async function onResetSettings(): Promise<void> {
             class="settings-section"
             aria-labelledby="settings-keyboard"
           >
-            <h2 id="settings-keyboard" class="settings-section__title">
+            <h2
+              id="settings-keyboard"
+              class="settings-section__title"
+              data-settings-id="keyboard.section"
+              tabindex="-1"
+            >
               {{ t("settings.keyboard") }}
             </h2>
             <dl class="settings-shortcuts">
@@ -1307,14 +1481,22 @@ async function onResetSettings(): Promise<void> {
                 <dt><kbd>/</kbd></dt>
                 <dd>{{ t("settings.shortcutGlobalSearch") }}</dd>
               </div>
-              <div class="settings-shortcuts__row">
+              <div
+                class="settings-shortcuts__row"
+                data-settings-id="keyboard.quickOpen"
+                tabindex="-1"
+              >
                 <dt>
                   <kbd>{{ primaryModifier }}</kbd
                   ><kbd>P</kbd>
                 </dt>
                 <dd>{{ t("settings.shortcutQuickOpen") }}</dd>
               </div>
-              <div class="settings-shortcuts__row">
+              <div
+                class="settings-shortcuts__row"
+                data-settings-id="keyboard.globalSearch"
+                tabindex="-1"
+              >
                 <dt>
                   <kbd>{{ primaryModifier }}</kbd
                   ><kbd>Shift</kbd><kbd>F</kbd>
@@ -1381,14 +1563,22 @@ async function onResetSettings(): Promise<void> {
                 </dt>
                 <dd>{{ t("settings.shortcutLeftSidebar") }}</dd>
               </div>
-              <div class="settings-shortcuts__row">
+              <div
+                class="settings-shortcuts__row"
+                data-settings-id="keyboard.writingFocus"
+                tabindex="-1"
+              >
                 <dt>
                   <kbd>{{ primaryModifier }}</kbd
                   ><kbd>Shift</kbd><kbd>Enter</kbd>
                 </dt>
                 <dd>{{ t("settings.shortcutFocus") }}</dd>
               </div>
-              <div class="settings-shortcuts__row">
+              <div
+                class="settings-shortcuts__row"
+                data-settings-id="keyboard.fullscreen"
+                tabindex="-1"
+              >
                 <dt v-if="isApplePlatform"><kbd>Ctrl</kbd><kbd>⌘</kbd><kbd>F</kbd></dt>
                 <dt v-else><kbd>F11</kbd></dt>
                 <dd>{{ t("settings.shortcutFullscreen") }}</dd>
@@ -1479,7 +1669,7 @@ async function onResetSettings(): Promise<void> {
               {{ t("settings.about") }}
             </h2>
 
-            <div class="settings-about">
+            <div class="settings-about" data-settings-id="general.about" tabindex="-1">
               <div class="settings-about__intro">
                 <p class="settings-about__product">{{ t("app.product") }}</p>
                 <p class="settings-about__lead">{{ t("settings.aboutDescription") }}</p>
@@ -1571,6 +1761,123 @@ async function onResetSettings(): Promise<void> {
 
 .settings-page__content {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $space-block;
+}
+
+.settings-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-tight;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-block: $space-tight;
+  background: $background;
+}
+
+.settings-search__field {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.settings-search__input {
+  width: 100%;
+  min-height: $control-height;
+  padding: 0 $space-compact;
+  border: 1px solid $border-subtle;
+  border-radius: $radius;
+  background: $surface;
+  color: $text-primary;
+  font: inherit;
+  font-size: $font-control;
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: 1px;
+  }
+}
+
+.settings-search__clear {
+  @include quiet-button;
+  min-height: $control-height;
+}
+
+.settings-search-panel {
+  min-width: 0;
+}
+
+.settings-search-empty {
+  margin: 0;
+  color: $text-secondary;
+  font-size: $font-control;
+}
+
+.settings-search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(28rem, 60vh);
+  overflow: auto;
+  border: 1px solid $border-subtle;
+  border-radius: $radius;
+}
+
+.settings-search-results__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: $space-compact $space-group;
+  cursor: pointer;
+  border-block-end: 1px solid $border-subtle;
+
+  &:last-child {
+    border-block-end: 0;
+  }
+
+  &:hover,
+  &.is-selected {
+    background: $surface-hover;
+  }
+
+  &.is-selected {
+    outline: 2px solid $focus-ring;
+    outline-offset: -2px;
+  }
+}
+
+.settings-search-results__category {
+  color: $text-secondary;
+  font-size: $font-caption;
+}
+
+.settings-search-results__label {
+  color: $text-primary;
+  font-size: $font-control;
+  font-weight: 600;
+}
+
+.settings-search-results__hint {
+  color: $text-secondary;
+  font-size: $font-caption;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .settings-section {

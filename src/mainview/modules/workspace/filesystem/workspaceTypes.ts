@@ -37,7 +37,6 @@ export interface ScannedNote {
   categories: string[];
   projects: string[];
   summary: string;
-  tokens: number;
   words: number;
   /** Raw document content retained for workspace content search. */
   content?: string;

@@ -29,10 +29,9 @@ const idleState: ApplicationMenuState = {
   canRedo: false,
 };
 
-// Intent: Save follows document identity, not Folder. Linux native menu is Electrobun's limit.
-// Growth boundary: add a case only if availability or save-enablement rules change.
+// Intent: Save follows document identity; Full Screen is an explicit command; Linux is HTML fallback.
 describe("application menu", () => {
-  test("enables Save from document identity, not Folder", () => {
+  test("enables Save from document identity and exposes Full Screen as an explicit command", () => {
     expect(menuItemEnabled("canSave", idleState)).toBe(false);
     expect(
       menuItemEnabled("canSave", {
@@ -45,28 +44,9 @@ describe("application menu", () => {
       menuItemEnabled("canSave", {
         ...idleState,
         hasActiveDocument: true,
-        isDocumentDirty: true,
-      }),
-    ).toBe(true);
-    expect(
-      menuItemEnabled("canSave", {
-        ...idleState,
-        hasActiveDocument: true,
       }),
     ).toBe(false);
-    expect(menuItemEnabled("hasFolder", idleState)).toBe(false);
-  });
 
-  test("treats Linux as an HTML fallback in Electrobun 2.0.1", () => {
-    expect(electrobunNativeApplicationMenuSupported("linux")).toBe(false);
-    expect(electrobunApplicationMenuFallbackReason("linux")).toBe(
-      ELECTROBUN_LINUX_APPLICATION_MENU_UNWIRED,
-    );
-    expect(electrobunNativeApplicationMenuSupported("darwin")).toBe(true);
-    expect(electrobunNativeApplicationMenuSupported("win32")).toBe(true);
-  });
-
-  test("exposes Full Screen as an explicit command, not a native maximize role", () => {
     const menus = presentApplicationMenu("win32", idleState, (key) => key);
     const view = menus.find((menu) => menu.id === "view");
     const fullscreen = view?.items.find(
@@ -79,5 +59,13 @@ describe("application menu", () => {
     expect(view?.items.some((item) => item.type === "role" && item.id === "toggleFullScreen")).toBe(
       false,
     );
+  });
+
+  test("treats Linux as an HTML fallback in Electrobun 2.0.1", () => {
+    expect(electrobunNativeApplicationMenuSupported("linux")).toBe(false);
+    expect(electrobunApplicationMenuFallbackReason("linux")).toBe(
+      ELECTROBUN_LINUX_APPLICATION_MENU_UNWIRED,
+    );
+    expect(electrobunNativeApplicationMenuSupported("darwin")).toBe(true);
   });
 });

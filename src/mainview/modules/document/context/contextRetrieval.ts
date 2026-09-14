@@ -7,30 +7,23 @@ import {
   resolvingDocumentLinks,
   unresolvedDocumentLinks,
 } from "../links/linkSemantics";
-import { documentFact, formatTokens, type DocumentFact } from "../facts/documentFacts";
+import { documentFact, type DocumentFact } from "../facts/documentFacts";
 import { i18n } from "../../../i18n";
 
 interface NoteReach {
   documents: number;
-  tokens: number;
 }
 
 /**
  * Documents reachable by following explicit references from this document,
- * excluding itself; count and total token volume.
+ * excluding itself.
  */
 export function noteReach(focusPath: string, notes: ScannedNote[]): NoteReach {
-  const lookup = new Map(notes.map((note) => [note.path, note.tokens]));
   const reached = buildFocusGraph(focusPath, notes, Number.POSITIVE_INFINITY).nodes.filter(
     (node) => node.id !== focusPath,
   );
 
-  let tokens = 0;
-  for (const node of reached) {
-    tokens += lookup.get(node.id) ?? 0;
-  }
-
-  return { documents: reached.length, tokens };
+  return { documents: reached.length };
 }
 
 export function noteReachFacts(reach: NoteReach): DocumentFact[] {
@@ -38,10 +31,7 @@ export function noteReachFacts(reach: NoteReach): DocumentFact[] {
     return [];
   }
 
-  return [
-    documentFact("documents", reach.documents.toLocaleString()),
-    documentFact("tokens", formatTokens(reach.tokens)),
-  ];
+  return [documentFact("documents", reach.documents.toLocaleString())];
 }
 
 /** Context narrative kept short; detailed references appear in their own sections. */

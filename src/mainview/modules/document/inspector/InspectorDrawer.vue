@@ -25,7 +25,6 @@ import {
   noteTitle,
   peekDocument,
 } from "../../workspace/focus/focusState";
-import { pathRelativeToContext } from "../context/context";
 import {
   buildReadingGuidance,
   explainReferenceEvidence,
@@ -46,8 +45,7 @@ import ContextMenu, { type ContextMenuAction } from "../../../shell/ContextMenu.
 import { notify } from "../../../app/notify";
 import { INSPECTOR_WIDTH_LIMITS, layout, setInspectorWidth } from "../../../app/layoutStore";
 import {
-  contextNotes,
-  contextRoot,
+  workspaceNotes,
   copyWorkspacePath,
   revealWorkspaceInExplorer,
   validatedFocus,
@@ -72,14 +70,14 @@ const readingNote = computed(() => {
   if (!readingPath.value) {
     return null;
   }
-  return contextNotes.value.find((note) => note.path === readingPath.value) ?? null;
+  return workspaceNotes.value.find((note) => note.path === readingPath.value) ?? null;
 });
 
 const displayTitle = computed(() => {
   if (!readingPath.value) {
     return "";
   }
-  return noteTitle(readingPath.value, contextNotes.value);
+  return noteTitle(readingPath.value, workspaceNotes.value);
 });
 
 const isPeeking = computed(() => {
@@ -97,7 +95,7 @@ const regardingPeek = computed(() => {
   if (!isPeeking.value || !validatedFocus.value) {
     return undefined;
   }
-  return noteTitle(validatedFocus.value.path, contextNotes.value);
+  return noteTitle(validatedFocus.value.path, workspaceNotes.value);
 });
 
 interface ReferenceEntry {
@@ -108,25 +106,24 @@ interface ReferenceEntry {
 }
 
 function toReferenceEntries(paths: string[], direction: "out" | "in"): ReferenceEntry[] {
-  const root = contextRoot.value ?? "";
   const focus = readingPath.value;
   return paths.map((path) => ({
     path,
-    title: noteTitle(path, contextNotes.value),
-    relativePath: pathRelativeToContext(path, root),
+    title: noteTitle(path, workspaceNotes.value),
+    relativePath: path,
     evidence:
       focus == null
         ? null
         : explainReferenceEvidence(
             direction === "out" ? focus : path,
             direction === "out" ? path : focus,
-            contextNotes.value,
+            workspaceNotes.value,
           ),
   }));
 }
 
 const connections = computed(() =>
-  readingNote.value ? noteConnections(readingNote.value.path, contextNotes.value) : null,
+  readingNote.value ? noteConnections(readingNote.value.path, workspaceNotes.value) : null,
 );
 
 const referencesEntries = computed(() =>
@@ -138,7 +135,7 @@ const referencedByEntries = computed(() =>
 );
 
 const unresolvedLinks = computed(() =>
-  readingNote.value ? unresolvedDocumentLinks(readingNote.value, contextNotes.value) : [],
+  readingNote.value ? unresolvedDocumentLinks(readingNote.value, workspaceNotes.value) : [],
 );
 
 interface IncompleteReference {
@@ -147,13 +144,12 @@ interface IncompleteReference {
 }
 
 const incompleteReferences = computed((): IncompleteReference[] => {
-  const root = contextRoot.value ?? "";
   return unresolvedLinks.value.map((link) => ({
     link,
-    candidates: candidateNotesForLink(link, contextNotes.value).map((candidate) => ({
+    candidates: candidateNotesForLink(link, workspaceNotes.value).map((candidate) => ({
       ...candidate,
-      title: noteTitle(candidate.path, contextNotes.value),
-      relativePath: pathRelativeToContext(candidate.path, root),
+      title: noteTitle(candidate.path, workspaceNotes.value),
+      relativePath: candidate.path,
     })),
   }));
 });
@@ -167,7 +163,7 @@ const readingGuidance = computed(() => {
     return [];
   }
 
-  return buildReadingGuidance(readingPath.value, contextNotes.value);
+  return buildReadingGuidance(readingPath.value, workspaceNotes.value);
 });
 
 const documentFacts = computed(() =>
@@ -178,7 +174,7 @@ const reachFactRows = computed(() => {
   if (!readingNote.value) {
     return [];
   }
-  return noteReachFacts(noteReach(readingNote.value.path, contextNotes.value));
+  return noteReachFacts(noteReach(readingNote.value.path, workspaceNotes.value));
 });
 
 const panelRef = ref<HTMLElement | null>(null);
@@ -191,8 +187,8 @@ let inspectorResizeCleanup: (() => void) | null = null;
 let previousFocus: HTMLElement | null = null;
 
 const pathMenuActions = computed<readonly ContextMenuAction[]>(() => [
-  { id: "copy", label: t("actions.copy") },
-  { id: "reveal", label: t("actions.reveal") },
+  { id: "copy", label: t("menu.copyPath") },
+  { id: "reveal", label: t("menu.revealInFolder") },
   ...(!onGraph.value ? [{ id: "graph", label: t("actions.seeWhere") }] : []),
 ]);
 
@@ -446,14 +442,14 @@ onBeforeUnmount(() => {
           v-if="readingPath"
           class="inspector-panel__path"
           :title="t('inspector.rightClickPath')"
-          :aria-label="`${pathRelativeToContext(readingPath, contextRoot ?? '')} - ${t('inspector.pathActions')}`"
+          :aria-label="`${readingPath} - ${t('inspector.pathActions')}`"
           aria-haspopup="menu"
           :aria-expanded="pathMenuOpen"
           type="button"
           @contextmenu="onPathContextMenu"
           @keydown="onPathKeydown"
         >
-          {{ pathRelativeToContext(readingPath, contextRoot ?? "") }}
+          {{ readingPath }}
         </button>
         <div v-if="readingPath && (!onGraph || isPeeking)" class="inspector-panel__actions">
           <button
@@ -525,11 +521,7 @@ onBeforeUnmount(() => {
           </FactGroup>
         </FactSection>
 
-        <FactSection
-          v-if="readingNote.summary"
-          :title="documentFactLabel('summary')"
-          :heading-level="3"
-        >
+        <FactSection v-if="readingNote.summary" :title="t('facts.summary')" :heading-level="3">
           <FactStatement>{{ readingNote.summary }}</FactStatement>
         </FactSection>
 

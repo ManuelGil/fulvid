@@ -10,10 +10,7 @@ import { type MarkdownCommandId } from "../modules/editor/markdown/markdownForma
 
 export type CommandId =
   | "newDocument"
-  | "newDocumentNote"
-  | "newDocumentMeeting"
-  | "newDocumentDaily"
-  | "newDocumentProject"
+  | "newDocumentFromReadme"
   | "openFile"
   | "save"
   | "saveAs"
@@ -42,6 +39,8 @@ export type CommandId =
   | "replace"
   | "findReferences"
   | "renameHeading"
+  | "insertDocumentLink"
+  | "insertTableOfContents"
   | "togglePreview"
   | "toggleWritingFocus"
   | "toggleLeftSidebar"
@@ -95,6 +94,8 @@ export type CommandIcon =
   | "outline"
   | "search"
   | "file-search"
+  | "link"
+  | "bullet-list"
   | "undo"
   | "redo"
   | "cut"
@@ -171,6 +172,16 @@ export const quickActions: readonly QuickActionDefinition[] = [
     overflowOrder: 60,
   },
   {
+    id: "newDocumentFromReadme",
+    label: "actions.newDocumentFromReadme",
+    icon: "document",
+    group: "file",
+    subgroup: "document",
+    order: 15,
+    tier: "secondary",
+    overflowOrder: 75,
+  },
+  {
     id: "openFile",
     label: "actions.openFile",
     shortcut: "Ctrl/Cmd+O",
@@ -223,6 +234,26 @@ export const quickActions: readonly QuickActionDefinition[] = [
     // Contextual Add/Edit on the current document — interaction is editing, not Fulvid chrome.
     tier: "secondary",
     overflowOrder: 50,
+  },
+  {
+    id: "insertDocumentLink",
+    label: "actions.insertDocumentLink",
+    icon: "link",
+    group: "edit",
+    subgroup: "document",
+    order: 20,
+    tier: "secondary",
+    overflowOrder: 55,
+  },
+  {
+    id: "insertTableOfContents",
+    label: "actions.insertTableOfContents",
+    icon: "bullet-list",
+    group: "edit",
+    subgroup: "document",
+    order: 30,
+    tier: "overflow",
+    overflowOrder: 45,
   },
   {
     id: "undo",

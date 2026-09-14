@@ -478,6 +478,8 @@ $monochrome-tokens: (
   @include emit-theme-tokens($high-contrast-dark-tokens);
 }
 
+// Pre-JS paint matches first-run default (appearance.theme = system): follow
+// the OS. Explicit [data-theme=…] skins override after settings hydrate.
 :root {
   @include dark-tokens;
   --ui-text-scale: 1;
@@ -519,7 +521,8 @@ $monochrome-tokens: (
 }
 
 html {
-  color-scheme: var(--color-scheme, dark);
+  // Fallback only when tokens have not set --color-scheme yet.
+  color-scheme: var(--color-scheme, light dark);
 }
 
 html[data-interface-text-scale="small"] {
@@ -615,12 +618,14 @@ html[data-density="compact"] {
 }
 
 @media (prefers-color-scheme: light) {
+  :root:not([data-theme]),
   [data-theme="system"] {
     @include light-tokens;
   }
 }
 
 @media (prefers-color-scheme: dark) {
+  :root:not([data-theme]),
   [data-theme="system"] {
     @include dark-tokens;
   }

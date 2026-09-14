@@ -10,7 +10,6 @@
  */
 import { ref } from "vue";
 
-import { isPathWithinContext } from "../../document/context/context";
 import type { ScannedNote } from "../filesystem/workspaceTypes";
 
 export type Focus = {
@@ -70,13 +69,6 @@ export function bindFocusToWorkspace(workspacePath: string | null): void {
   }
 
   activeWorkspacePath.value = workspacePath;
-}
-
-export function bindFocusToContext(contextRoot: string | null): void {
-  const focus = currentFocus.value;
-  if (!focus || !isPathWithinContext(focus.path, contextRoot)) {
-    clearFocus();
-  }
 }
 
 function setFocus(path: string): void {

@@ -11,22 +11,27 @@ import {
   closeDocument,
   getDocumentBuffer,
   isDocumentDirty,
+  openBuffers,
   openOrActivate,
   renameDocumentBuffer,
 } from "../../editor/document/documentBuffers";
+import { applyDocumentPathRenamePlan } from "../../document/links/applyDocumentPathRename";
+import { planDocumentPathRename } from "../../document/links/documentPathRename";
 import {
-  activeContextLabel,
   copyWorkspacePath,
-  clearContextRoot,
-  contextRoot,
-  hasCustomContext,
   refreshWorkspace,
   revealWorkspaceInExplorer,
-  setContextRoot,
   workspace,
+  workspaceName,
+  workspaceNotes,
   applyRenamedNote,
   applyScannedNote,
 } from "../../../app/workspaceState";
+import { currentFocus, focusDocument, inspectionPath } from "../focus/focusState";
+import {
+  documentTemplateTitleFromParentPath,
+  renderDocumentTemplate,
+} from "../../editor/document/documentTemplates";
 import { APP_ROUTE_NAMES } from "../../../app/router";
 import { isMarkdownFile, type FileSystemEntry } from "../filesystem/workspaceTypes";
 import {
@@ -37,6 +42,12 @@ import {
   notifyFilesystemError,
   renameDocument,
 } from "../filesystem/workspaceScanner";
+import {
+  explorerContextMenuLabelKey,
+  explorerFileContextActionIds,
+  explorerFolderContextActionIds,
+  explorerPathActionLabelKeys,
+} from "./explorerContextMenu";
 import { settings } from "../../settings/settingsStore";
 
 type VisibleRow = {
@@ -101,23 +112,44 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
   }
 
   if (entry.kind === "file") {
-    return [
-      { id: "rename", label: t("files.rename") },
-      { id: "reveal", label: t("actions.reveal") },
-      { id: "copy", label: t("actions.copy") },
-      { id: "delete", label: t("files.delete"), danger: true },
-    ];
+    return explorerFileContextActionIds().map((id) => {
+      if (id === "rename") {
+        return { id, label: t("files.rename") };
+      }
+      if (id === "reveal") {
+        return { id, label: t(explorerPathActionLabelKeys.reveal) };
+      }
+      if (id === "copy") {
+        return { id, label: t(explorerPathActionLabelKeys.copy) };
+      }
+      return { id, label: t("files.delete"), danger: true };
+    });
   }
 
-  const contextIsAlreadySet = hasCustomContext.value && contextRoot.value === entry.path;
   return [
     {
-      id: contextIsAlreadySet ? "clear-context" : "set-context",
-      label: contextIsAlreadySet ? t("context.clearRoot") : t("context.setRoot"),
+      id: "new",
+      label: t("menu.new"),
+      children: [
+        { id: "newDocument", label: t("actions.newDocument") },
+        { id: "newDocumentFromReadme", label: t("actions.newDocumentFromReadme") },
+      ],
     },
-    { id: "reveal", label: t("actions.reveal") },
-    { id: "copy", label: t("actions.copy") },
+    ...explorerFolderContextActionIds().map((id) => {
+      if (id === "reveal") {
+        return { id, label: t(explorerPathActionLabelKeys.reveal) };
+      }
+      return { id, label: t(explorerPathActionLabelKeys.copy) };
+    }),
   ];
+});
+
+const contextMenuLabel = computed(() => {
+  const entry = selectedEntry.value;
+  if (!entry) {
+    return t("files.documentActions");
+  }
+  return t(explorerContextMenuLabelKey(entry.kind));
 });
 
 const contextMenu = ref({
@@ -218,14 +250,15 @@ function targetDirectory(): string {
   return entry ? parentPath(entry.path) : "";
 }
 
-async function createNewDocument(): Promise<void> {
+async function createExplorerDocument(seed: "blank" | "readme"): Promise<void> {
   const rootPath = workspaceRoot.value;
   if (!rootPath) {
     return;
   }
 
+  const promptTitle = seed === "readme" ? t("files.newDocumentFromReadme") : t("files.newDocument");
   const requestedName = await promptFilename({
-    title: t("files.newDocument"),
+    title: promptTitle,
     label: t("files.newDocumentName"),
   });
   if (!requestedName) {
@@ -239,16 +272,36 @@ async function createNewDocument(): Promise<void> {
     return;
   }
 
-  const relativePath = [targetDirectory(), name].filter(Boolean).join("/");
+  const parentDirectory = targetDirectory();
+  const relativePath = [parentDirectory, name].filter(Boolean).join("/");
+  const content =
+    seed === "readme"
+      ? renderDocumentTemplate("readme", {
+          title: documentTemplateTitleFromParentPath(parentDirectory, workspaceName(rootPath)),
+        })
+      : "";
   try {
-    const result = await createDocument(rootPath, relativePath, "", settings.value.links.linkMode);
+    const result = await createDocument(
+      rootPath,
+      relativePath,
+      content,
+      settings.value.links.linkMode,
+    );
     applyScannedNote(result.note);
-    await loadDirectory(targetDirectory());
+    await loadDirectory(parentDirectory);
     await openOrActivate({ kind: "workspace", rootPath, path: relativePath });
     await router.push({ name: APP_ROUTE_NAMES.editor });
   } catch (error) {
     notifyFilesystemError(error, "workspace.openDocumentError", notify);
   }
+}
+
+function createNewDocument(): Promise<void> {
+  return createExplorerDocument("blank");
+}
+
+function createNewDocumentFromReadme(): Promise<void> {
+  return createExplorerDocument("readme");
 }
 
 async function renameSelectedDocument(): Promise<void> {
@@ -269,21 +322,60 @@ async function renameSelectedDocument(): Promise<void> {
 
   const nextPath = [parentPath(entry.path), nextName].filter(Boolean).join("/");
   const buffer = getDocumentBuffer(rootPath, entry.path);
+  const linkMode = settings.value.links.linkMode;
+  const contentByPath = new Map<string, string>();
+  for (const note of workspaceNotes.value) {
+    if (typeof note.content === "string") {
+      contentByPath.set(note.path, note.content);
+    }
+  }
+  for (const open of openBuffers.value) {
+    if (open.rootPath === rootPath && open.path) {
+      contentByPath.set(open.path, open.model.getValue());
+    }
+  }
+
+  const plan = planDocumentPathRename({
+    oldPath: entry.path,
+    newPath: nextPath,
+    notes: workspaceNotes.value,
+    linkMode,
+    contentByPath,
+  });
+
   try {
-    const result = await renameDocument(
-      rootPath,
-      entry.path,
-      nextPath,
-      buffer?.mtimeMs,
-      settings.value.links.linkMode,
-    );
+    const result = await renameDocument(rootPath, entry.path, nextPath, buffer?.mtimeMs, linkMode);
     if (buffer) {
       renameDocumentBuffer(buffer, nextPath, result.mtimeMs);
     }
     applyRenamedNote(entry.path, result.note);
+    if (currentFocus.value?.path === entry.path) {
+      focusDocument(nextPath);
+    } else if (inspectionPath.value === entry.path) {
+      inspectionPath.value = nextPath;
+    }
     selectedPath.value = nextPath;
     await loadDirectory(parentPath(entry.path));
     await loadDirectory(parentPath(nextPath));
+
+    if (plan.edits.length > 0) {
+      const applied = await applyDocumentPathRenamePlan({
+        rootPath,
+        plan,
+        contentByPath,
+        linkMode,
+      });
+      for (const note of applied.notes) {
+        applyScannedNote(note);
+      }
+      if (applied.failedPaths.length > 0) {
+        notify(
+          t("files.renameLinksPartial", {
+            count: applied.failedPaths.length.toLocaleString(),
+          }),
+        );
+      }
+    }
   } catch (error) {
     notifyFilesystemError(error, "files.renameError", notify);
   }
@@ -323,7 +415,11 @@ async function deleteSelectedDocument(): Promise<void> {
 async function runContextAction(id: string): Promise<void> {
   contextMenu.value.open = false;
   const entry = selectedEntry.value;
-  if (id === "rename") {
+  if (id === "newDocument") {
+    await createNewDocument();
+  } else if (id === "newDocumentFromReadme") {
+    await createNewDocumentFromReadme();
+  } else if (id === "rename") {
     await renameSelectedDocument();
   } else if (id === "delete") {
     await deleteSelectedDocument();
@@ -331,10 +427,6 @@ async function runContextAction(id: string): Promise<void> {
     await revealWorkspaceInExplorer(entry.path);
   } else if (id === "copy" && entry) {
     await copyWorkspacePath(entry.path);
-  } else if (id === "set-context" && entry?.kind === "directory") {
-    setContextRoot(entry.path);
-  } else if (id === "clear-context") {
-    clearContextRoot();
   }
 }
 
@@ -449,10 +541,7 @@ onBeforeUnmount(() => {
   <section class="explorer-panel" :aria-label="t('files.title')">
     <header class="explorer-panel__toolbar">
       <span class="explorer-panel__root" :title="workspaceRoot ?? undefined">
-        {{
-          activeContextLabel ??
-          (workspaceRoot ? workspaceRoot.split(/[\\/]/).pop() : t("workspace.noWorkspace"))
-        }}
+        {{ workspaceRoot ? workspaceRoot.split(/[\\/]/).pop() : t("workspace.noWorkspace") }}
       </span>
       <div class="explorer-panel__actions">
         <button
@@ -461,6 +550,15 @@ onBeforeUnmount(() => {
           :aria-label="t('files.newDocument')"
           :disabled="!workspaceRoot"
           @click="createNewDocument"
+        >
+          <AppIcon name="new-document" :size="14" />
+        </button>
+        <button
+          type="button"
+          :title="t('files.newDocumentFromReadme')"
+          :aria-label="t('files.newDocumentFromReadme')"
+          :disabled="!workspaceRoot"
+          @click="createNewDocumentFromReadme"
         >
           <AppIcon name="document" :size="14" />
         </button>
@@ -537,7 +635,7 @@ onBeforeUnmount(() => {
       :x="contextMenu.x"
       :y="contextMenu.y"
       :actions="contextActions"
-      :label="t('files.documentActions')"
+      :label="contextMenuLabel"
       @select="runContextAction"
       @close="contextMenu.open = false"
     />

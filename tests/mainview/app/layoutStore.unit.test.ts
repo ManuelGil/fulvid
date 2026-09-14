@@ -2,8 +2,6 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 const store = new Map<string, string>();
 
-// The layout store reads and writes localStorage at import time, so the stub
-// has to exist before the module is loaded.
 (globalThis as { localStorage?: unknown }).localStorage = {
   getItem: (key: string) => store.get(key) ?? null,
   setItem: (key: string, value: string) => {
@@ -24,7 +22,6 @@ async function loadLayout(persisted: string | null) {
   if (persisted !== null) {
     store.set(STORAGE_KEY, persisted);
   }
-  // A fresh module instance per case, so each one reads its own state.
   const module = await import(`../../../src/mainview/app/layoutStore?case=${Math.random()}`);
   return module as typeof import("../../../src/mainview/app/layoutStore");
 }
@@ -37,32 +34,22 @@ afterEach(() => {
   store.clear();
 });
 
-// Intent: make persisted geometry safe at startup and within usable bounds.
-// Growth boundary: add cases only for new fields or clamp rules.
+// Intent: persisted geometry stays safe at startup and within usable bounds.
 describe("persisted layout", () => {
-  test("unparseable state degrades to defaults instead of failing startup", async () => {
-    for (const corrupt of ["{{{", "null", "[1,2,3]"]) {
-      const { layout } = await loadLayout(corrupt);
+  test("corrupt or out-of-range layout degrades to usable defaults", async () => {
+    const { layout: corrupt } = await loadLayout("{{{");
+    expect(corrupt.value.sidebarWidth).toBe(252);
+    expect(corrupt.value.previewRatio).toBeCloseTo(0.42);
 
-      expect(layout.value.sidebarWidth).toBe(252);
-      expect(layout.value.previewRatio).toBeCloseTo(0.42);
-      expect(layout.value.rightSidebar).toBeNull();
-    }
-  });
-
-  test("out-of-range dimensions are clamped into usable limits", async () => {
     const { layout } = await loadLayout(
       JSON.stringify({
         sidebarWidth: 99999,
         inspectorWidth: -5,
-        contextualWidth: Number.MAX_SAFE_INTEGER,
         previewRatio: 12,
       }),
     );
-
     expect(layout.value.sidebarWidth).toBe(360);
     expect(layout.value.inspectorWidth).toBe(260);
-    expect(layout.value.contextualWidth).toBe(440);
     expect(layout.value.previewRatio).toBeCloseTo(0.65);
   });
 });

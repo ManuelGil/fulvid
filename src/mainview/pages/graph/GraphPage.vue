@@ -29,10 +29,9 @@ import {
   openOrActivate,
   selectDocument,
 } from "../../modules/editor/document/documentBuffers";
-import { pathRelativeToContext } from "../../modules/document/context/context";
 import { unresolvedDocumentLinks } from "../../modules/document/links/linkSemantics";
 import { graphActiveTarget } from "../../modules/graph/active-document/graphActiveDocument";
-import { contextRoot, workspace } from "../../app/workspaceState";
+import { workspace } from "../../app/workspaceState";
 import { isTypingTarget } from "../../app/isTypingTarget";
 import { APP_ROUTE_NAMES } from "../../app/router";
 
@@ -63,14 +62,7 @@ const referenceGraph = computed(() => {
 
 const focusTitle = computed(() => graphActiveTarget.value?.title ?? null);
 
-const focusRelativePath = computed(() => {
-  const target = graphActiveTarget.value;
-  if (!target?.focusPath || contextRoot.value === null) {
-    return null;
-  }
-
-  return pathRelativeToContext(target.focusPath, contextRoot.value);
-});
+const focusRelativePath = computed(() => graphActiveTarget.value?.focusPath ?? null);
 
 const graphSummary = computed(() => {
   const composed = composedGraph.value;

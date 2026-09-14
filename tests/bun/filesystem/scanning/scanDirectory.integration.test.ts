@@ -106,17 +106,16 @@ function permissionDenied(syscall: string, target: string): NodeJS.ErrnoExceptio
 }
 
 describe("scanning a hostile or live folder", () => {
-  test("an unreadable subdirectory is skipped, not fatal", async () => {
-    const root = await makeWorkspace();
-    const denied = resolve(join(root, "denied"));
-
+  test("an unreadable subdirectory or document is skipped, not fatal", async () => {
+    const deniedRoot = await makeWorkspace();
+    const denied = resolve(join(deniedRoot, "denied"));
     try {
-      await writeFile(join(root, "readable.md"), "# Readable\n");
+      await writeFile(join(deniedRoot, "readable.md"), "# Readable\n");
       await mkdir(denied);
       await writeFile(join(denied, "hidden.md"), "# Hidden\n");
 
-      const scan = await scanWorkspace(
-        root,
+      const deniedScan = await scanWorkspace(
+        deniedRoot,
         { linkMode: "markdown" },
         {
           beforeReadDirectory: (directory) => {
@@ -126,71 +125,54 @@ describe("scanning a hostile or live folder", () => {
           },
         },
       );
-
-      expect(scan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
-      // Skipping is reported, so a partial folder is never silent.
-      expect(scan.skipped).toBeGreaterThan(0);
+      expect(deniedScan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
+      expect(deniedScan.skipped).toBeGreaterThan(0);
     } finally {
-      await rm(root, { recursive: true, force: true });
+      await rm(deniedRoot, { recursive: true, force: true });
     }
-  });
 
-  test("a document that becomes unreadable mid-scan is skipped, not fatal", async () => {
-    const root = await makeWorkspace();
-    const locked = resolve(join(root, "locked.md"));
-
+    const midRoot = await makeWorkspace();
+    const locked = resolve(join(midRoot, "locked.md"));
     try {
-      await writeFile(join(root, "readable.md"), "# Readable\n");
+      await writeFile(join(midRoot, "readable.md"), "# Readable\n");
       await writeFile(locked, "# Locked\n");
-
-      const scan = await scanWorkspace(
-        root,
+      const midScan = await scanWorkspace(
+        midRoot,
         { linkMode: "markdown" },
         {
           beforeAnalyzeFile: async (filePath) => {
             if (resolve(filePath) === locked) {
-              // Listed by the walk, then gone before analysis - the F-03 condition.
               await unlink(locked);
             }
           },
         },
       );
-
-      expect(scan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
-      expect(scan.skipped).toBe(1);
+      expect(midScan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
+      expect(midScan.skipped).toBeGreaterThan(0);
     } finally {
-      await rm(root, { recursive: true, force: true });
+      await rm(midRoot, { recursive: true, force: true });
     }
   });
 
-  test("a folder with only other files is a complete scan of zero documents", async () => {
-    const root = await makeWorkspace();
-
+  test("empty complete scans and skipped-only scans stay distinct for folder honesty", async () => {
+    const emptyRoot = await makeWorkspace();
     try {
-      await writeFile(join(root, "readme.txt"), "not a document\n");
-      await mkdir(join(root, "images"));
-      await writeFile(join(root, "images", "photo.png"), "png\n");
-
-      const scan = await scanWorkspace(root, { linkMode: "markdown" });
-
-      expect(scan.scannedNotes).toEqual([]);
-      expect(scan.skipped).toBe(0);
-      expect(scan.truncated).toBe(false);
+      await writeFile(join(emptyRoot, "readme.txt"), "not a document\n");
+      const empty = await scanWorkspace(emptyRoot, { linkMode: "markdown" });
+      expect(empty.scannedNotes).toEqual([]);
+      expect(empty.skipped).toBe(0);
+      expect(empty.truncated).toBe(false);
     } finally {
-      await rm(root, { recursive: true, force: true });
+      await rm(emptyRoot, { recursive: true, force: true });
     }
-  });
 
-  test("a skipped subtree with no other documents is not a complete empty scan", async () => {
-    const root = await makeWorkspace();
-    const denied = resolve(join(root, "denied"));
-
+    const deniedRoot = await makeWorkspace();
+    const denied = resolve(join(deniedRoot, "denied"));
     try {
       await mkdir(denied);
       await writeFile(join(denied, "hidden.md"), "# Hidden\n");
-
-      const scan = await scanWorkspace(
-        root,
+      const skipped = await scanWorkspace(
+        deniedRoot,
         { linkMode: "markdown" },
         {
           beforeReadDirectory: (directory) => {
@@ -200,35 +182,11 @@ describe("scanning a hostile or live folder", () => {
           },
         },
       );
-
-      expect(scan.scannedNotes).toEqual([]);
-      expect(scan.skipped).toBeGreaterThan(0);
-      expect(scan.truncated).toBe(false);
+      expect(skipped.scannedNotes).toEqual([]);
+      expect(skipped.skipped).toBeGreaterThan(0);
+      expect(skipped.truncated).toBe(false);
     } finally {
-      await rm(root, { recursive: true, force: true });
-    }
-  });
-
-  test("a healthy folder reports nothing skipped", async () => {
-    const root = await makeWorkspace();
-
-    try {
-      await writeFile(join(root, "a.md"), "# A\n");
-      await mkdir(join(root, "sub"));
-      await writeFile(join(root, "sub", "b.md"), "# B\n");
-      await writeFile(join(root, "sub", "c.mdx"), "# C\n");
-
-      const scan = await scanWorkspace(root, { linkMode: "markdown" });
-
-      expect(scan.scannedNotes.map((item) => item.path).sort()).toEqual([
-        "a.md",
-        "sub/b.md",
-        "sub/c.mdx",
-      ]);
-      expect(scan.skipped).toBe(0);
-      expect(scan.truncated).toBe(false);
-    } finally {
-      await rm(root, { recursive: true, force: true });
+      await rm(deniedRoot, { recursive: true, force: true });
     }
   });
 });

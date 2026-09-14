@@ -6,7 +6,7 @@
 import { computed } from "vue";
 
 import { activeBuffer } from "../../editor/document/documentBuffers";
-import { contextNotes, validatedFocus, workspace } from "../../../app/workspaceState";
+import { workspaceNotes, validatedFocus, workspace } from "../../../app/workspaceState";
 import {
   graphActiveTargetFromInputs,
   type GraphActiveTarget,
@@ -17,6 +17,6 @@ export const graphActiveTarget = computed((): GraphActiveTarget | null =>
     validatedFocus.value,
     activeBuffer.value,
     workspace.value?.path ?? null,
-    contextNotes.value,
+    workspaceNotes.value,
   ),
 );
