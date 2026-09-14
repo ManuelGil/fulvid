@@ -7,6 +7,7 @@ import {
   cancelDialog,
   submitConfirm,
   submitFilename,
+  submitPick,
   submitQuickOpen,
   submitText,
 } from "./dialogs";
@@ -24,6 +25,9 @@ const cancelButtonRef = ref<HTMLButtonElement | null>(null);
 const quickOpenInputRef = ref<HTMLInputElement | null>(null);
 const quickOpenQuery = ref("");
 const quickOpenSelectedIndex = ref(0);
+const pickInputRef = ref<HTMLInputElement | null>(null);
+const pickQuery = ref("");
+const pickSelectedIndex = ref(0);
 let previousFocus: HTMLElement | null = null;
 
 /** Live Folder projection - refresh / close Folder updates the list. */
@@ -49,6 +53,33 @@ const quickOpenActiveOptionId = computed(() => {
 });
 
 const quickOpenHasFolderCandidates = computed(() => quickOpenCandidates.value.length > 0);
+
+const pickItems = computed(() => {
+  if (activeDialog.value?.kind !== "pick") {
+    return [];
+  }
+  return activeDialog.value.items;
+});
+
+const pickResults = computed(() => {
+  const query = pickQuery.value.trim().toLowerCase();
+  if (!query) {
+    return pickItems.value;
+  }
+  return pickItems.value.filter(
+    (item) =>
+      item.label.toLowerCase().includes(query) ||
+      item.detail?.toLowerCase().includes(query) ||
+      item.id.toLowerCase().includes(query),
+  );
+});
+
+const pickActiveOptionId = computed(() => {
+  if (pickResults.value.length === 0) {
+    return undefined;
+  }
+  return `pick-option-${pickSelectedIndex.value}`;
+});
 
 watch(
   activeDialog,
@@ -79,6 +110,13 @@ watch(
       return;
     }
 
+    if (dialog.kind === "pick") {
+      pickQuery.value = "";
+      pickSelectedIndex.value = 0;
+      pickInputRef.value?.focus({ preventScroll: true });
+      return;
+    }
+
     if (dialog.kind === "confirm" && dialog.initialFocus === "cancel") {
       cancelButtonRef.value?.focus({ preventScroll: true });
       return;
@@ -96,6 +134,16 @@ watch(quickOpenQuery, () => {
 watch(quickOpenResults, (results) => {
   if (quickOpenSelectedIndex.value >= results.length) {
     quickOpenSelectedIndex.value = Math.max(0, results.length - 1);
+  }
+});
+
+watch(pickQuery, () => {
+  pickSelectedIndex.value = 0;
+});
+
+watch(pickResults, (results) => {
+  if (pickSelectedIndex.value >= results.length) {
+    pickSelectedIndex.value = Math.max(0, results.length - 1);
   }
 });
 
@@ -212,6 +260,52 @@ function onQuickOpenKeydown(event: KeyboardEvent): void {
 function onQuickOpenResultClick(index: number): void {
   quickOpenSelectedIndex.value = index;
   activateQuickOpenSelection();
+}
+
+function movePickSelection(delta: 1 | -1): void {
+  const length = pickResults.value.length;
+  if (length === 0) {
+    return;
+  }
+  pickSelectedIndex.value = (pickSelectedIndex.value + delta + length) % length;
+  document
+    .getElementById(`pick-option-${pickSelectedIndex.value}`)
+    ?.scrollIntoView({ block: "nearest" });
+}
+
+function activatePickSelection(): void {
+  const selected = pickResults.value[pickSelectedIndex.value];
+  if (!selected) {
+    return;
+  }
+  submitPick(selected.id);
+}
+
+function onPickKeydown(event: KeyboardEvent): void {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    cancelDialog();
+    return;
+  }
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    movePickSelection(1);
+    return;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    movePickSelection(-1);
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    activatePickSelection();
+  }
+}
+
+function onPickResultClick(index: number): void {
+  pickSelectedIndex.value = index;
+  activatePickSelection();
 }
 
 function onBackdropPointerDown(event: PointerEvent): void {
@@ -343,6 +437,67 @@ function onBackdropPointerDown(event: PointerEvent): void {
             }}
           </p>
         </template>
+      </div>
+
+      <div
+        v-else-if="activeDialog.kind === 'pick'"
+        class="dialog dialog--quick-open"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pick-title"
+        @keydown="onPickKeydown"
+      >
+        <h2 id="pick-title" class="dialog__title">
+          {{ activeDialog.title }}
+        </h2>
+        <label class="dialog__field dialog__field--tight">
+          <span class="visually-hidden">{{ t("quickOpen.filterLabel") }}</span>
+          <input
+            id="pick-query"
+            ref="pickInputRef"
+            v-model="pickQuery"
+            class="dialog__input"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            :placeholder="t('quickOpen.placeholder')"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            :aria-controls="pickResults.length > 0 ? 'pick-results' : undefined"
+            :aria-expanded="pickResults.length > 0"
+            :aria-activedescendant="pickActiveOptionId"
+          />
+        </label>
+
+        <p
+          v-if="pickResults.length === 0"
+          class="dialog__message dialog__message--compact"
+          role="status"
+        >
+          {{ t("quickOpen.noMatches") }}
+        </p>
+        <ul
+          v-else
+          id="pick-results"
+          class="quick-open-results"
+          role="listbox"
+          :aria-label="activeDialog.title"
+        >
+          <li
+            v-for="(result, index) in pickResults"
+            :id="`pick-option-${index}`"
+            :key="`${result.id}-${index}`"
+            role="option"
+            class="quick-open-results__item"
+            :class="{ 'is-selected': pickSelectedIndex === index }"
+            :aria-selected="pickSelectedIndex === index"
+            @pointerdown.prevent="onPickResultClick(index)"
+          >
+            <span class="quick-open-results__title">{{ result.label }}</span>
+            <span v-if="result.detail" class="quick-open-results__path">{{ result.detail }}</span>
+          </li>
+        </ul>
       </div>
 
       <div

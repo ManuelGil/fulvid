@@ -39,6 +39,8 @@ export type CommandId =
   | "replace"
   | "findReferences"
   | "renameHeading"
+  | "insertDocumentLink"
+  | "insertTableOfContents"
   | "togglePreview"
   | "toggleWritingFocus"
   | "toggleLeftSidebar"
@@ -92,6 +94,8 @@ export type CommandIcon =
   | "outline"
   | "search"
   | "file-search"
+  | "link"
+  | "bullet-list"
   | "undo"
   | "redo"
   | "cut"
@@ -230,6 +234,26 @@ export const quickActions: readonly QuickActionDefinition[] = [
     // Contextual Add/Edit on the current document — interaction is editing, not Fulvid chrome.
     tier: "secondary",
     overflowOrder: 50,
+  },
+  {
+    id: "insertDocumentLink",
+    label: "actions.insertDocumentLink",
+    icon: "link",
+    group: "edit",
+    subgroup: "document",
+    order: 20,
+    tier: "secondary",
+    overflowOrder: 55,
+  },
+  {
+    id: "insertTableOfContents",
+    label: "actions.insertTableOfContents",
+    icon: "bullet-list",
+    group: "edit",
+    subgroup: "document",
+    order: 30,
+    tier: "overflow",
+    overflowOrder: 45,
   },
   {
     id: "undo",

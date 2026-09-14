@@ -756,6 +756,32 @@ function runMarkdownAction(action: MarkdownFormatAction): void {
   queueCommandState();
 }
 
+/** Insert plain text at the primary cursor (or replace the primary selection). */
+function insertTextAtCursor(text: string): void {
+  if (!editor || !text) {
+    return;
+  }
+  const model = editor.getModel();
+  if (!model) {
+    return;
+  }
+  const selection = editor.getSelection();
+  if (!selection) {
+    return;
+  }
+  editor.executeEdits("fulvid-insert-text", [
+    {
+      range: selection,
+      text,
+      forceMoveMarkers: true,
+    },
+  ]);
+  const end = model.getPositionAt(model.getOffsetAt(selection.getStartPosition()) + text.length);
+  editor.setSelection(monaco.Selection.fromPositions(end, end));
+  editor.focus();
+  queueCommandState();
+}
+
 function focus(): void {
   editor?.focus();
 }
@@ -795,6 +821,7 @@ defineExpose({
   runEditorAction,
   runMonacoAction,
   runMarkdownAction,
+  insertTextAtCursor,
   currentCursorPosition,
   findAnnotationAtLine,
   upsertAnnotationAtLine,

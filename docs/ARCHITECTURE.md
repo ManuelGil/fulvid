@@ -90,6 +90,8 @@ The right sidebar shows one panel: Explorer, Search options (on `/search`), Docu
 
 [`documentLink.ts`](../src/mainview/modules/document/links/documentLink.ts) parses the active link mode (Markdown or Wikilink, not both). Path/stem/alias/title resolution lives in [`linkSemantics.ts`](../src/mainview/modules/document/links/linkSemantics.ts) (`resolveDocumentPath`). Scan, Monaco providers, Preview, Export, Graph, and Document Context reuse that pair — not a second resolver.
 
+Insert document link / TOC format strings in [`markdownAuthoring.ts`](../src/mainview/modules/editor/markdown/markdownAuthoring.ts) and insert them through Monaco; they reuse `linkMode` and `parseMarkdownStructure` and are not a second document model.
+
 `linkMode` default is `"markdown"`. F2 rename applies text edits to open buffers. It does not rename files or change document identity.
 
 ## Preview

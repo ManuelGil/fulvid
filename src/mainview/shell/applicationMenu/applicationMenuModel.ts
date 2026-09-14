@@ -447,6 +447,19 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
           label: "menu.format",
           items: FORMAT_ITEMS,
         },
+        { type: "separator", id: "edit-separator-format" },
+        {
+          type: "command",
+          id: "insertDocumentLink",
+          label: "actions.insertDocumentLink",
+          availability: "hasDocument",
+        },
+        {
+          type: "command",
+          id: "insertTableOfContents",
+          label: "actions.insertTableOfContents",
+          availability: "hasDocument",
+        },
       ],
     },
     {

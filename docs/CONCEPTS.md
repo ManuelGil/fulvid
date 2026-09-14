@@ -42,6 +42,8 @@ Settings choose one `linkMode`: `"markdown"` (default) or `"wikilink"`. That mod
 
 **Find references** (`Shift+F12`) lists heading and fragment locations. **Rename heading** (`F2`) rewrites that heading and known fragment targets as text. F2 does not rename files.
 
+**Insert document link** (Edit menu / Quick Actions) picks a Folder document via Quick Open, optionally a heading from that document’s structure, and inserts a Markdown or Wikilink string using the active `linkMode`. **Insert table of contents** inserts a deterministic Markdown list of same-document heading links from `parseMarkdownStructure`. Neither command scans the disk, keeps live TOC state, or changes Preview/Graph.
+
 Local find is Monaco (`Ctrl/Cmd+F`). Global Search is `/search` (`Ctrl/Cmd+Shift+F`). Quick Open asks which document to open by identity; Global Search asks where text appears.
 
 **Document location.** Folder documents are oriented by their folder-relative path (compact when long). Settings choose where that identity appears: main panel, window title, or hidden (tabs/Explorer/accessibility still identify the document). Tabs stay on the basename unless open tabs collide, then they add path segments until unique. Untitled and standalone keep their labels. Showing a path is not a grant and does not browse the Folder.

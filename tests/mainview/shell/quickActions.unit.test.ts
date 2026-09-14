@@ -27,6 +27,8 @@ const EXPECTED_FULL_DISPLAY_ORDER = [
   "closeAll",
   "openWorkspace",
   "annotateDocument",
+  "insertDocumentLink",
+  "insertTableOfContents",
   "undo",
   "redo",
   "cut",
@@ -50,7 +52,16 @@ describe("Quick Actions", () => {
     ]);
     expect(
       ids(orderQuickActionsInGroup(reversed.filter((action) => action.group === "edit"))),
-    ).toEqual(["annotateDocument", "undo", "redo", "cut", "copy", "paste"]);
+    ).toEqual([
+      "annotateDocument",
+      "insertDocumentLink",
+      "insertTableOfContents",
+      "undo",
+      "redo",
+      "cut",
+      "copy",
+      "paste",
+    ]);
     expect(byId("annotateDocument").group).toBe("edit");
     expect(byId("toggleWritingFocus").group).toBe("fulvid");
   });
@@ -76,10 +87,13 @@ describe("Quick Actions", () => {
       "toggleWritingFocus",
     ]);
 
+    // Leave the lowest-priority secondary/overflow actions (clipboard, Explorer,
+    // TOC, …) while Writing Focus still survives one notch above Cut.
     const visibleIds = new Set(
-      ids(selectQuickActionsForVisibleCount(quickActions, quickActions.length - 6)),
+      ids(selectQuickActionsForVisibleCount(quickActions, quickActions.length - 7)),
     );
     expect(visibleIds.has("toggleWritingFocus")).toBe(true);
     expect(visibleIds.has("cut")).toBe(false);
+    expect(visibleIds.has("insertTableOfContents")).toBe(false);
   });
 });

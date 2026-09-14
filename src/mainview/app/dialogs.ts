@@ -1,6 +1,6 @@
 /**
- * Small promise-based dialogs for filename input, plain text, confirmation, and Quick Open.
- * Rendered by DialogHost.vue - not a modal framework.
+ * Small promise-based dialogs for filename input, plain text, confirmation,
+ * Quick Open, and one-shot list picks. Rendered by DialogHost.vue - not a modal framework.
  */
 import { shallowRef } from "vue";
 
@@ -43,17 +43,46 @@ export type QuickOpenPromptRequest = {
   resolve: (path: string | null) => void;
 };
 
+export type PickListItem = {
+  id: string;
+  label: string;
+  detail?: string;
+};
+
+export type PickPromptRequest = {
+  kind: "pick";
+  title: string;
+  items: readonly PickListItem[];
+  resolve: (id: string | null) => void;
+};
+
 export type DialogRequest =
-  FilenamePromptRequest | TextPromptRequest | ConfirmPromptRequest | QuickOpenPromptRequest;
+  | FilenamePromptRequest
+  | TextPromptRequest
+  | ConfirmPromptRequest
+  | QuickOpenPromptRequest
+  | PickPromptRequest;
 
 export const activeDialog = shallowRef<DialogRequest | null>(null);
+
+function resolvesNullable(
+  dialog: DialogRequest,
+): dialog is
+  FilenamePromptRequest | TextPromptRequest | QuickOpenPromptRequest | PickPromptRequest {
+  return (
+    dialog.kind === "filename" ||
+    dialog.kind === "text" ||
+    dialog.kind === "quickOpen" ||
+    dialog.kind === "pick"
+  );
+}
 
 function dismissCurrentDialog(): void {
   const current = activeDialog.value;
   if (!current) {
     return;
   }
-  if (current.kind === "filename" || current.kind === "text" || current.kind === "quickOpen") {
+  if (resolvesNullable(current)) {
     current.resolve(null);
   } else {
     current.resolve(false);
@@ -131,6 +160,24 @@ export function promptQuickOpen(): Promise<string | null> {
   });
 }
 
+/**
+ * Pick one id from a caller-provided list. Used for heading selection and
+ * similar one-shot choices — not a second Quick Open / Command Palette.
+ */
+export function promptPick(options: {
+  title: string;
+  items: readonly PickListItem[];
+}): Promise<string | null> {
+  return new Promise((resolve) => {
+    replaceDialog({
+      kind: "pick",
+      title: options.title,
+      items: options.items,
+      resolve,
+    });
+  });
+}
+
 function closeDialog(): void {
   activeDialog.value = null;
 }
@@ -141,7 +188,7 @@ export function cancelDialog(): void {
     return;
   }
   closeDialog();
-  if (current.kind === "filename" || current.kind === "text" || current.kind === "quickOpen") {
+  if (resolvesNullable(current)) {
     current.resolve(null);
   } else {
     current.resolve(false);
@@ -195,4 +242,14 @@ export function submitQuickOpen(path: string): void {
   }
   closeDialog();
   current.resolve(path);
+}
+
+/** Accept a pick-list selection by item id (may be empty string). */
+export function submitPick(id: string): void {
+  const current = activeDialog.value;
+  if (!current || current.kind !== "pick") {
+    return;
+  }
+  closeDialog();
+  current.resolve(id);
 }

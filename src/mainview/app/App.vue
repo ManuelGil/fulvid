@@ -1049,6 +1049,8 @@ const editorCommandIds = new Set<CommandId>([
   "replace",
   "findReferences",
   "renameHeading",
+  "insertDocumentLink",
+  "insertTableOfContents",
   "togglePreview",
   "deleteSelection",
   "annotateDocument",

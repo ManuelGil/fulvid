@@ -46,7 +46,15 @@ import {
   notifyFilesystemError,
   pickAndSaveHtmlExport,
 } from "../../modules/workspace/filesystem/workspaceScanner";
-import { findMarkdownHeading } from "../../modules/editor/markdown/markdownStructure";
+import {
+  findMarkdownHeading,
+  parseMarkdownStructure,
+} from "../../modules/editor/markdown/markdownStructure";
+import {
+  buildMarkdownTableOfContents,
+  formatDocumentLink,
+  relativeDocumentLinkPath,
+} from "../../modules/editor/markdown/markdownAuthoring";
 import {
   escapeHtml,
   exportMarkdownPreviewDocument,
@@ -64,7 +72,13 @@ import {
   pendingReveal,
 } from "../../modules/editor/document/documentSession";
 import { notify } from "../../app/notify";
-import { confirmDialog, promptFilename, promptText } from "../../app/dialogs";
+import {
+  confirmDialog,
+  promptFilename,
+  promptPick,
+  promptQuickOpen,
+  promptText,
+} from "../../app/dialogs";
 import { isUsableFocusTarget } from "../../app/usableFocusTarget";
 import { settings } from "../../modules/settings/settingsStore";
 import {
@@ -118,6 +132,7 @@ type MonacoHostHandle = {
   runEditorAction: (action: "undo" | "redo" | "fold" | "unfold") => Promise<void>;
   runMonacoAction: (actionId: string) => Promise<void>;
   runMarkdownAction: (action: MarkdownFormatAction) => void;
+  insertTextAtCursor: (text: string) => void;
   currentCursorPosition: () => { lineNumber: number; column: number };
   findAnnotationAtLine: (lineNumber: number) => {
     position: { lineNumber: number; column: number };
@@ -479,6 +494,97 @@ function createNewDocument(): void {
   void executeCommand("newDocument");
 }
 
+function contentForWorkspaceDocument(path: string): string | null {
+  const current = activeBuffer.value;
+  if (current?.path === path) {
+    return current.model.getValue();
+  }
+  const rootPath = workspace.value?.path;
+  if (rootPath) {
+    const live = getDocumentBuffer(rootPath, path);
+    if (live) {
+      return live.model.getValue();
+    }
+  }
+  return workspaceNotes.value.find((note) => note.path === path)?.content ?? null;
+}
+
+async function insertDocumentLink(): Promise<void> {
+  const host = monacoHostRef.value;
+  if (!host) {
+    return;
+  }
+  if (!workspace.value) {
+    notify(t("markdown.insertLinkNeedsFolder"));
+    return;
+  }
+
+  const path = await promptQuickOpen();
+  if (!path) {
+    return;
+  }
+
+  const note = workspaceNotes.value.find((candidate) => candidate.path === path);
+  const content = contentForWorkspaceDocument(path);
+  const headings = content ? parseMarkdownStructure(content).headings : [];
+  let anchor: string | undefined;
+  let label = note?.title || note?.name || path;
+
+  if (headings.length > 0) {
+    const picked = await promptPick({
+      title: t("markdown.pickLinkTarget"),
+      items: [
+        { id: "", label: t("markdown.entireDocument"), detail: path },
+        ...headings.map((heading) => ({
+          id: heading.anchor,
+          label: heading.text,
+          detail: `#${heading.anchor}`,
+        })),
+      ],
+    });
+    if (picked === null) {
+      return;
+    }
+    if (picked) {
+      anchor = picked;
+      const heading = headings.find((entry) => entry.anchor === picked);
+      if (heading) {
+        label = heading.text;
+      }
+    }
+  }
+
+  const sourcePath = activeBuffer.value?.path ?? "";
+  const sameDocument = Boolean(sourcePath && sourcePath === path);
+  const target =
+    sameDocument && anchor ? "" : sourcePath ? relativeDocumentLinkPath(sourcePath, path) : path;
+
+  const link = formatDocumentLink({
+    label,
+    target,
+    anchor,
+    linkMode: settings.value.links.linkMode,
+  });
+  host.insertTextAtCursor(link);
+}
+
+function insertTableOfContents(): void {
+  const host = monacoHostRef.value;
+  const buffer = activeBuffer.value;
+  if (!host || !buffer) {
+    return;
+  }
+  const headings = parseMarkdownStructure(buffer.model.getValue()).headings;
+  const toc = buildMarkdownTableOfContents(headings, {
+    linkMode: settings.value.links.linkMode,
+  });
+  if (!toc) {
+    notify(t("markdown.tocEmpty"));
+    return;
+  }
+  host.insertTextAtCursor(toc);
+}
+
 function findInEditor(): void {
   monacoHostRef.value?.find();
 }
@@ -784,6 +890,8 @@ const unregisterCommands = [
     runMonacoEditorAction("editor.action.goToReferences"),
   ),
   registerCommandHandler("renameHeading", () => runMonacoEditorAction("editor.action.rename")),
+  registerCommandHandler("insertDocumentLink", () => void insertDocumentLink()),
+  registerCommandHandler("insertTableOfContents", insertTableOfContents),
   registerCommandHandler("togglePreview", togglePreview),
   registerCommandHandler("annotateDocument", () => void annotateAtCursor()),
   registerCommandHandler("removeAnnotation", removeAnnotationAtCursor),
