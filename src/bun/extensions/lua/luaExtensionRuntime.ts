@@ -1,10 +1,12 @@
 /**
- * Phase 2.5: load entry.lua in an isolated wasmoon engine and register
- * commands through an explicit capability bridge (commands.register / ui.notify).
+ * Phase 2.5 + Phase 3: load entry.lua in an isolated wasmoon engine and register
+ * commands through an explicit capability bridge.
+ *
+ * Guest APIs: commands.register (load), ui.notify (invoke), and when the pack
+ * declares `editor`: editor.getSelection / editor.replaceSelection (snapshot/apply).
  *
  * Runtime lives only in the Bun host. Hardening: thread/function timeouts and
  * Wasm `setMemoryMax` (capability/resource limits — NOT an OS sandbox).
- * Extensions remain a local trust decision.
  */
 import { readFile, stat } from "node:fs/promises";
 
@@ -14,6 +16,10 @@ import {
   namespacedExtensionCommandId,
   type ExtensionManifest,
 } from "../../../mainview/extensions/extensionManifest";
+import type {
+  EditorMutationRequest,
+  EditorSelectionSnapshot,
+} from "../../../mainview/extensions/editorCapability";
 import {
   assertCanonicallyContained,
   containedPath,
@@ -26,6 +32,7 @@ import {
   findLuaCommand,
   getLuaEngineForExtension,
   isLuaRegistering,
+  luaExtensionHasCapability,
   pendingLuaCommandCount,
   queuePendingLuaCommand,
   type LuaRegisteredCommand,
@@ -48,6 +55,21 @@ export class LuaExtensionLoadError extends Error {
   }
 }
 
+export type LuaInvokeRequest = {
+  namespacedId: string;
+  editor?: EditorSelectionSnapshot;
+};
+
+export type LuaInvokeSuccess = {
+  ok: true;
+  notifications: string[];
+  editor?: EditorMutationRequest;
+};
+
+export type LuaInvokeFailure = { ok: false; error: string };
+
+export type LuaInvokeResult = LuaInvokeSuccess | LuaInvokeFailure;
+
 function installCapabilityBridge(
   engine: LuaEngine,
   extensionId: string,
@@ -55,6 +77,10 @@ function installCapabilityBridge(
     onNotify: (message: string) => void;
     allowRegister: boolean;
     allowNotify: boolean;
+    editor?: {
+      snapshot: EditorSelectionSnapshot;
+      mutations: EditorMutationRequest;
+    };
   },
 ): void {
   const seenIds = new Set<string>();
@@ -111,6 +137,24 @@ function installCapabilityBridge(
       options.onNotify(message);
     },
   });
+
+  if (options.editor) {
+    const { snapshot, mutations } = options.editor;
+    engine.global.set("editor", {
+      getSelection(): string {
+        return snapshot.selection;
+      },
+      replaceSelection(text: unknown): void {
+        if (typeof text !== "string") {
+          throw new Error("editor.replaceSelection requires a string");
+        }
+        if (text.length > LUA_SPIKE_LIMITS.maxEditorSelectionChars.value) {
+          throw new Error("editor.replaceSelection exceeds size limit");
+        }
+        mutations.replaceSelection = text;
+      },
+    });
+  }
 }
 
 /**
@@ -171,7 +215,7 @@ export async function loadLuaExtensionPack(
   }
 
   let engine: LuaEngine | null = null;
-  beginLuaRegistration(manifest.id);
+  beginLuaRegistration(manifest.id, manifest.capabilities);
   try {
     engine = await createHardenedLuaEngine();
     installCapabilityBridge(engine, manifest.id, {
@@ -193,11 +237,15 @@ export async function loadLuaExtensionPack(
 }
 
 /**
- * Invoke a committed Lua command. Collects ui.notify messages for the caller.
+ * Invoke a committed Lua command. Collects ui.notify messages and optional
+ * editor.replaceSelection mutations for the renderer to apply.
  */
 export async function invokeLuaExtensionCommand(
-  namespacedId: string,
-): Promise<{ ok: true; notifications: string[] } | { ok: false; error: string }> {
+  request: LuaInvokeRequest | string,
+): Promise<LuaInvokeResult> {
+  const namespacedId = typeof request === "string" ? request : request.namespacedId;
+  const editorSnapshot = typeof request === "string" ? undefined : request.editor;
+
   const command = findLuaCommand(namespacedId);
   if (!command) {
     return { ok: false, error: "unknown lua command" };
@@ -208,18 +256,44 @@ export async function invokeLuaExtensionCommand(
     return { ok: false, error: "lua session missing" };
   }
 
+  const allowEditor = luaExtensionHasCapability(command.extensionId, "editor");
+  if (editorSnapshot && !allowEditor) {
+    return { ok: false, error: "editor capability not granted" };
+  }
+  if (
+    editorSnapshot &&
+    editorSnapshot.selection.length > LUA_SPIKE_LIMITS.maxEditorSelectionChars.value
+  ) {
+    return { ok: false, error: "editor selection exceeds size limit" };
+  }
+
   const notifications: string[] = [];
+  const mutations: EditorMutationRequest = {};
   installCapabilityBridge(engine, command.extensionId, {
     allowRegister: false,
     allowNotify: true,
     onNotify: (message) => {
       notifications.push(message);
     },
+    editor: allowEditor
+      ? {
+          snapshot: editorSnapshot ?? { selection: "" },
+          mutations,
+        }
+      : undefined,
   });
 
   try {
+    // Ensure packs without `editor` cannot see a leftover host table.
+    if (!allowEditor) {
+      await engine.doString("editor = nil");
+    }
     await Promise.resolve(command.run());
-    return { ok: true, notifications };
+    const result: LuaInvokeSuccess = { ok: true, notifications };
+    if (allowEditor && mutations.replaceSelection !== undefined) {
+      result.editor = { replaceSelection: mutations.replaceSelection };
+    }
+    return result;
   } catch (error) {
     return { ok: false, error: describeLuaRuntimeFailure(error) };
   }

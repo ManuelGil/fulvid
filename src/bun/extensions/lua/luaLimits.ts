@@ -26,6 +26,11 @@ export const LUA_SPIKE_LIMITS = {
    * (same hook path for Lua→JS callbacks). Not a Promise.race abandon.
    */
   maxExecutionMs: { value: 2_000, status: "implemented" as const },
+  /**
+   * Max UTF-16 code units for editor.getSelection snapshot / replaceSelection.
+   * Enforced on the renderer snapshot and again in the Lua bridge.
+   */
+  maxEditorSelectionChars: { value: 256 * 1024, status: "implemented" as const },
 } as const;
 
 export type LuaLimitStatus = "implemented";

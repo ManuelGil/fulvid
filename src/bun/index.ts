@@ -60,7 +60,7 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
       ...filesystemRpcHandlers,
       takePendingExternalOpens: () => takePendingExternalOpens(),
       listDiscoveredExtensions: () => getDiscoveredExtensions(),
-      invokeExtensionLuaCommand: ({ namespacedId }) => invokeLuaExtensionCommand(namespacedId),
+      invokeExtensionLuaCommand: (params) => invokeLuaExtensionCommand(params),
       setApplicationMenu: ({ items }) => setNativeApplicationMenu(items),
       getApplicationMenuSupport: () => applicationMenuSupport(),
       quitApplication: () => quitApplication(),

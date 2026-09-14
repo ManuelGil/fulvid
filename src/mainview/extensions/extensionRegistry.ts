@@ -8,6 +8,11 @@
 import { ref, type Ref } from "vue";
 
 import { expandTemplateDateTokens } from "../modules/editor/document/documentTemplates";
+import {
+  assertEditorReplaceWithinLimit,
+  assertEditorSelectionWithinLimit,
+} from "./editorCapability";
+import { editorExtensionSeam } from "./editorExtensionSeam";
 import type {
   DiscoveredExtension,
   DiscoveredExtensionCommand,
@@ -16,13 +21,23 @@ import type {
 } from "./extensionManifest";
 
 export type ExtensionLuaInvokeResult =
-  { ok: true; notifications: string[] } | { ok: false; error: string };
+  | {
+      ok: true;
+      notifications: string[];
+      editor?: { replaceSelection?: string };
+    }
+  | { ok: false; error: string };
+
+export type ExtensionLuaInvokeRequest = {
+  namespacedId: string;
+  editor?: { selection: string };
+};
 
 export type ExtensionHostActions = {
   notify: (message: string) => void;
   createUntitled: (content: string) => void | Promise<void>;
   /** Bun host RPC — required to run Lua-registered commands from the renderer. */
-  invokeLuaCommand?: (namespacedId: string) => Promise<ExtensionLuaInvokeResult>;
+  invokeLuaCommand?: (request: ExtensionLuaInvokeRequest) => Promise<ExtensionLuaInvokeResult>;
 };
 
 let hostActions: ExtensionHostActions | null = null;
@@ -83,10 +98,38 @@ export async function runExtensionCommand(namespacedId: string): Promise<boolean
     if (!hostActions.invokeLuaCommand) {
       throw new Error("Lua extension invoker is not configured");
     }
-    const result = await hostActions.invokeLuaCommand(namespacedId);
+
+    const request: ExtensionLuaInvokeRequest = { namespacedId };
+    const wantsEditor = extension.capabilities.includes("editor");
+    if (wantsEditor) {
+      const seam = editorExtensionSeam();
+      const selection = seam?.getSelection() ?? "";
+      const selectionError = assertEditorSelectionWithinLimit(selection);
+      if (selectionError) {
+        throw new Error(selectionError);
+      }
+      request.editor = { selection };
+    }
+
+    const result = await hostActions.invokeLuaCommand(request);
     if (!result.ok) {
       throw new Error(result.error);
     }
+
+    if (result.editor?.replaceSelection !== undefined) {
+      if (!wantsEditor) {
+        throw new Error("editor mutation without editor capability");
+      }
+      const replaceError = assertEditorReplaceWithinLimit(result.editor.replaceSelection);
+      if (replaceError) {
+        throw new Error(replaceError);
+      }
+      const seam = editorExtensionSeam();
+      if (!seam?.hasActiveEditor() || !seam.replaceSelection(result.editor.replaceSelection)) {
+        throw new Error("no active editor");
+      }
+    }
+
     for (const message of result.notifications) {
       hostActions.notify(message);
     }

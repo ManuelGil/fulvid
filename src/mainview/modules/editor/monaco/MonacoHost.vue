@@ -827,6 +827,34 @@ function getSelectedText(): string {
 }
 
 /**
+ * Replace the primary selection (or insert at the cursor when empty).
+ * Empty `text` clears the selection. Returns false when no editor/model.
+ * Undoable Monaco edit — dirty state follows the model.
+ */
+function replacePrimarySelection(text: string): boolean {
+  if (!editor) {
+    return false;
+  }
+  const model = editor.getModel();
+  const selection = editor.getSelection();
+  if (!model || !selection) {
+    return false;
+  }
+  editor.executeEdits("fulvid-extension-replace-selection", [
+    {
+      range: selection,
+      text,
+      forceMoveMarkers: true,
+    },
+  ]);
+  const end = model.getPositionAt(model.getOffsetAt(selection.getStartPosition()) + text.length);
+  editor.setSelection(monaco.Selection.fromPositions(end, end));
+  editor.focus();
+  queueCommandState();
+  return true;
+}
+
+/**
  * Remove trailing spaces/tabs via Monaco edits. Returns true when the model changed.
  * No-op when there is nothing to trim (dirty state unchanged).
  */
@@ -867,6 +895,7 @@ defineExpose({
   runMarkdownAction,
   insertTextAtCursor,
   getSelectedText,
+  replacePrimarySelection,
   trimTrailingWhitespace,
   currentCursorPosition,
   findAnnotationAtLine,

@@ -22,6 +22,7 @@ import ContextMenu, { type ContextMenuAction } from "../../shell/ContextMenu.vue
 import EmptyState from "../../shell/EmptyState.vue";
 import PageShell from "../../shell/PageShell.vue";
 import { patchSettings } from "../../modules/settings/settingsStore";
+import { registerEditorExtensionSeam } from "../../extensions/editorExtensionSeam";
 
 import {
   applyScannedNote,
@@ -137,6 +138,7 @@ type MonacoHostHandle = {
   runMarkdownAction: (action: MarkdownFormatAction) => void;
   insertTextAtCursor: (text: string) => void;
   getSelectedText: () => string;
+  replacePrimarySelection: (text: string) => boolean;
   trimTrailingWhitespace: () => boolean;
   currentCursorPosition: () => { lineNumber: number; column: number };
   findAnnotationAtLine: (lineNumber: number) => {
@@ -1059,6 +1061,11 @@ function onPreviewMediaChange(event: MediaQueryListEvent): void {
 }
 
 onMounted(() => {
+  registerEditorExtensionSeam({
+    getSelection: () => monacoHostRef.value?.getSelectedText() ?? "",
+    replaceSelection: (text) => monacoHostRef.value?.replacePrimarySelection(text) ?? false,
+    hasActiveEditor: () => Boolean(monacoHostRef.value && activeBuffer.value),
+  });
   previewMedia = window.matchMedia("(max-width: 900px)");
   previewStacked.value = previewMedia.matches;
   previewMedia.addEventListener("change", onPreviewMediaChange);
@@ -1078,6 +1085,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  registerEditorExtensionSeam(null);
   previewResizeCleanup?.();
   previewResizeCleanup = null;
   previewMedia?.removeEventListener("change", onPreviewMediaChange);

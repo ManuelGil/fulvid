@@ -12,7 +12,13 @@ export const EXTENSION_API_VERSION = 0;
  * Closed capability surface for api: 0.
  * Declaring a capability grants no resource. `lua` selects the host Wasm spike.
  */
-export const ALLOWED_EXTENSION_CAPABILITIES = ["commands", "templates", "ui", "lua"] as const;
+export const ALLOWED_EXTENSION_CAPABILITIES = [
+  "commands",
+  "templates",
+  "ui",
+  "lua",
+  "editor",
+] as const;
 
 export type ExtensionCapability = (typeof ALLOWED_EXTENSION_CAPABILITIES)[number];
 
@@ -224,6 +230,9 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
   }
   if (hasLua && !capabilitySet.has("ui")) {
     return { reason: "lua capability requires the ui capability" };
+  }
+  if (capabilitySet.has("editor") && !hasLua) {
+    return { reason: "editor capability requires the lua capability" };
   }
 
   const templates: ExtensionManifestTemplate[] = [];

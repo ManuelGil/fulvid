@@ -54,8 +54,17 @@ type ExtensionDiscoveryRequests = {
     response: ExtensionDiscoveryResult;
   };
   invokeExtensionLuaCommand: {
-    params: { namespacedId: string };
-    response: { ok: true; notifications: string[] } | { ok: false; error: string };
+    params: {
+      namespacedId: string;
+      editor?: { selection: string };
+    };
+    response:
+      | {
+          ok: true;
+          notifications: string[];
+          editor?: { replaceSelection?: string };
+        }
+      | { ok: false; error: string };
   };
 };
 

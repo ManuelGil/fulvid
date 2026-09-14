@@ -17,6 +17,7 @@ export type LuaRegisteredCommand = {
 type LuaExtensionSession = {
   engine: LuaEngine;
   commands: Map<string, LuaRegisteredCommand>;
+  capabilities: readonly string[];
 };
 
 const sessions = new Map<string, LuaExtensionSession>();
@@ -24,15 +25,20 @@ const sessions = new Map<string, LuaExtensionSession>();
 /** Pending registrations for the extension currently loading (transaction). */
 let pendingExtensionId: string | null = null;
 let pendingCommands: LuaRegisteredCommand[] = [];
+let pendingCapabilities: readonly string[] = [];
 let registering = false;
 
-export function beginLuaRegistration(extensionId: string): void {
+export function beginLuaRegistration(
+  extensionId: string,
+  capabilities: readonly string[] = [],
+): void {
   if (registering) {
     throw new Error("Lua registration reentrancy is not allowed");
   }
   registering = true;
   pendingExtensionId = extensionId;
   pendingCommands = [];
+  pendingCapabilities = [...capabilities];
 }
 
 export function isLuaRegistering(): boolean {
@@ -69,9 +75,14 @@ export function commitLuaRegistration(engine: LuaEngine): readonly LuaRegistered
       // best-effort close
     }
   }
-  sessions.set(extensionId, { engine, commands: commandMap });
+  sessions.set(extensionId, {
+    engine,
+    commands: commandMap,
+    capabilities: pendingCapabilities,
+  });
   pendingExtensionId = null;
   pendingCommands = [];
+  pendingCapabilities = [];
   registering = false;
   return committed;
 }
@@ -79,6 +90,7 @@ export function commitLuaRegistration(engine: LuaEngine): readonly LuaRegistered
 export function discardLuaRegistration(engine: LuaEngine | null): void {
   pendingExtensionId = null;
   pendingCommands = [];
+  pendingCapabilities = [];
   registering = false;
   if (engine) {
     try {
@@ -111,6 +123,10 @@ export function getLuaEngineForExtension(extensionId: string): LuaEngine | null 
   return sessions.get(extensionId)?.engine ?? null;
 }
 
+export function luaExtensionHasCapability(extensionId: string, capability: string): boolean {
+  return sessions.get(extensionId)?.capabilities.includes(capability) ?? false;
+}
+
 /** Close all Lua sessions — used by tests and discovery reset. */
 export function resetLuaCommandStoreForTests(): void {
   for (const session of sessions.values()) {
@@ -123,5 +139,6 @@ export function resetLuaCommandStoreForTests(): void {
   sessions.clear();
   pendingExtensionId = null;
   pendingCommands = [];
+  pendingCapabilities = [];
   registering = false;
 }
