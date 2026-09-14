@@ -53,6 +53,10 @@ type ExtensionDiscoveryRequests = {
     params: Record<string, never>;
     response: ExtensionDiscoveryResult;
   };
+  invokeExtensionLuaCommand: {
+    params: { namespacedId: string };
+    response: { ok: true; notifications: string[] } | { ok: false; error: string };
+  };
 };
 
 type ApplicationMenuRequests = {

@@ -1,8 +1,9 @@
 /**
- * Mainview registry for discovered declarative extensions.
+ * Mainview registry for discovered extensions.
  *
- * Holds host-validated DTOs and invokes existing owners (notify, untitled).
- * Not a lifecycle owner, filesystem authority, or second command bus.
+ * Holds host-validated DTOs and invokes existing owners (notify, untitled) or
+ * a host-provided Lua invoker. Not a lifecycle owner, filesystem authority, or
+ * second command bus.
  */
 import { ref, type Ref } from "vue";
 
@@ -14,9 +15,14 @@ import type {
   ExtensionLoadFailure,
 } from "./extensionManifest";
 
+export type ExtensionLuaInvokeResult =
+  { ok: true; notifications: string[] } | { ok: false; error: string };
+
 export type ExtensionHostActions = {
   notify: (message: string) => void;
   createUntitled: (content: string) => void | Promise<void>;
+  /** Bun host RPC — required to run Lua-registered commands from the renderer. */
+  invokeLuaCommand?: (namespacedId: string) => Promise<ExtensionLuaInvokeResult>;
 };
 
 let hostActions: ExtensionHostActions | null = null;
@@ -73,6 +79,20 @@ export async function runExtensionCommand(namespacedId: string): Promise<boolean
   }
 
   const { extension, command } = match;
+  if (command.action === "lua") {
+    if (!hostActions.invokeLuaCommand) {
+      throw new Error("Lua extension invoker is not configured");
+    }
+    const result = await hostActions.invokeLuaCommand(namespacedId);
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    for (const message of result.notifications) {
+      hostActions.notify(message);
+    }
+    return true;
+  }
+
   if (command.action === "notify") {
     hostActions.notify(command.message ?? "");
     return true;

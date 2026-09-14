@@ -636,6 +636,8 @@ onMounted(() => {
   configureExtensionHostActions({
     notify: (message) => notify(message),
     createUntitled: (content) => createNewDocument(content),
+    invokeLuaCommand: (namespacedId) =>
+      desktopRequest().invokeExtensionLuaCommand({ namespacedId }),
   });
   void desktopRequest()
     .listDiscoveredExtensions({})

@@ -1,8 +1,9 @@
 /**
- * Host discovery for declarative extensions under userData/extensions.
+ * Host discovery for extensions under userData/extensions.
  *
  * Source of truth is the filesystem. Invalid packs fail in isolation.
- * This module does not execute extension code.
+ * Declarative packs stay data-only. Packs with the `lua` capability may load
+ * entry.lua through the Bun-host wasmoon spike (not the renderer).
  */
 import { mkdirSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
@@ -23,6 +24,8 @@ import {
   containedPath,
   WorkspaceBoundaryError,
 } from "../filesystem/security/workspacePaths";
+import { resetLuaCommandStoreForTests } from "./lua/luaCommandStore";
+import { LuaExtensionLoadError, loadLuaExtensionPack } from "./lua/luaExtensionRuntime";
 
 export type {
   DiscoveredExtension,
@@ -55,6 +58,9 @@ export function getDiscoveredExtensions(): ExtensionDiscoveryResult {
  * bodies. Continues after individual failures.
  */
 export async function discoverExtensions(): Promise<ExtensionDiscoveryResult> {
+  // Fresh discovery replaces prior Lua sessions — do not keep stale callbacks.
+  resetLuaCommandStoreForTests();
+
   const root = extensionsRootPath;
   if (!root) {
     const empty = { loaded: [], failed: [] };
@@ -152,7 +158,7 @@ async function loadExtensionPack(
   }
 
   const templates = await loadTemplates(packRoot, manifest);
-  const commands: DiscoveredExtensionCommand[] = (manifest.commands ?? []).map((command) => {
+  let commands: DiscoveredExtensionCommand[] = (manifest.commands ?? []).map((command) => {
     const entry: DiscoveredExtensionCommand = {
       id: command.id,
       namespacedId: namespacedExtensionCommandId(manifest.id, command.id),
@@ -167,6 +173,23 @@ async function loadExtensionPack(
     }
     return entry;
   });
+
+  if (manifest.capabilities.includes("lua")) {
+    try {
+      const luaCommands = await loadLuaExtensionPack(packRoot, manifest);
+      commands = luaCommands.map((command) => ({
+        id: command.commandId,
+        namespacedId: command.namespacedId,
+        title: command.title,
+        action: "lua" as const,
+      }));
+    } catch (error) {
+      if (error instanceof LuaExtensionLoadError) {
+        throw new ExtensionPackError(error.reason);
+      }
+      throw error;
+    }
+  }
 
   const discovered: DiscoveredExtension = {
     id: manifest.id,
@@ -220,4 +243,5 @@ async function loadTemplates(
 export function resetExtensionDiscoveryForTests(): void {
   extensionsRootPath = null;
   cachedDiscovery = null;
+  resetLuaCommandStoreForTests();
 }

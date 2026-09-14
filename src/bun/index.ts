@@ -19,6 +19,7 @@ import {
   discoverExtensions,
   getDiscoveredExtensions,
 } from "./extensions/discoverExtensions";
+import { invokeLuaExtensionCommand } from "./extensions/lua/luaExtensionRuntime";
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
 import { canPersistWindowFrame, toggleNativeFullScreen } from "./windowFullScreen";
 import { setNativeWindowTitle } from "./windowTitle";
@@ -59,6 +60,7 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
       ...filesystemRpcHandlers,
       takePendingExternalOpens: () => takePendingExternalOpens(),
       listDiscoveredExtensions: () => getDiscoveredExtensions(),
+      invokeExtensionLuaCommand: ({ namespacedId }) => invokeLuaExtensionCommand(namespacedId),
       setApplicationMenu: ({ items }) => setNativeApplicationMenu(items),
       getApplicationMenuSupport: () => applicationMenuSupport(),
       quitApplication: () => quitApplication(),

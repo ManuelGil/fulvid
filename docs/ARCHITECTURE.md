@@ -94,14 +94,14 @@ Path: `extension → declared capability / command → existing owner → existi
 
 | Category | Surfaces / rules |
 | --- | --- |
-| **Current** | Declarative discovery loads `userData/extensions` at startup (`api: 0` only). Invalid packs fail in isolation. Fixtures under [`extensions/`](../extensions/) document the contract; copy them into userData to try. Host actions: `notify`, `createUntitledFromTemplate`. Namespaced command ids (`<extensionId>.<commandId>`) appear under Application Menu → Extensions when loaded. Icons remain a closed declarative vocabulary (`appIcons.ts` / `CommandIcon`); `AppIcon.vue` is presentation only. No Lua, contribution registry, or placement API |
-| **Future seam** | Broader Quick Actions contributions; optional Lua runtime only if declarative packs prove insufficient |
+| **Current** | Declarative discovery loads `userData/extensions` at startup (`api: 0`). Invalid packs fail in isolation. Fixtures under [`extensions/`](../extensions/) document the Phase 1 contract (exactly two permanent packs); copy them into userData to try. Host actions: `notify`, `createUntitledFromTemplate`. Namespaced command ids appear under Application Menu → Extensions when loaded. Icons remain a closed declarative vocabulary (`appIcons.ts` / `CommandIcon`). **Phase 2 spike (experimental):** packs that declare the `lua` capability may ship a relative `entry.lua` loaded only in the Bun host via wasmoon 1.16.0 (Lua 5.4 / Wasm). Guest APIs are limited to `commands.register` and `ui.notify`. Wasm provides memory isolation and capability boundaries; this is **not** an OS sandbox — local packs remain a trust decision. No Monaco, filesystem, network, process, or renderer Lua. Disposable spike fixtures live under `tests/extensions/fixtures/`, not in permanent `extensions/`. |
+| **Future seam** | Broader Quick Actions contributions; editor transform APIs only if the spike’s limits are acceptable |
 | **Core-controlled** | Focus, dirty state, document selection, Writing Focus policy, grants, filesystem, Graph, Preview inertness, native Full Screen, right-rail panel set, Statusbar indicators, tabs chrome |
-| **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, parallel IPC channels, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution, extension-owned dirty/selection state |
+| **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, parallel IPC channels, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution, extension-owned dirty/selection state, generic `host.call` bridges, bytecode entry |
 
 Do not add a second command bus. Do not let a button call filesystem or Monaco directly. Do not fix a UI problem by inventing a second owner of the same behavior.
 
-Discovery: `src/bun/extensions/`. Registry / host dispatch: `src/mainview/extensions/`. Contract tests: `tests/extensions/`.
+Discovery: `src/bun/extensions/`. Lua spike runtime: `src/bun/extensions/lua/`. Registry / host dispatch: `src/mainview/extensions/`. Contract tests: `tests/extensions/`.
 
 See [`extensions/README.md`](../extensions/README.md).
 

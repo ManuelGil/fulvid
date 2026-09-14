@@ -7,7 +7,7 @@ It is **not**:
 - a marketplace or plugin catalog;
 - official Fulvid product features;
 - the runtime load path (that is `userData/extensions`);
-- a Lua/runtime/SDK surface;
+- a permanent Lua product surface;
 - a place for temporary product-gap workarounds.
 
 It **is**:
@@ -32,9 +32,9 @@ Do not add product-shaped packs (bug report, meeting, ADR, etc.) here. Those age
 | Layer | Status |
 | --- | --- |
 | Fixtures (JSON + Markdown) | Present — copy into userData to load |
-| Discovery (`userData/extensions`, `api: 0`) | **Implemented** (declarative only) |
-| Host actions | `notify`, `createUntitledFromTemplate` |
-| Lua / wasmoon | **Not implemented** |
+| Discovery (`userData/extensions`, `api: 0`) | **Implemented** (declarative + optional `lua` capability) |
+| Host actions | `notify`, `createUntitledFromTemplate`; Lua packs use host-only `lua` invoke |
+| Lua / wasmoon 1.16.0 | **Experimental spike** in `src/bun/extensions/lua/` — host-only Wasm Lua 5.4. Memory isolation / capability boundaries, **not** an OS sandbox. Disposable fixture: `tests/extensions/fixtures/spike-lua-notify`. Not a permanent fixture here. |
 
 ## UI extension boundary
 

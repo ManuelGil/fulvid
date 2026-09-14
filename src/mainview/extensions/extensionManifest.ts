@@ -1,14 +1,18 @@
 /**
- * Declarative extension manifest contract (api: 0).
+ * Extension manifest contract (api: 0).
  *
- * Extensions are data. This module validates declarations only — it does not
- * load code, Lua, or grant filesystem/Monaco authority.
+ * Declarative packs are data-only. Packs with the `lua` capability may declare
+ * a relative `entry` source path loaded only by the Bun host runtime spike.
+ * Validation here never executes Lua and grants no filesystem/Monaco authority.
  */
 
 export const EXTENSION_API_VERSION = 0;
 
-/** Closed capability surface for api: 0. Declaring a capability grants no resource. */
-export const ALLOWED_EXTENSION_CAPABILITIES = ["commands", "templates", "ui"] as const;
+/**
+ * Closed capability surface for api: 0.
+ * Declaring a capability grants no resource. `lua` selects the host Wasm spike.
+ */
+export const ALLOWED_EXTENSION_CAPABILITIES = ["commands", "templates", "ui", "lua"] as const;
 
 export type ExtensionCapability = (typeof ALLOWED_EXTENSION_CAPABILITIES)[number];
 
@@ -16,9 +20,11 @@ export const ALLOWED_EXTENSION_ACTIONS = ["notify", "createUntitledFromTemplate"
 
 export type ExtensionHostAction = (typeof ALLOWED_EXTENSION_ACTIONS)[number];
 
+/** Includes host-only `lua` for commands registered from entry.lua (not in manifests). */
+export type ExtensionCommandAction = ExtensionHostAction | "lua";
+
 const FORBIDDEN_MANIFEST_KEYS = new Set([
   "main",
-  "entry",
   "script",
   "scripts",
   "lua",
@@ -59,6 +65,8 @@ export type ExtensionManifest = {
   api: number;
   description?: string;
   capabilities: ExtensionCapability[];
+  /** Relative `.lua` source — required when capabilities include `lua`. */
+  entry?: string;
   commands?: ExtensionManifestCommand[];
   templates?: ExtensionManifestTemplate[];
 };
@@ -68,7 +76,7 @@ export type DiscoveredExtensionCommand = {
   id: string;
   namespacedId: string;
   title: string;
-  action: ExtensionHostAction;
+  action: ExtensionCommandAction;
   message?: string;
   template?: string;
 };
@@ -147,7 +155,7 @@ export function parseNamespacedExtensionCommandId(
 }
 
 /**
- * Validate a parsed JSON value as an api:0 declarative manifest.
+ * Validate a parsed JSON value as an api:0 manifest.
  * Returns a reason string on failure — never throws.
  */
 export function validateExtensionManifest(value: unknown): ManifestValidationResult {
@@ -189,6 +197,35 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
   }
 
   const capabilitySet = new Set(capabilities);
+  const hasLua = capabilitySet.has("lua");
+
+  let entry: string | undefined;
+  if (value.entry !== undefined) {
+    if (!hasLua) {
+      return { reason: "entry requires the lua capability" };
+    }
+    if (typeof value.entry !== "string" || value.entry.trim().length === 0) {
+      return { reason: "invalid entry path" };
+    }
+    const normalized = value.entry.replace(/\\/g, "/").trim();
+    if (!normalized.endsWith(".lua") || normalized.includes("\0") || normalized.startsWith("/")) {
+      return { reason: "entry must be a relative .lua source file" };
+    }
+    entry = normalized;
+  } else if (hasLua) {
+    return { reason: "lua capability requires entry" };
+  }
+
+  if (hasLua && value.commands !== undefined) {
+    return { reason: "lua packs register commands from entry.lua, not the manifest" };
+  }
+  if (hasLua && !capabilitySet.has("commands")) {
+    return { reason: "lua capability requires the commands capability" };
+  }
+  if (hasLua && !capabilitySet.has("ui")) {
+    return { reason: "lua capability requires the ui capability" };
+  }
+
   const templates: ExtensionManifestTemplate[] = [];
   if (value.templates !== undefined) {
     if (!capabilitySet.has("templates")) {
@@ -198,24 +235,28 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
       return { reason: "templates must be an array" };
     }
     const templateIds = new Set<string>();
-    for (const entry of value.templates) {
-      if (!isRecord(entry)) {
+    for (const entryTemplate of value.templates) {
+      if (!isRecord(entryTemplate)) {
         return { reason: "template entry must be an object" };
       }
-      if (typeof entry.id !== "string" || !TEMPLATE_ID_PATTERN.test(entry.id)) {
+      if (typeof entryTemplate.id !== "string" || !TEMPLATE_ID_PATTERN.test(entryTemplate.id)) {
         return { reason: "invalid template id" };
       }
-      if (templateIds.has(entry.id)) {
-        return { reason: `duplicate template id: ${entry.id}` };
+      if (templateIds.has(entryTemplate.id)) {
+        return { reason: `duplicate template id: ${entryTemplate.id}` };
       }
-      templateIds.add(entry.id);
-      if (typeof entry.name !== "string" || entry.name.trim().length === 0) {
+      templateIds.add(entryTemplate.id);
+      if (typeof entryTemplate.name !== "string" || entryTemplate.name.trim().length === 0) {
         return { reason: "invalid template name" };
       }
-      if (typeof entry.file !== "string" || entry.file.trim().length === 0) {
+      if (typeof entryTemplate.file !== "string" || entryTemplate.file.trim().length === 0) {
         return { reason: "invalid template file" };
       }
-      templates.push({ id: entry.id, name: entry.name, file: entry.file });
+      templates.push({
+        id: entryTemplate.id,
+        name: entryTemplate.name,
+        file: entryTemplate.file,
+      });
     }
   }
 
@@ -228,53 +269,56 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
       return { reason: "commands must be an array" };
     }
     const commandIds = new Set<string>();
-    for (const entry of value.commands) {
-      if (!isRecord(entry)) {
+    for (const entryCommand of value.commands) {
+      if (!isRecord(entryCommand)) {
         return { reason: "command entry must be an object" };
       }
       for (const key of ["code", "script", "eval", "lua", "html", "svg", "component"] as const) {
-        if (key in entry) {
+        if (key in entryCommand) {
           return { reason: `forbidden command field: ${key}` };
         }
       }
-      if (typeof entry.id !== "string" || !COMMAND_ID_PATTERN.test(entry.id)) {
+      if (typeof entryCommand.id !== "string" || !COMMAND_ID_PATTERN.test(entryCommand.id)) {
         return { reason: "invalid command id" };
       }
-      if (commandIds.has(entry.id)) {
-        return { reason: `duplicate command id: ${entry.id}` };
+      if (commandIds.has(entryCommand.id)) {
+        return { reason: `duplicate command id: ${entryCommand.id}` };
       }
-      commandIds.add(entry.id);
-      if (typeof entry.title !== "string" || entry.title.trim().length === 0) {
+      commandIds.add(entryCommand.id);
+      if (typeof entryCommand.title !== "string" || entryCommand.title.trim().length === 0) {
         return { reason: "invalid command title" };
       }
-      if (typeof entry.action !== "string" || !isAllowedAction(entry.action)) {
-        return { reason: `unknown host action: ${String(entry.action)}` };
+      if (typeof entryCommand.action !== "string" || !isAllowedAction(entryCommand.action)) {
+        return { reason: `unknown host action: ${String(entryCommand.action)}` };
       }
 
       const command: ExtensionManifestCommand = {
-        id: entry.id,
-        title: entry.title,
-        action: entry.action,
+        id: entryCommand.id,
+        title: entryCommand.title,
+        action: entryCommand.action,
       };
 
-      if (entry.action === "notify") {
-        if (typeof entry.message !== "string" || entry.message.trim().length === 0) {
+      if (entryCommand.action === "notify") {
+        if (typeof entryCommand.message !== "string" || entryCommand.message.trim().length === 0) {
           return { reason: "notify action requires message" };
         }
-        command.message = entry.message;
+        command.message = entryCommand.message;
       }
 
-      if (entry.action === "createUntitledFromTemplate") {
+      if (entryCommand.action === "createUntitledFromTemplate") {
         if (!capabilitySet.has("templates")) {
           return { reason: "createUntitledFromTemplate requires the templates capability" };
         }
-        if (typeof entry.template !== "string" || !TEMPLATE_ID_PATTERN.test(entry.template)) {
+        if (
+          typeof entryCommand.template !== "string" ||
+          !TEMPLATE_ID_PATTERN.test(entryCommand.template)
+        ) {
           return { reason: "createUntitledFromTemplate requires a template id" };
         }
-        if (!templates.some((template) => template.id === entry.template)) {
-          return { reason: `unknown template: ${entry.template}` };
+        if (!templates.some((template) => template.id === entryCommand.template)) {
+          return { reason: `unknown template: ${entryCommand.template}` };
         }
-        command.template = entry.template;
+        command.template = entryCommand.template;
       }
 
       commands.push(command);
@@ -290,6 +334,9 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
   };
   if (typeof value.description === "string") {
     manifest.description = value.description;
+  }
+  if (entry !== undefined) {
+    manifest.entry = entry;
   }
   if (commands.length > 0) {
     manifest.commands = commands;
