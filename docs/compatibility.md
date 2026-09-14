@@ -78,9 +78,11 @@ No Apple signing secrets on these jobs.
 
 | Platform | Desktop compatibility CI | Lua packaged smoke (`bun run smoke:lua-packaged`) |
 | --- | --- | --- |
-| Linux x64 | Tested | **Verified locally** (and wired into Compatibility Linux CI) |
-| Windows x64 | Tested | **CI wired; evidence pending** until a green Compatibility Windows run |
-| macOS arm64 | Tested | **CI wired; evidence pending** until a green Compatibility macOS run |
+| Linux x64 | Tested | **Verified** (local + Compatibility Linux CI) |
+| Windows x64 | Tested | **Verified** (Compatibility Windows CI — Server 2022/2025) |
+| macOS arm64 | Tested | **Verified** (Compatibility macOS CI — 15/26 Apple Silicon) |
+
+Evidence tip (experimental `160729f`): [Windows run 34909418780](https://github.com/ManuelGil/fulvid/actions/runs/34909418780), [macOS run 34909421392](https://github.com/ManuelGil/fulvid/actions/runs/34909421392). Cross-platform packaged Lua gate: **CLOSED**.
 
 The Lua smoke checks packaged `bun/glue.wasm`, Wasm init, discovery + `ui.notify`, invalid-pack isolation, and lightweight interrupt/memory probes against the packaged module. It does not launch the UI and does not replace `smoke:compatibility`.
 

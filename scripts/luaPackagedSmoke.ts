@@ -14,7 +14,7 @@
  */
 import { spawnSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -99,23 +99,25 @@ function findZstdBinary(): string {
 function extractTarZst(archive: string, destination: string): void {
   mkdirSync(destination, { recursive: true });
   const zstd = findZstdBinary();
-  // Portable pipe: zstd decompress → tar extract (GitHub runners ship tar on win/mac/linux).
-  const shell =
-    process.platform === "win32"
-      ? {
-          command: "cmd.exe",
-          args: ["/d", "/s", "/c", `"${zstd}" -d -c "${archive}" | tar -xf - -C "${destination}"`],
-        }
-      : {
-          command: "/bin/sh",
-          args: ["-c", `"${zstd}" -d -c "${archive}" | tar -x -C "${destination}"`],
-        };
-  const result = spawnSync(shell.command, shell.args, {
+  // Two-step extract (no shell pipe): avoids Windows cmd.exe quoting failures on CI.
+  // GitHub runners ship `tar` on win/mac/linux; zstd comes from PATH or the Electrobun tree.
+  const tarPath = join(destination, "_fulvid-payload.tar");
+  const decompress = spawnSync(zstd, ["-d", "-f", "-o", tarPath, archive], {
     stdio: "inherit",
-    windowsVerbatimArguments: process.platform === "win32",
   });
-  if (result.status !== 0) {
-    throw new Error(`failed to extract ${archive} (exit ${String(result.status)})`);
+  if (decompress.status !== 0) {
+    throw new Error(`failed to decompress ${archive} (exit ${String(decompress.status)})`);
+  }
+  const extract = spawnSync("tar", ["-xf", tarPath, "-C", destination], {
+    stdio: "inherit",
+  });
+  try {
+    unlinkSync(tarPath);
+  } catch {
+    // best-effort cleanup of the intermediate tar
+  }
+  if (extract.status !== 0) {
+    throw new Error(`failed to extract ${archive} (exit ${String(extract.status)})`);
   }
 }
 
