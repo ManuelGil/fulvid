@@ -136,8 +136,8 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
       id: "new",
       label: t("menu.new"),
       children: [
-        { id: "newDocument", label: t("actions.newDocument") },
-        { id: "newDocumentFromReadme", label: t("actions.newDocumentFromReadme") },
+        { id: "newDocument", label: t("files.newDocument") },
+        { id: "newDocumentFromReadme", label: t("files.newDocumentFromReadme") },
       ],
     },
     ...explorerFolderContextActionIds().map((id) => {
@@ -265,6 +265,7 @@ async function createExplorerDocument(seed: "blank" | "readme"): Promise<void> {
   const requestedName = await promptFilename({
     title: promptTitle,
     label: t("files.newDocumentName"),
+    initialValue: seed === "readme" ? `README.${settings.value.links.defaultExtension}` : undefined,
   });
   if (!requestedName) {
     return;

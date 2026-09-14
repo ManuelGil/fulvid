@@ -748,8 +748,9 @@ async function createNewDocument(content?: string): Promise<void> {
 }
 
 /**
- * With a folder open: create a real README-shaped file (same path as Explorer).
- * Without a folder: untitled buffer seeded with the README body until Save As.
+ * With a folder open: prompt and write a README-shaped file at the Folder root
+ * (File / Quick Actions have no Explorer selection; Explorer New uses the
+ * selected directory). Without a folder: untitled buffer until Save As.
  */
 async function createNewDocumentFromReadme(): Promise<void> {
   const rootPath = workspace.value?.path;

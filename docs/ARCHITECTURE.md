@@ -11,7 +11,7 @@ Every user-visible behavior has **one owner**. Pages and the shell choose what i
 | Owner | Owns |
 | --- | --- |
 | Document Session | Open documents and `activeId` |
-| Document buffers | Monaco models, dirty/`savedVersionId`, virtual vs persisted identity, grants, `selectDocument`, `openOrActivate`. Blank New Document uses an empty model; New Document from README seeds via `documentTemplates.renderDocumentTemplate` (one README body; not a template subsystem) |
+| Document buffers | Monaco models, dirty/`savedVersionId`, virtual vs persisted identity, grants, `selectDocument`, `openOrActivate`. Blank New Document uses an empty model. New Document from README seeds via `documentTemplates.renderDocumentTemplate` (one README body; not a template subsystem); with a folder open, File/Quick Actions / Explorer write through `seededWorkspaceDocument` / exclusive create rather than untitled-only seeding |
 | Editor | Commands, Preview split, Outline, Monaco host, Writing Focus chrome overlay, session document annotations |
 | Explorer | Folder file tree in the right sidebar |
 | Search | `/search` and Search sidebar options (exact text or regular expression over document bodies) |
@@ -88,9 +88,9 @@ The right sidebar shows one panel: Explorer, Search options (on `/search`), Docu
 
 ## Document links
 
-[`documentLink.ts`](../src/mainview/modules/document/links/documentLink.ts) parses the active link mode (Markdown or Wikilink, not both). Path/stem/alias/title resolution lives in [`linkSemantics.ts`](../src/mainview/modules/document/links/linkSemantics.ts) (`resolveDocumentPath`). Scan, Monaco providers, Preview, Export, Graph, and Document Context reuse that pair — not a second resolver.
+[`documentLink.ts`](../src/mainview/modules/document/links/documentLink.ts) parses the active link mode (Markdown or Wikilink, not both). Path/stem/alias/title resolution lives in [`linkSemantics.ts`](../src/mainview/modules/document/links/linkSemantics.ts) (`resolveDocumentPath`). Duplicate matches stay **first-wins**; `alsoMatches` is scan-derived honesty for UI, not a second identity. An unresolved target with exactly one near-match may surface `uniqueLinkCandidate` for soft open. Scan, Monaco providers, Preview, Export, Graph, and Document Context reuse that pair — not a second resolver.
 
-Insert document link / TOC format strings in [`markdownAuthoring.ts`](../src/mainview/modules/editor/markdown/markdownAuthoring.ts) and insert them through Monaco; they reuse `linkMode` and `parseMarkdownStructure` and are not a second document model.
+Insert document link / TOC format strings in [`markdownAuthoring.ts`](../src/mainview/modules/editor/markdown/markdownAuthoring.ts) and insert them through Monaco; they reuse `linkMode` and `parseMarkdownStructure` and are not a second document model. Trim trailing whitespace is Monaco range edits (optional pre-write when Save confirms); not a formatter or sanitation subsystem.
 
 Explorer file rename plans inbound target rewrites in [`documentPathRename.ts`](../src/mainview/modules/document/links/documentPathRename.ts) from the same parse/resolve pair, then applies them through Monaco buffers or existing `writeDocument` — not a refactoring subsystem or link database.
 

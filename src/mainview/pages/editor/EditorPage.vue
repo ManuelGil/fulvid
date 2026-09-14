@@ -293,13 +293,14 @@ async function saveEditorDocument(): Promise<void> {
     return;
   }
 
-  if (settings.value.editor.trimTrailingWhitespaceOnSave) {
-    monacoHostRef.value?.trimTrailingWhitespace();
-  }
-
+  // Virtual documents go through Save As (cancelable prompt owns trim timing).
   if (buffer.kind === "virtual") {
     await saveAsEditorDocument();
     return;
+  }
+
+  if (settings.value.editor.trimTrailingWhitespaceOnSave) {
+    monacoHostRef.value?.trimTrailingWhitespace();
   }
 
   try {
@@ -329,10 +330,6 @@ async function saveAsEditorDocument(): Promise<void> {
     return;
   }
 
-  if (settings.value.editor.trimTrailingWhitespaceOnSave) {
-    monacoHostRef.value?.trimTrailingWhitespace();
-  }
-
   const defaultExtension = settings.value.links.defaultExtension;
   const requestedName = await promptFilename({
     title: t("actions.saveAs"),
@@ -344,6 +341,11 @@ async function saveAsEditorDocument(): Promise<void> {
   });
   if (requestedName === null) {
     return;
+  }
+
+  // Trim only after the user confirms a destination — cancel must not mutate.
+  if (settings.value.editor.trimTrailingWhitespaceOnSave) {
+    monacoHostRef.value?.trimTrailingWhitespace();
   }
 
   try {

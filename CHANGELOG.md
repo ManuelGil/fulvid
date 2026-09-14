@@ -9,6 +9,17 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+### Added
+
+- **New Document from selection**: File → New and Quick Actions open an untitled buffer with the exact selected editor text and, when the source is a folder document, a `formatDocumentLink` backlink (no line-address references). Save As persists it like any other untitled tab.
+- **Trim trailing whitespace**: Edit / Quick Actions removes trailing spaces and tabs before each line ending via Monaco edits (undoable). Settings → Editor → Trim trailing whitespace on Save is off by default.
+
+### Changed
+
+- **New Document from README** with a folder open: File → New and Quick Actions prompt and write at the Folder root (Explorer New still writes in the selected directory). Without a folder, README remains an untitled seeded buffer until Save As.
+- Document links with duplicate stem/alias/title matches stay **first-wins**; hover and Context can show the other matches as honesty. An unresolved link with exactly one near-match may offer that candidate as a soft open (definition / Inspector).
+- Writing Focus: hide chrome, keep capabilities (Quick Actions and other keep-list surfaces stay usable). Still independent of native Full Screen.
+
 ## [0.7.0] - 2026-09-13
 
 ### Added
@@ -75,7 +86,7 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Changed
 
-- Writing Focus on the editor route now hides the chrome that gets in the way of writing (sidebars, tabs, format bar, statusbar) while Monaco stays the editor. Session-only; not Graph Focus; not Full Screen. Shortcuts: Ctrl+Shift+Enter on Windows and Linux and Cmd+Shift+Enter on macOS (see Unreleased / 0.4.0 keyboard note — Global Search took Ctrl/Cmd+Shift+F).
+- Writing Focus on the editor route now hides the chrome that gets in the way of writing (sidebars, tabs, format bar, statusbar) while Monaco stays the editor. Session-only; not Graph Focus; not Full Screen. Shortcuts: Ctrl+Shift+Enter on Windows and Linux and Cmd+Shift+Enter on macOS (see 0.4.0 keyboard note — Global Search took Ctrl/Cmd+Shift+F).
 
 ## [0.2.0] - 2026-09-10
 
