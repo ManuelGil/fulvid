@@ -11,18 +11,23 @@ import {
   closeDocument,
   getDocumentBuffer,
   isDocumentDirty,
+  openBuffers,
   openOrActivate,
   renameDocumentBuffer,
 } from "../../editor/document/documentBuffers";
+import { applyDocumentPathRenamePlan } from "../../document/links/applyDocumentPathRename";
+import { planDocumentPathRename } from "../../document/links/documentPathRename";
 import {
   copyWorkspacePath,
   refreshWorkspace,
   revealWorkspaceInExplorer,
   workspace,
   workspaceName,
+  workspaceNotes,
   applyRenamedNote,
   applyScannedNote,
 } from "../../../app/workspaceState";
+import { currentFocus, focusDocument, inspectionPath } from "../focus/focusState";
 import {
   documentTemplateTitleFromParentPath,
   renderDocumentTemplate,
@@ -317,21 +322,60 @@ async function renameSelectedDocument(): Promise<void> {
 
   const nextPath = [parentPath(entry.path), nextName].filter(Boolean).join("/");
   const buffer = getDocumentBuffer(rootPath, entry.path);
+  const linkMode = settings.value.links.linkMode;
+  const contentByPath = new Map<string, string>();
+  for (const note of workspaceNotes.value) {
+    if (typeof note.content === "string") {
+      contentByPath.set(note.path, note.content);
+    }
+  }
+  for (const open of openBuffers.value) {
+    if (open.rootPath === rootPath && open.path) {
+      contentByPath.set(open.path, open.model.getValue());
+    }
+  }
+
+  const plan = planDocumentPathRename({
+    oldPath: entry.path,
+    newPath: nextPath,
+    notes: workspaceNotes.value,
+    linkMode,
+    contentByPath,
+  });
+
   try {
-    const result = await renameDocument(
-      rootPath,
-      entry.path,
-      nextPath,
-      buffer?.mtimeMs,
-      settings.value.links.linkMode,
-    );
+    const result = await renameDocument(rootPath, entry.path, nextPath, buffer?.mtimeMs, linkMode);
     if (buffer) {
       renameDocumentBuffer(buffer, nextPath, result.mtimeMs);
     }
     applyRenamedNote(entry.path, result.note);
+    if (currentFocus.value?.path === entry.path) {
+      focusDocument(nextPath);
+    } else if (inspectionPath.value === entry.path) {
+      inspectionPath.value = nextPath;
+    }
     selectedPath.value = nextPath;
     await loadDirectory(parentPath(entry.path));
     await loadDirectory(parentPath(nextPath));
+
+    if (plan.edits.length > 0) {
+      const applied = await applyDocumentPathRenamePlan({
+        rootPath,
+        plan,
+        contentByPath,
+        linkMode,
+      });
+      for (const note of applied.notes) {
+        applyScannedNote(note);
+      }
+      if (applied.failedPaths.length > 0) {
+        notify(
+          t("files.renameLinksPartial", {
+            count: applied.failedPaths.length.toLocaleString(),
+          }),
+        );
+      }
+    }
   } catch (error) {
     notifyFilesystemError(error, "files.renameError", notify);
   }

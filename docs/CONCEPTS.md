@@ -42,6 +42,8 @@ Settings choose one `linkMode`: `"markdown"` (default) or `"wikilink"`. That mod
 
 **Find references** (`Shift+F12`) lists heading and fragment locations. **Rename heading** (`F2`) rewrites that heading and known fragment targets as text. F2 does not rename files.
 
+**Explorer rename** changes a document’s folder-relative path. After the filesystem rename, Fulvid rewrites DocumentLink targets that already resolved to that document (preferring live open-buffer text), using source-relative paths and preserving labels and `#` fragments. Closed scanned notes use the existing `writeDocument` path. This is not a generic refactor and not a multi-file transaction — a partial link-update failure is reported after a successful rename.
+
 **Insert document link** (Edit menu / Quick Actions) picks a Folder document via Quick Open, optionally a heading from that document’s structure, and inserts a Markdown or Wikilink string using the active `linkMode`. **Insert table of contents** inserts a deterministic Markdown list of same-document heading links from `parseMarkdownStructure`. Neither command scans the disk, keeps live TOC state, or changes Preview/Graph.
 
 Local find is Monaco (`Ctrl/Cmd+F`). Global Search is `/search` (`Ctrl/Cmd+Shift+F`). Quick Open asks which document to open by identity; Global Search asks where text appears.

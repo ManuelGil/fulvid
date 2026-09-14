@@ -270,6 +270,8 @@ export default {
     deleteUnsaved: "¿Eliminar {name} con cambios sin guardar?",
     deleteError: "No se pudo eliminar este documento.",
     renameError: "No se pudo renombrar este documento.",
+    renameLinksPartial:
+      "Documento renombrado, pero no se pudieron actualizar los enlaces en {count} otro(s) documento(s).",
     readError: "No se pudo leer esta carpeta.",
     empty: "No hay documentos Markdown ni carpetas aquí.",
     supportedOnly: "El Explorador admite archivos .md, .markdown y .mdx.",

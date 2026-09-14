@@ -21,6 +21,7 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Search ownership | Local find uses the active Monaco model. Global Search uses Folder scan document bodies (plus open buffer overlays) with exact text or regular expression matching only |
 | Quick Open ownership | Quick Open matches document identity (`title`, filename, relative path) from `workspace.scannedNotes` in the open Folder only. It does not search content, own a scan, or bypass `openOrActivate` / filesystem containment |
 | Semantic rename | F2 renames a heading or fragment in document text. It never renames a file or document ID |
+| File rename references | Explorer rename may rewrite DocumentLink targets that already resolved to the renamed path. It reuses parse/resolve and existing writes; it is not a transaction or link index |
 | Preview and Export | Preview and Export HTML share `renderMarkdownPreview`. Save writes source. Export writes `.html` |
 | Folder startup | `workspaceStartup` is `none` or `last`. Untitled is available in both cases |
 | Folder preflight | Opening a folder loads it only when the scan found `.md` / `.markdown` / `.mdx`, or when the scan was partial. A complete scan with none of those files is said out loud and does not become the open folder. Preflight does not grant access, execute MDX, or walk the tree a second time |

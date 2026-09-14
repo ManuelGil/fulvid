@@ -92,6 +92,8 @@ The right sidebar shows one panel: Explorer, Search options (on `/search`), Docu
 
 Insert document link / TOC format strings in [`markdownAuthoring.ts`](../src/mainview/modules/editor/markdown/markdownAuthoring.ts) and insert them through Monaco; they reuse `linkMode` and `parseMarkdownStructure` and are not a second document model.
 
+Explorer file rename plans inbound target rewrites in [`documentPathRename.ts`](../src/mainview/modules/document/links/documentPathRename.ts) from the same parse/resolve pair, then applies them through Monaco buffers or existing `writeDocument` — not a refactoring subsystem or link database.
+
 `linkMode` default is `"markdown"`. F2 rename applies text edits to open buffers. It does not rename files or change document identity.
 
 ## Preview

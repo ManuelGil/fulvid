@@ -268,6 +268,8 @@ export default {
     deleteUnsaved: "Delete {name} with unsaved changes?",
     deleteError: "Couldn't delete this document.",
     renameError: "Couldn't rename this document.",
+    renameLinksPartial:
+      "Document renamed, but links could not be updated in {count} other document(s).",
     readError: "Couldn't read this folder.",
     empty: "No Markdown documents or folders here.",
     supportedOnly: "Explorer supports .md, .markdown, and .mdx files.",
