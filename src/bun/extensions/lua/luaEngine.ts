@@ -1,0 +1,95 @@
+/**
+ * Hardened wasmoon engine creation and timed Lua source execution.
+ *
+ * Interruption uses wasmoon Thread hooks (`run({ timeout })` / `functionTimeout`),
+ * not Promise.race. Memory uses `traceAllocations` + `setMemoryMax`.
+ */
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import { join } from "node:path";
+
+import { LuaFactory, LuaTimeoutError, type LuaEngine } from "wasmoon";
+
+import { reduceLuaGuestEnvironment } from "./luaGuestEnvironment";
+import { luaExecutionBudgetMs, luaMemoryBudgetBytes } from "./luaLimits";
+
+const requireWasmoonAsset = createRequire(import.meta.url);
+
+let sharedFactory: LuaFactory | null = null;
+
+/**
+ * Resolve glue.wasm for Bun host + Electrobun packages.
+ * Packaged builds copy the file beside the bundled entry (`Resources/app/bun/`).
+ * Dev/tests fall back to the wasmoon package file.
+ */
+export function resolveWasmoonGlueWasmPath(): string {
+  // Packaged Electrobun: glue.wasm is copied beside Resources/app/bun/index.js.
+  // Dev/tests: this module lives under src/.../lua/, so fall through to the package.
+  const besideEntry = join(import.meta.dir, "glue.wasm");
+  if (existsSync(besideEntry)) {
+    return besideEntry;
+  }
+  const fromPackage = requireWasmoonAsset.resolve("wasmoon/dist/glue.wasm");
+  if (existsSync(fromPackage)) {
+    return fromPackage;
+  }
+  throw new Error("wasmoon glue.wasm not found (dev package or packaged bun/ copy)");
+}
+
+function luaFactory(): LuaFactory {
+  if (!sharedFactory) {
+    sharedFactory = new LuaFactory(resolveWasmoonGlueWasmPath());
+  }
+  return sharedFactory;
+}
+
+/** Test hook: drop cached factory (engines already closed via command store). */
+export function resetLuaFactoryForTests(): void {
+  sharedFactory = null;
+}
+
+export function isLuaTimeoutError(error: unknown): boolean {
+  return (
+    error instanceof LuaTimeoutError ||
+    (error instanceof Error && /thread timeout exceeded/i.test(error.message))
+  );
+}
+
+export function isLuaMemoryError(error: unknown): boolean {
+  return error instanceof Error && /not enough memory/i.test(error.message);
+}
+
+export function describeLuaRuntimeFailure(error: unknown): string {
+  if (isLuaTimeoutError(error)) {
+    return "execution limit exceeded";
+  }
+  if (isLuaMemoryError(error)) {
+    return "memory limit exceeded";
+  }
+  return error instanceof Error ? error.message : "lua runtime failed";
+}
+
+/** Create a reduced guest engine with real execution and memory budgets. */
+export async function createHardenedLuaEngine(): Promise<LuaEngine> {
+  const budgetMs = luaExecutionBudgetMs();
+  const engine = await luaFactory().createEngine({
+    openStandardLibs: true,
+    injectObjects: false,
+    enableProxy: false,
+    traceAllocations: true,
+    functionTimeout: budgetMs,
+  });
+  engine.global.setMemoryMax(luaMemoryBudgetBytes());
+  await reduceLuaGuestEnvironment(engine);
+  return engine;
+}
+
+/**
+ * Run Lua source under a real wasmoon thread timeout (interrupts tight loops).
+ * Prefer this over `engine.doString` for untrusted entry.lua.
+ */
+export async function runLuaSourceWithBudget(engine: LuaEngine, source: string): Promise<void> {
+  const thread = engine.global.newThread();
+  thread.loadString(source);
+  await thread.run(0, { timeout: luaExecutionBudgetMs() });
+}

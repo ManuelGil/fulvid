@@ -14,7 +14,7 @@ assets/screenshots/      Window captures
 examples/                Demo folder for local checks and those captures
 extensions/              Extension-boundary fixtures (copy into userData/extensions to load)
 src/bun/                 Desktop host and filesystem RPC
-src/bun/extensions/      Declarative extension discovery (userData/extensions)
+src/bun/extensions/      Declarative extension discovery (userData/extensions); lua/ host runtime
 src/bun/filesystem/      io/, rpc/, scanning/, security/
 src/mainview/extensions/ Manifest contract + registry / host action dispatch
 src/mainview/pages/      Routes: editor/, search/, graph/, settings/

@@ -26,6 +26,8 @@ export default {
     copy: {
       "dist/index.html": "views/mainview/index.html",
       "dist/assets": "views/mainview/assets",
+      // wasmoon loads Wasm from disk beside the Bun host entry (not CDN).
+      "node_modules/wasmoon/dist/glue.wasm": "bun/glue.wasm",
     },
     watchIgnore: ["dist/**"],
     mac: {

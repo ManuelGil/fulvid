@@ -1,13 +1,14 @@
 /**
- * Phase 2 spike: load entry.lua in an isolated wasmoon engine and register
+ * Phase 2.5: load entry.lua in an isolated wasmoon engine and register
  * commands through an explicit capability bridge (commands.register / ui.notify).
  *
- * Runtime lives only in the Bun host. Wasm provides memory isolation / capability
- * boundaries — NOT an OS sandbox. Extensions are a local trust decision.
+ * Runtime lives only in the Bun host. Hardening: thread/function timeouts and
+ * Wasm `setMemoryMax` (capability/resource limits — NOT an OS sandbox).
+ * Extensions remain a local trust decision.
  */
 import { readFile, stat } from "node:fs/promises";
 
-import { LuaFactory, type LuaEngine } from "wasmoon";
+import type { LuaEngine } from "wasmoon";
 
 import {
   namespacedExtensionCommandId,
@@ -29,38 +30,22 @@ import {
   queuePendingLuaCommand,
   type LuaRegisteredCommand,
 } from "./luaCommandStore";
-import { reduceLuaGuestEnvironment } from "./luaGuestEnvironment";
+import {
+  createHardenedLuaEngine,
+  describeLuaRuntimeFailure,
+  resetLuaFactoryForTests,
+  runLuaSourceWithBudget,
+} from "./luaEngine";
 import { LUA_SPIKE_LIMITS } from "./luaLimits";
+
+export { resetLuaFactoryForTests };
+export { resolveWasmoonGlueWasmPath } from "./luaEngine";
 
 export class LuaExtensionLoadError extends Error {
   constructor(readonly reason: string) {
     super(reason);
     this.name = "LuaExtensionLoadError";
   }
-}
-
-let sharedFactory: LuaFactory | null = null;
-
-function luaFactory(): LuaFactory {
-  if (!sharedFactory) {
-    sharedFactory = new LuaFactory();
-  }
-  return sharedFactory;
-}
-
-/** Test hook: drop cached factory (engines already closed via command store). */
-export function resetLuaFactoryForTests(): void {
-  sharedFactory = null;
-}
-
-async function createReducedEngine(): Promise<LuaEngine> {
-  const engine = await luaFactory().createEngine({
-    openStandardLibs: true,
-    injectObjects: false,
-    enableProxy: false,
-  });
-  await reduceLuaGuestEnvironment(engine);
-  return engine;
 }
 
 function installCapabilityBridge(
@@ -188,7 +173,7 @@ export async function loadLuaExtensionPack(
   let engine: LuaEngine | null = null;
   beginLuaRegistration(manifest.id);
   try {
-    engine = await createReducedEngine();
+    engine = await createHardenedLuaEngine();
     installCapabilityBridge(engine, manifest.id, {
       allowRegister: true,
       allowNotify: false,
@@ -196,15 +181,14 @@ export async function loadLuaExtensionPack(
         throw new Error("ui.notify is not available during registration");
       },
     });
-    await engine.doString(source);
+    await runLuaSourceWithBudget(engine, source);
     return commitLuaRegistration(engine);
   } catch (error) {
     discardLuaRegistration(engine);
     if (error instanceof LuaExtensionLoadError) {
       throw error;
     }
-    const message = error instanceof Error ? error.message : "lua load failed";
-    throw new LuaExtensionLoadError(message);
+    throw new LuaExtensionLoadError(describeLuaRuntimeFailure(error));
   }
 }
 
@@ -237,7 +221,6 @@ export async function invokeLuaExtensionCommand(
     await Promise.resolve(command.run());
     return { ok: true, notifications };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "lua command failed";
-    return { ok: false, error: message };
+    return { ok: false, error: describeLuaRuntimeFailure(error) };
   }
 }

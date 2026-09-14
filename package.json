@@ -50,6 +50,7 @@
     "test:integration": "bun test .integration.test.ts",
     "smoke": "bun run scripts/smoke.ts",
     "smoke:compatibility": "bun run scripts/compatibilitySmoke.ts",
+    "smoke:lua-packaged": "bun run scripts/luaPackagedSmoke.ts",
     "i18n:check": "bun run scripts/i18nCheck.ts",
     "doctor": "bun run scripts/doctor.ts",
     "validate": "bun run scripts/validate.ts",

@@ -84,6 +84,8 @@ It is not UI automation. It does not click the GTK file dialog.
 
 `bun run validate` stays the contributor gate (format, lint, types, tests, web build). Compatibility CI packages the desktop app. Run `bun run smoke` locally when you change lifecycle or Graph and have a display.
 
+Lua packaged gate (after `bun run build:canary` or `release`): `bun run smoke:lua-packaged` checks that Electrobun copied `bun/glue.wasm`, that Wasm initializes from those bytes, and that discovery + `ui.notify` + invalid-pack isolation work against a temp `userData/extensions`. It does not replace launch smoke and is not UI automation.
+
 ## Not this CI
 
 - GitHub Releases
