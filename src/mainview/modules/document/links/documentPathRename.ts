@@ -24,6 +24,8 @@ export type DocumentPathRenameEdit = {
   documentPath: string;
   start: number;
   end: number;
+  /** Exact path span text at plan time — apply must still see this or abort. */
+  previous: string;
   /** Replacement for the document-target span only (no `#fragment`). */
   text: string;
 };
@@ -147,6 +149,7 @@ export function planDocumentPathRename(input: {
         documentPath: note.path,
         start: range.start,
         end: range.end,
+        previous: current,
         text: nextTarget,
       });
     }

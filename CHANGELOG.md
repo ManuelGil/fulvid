@@ -75,7 +75,7 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Changed
 
-- Writing Focus on the editor route now hides the chrome that gets in the way of writing (sidebars, tabs, format bar, statusbar) while Monaco stays the editor. Session-only; not Graph Focus; not Full Screen. Shortcuts remain Ctrl+Shift+F on Windows and Linux and Cmd+Shift+F on macOS.
+- Writing Focus on the editor route now hides the chrome that gets in the way of writing (sidebars, tabs, format bar, statusbar) while Monaco stays the editor. Session-only; not Graph Focus; not Full Screen. Shortcuts: Ctrl+Shift+Enter on Windows and Linux and Cmd+Shift+Enter on macOS (see Unreleased / 0.4.0 keyboard note — Global Search took Ctrl/Cmd+Shift+F).
 
 ## [0.2.0] - 2026-09-10
 

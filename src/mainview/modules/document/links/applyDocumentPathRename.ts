@@ -4,6 +4,10 @@
  * Open dirty buffers: Monaco edit only (user Save persists).
  * Open clean buffers and closed files: edit then existing writeDocument/save.
  * Not a transaction — callers must report partial failure honestly.
+ *
+ * Closed-file bases always come from a fresh disk read (mtime conflict check).
+ * Every edit requires the planned `previous` span to still match, so await gaps
+ * and stale scan caches cannot silently corrupt or overwrite newer text.
  */
 import {
   getDocumentBuffer,
@@ -30,6 +34,10 @@ export type DocumentPathRenameApplyResult = {
   notes: ScannedNote[];
 };
 
+function editsStillMatch(content: string, edits: readonly DocumentPathRenameEdit[]): boolean {
+  return edits.every((edit) => content.slice(edit.start, edit.end) === edit.previous);
+}
+
 function applyEditsToBuffer(
   buffer: DocumentBuffer,
   edits: readonly DocumentPathRenameEdit[],
@@ -51,15 +59,14 @@ function applyEditsToBuffer(
 
 /**
  * Apply planned edits after the filesystem rename and buffer reidentification.
- * `contentByPath` keys are plan-time paths (including `oldPath`).
+ * Plan edits are keyed by plan-time paths (including `oldPath`).
  */
 export async function applyDocumentPathRenamePlan(input: {
   rootPath: string;
   plan: DocumentPathRenamePlan;
-  contentByPath: ReadonlyMap<string, string>;
   linkMode: LinkSyntax;
 }): Promise<DocumentPathRenameApplyResult> {
-  const { rootPath, plan, contentByPath, linkMode } = input;
+  const { rootPath, plan, linkMode } = input;
   const updatedPaths: string[] = [];
   const failedPaths: string[] = [];
   const notes: ScannedNote[] = [];
@@ -70,6 +77,11 @@ export async function applyDocumentPathRenamePlan(input: {
     try {
       const buffer = getDocumentBuffer(rootPath, livePath);
       if (buffer) {
+        const liveText = buffer.model.getValue();
+        if (!editsStillMatch(liveText, edits)) {
+          failedPaths.push(livePath);
+          continue;
+        }
         const wasDirty = isDocumentDirty(buffer);
         applyEditsToBuffer(buffer, edits);
         if (!wasDirty) {
@@ -82,15 +94,14 @@ export async function applyDocumentPathRenamePlan(input: {
         continue;
       }
 
-      let base = contentByPath.get(planPath);
-      let mtimeMs: number | undefined;
-      if (base === undefined) {
-        const snapshot = await readDocument(rootPath, livePath);
-        base = snapshot.content;
-        mtimeMs = snapshot.mtimeMs;
+      // Closed file: never trust scan-cached content for the write base.
+      const snapshot = await readDocument(rootPath, livePath);
+      if (!editsStillMatch(snapshot.content, edits)) {
+        failedPaths.push(livePath);
+        continue;
       }
-      const next = applyTextEdits(base, edits);
-      const result = await writeDocument(rootPath, livePath, next, mtimeMs, linkMode);
+      const next = applyTextEdits(snapshot.content, edits);
+      const result = await writeDocument(rootPath, livePath, next, snapshot.mtimeMs, linkMode);
       notes.push(result.note);
       updatedPaths.push(livePath);
     } catch {

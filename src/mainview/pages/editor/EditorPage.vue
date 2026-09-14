@@ -1139,7 +1139,7 @@ onBeforeUnmount(() => {
           <section
             id="document-editor-panel"
             class="editor-page__editor-column"
-            role="tabpanel"
+            :role="writingFocusActive ? undefined : 'tabpanel'"
             :aria-labelledby="writingFocusActive ? undefined : 'active-document-tab'"
             :aria-label="t('workspace.editorArea')"
           >

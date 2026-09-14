@@ -33,7 +33,11 @@ import {
   renderDocumentTemplate,
 } from "../../editor/document/documentTemplates";
 import { APP_ROUTE_NAMES } from "../../../app/router";
-import { isMarkdownFile, type FileSystemEntry } from "../filesystem/workspaceTypes";
+import {
+  isMarkdownFile,
+  isSafeDocumentBasename,
+  type FileSystemEntry,
+} from "../filesystem/workspaceTypes";
 import {
   createDocument,
   deleteDocument,
@@ -271,6 +275,10 @@ async function createExplorerDocument(seed: "blank" | "readme"): Promise<void> {
     notify(t("files.supportedOnly"));
     return;
   }
+  if (!isSafeDocumentBasename(name)) {
+    notify(t("filesystemErrors.unsafeName"));
+    return;
+  }
 
   const parentDirectory = targetDirectory();
   const relativePath = [parentDirectory, name].filter(Boolean).join("/");
@@ -319,6 +327,10 @@ async function renameSelectedDocument(): Promise<void> {
   if (!nextName || nextName === entry.name || !isMarkdownFile(nextName)) {
     return;
   }
+  if (!isSafeDocumentBasename(nextName)) {
+    notify(t("filesystemErrors.unsafeName"));
+    return;
+  }
 
   const nextPath = [parentPath(entry.path), nextName].filter(Boolean).join("/");
   const buffer = getDocumentBuffer(rootPath, entry.path);
@@ -362,7 +374,6 @@ async function renameSelectedDocument(): Promise<void> {
       const applied = await applyDocumentPathRenamePlan({
         rootPath,
         plan,
-        contentByPath,
         linkMode,
       });
       for (const note of applied.notes) {

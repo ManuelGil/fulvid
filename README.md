@@ -174,7 +174,7 @@ GitHub Releases is the public download channel. There is not a published release
 
 When a release is published, download it from [GitHub Releases](https://github.com/ManuelGil/fulvid/releases) and pick the file for your platform. Until then, use the steps below.
 
-You need [Bun](https://bun.sh) 1.4.0 or newer. Electrobun's and Vite's CLIs also need [Node](https://nodejs.org/) 18 or newer on `PATH` (`#!/usr/bin/env node`). The packaged app does not use Node.
+You need [Bun](https://bun.sh) **1.4.2** or newer on the host (what `bun run doctor` checks). Electrobun's and Vite's CLIs also need [Node](https://nodejs.org/) 18 or newer on `PATH` (`#!/usr/bin/env node`). The packaged app embeds Electrobun 2.0.1 with Hutch's Bun **1.4.0** runtime — that packaged Bun version is independent of the host Bun you use to develop.
 
 On Linux you also need the WebKitGTK stack Electrobun links, including Ayatana AppIndicator:
 
