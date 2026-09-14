@@ -448,6 +448,12 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
           availability: "hasDocument",
         },
         {
+          type: "command",
+          id: "trimTrailingWhitespace",
+          label: "actions.trimTrailingWhitespace",
+          availability: "hasDocument",
+        },
+        {
           type: "submenu",
           id: "format",
           label: "menu.format",

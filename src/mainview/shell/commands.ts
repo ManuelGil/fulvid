@@ -36,6 +36,7 @@ export type CommandId =
   | "indentLines"
   | "outdentLines"
   | "duplicateSelection"
+  | "trimTrailingWhitespace"
   | "find"
   | "replace"
   | "findReferences"
@@ -265,6 +266,15 @@ export const quickActions: readonly QuickActionDefinition[] = [
     order: 30,
     tier: "overflow",
     overflowOrder: 45,
+  },
+  {
+    id: "trimTrailingWhitespace",
+    label: "actions.trimTrailingWhitespace",
+    group: "edit",
+    subgroup: "document",
+    order: 40,
+    tier: "overflow",
+    overflowOrder: 48,
   },
   {
     id: "undo",

@@ -1099,6 +1099,7 @@ const editorCommandIds = new Set<CommandId>([
   "indentLines",
   "outdentLines",
   "duplicateSelection",
+  "trimTrailingWhitespace",
   "find",
   "replace",
   "findReferences",

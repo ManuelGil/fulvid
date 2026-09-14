@@ -137,6 +137,7 @@ type MonacoHostHandle = {
   runMarkdownAction: (action: MarkdownFormatAction) => void;
   insertTextAtCursor: (text: string) => void;
   getSelectedText: () => string;
+  trimTrailingWhitespace: () => boolean;
   currentCursorPosition: () => { lineNumber: number; column: number };
   findAnnotationAtLine: (lineNumber: number) => {
     position: { lineNumber: number; column: number };
@@ -292,6 +293,10 @@ async function saveEditorDocument(): Promise<void> {
     return;
   }
 
+  if (settings.value.editor.trimTrailingWhitespaceOnSave) {
+    monacoHostRef.value?.trimTrailingWhitespace();
+  }
+
   if (buffer.kind === "virtual") {
     await saveAsEditorDocument();
     return;
@@ -322,6 +327,10 @@ async function saveAsEditorDocument(): Promise<void> {
   const buffer = activeBuffer.value;
   if (!buffer) {
     return;
+  }
+
+  if (settings.value.editor.trimTrailingWhitespaceOnSave) {
+    monacoHostRef.value?.trimTrailingWhitespace();
   }
 
   const defaultExtension = settings.value.links.defaultExtension;
@@ -499,6 +508,13 @@ function togglePreview(): void {
 function createNewDocument(): void {
   // Same command as File → New → New Document and Quick Actions.
   void executeCommand("newDocument");
+}
+
+function trimTrailingWhitespaceInEditor(): void {
+  const changed = monacoHostRef.value?.trimTrailingWhitespace() ?? false;
+  if (!changed) {
+    notify(t("markdown.trimTrailingWhitespaceNone"));
+  }
 }
 
 async function createDocumentFromSelection(): Promise<void> {
@@ -929,6 +945,7 @@ const unregisterCommands = [
   registerCommandHandler("duplicateSelection", () =>
     runMonacoEditorAction("editor.action.copyLinesDownAction"),
   ),
+  registerCommandHandler("trimTrailingWhitespace", trimTrailingWhitespaceInEditor),
   registerCommandHandler("find", findInEditor),
   registerCommandHandler("replace", replaceInEditor),
   registerCommandHandler("findReferences", () =>

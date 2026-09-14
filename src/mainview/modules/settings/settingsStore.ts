@@ -60,6 +60,11 @@ export interface EditorSettings {
   minimap: boolean;
   stickyScroll: boolean;
   renderWhitespace: EditorRenderWhitespace;
+  /**
+   * When true, remove trailing spaces/tabs from the active model via Monaco
+   * edits immediately before Save / Save As. Default off — explicit, not silent.
+   */
+  trimTrailingWhitespaceOnSave: boolean;
   showMarkdownFormatBar: boolean;
   /**
    * Preferred default for document annotation glyph/hover presentation.
@@ -147,6 +152,7 @@ const DEFAULT_SETTINGS: FulvidSettings = {
     minimap: false,
     stickyScroll: true,
     renderWhitespace: "selection",
+    trimTrailingWhitespaceOnSave: false,
     showMarkdownFormatBar: false,
     showDocumentAnnotations: true,
     readingStatistics: "wordsAndTime",
@@ -356,6 +362,11 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
       )
         ? (editor.renderWhitespace as EditorRenderWhitespace)
         : DEFAULT_SETTINGS.editor.renderWhitespace,
+      trimTrailingWhitespaceOnSave:
+        typeof (editor as { trimTrailingWhitespaceOnSave?: unknown })
+          .trimTrailingWhitespaceOnSave === "boolean"
+          ? (editor as { trimTrailingWhitespaceOnSave: boolean }).trimTrailingWhitespaceOnSave
+          : DEFAULT_SETTINGS.editor.trimTrailingWhitespaceOnSave,
       showMarkdownFormatBar:
         typeof (editor as { showMarkdownFormatBar?: unknown }).showMarkdownFormatBar === "boolean"
           ? (editor as { showMarkdownFormatBar: boolean }).showMarkdownFormatBar

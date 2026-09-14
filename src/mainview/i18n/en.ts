@@ -50,6 +50,7 @@ export default {
     image: "Image",
     insertLinkNeedsFolder: "Open a folder to insert a document link.",
     selectionRequired: "Select text in the editor to create a document from it.",
+    trimTrailingWhitespaceNone: "No trailing whitespace to remove.",
     pickLinkTarget: "Link to",
     entireDocument: "Entire document",
     tocEmpty: "This document has no headings for a table of contents.",
@@ -120,6 +121,7 @@ export default {
     renameHeading: "Rename heading",
     insertDocumentLink: "Insert document link",
     insertTableOfContents: "Insert table of contents",
+    trimTrailingWhitespace: "Trim trailing whitespace",
     outline: "Outline",
     explorer: "Explorer",
     folder: "Folder",
@@ -460,10 +462,13 @@ export default {
       "Pin the current heading at the top while you scroll through its section. Hidden automatically while Writing Focus is on.",
     editorWhitespace: "Whitespace",
     editorWhitespaceHint:
-      "When spaces and tabs are drawn as dots or arrows.\n\nHidden never shows them. Selection shows them only in the selected text. Always shows them everywhere.",
+      "When spaces and tabs are drawn as dots or arrows.\n\nHidden never shows them. Selection shows them only in the selected text. Always shows them everywhere — including trailing whitespace at line ends.",
     editorWhitespaceNone: "Hidden",
     editorWhitespaceSelection: "Selection",
     editorWhitespaceAll: "Always",
+    trimTrailingWhitespaceOnSave: "Trim trailing whitespace on Save",
+    trimTrailingWhitespaceOnSaveHint:
+      "Before Save or Save As, remove spaces and tabs at the ends of lines with a normal editor edit (undoable). Off by default so Save never surprises you.",
     readingStatistics: "Reading statistics",
     readingStatisticsHint:
       'What the status bar shows for the active document. Updates as you type; saving is not required.\n\nOff hides the count. Word count shows "842 words". Word count + reading time shows "842 words · 4 min read" (about 200 words per minute).\n\nIf the status bar is hidden under Appearance, this information is hidden too.',

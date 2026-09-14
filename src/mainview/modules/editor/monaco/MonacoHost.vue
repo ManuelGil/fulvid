@@ -19,6 +19,7 @@ import {
 } from "../markdown/markdownFormat";
 import { markdownEnterAction } from "../markdown/markdownEnter";
 import { parseMarkdownStructure } from "../markdown/markdownStructure";
+import { collectTrailingWhitespaceSpans } from "../trailingWhitespace";
 import type { EditorCommandState } from "../editorCommandState";
 
 import { settings, type EditorSettings } from "../../settings/settingsStore";
@@ -825,6 +826,37 @@ function getSelectedText(): string {
   return model.getValueInRange(selection);
 }
 
+/**
+ * Remove trailing spaces/tabs via Monaco edits. Returns true when the model changed.
+ * No-op when there is nothing to trim (dirty state unchanged).
+ */
+function trimTrailingWhitespace(): boolean {
+  if (!editor) {
+    return false;
+  }
+  const model = editor.getModel();
+  if (!model) {
+    return false;
+  }
+  const spans = collectTrailingWhitespaceSpans(model.getLineCount(), (lineNumber) =>
+    model.getLineContent(lineNumber),
+  );
+  if (spans.length === 0) {
+    editor.focus();
+    return false;
+  }
+  // Bottom-up so later ranges stay valid while Monaco applies the batch.
+  const edits = [...spans].reverse().map((span) => ({
+    range: new monaco.Range(span.lineNumber, span.startColumn, span.lineNumber, span.endColumn),
+    text: "",
+    forceMoveMarkers: true,
+  }));
+  editor.executeEdits("fulvid-trim-trailing-whitespace", edits);
+  editor.focus();
+  queueCommandState();
+  return true;
+}
+
 defineExpose({
   find,
   focus,
@@ -835,6 +867,7 @@ defineExpose({
   runMarkdownAction,
   insertTextAtCursor,
   getSelectedText,
+  trimTrailingWhitespace,
   currentCursorPosition,
   findAnnotationAtLine,
   upsertAnnotationAtLine,

@@ -68,3 +68,5 @@ Groups: General, Editor, Appearance, Markdown, Preview, Folder, Accessibility, K
 The initial appearance of Fulvid follows the operating system preference (`system`). Choosing Light or Dark in Settings forces that skin; an explicit persisted choice takes priority over the default.
 
 Line endings (LF or CRLF) belong to the document, not to the operating system. Opening a file keeps its endings. Untitled documents use Settings -> New document line endings (LF by default). The statusbar shows the active document's ending; click to switch. Save writes that ending. Changing it does not write until Save.
+
+**Trim trailing whitespace** (Edit → Trim trailing whitespace) removes spaces and tabs immediately before each line ending via Monaco edits (undoable). It does not change EOL, leading indentation, or Preview. Settings → Editor → Trim trailing whitespace on Save is off by default; when on, the same edit runs immediately before Save or Save As. To *see* trailing whitespace while typing, use Settings → Editor → Whitespace → Always (Monaco `renderWhitespace`); Fulvid does not add a separate trailing-space highlighter.
