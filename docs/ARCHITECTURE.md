@@ -90,20 +90,22 @@ The right sidebar shows one panel: Explorer, Search options (on `/search`), Docu
 
 Presentation may become extension-capable later; **authority does not**. An extension is never an owner.
 
+The Extension Engine orchestrates declared capabilities; it does not become the owner of filesystem, document, editor, window, search, graph, or renderer authority.
+
 Path: `extension → declared capability / command → existing owner → existing presentation`.
 
 | Category | Surfaces / rules |
 | --- | --- |
-| **Current** | Declarative discovery loads `userData/extensions` at startup (`api: 0`). Invalid packs fail in isolation. Path: `extension → declared capability → existing owner → application state`. Permanent fixtures under [`extensions/`](../extensions/) (exactly two packs) document the declarative boundary; copy them into userData to try. Host actions: `notify`, `createUntitledFromTemplate`. Namespaced command ids appear under Application Menu → Extensions when loaded. Icons remain a closed declarative vocabulary (`appIcons.ts` / `CommandIcon`). **Lua (host-only):** packs that declare `lua` may ship a relative `entry.lua` executed in the Bun host via wasmoon 1.16.0 (Lua 5.4 / Wasm). Guest APIs: `commands.register`, `ui.notify`. Defensive budgets: wasmoon thread/`functionTimeout` interrupt tight loops; `traceAllocations` + `setMemoryMax` enforce a guest heap ceiling; source-only entry; reduced guest environment; atomic command registration; failure isolation between packs. Packaged builds ship `glue.wasm` beside the Bun entry; packaged runtime verified on Linux x64, Windows x64, and macOS arm64 (see [`compatibility.md`](./compatibility.md)). **Editor (EXPERIMENTAL):** packs that also declare `editor` may use `editor.getSelection` / `editor.replaceSelection` via snapshot/apply (renderer snapshots primary-selection **text** → Lua data-only → MonacoHost `executeEdits`). Apply uses the **live** primary selection/cursor of the active editor at apply time (snapshot does not pin range or document id — TOCTOU remains an experimental limitation). Monaco owns dirty/undo. No live Monaco objects in Lua, no `editor.get`, no filesystem capability, no `host.call`, no editor events to Lua. These editor APIs are **not** a stable public `api: 0` promise. Capability isolation ≠ OS sandbox. Disposable experimental fixtures live under `tests/extensions/fixtures/` only. |
-| **Future seam** | Broader Quick Actions contributions; additional Monaco or Filesystem capabilities only when a real use case cannot be served by the current closed set |
+| **Current** | Declarative discovery loads `userData/extensions` at startup (`api: 0`). Invalid packs fail in isolation. Permanent fixtures under [`extensions/`](../extensions/) (exactly two packs) document the declarative boundary. Host actions: `notify`, `createUntitledFromTemplate`. **Lua (host-only):** `lua` packs may ship relative `entry.lua` via wasmoon 1.16.0 (embedded PUC Lua 5.4.5 / Wasm) with `commands.register` and `ui.notify` under `LUA_EXTENSION_LIMITS`. **Editor (EXPERIMENTAL):** optional `editor.getSelection` / `editor.replaceSelection` (snapshot text → Lua → live Monaco apply); not a stable `api: 0` promise; live-apply TOCTOU remains. Capability isolation ≠ OS sandbox. Full contract: [`EXTENSIONS.md`](./EXTENSIONS.md). |
+| **Future seam** | Broader Quick Actions contributions; additional capabilities only when a real use case cannot be served by the current closed set — each addition is an explicit security/design decision |
 | **Core-controlled** | Focus, dirty state, document selection, Writing Focus policy, grants, filesystem, Graph, Preview inertness, native Full Screen, right-rail panel set, Statusbar indicators, tabs chrome |
-| **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, parallel IPC channels, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution, extension-owned dirty/selection state, generic `host.call` bridges, bytecode entry |
+| **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, parallel IPC channels, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution, extension-owned dirty/selection state, generic `host.call` bridges, bytecode entry, undeclared executable surfaces |
 
 Do not add a second command bus. Do not let a button call filesystem or Monaco directly. Do not fix a UI problem by inventing a second owner of the same behavior.
 
 Discovery: `src/bun/extensions/`. Lua host runtime: `src/bun/extensions/lua/`. Registry / host dispatch: `src/mainview/extensions/`. Contract tests: `tests/extensions/`.
 
-See [`extensions/README.md`](../extensions/README.md).
+Authoritative contract: [`EXTENSIONS.md`](./EXTENSIONS.md). Fixtures: [`extensions/README.md`](../extensions/README.md).
 
 
 ## Document links

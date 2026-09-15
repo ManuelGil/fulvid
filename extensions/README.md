@@ -2,6 +2,8 @@
 
 This directory holds a **minimal set of long-lived fixtures** for Fulvid’s declarative extension boundary.
 
+Authoritative Extension Engine contract (capabilities, absent-by-design, budgets, runtime replacement, removal, contract tests): [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md).
+
 It is **not**:
 
 - a marketplace or plugin catalog;
@@ -34,21 +36,21 @@ Do not add product-shaped packs (bug report, meeting, ADR, etc.) here. Those age
 | Fixtures (JSON + Markdown) | Present — copy into userData to load |
 | Discovery (`userData/extensions`, `api: 0`) | **Implemented** (declarative + optional `lua` capability) |
 | Host actions | `notify`, `createUntitledFromTemplate`; Lua packs use host-only `lua` invoke |
-| Lua / wasmoon 1.16.0 | **Present** in `src/bun/extensions/lua/` — host-only Wasm Lua 5.4 with execution and memory budgets, reduced guest environment, source-only entry, failure isolation. Capability `editor` (`getSelection` / `replaceSelection`, snapshot text → Lua → live Monaco apply) is **EXPERIMENTAL** — not a stable public `api: 0` promise and not a permanent fixture. No filesystem capability. No `host.call`. Capability isolation ≠ OS sandbox. Packaged `glue.wasm` → `bun/glue.wasm`; verified on Linux/Windows/macOS (see `docs/compatibility.md`). Disposable fixtures under `tests/extensions/fixtures/`. |
+| Lua / wasmoon 1.16.0 | **Present** in `src/bun/extensions/lua/` — host-only Wasm, embedded PUC Lua **5.4.5**, budgets, reduced guest environment, source-only entry, failure isolation. Capability `editor` is **EXPERIMENTAL**. No filesystem capability. No `host.call`. Capability isolation ≠ OS sandbox. Details: [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md). Packaged `glue.wasm` → `bun/glue.wasm`; see `docs/compatibility.md`. Disposable fixtures under `tests/extensions/fixtures/`. |
 
 ## UI extension boundary
 
-Path: `extension → declared capability / command → existing owner → presentation`. An extension is never an owner.
+Path: `extension → declared capability / command → existing owner → presentation`. An extension is never an owner. The Extension Engine does not become the owner of filesystem, document, editor, window, search, graph, or renderer authority.
 
 | Kind | Meaning today |
 | --- | --- |
-| **Current** | Host discovers `userData/extensions`, validates `api: 0` manifests, registers declarative commands/templates, invokes existing owners. Failures are isolated per pack. Namespaced ids: `<extensionId>.<commandId>` |
-| **Future seam** | Optional Lua only if declarative packs are insufficient for a real need |
-| **Forbidden** | Monaco, filesystem/grants, BrowserWindow, process, network, Vue internals, arbitrary HTML/SVG/DOM, MDX execution, Focus / Writing Focus / Graph policy, executable `main`/`entry`/`lua` |
+| **Current** | Host discovers `userData/extensions`, validates `api: 0` manifests, registers declarative commands/templates, invokes existing owners. Optional `lua` + experimental `editor` per [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md). Failures are isolated per pack. Namespaced ids: `<extensionId>.<commandId>` |
+| **Future seam** | Additional capabilities only via an explicit security/design decision — not a routine API widening |
+| **Forbidden** | Monaco internals, filesystem/grants, BrowserWindow, process, network, Vue internals, arbitrary HTML/SVG/DOM, MDX execution, Focus / Writing Focus / Graph policy, generic `host.call`, bytecode entry, undeclared executable surfaces (declarative packs must not ship executable `main` / JS entry; Lua `entry.lua` only when capability `lua` is declared) |
 
 Never: `extension → Vue/Monaco/filesystem`. Do not invent a second owner to “make an extension work.”
 
-Contract tests: `tests/extensions/extensionFixtures.unit.test.ts`, `extensionUiBoundary.unit.test.ts`, `extensionDiscovery.unit.test.ts`.
+Contract tests: `tests/extensions/` (see [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md#tests-as-security-contracts)).
 
 ## Layout
 

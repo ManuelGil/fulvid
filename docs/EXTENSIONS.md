@@ -1,0 +1,280 @@
+# Extension Engine
+
+Architectural and security contract for Fulvid’s local Extension Engine.
+
+Ownership summary: [ARCHITECTURE.md](./ARCHITECTURE.md). Product vocabulary: [CONCEPTS.md](./CONCEPTS.md). Standing security review: [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md). Fixtures: [`extensions/README.md`](../extensions/README.md).
+
+This document protects the architecture against future drift. It is not a roadmap and does not add capabilities.
+
+## Architectural contract
+
+```text
+Extension
+    ↓
+Declared capability
+    ↓
+Existing host owner
+```
+
+The Extension Engine orchestrates extension capabilities; it does not become the owner of the underlying product behavior.
+
+An extension capability must call an existing owner or seam rather than recreate ownership inside the Extension Engine.
+
+| Concern | Owner (not the Extension Engine) |
+| --- | --- |
+| Filesystem authority | Bun filesystem host (`src/bun/filesystem/`) |
+| Document selection / Focus | Session + Focus owners ([ARCHITECTURE.md](./ARCHITECTURE.md)) |
+| Live editor text, dirty, undo | Monaco / `MonacoHost` |
+| Window fullscreen | BrowserWindow / native host |
+| Search | Global Search / local find owners |
+| Graph | Graph projection |
+| Renderer / Preview inertness | Preview owner |
+
+Never: `extension → Vue / Monaco / filesystem` as a direct authority path.
+
+## What the Engine is not
+
+The current Engine is **not**:
+
+- a general scripting environment
+- a plugin OS
+- a Node runtime for extensions
+- a process launcher
+- a filesystem sandbox
+- a network sandbox
+- a marketplace
+- a second application runtime
+- a second document model
+- a second editor model
+- a Monaco wrapper
+- a general RPC bus
+
+**Capability isolation ≠ OS sandbox.** Declared capabilities, reduced guest globals, Wasm guest heap ceilings, and wall-clock execution budgets constrain what an extension may ask the host to do. They do **not** place the guest in a separate OS process with kernel isolation. Do not oversell Lua/Wasm as equivalent to an OS process sandbox.
+
+## Current capability surface
+
+Load path: `userData/extensions/<id>/` at startup (`api: 0`). Repository fixtures under [`extensions/`](../extensions/) are documentation-as-data, not the load path.
+
+### Declarative
+
+| Capability / surface | Authority owner | Permitted operation | Explicitly absent | Limits | Failure |
+| --- | --- | --- | --- | --- | --- |
+| `commands` (declarative) | Extension registry → existing host action | Register namespaced command ids that invoke declared host actions | Arbitrary handlers, Monaco, filesystem | Closed action set; closed icon vocabulary | Invalid pack fails in isolation |
+| templates + `createUntitledFromTemplate` | Document / untitled creation owner | Seed an untitled buffer from a contained Markdown template | Template as executable code; path traversal | Template must stay inside the pack | Isolated pack failure |
+| `notify` | UI notify owner | Show a host notification | Arbitrary UI injection | Notify length budgets where applicable | Rejected / no-op per owner |
+
+Declarative packs do not execute Lua, JavaScript, or MDX.
+
+### Lua
+
+| Capability / surface | Authority owner | Permitted operation | Explicitly absent | Limits | Failure |
+| --- | --- | --- | --- | --- | --- |
+| `lua` + `commands` | Lua host runtime → registry | `commands.register` then host invoke of `run` | Declarative command tables on the same pack; generic bridges | `LUA_EXTENSION_LIMITS` (source, commands, execution, memory) | Load/invoke fails closed; neighbors continue |
+| `ui` | UI notify owner | `ui.notify(message)` | Arbitrary DOM/HTML/SVG | `maxNotifyMessageChars` | Oversized notify rejected |
+| `editor` (**EXPERIMENTAL**) | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation | `maxEditorSelectionChars` | Rejected / fail closed; see Editor section |
+
+Guest APIs are only the surfaces above. There is no generic `host.call`.
+
+## Absent by design
+
+These capabilities are **absent by design**. Adding one is an architectural/security change, not a routine extension of the API:
+
+```text
+fs
+net
+process
+host.call
+arbitrary JavaScript
+arbitrary UI
+Monaco object exposure
+document activation from Lua
+arbitrary document access
+arbitrary workspace access
+bytecode execution
+Lua package/module loading
+```
+
+Absence is intentional containment, not an unfinished backlog item. A future addition requires a new explicit security and design decision, documentation, and contract tests — together.
+
+## Editor (EXPERIMENTAL)
+
+**Editor capability is EXPERIMENTAL.** It is tested; it is **not** a stable public `api: 0` promise.
+
+Protocol:
+
+```text
+snapshot → Lua → apply
+```
+
+- Selection is a **bounded text snapshot** (primary selection text only).
+- Lua does **not** receive a live Monaco object, model, range, or document id.
+- Replacement is queued and applied through the existing Monaco owner/seam (`MonacoHost` / editor extension seam) after Lua returns.
+- Apply uses the **live** primary selection or cursor of the active editor at apply time.
+- The documented size boundary (`LUA_EXTENSION_LIMITS.maxEditorSelectionChars` / `EDITOR_EXTENSION_LIMITS`) is **contractual**.
+- The capability does **not** grant arbitrary document or editor authority.
+- **Live-apply TOCTOU** (user changes selection or document between snapshot and apply) remains a known accepted limitation.
+
+Contract detail and comments: `src/mainview/extensions/editorCapability.ts`.
+
+## Security and resource budgets
+
+Authoritative constants: `LUA_EXTENSION_LIMITS` in `src/bun/extensions/lua/luaLimits.ts` (editor mirrors via `EDITOR_EXTENSION_LIMITS` in `src/mainview/extensions/editorCapability.ts`).
+
+| Budget | Constant | Security purpose |
+| --- | --- | --- |
+| Lua source size | `maxSourceBytes` | Caps guest source accepted at load |
+| Execution timeout | `maxExecutionMs` | Interrupts runaway guest work |
+| Guest memory | `maxWasmMemoryBytes` | Caps Wasm guest heap growth |
+| Command count | `maxCommandsPerExtension` | Caps registrations per pack |
+| Notification size | `maxNotifyMessageChars` | Caps notify payload |
+| Editor selection / replace | `maxEditorSelectionChars` | Caps snapshot and replacement text |
+
+A budget is a **security/resource boundary**, not merely a performance optimization. Changing a budget value is a contract change and must keep permanent verification that pins observable boundary behavior (not only relative `limit + 1` derived from the constant).
+
+## Runtime provenance
+
+| Item | Established value |
+| --- | --- |
+| Wasmoon | `1.16.0` |
+| Embedded PUC Lua | `5.4.5` (build-source identity: wasmoon `1.16.0` pins PUC submodule with `LUA_VERSION_RELEASE "5"`; shipped `glue.wasm` strings expose only `Lua 5.4`) |
+
+Runtime upgrades (Wasmoon or replacement) require re-evaluation of:
+
+- embedded Lua version / patch identity
+- relevant CVEs and advisories
+- guest restrictions
+- memory behavior
+- execution interruption
+- packaged `glue.wasm` artifact
+- cross-platform packaged behavior (`docs/compatibility.md`, `bun run smoke:lua-packaged`)
+
+Do not assume a Wasmoon upgrade preserves the same Lua patch.
+
+## Runtime replacement and removal boundaries
+
+The runtime **implementation** may change (Wasmoon upgraded, replaced, removed, or another language/runtime used). The **authority model must not silently expand**.
+
+If the runtime is upgraded, replaced, moved, or partially reused, preserve at minimum:
+
+```text
+source-only execution
+no bytecode execution
+no arbitrary module loading
+no filesystem mount
+no network authority
+no process authority
+no arbitrary host object injection
+no arbitrary JS bridge
+explicit capability surface
+execution budget
+memory budget
+failure isolation
+per-extension isolation
+host ownership boundaries
+```
+
+Future runtimes need not use Wasm. They must not quietly become a privileged scripting engine.
+
+**Reuse:** Reusing the runtime implementation elsewhere in Fulvid does **not** imply reusing or expanding its authority. Reuse must preserve capability scoping, existing owner boundaries, guest restrictions, resource budgets, failure isolation, source-only execution, and no arbitrary host bridge.
+
+## Engine removal checklist
+
+If the Extension Engine is removed from Fulvid, complete removal should account for:
+
+```text
+discovery                         src/bun/extensions/
+manifest validation               src/mainview/extensions/extensionManifest.ts
+host registry                     src/mainview/extensions/extensionRegistry.ts
+runtime                           src/bun/extensions/lua/
+packaged glue.wasm                electrobun.config.ts copy → bun/glue.wasm
+menu integration                  Application Menu → Extensions
+userData extension paths          Utils.paths.userData/extensions
+documentation                     docs/EXTENSIONS.md, ARCHITECTURE, INVARIANTS, CONCEPTS, compatibility
+i18n strings                      extension-related catalog keys
+tests                             tests/extensions/
+temporary fixtures                tests/extensions/fixtures/
+permanent fixtures                extensions/
+build/package configuration       packaging + Electrobun copy rules
+dependencies                      wasmoon (and related)
+security documentation            SECURITY-AND-RESILIENCE.md
+compatibility documentation       docs/compatibility.md Lua packaged matrix
+```
+
+Partial removal that leaves dead capability owners, orphaned menus, stale discovery directories, unused runtime dependencies, misleading docs, obsolete security assumptions, fixtures presented as supported product features, or tests for deleted architecture is incomplete.
+
+This is a checklist, not a removal script.
+
+## Footprint (removability map)
+
+| Area | Path |
+| --- | --- |
+| Host discovery | `src/bun/extensions/` |
+| Lua runtime | `src/bun/extensions/lua/` |
+| Manifest / registry / editor seam | `src/mainview/extensions/` |
+| Permanent contract tests | `tests/extensions/` |
+| Declarative fixtures | `extensions/` |
+| Disposable Lua fixtures | `tests/extensions/fixtures/` |
+| Packaged glue | `electrobun.config.ts` → `bun/glue.wasm` |
+| Packaged smoke | `scripts/luaPackagedSmoke.ts` (`bun run smoke:lua-packaged`) |
+| Docs | this file; cross-links in ARCHITECTURE, INVARIANTS, CONCEPTS, SECURITY-AND-RESILIENCE, compatibility |
+
+## Tests as security contracts
+
+Permanent tests under `tests/extensions/` protect architectural and security boundaries. They are **contract tests**, not merely implementation coverage.
+
+| Question | Primary permanent coverage |
+| --- | --- |
+| Can an extension escape containment / own Monaco or filesystem? | `extensionUiBoundary.unit.test.ts`, `extensionFixtures.unit.test.ts` |
+| Can it execute bytecode? | Load path rejects bytecode (`extensionLuaRuntime` / runtime) |
+| Can it recover prohibited Lua globals? | `lua guest environment` — dangerous stdlib absent after reduction |
+| Can it bypass execution limits? | `lua execution and memory budgets` — interrupt on load/invoke |
+| Can it bypass memory limits? | same — controlled memory failure + neighbor isolation |
+| Can it exceed capability limits? | notify size; command registration; editor size tests |
+| Can malformed packs poison discovery? | `extensionDiscovery.unit.test.ts` — isolation / fail closed |
+| Can one extension affect another? | failed pack does not block valid neighbor (Lua + editor suites) |
+| Can editor access exceed its contract? | `extensionEditorCapability.unit.test.ts` |
+| Can the editor size boundary regress (including constant mutation)? | `pins selection and replace boundary at 256 KiB` |
+| Can the packaged runtime execute correctly? | `bun run smoke:lua-packaged` (platform matrix in `compatibility.md`) |
+
+### Protecting contract tests
+
+A test protecting a documented security boundary may only be removed when the boundary itself is intentionally removed or replaced, **and** the replacement contract is documented and covered by an equivalent or stronger verification mechanism.
+
+```text
+documented boundary
+        ↕
+permanent verification
+```
+
+If the implementation changes but the boundary remains, the verification must survive. If the boundary changes intentionally, documentation and tests change together.
+
+### Permanent tests vs temporary attack corpora
+
+| Kind | Role |
+| --- | --- |
+| **Permanent tests** | Stable architectural/security invariants in `tests/extensions/` |
+| **Temporary attack corpus** | Exploratory adversarial verification (may stay ephemeral / outside Git) |
+
+Large fuzzing or red-team corpora need not be stored in the repository. The permanent suite retains only minimal regression tests for discovered defects or stable invariants.
+
+## Security review status
+
+```text
+Extension Engine:
+READY WITH EXPLICIT LIMITATIONS
+```
+
+Accepted limitations:
+
+```text
+Capability isolation ≠ OS sandbox
+Editor live-apply TOCTOU
+```
+
+Platform packaging verification for the Lua runtime is recorded in [compatibility.md](./compatibility.md). That matrix is not a claim of complete cross-platform adversarial security coverage.
+
+## Terminology
+
+Use repository terms: **Extension Engine**, **extension**, **capability**, **pack**, **host**, **guest**, **owner**, **seam**.
+
+Do not introduce competing names (`plugin host`, `plugin sandbox`, `script host`, `extension application`, `extension VM`) unless this repository intentionally defines them.

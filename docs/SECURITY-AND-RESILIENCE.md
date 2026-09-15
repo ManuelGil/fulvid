@@ -60,6 +60,24 @@ Folder scans, Preview, Export, Search, and Graph are derived from files and open
 
 Graph shows resolved links around Focus. It is not a store and not a second copy of the documents. [GRAPH.md](./GRAPH.md).
 
+### Extension Engine
+
+Local packs compose through declared capabilities into **existing owners**. The Extension Engine orchestrates; it does not own filesystem, document, editor, window, search, graph, or renderer authority.
+
+```text
+Extension Engine:
+READY WITH EXPLICIT LIMITATIONS
+```
+
+Accepted limitations:
+
+```text
+Capability isolation ≠ OS sandbox
+Editor live-apply TOCTOU
+```
+
+Authoritative contract (capability surface, absent-by-design, budgets, runtime replacement/removal, contract tests vs temporary attack corpora, Lua provenance): [EXTENSIONS.md](./EXTENSIONS.md).
+
 ### Error containment
 
 Host failures cross the RPC as error codes. Host paths, errno values, and stacks must not reach the UI.
@@ -81,6 +99,7 @@ These surfaces need another look whenever they change. This is not a checklist o
 - Content Security Policy on the packaged page
 - Packaging, install layout, and shipped artifacts
 - Dependency and workflow supply chain
+- Extension Engine runtime (Wasmoon / `glue.wasm`), guest restrictions, budgets, and capability surface ([EXTENSIONS.md](./EXTENSIONS.md))
 
 Windows junction and reparse-point containment, and macOS equivalent attacks, are review items. They are not covered by the Linux adversarial review recorded below.
 
@@ -108,16 +127,16 @@ Unreadable or vanished entries during a scan are skipped and counted. That is a 
 
 Automated coverage that is actually in the repository:
 
-- **Unit tests** - Preview inertness and density timing; link resolution scale and semantics; RPC parameter shape and size; `selectDocument` ↔ Focus pairing; Writing Focus ⊥ native Full Screen
+- **Unit tests** - Preview inertness and density timing; link resolution scale and semantics; RPC parameter shape and size; `selectDocument` ↔ Focus pairing; Writing Focus ⊥ native Full Screen; Extension Engine contract tests under `tests/extensions/` ([EXTENSIONS.md](./EXTENSIONS.md#tests-as-security-contracts))
 - **Integration tests** - folder containment (lexical and canonical, including symlinks); grants; External Open resolve path; scan skip of unreadable or vanished entries; scan ceilings; document I/O and exclusive create; RPC error containment
-- **Smoke** - real editing loop; optional packaged launch (`bun run smoke:compatibility`)
+- **Smoke** - real editing loop; optional packaged launch (`bun run smoke:compatibility`); Lua packaged runtime (`bun run smoke:lua-packaged`)
 - **Compatibility CI** - package and launch on the images in [compatibility.md](./compatibility.md). That is runtime compatibility, not a filesystem red team
 - **Contributor gate** - `bun run validate` (format, translations, lint, types, tests, web build, doctor)
 - **Dependency health** - frozen lockfile and advisory audit (`bun run deps:check`)
 
 These layers protect stable trust and ownership frontiers in place. There is no separate `tests/security-harness/` tree and no second security owner in production code.
 
-Adversarial harnesses used in the 2026-09-09 review are **not** in the repository. They were sandbox scripts. What landed is the regression tests each finding earned. Treat that review as a completed campaign, not as a repeating CI job.
+Adversarial harnesses and large red-team corpora used in reviews are **not** required to live in the repository. What lands permanently is the minimal regression / contract test each finding or invariant earns. Treat completed campaigns as evidence history, not as a repeating CI job that must keep every payload.
 
 Artifact inspection (package modes, no maintainer scripts, pinned Actions SHAs) is a packaging and workflow review, not a unit test.
 
@@ -148,6 +167,7 @@ Re-read this document and re-run the relevant tests (and, when the change is lar
 - A new OS or architecture is claimed as supported
 - Packaging, install layout, or the public distribution channel changes
 - A relevant upstream vulnerability appears, or Fulvid starts processing a new kind of input
+- Wasmoon / embedded Lua / `glue.wasm` is upgraded or replaced, or Extension Engine capabilities/budgets change ([EXTENSIONS.md](./EXTENSIONS.md))
 
 ## Evidence and audit history
 

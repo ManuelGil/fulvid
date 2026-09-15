@@ -86,7 +86,7 @@ Evidence (Compatibility CI): [Windows run 34909418780](https://github.com/Manuel
 
 The Lua smoke checks packaged `bun/glue.wasm`, Wasm init, discovery + `ui.notify`, invalid-pack isolation, and lightweight interrupt/memory probes against the packaged module. It does not launch the UI and does not replace `smoke:compatibility`.
 
-Editor APIs (`editor.getSelection` / `editor.replaceSelection`) are **EXPERIMENTAL**. Snapshot is selection text only; apply targets the live primary selection of the active Monaco editor. Lifecycle and apply TOCTOU are not frozen as a stable public `api: 0` promise. Capability isolation ≠ OS sandbox.
+Editor APIs (`editor.getSelection` / `editor.replaceSelection`) are **EXPERIMENTAL**. Snapshot is selection text only; apply targets the live primary selection of the active Monaco editor. Lifecycle and apply TOCTOU are not frozen as a stable public `api: 0` promise. Capability isolation ≠ OS sandbox. Full Extension Engine contract: [EXTENSIONS.md](./EXTENSIONS.md).
 
 ## What the smoke covers
 

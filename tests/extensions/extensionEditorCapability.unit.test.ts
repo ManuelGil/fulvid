@@ -92,6 +92,24 @@ describe("editor capability contract", () => {
     expect(assertEditorReplaceWithinLimit(1)).toBe("editor.replaceSelection requires a string");
     expect(LUA_EXTENSION_LIMITS.maxEditorSelectionChars.status).toBe("implemented");
   });
+
+  // Absolute 256 KiB contract: existing relative (limit+1) checks do not catch
+  // mutations of the authoritative constant itself.
+  test("pins selection and replace boundary at 256 KiB", () => {
+    const limit = 256 * 1024;
+    const justUnder = "x".repeat(limit - 1);
+    const atLimit = "x".repeat(limit);
+    const overLimit = "x".repeat(limit + 1);
+
+    expect(assertEditorSelectionWithinLimit(justUnder)).toBeNull();
+    expect(assertEditorReplaceWithinLimit(justUnder)).toBeNull();
+    expect(assertEditorSelectionWithinLimit(atLimit)).toBeNull();
+    expect(assertEditorReplaceWithinLimit(atLimit)).toBeNull();
+    expect(assertEditorSelectionWithinLimit(overLimit)).toBe("editor selection exceeds size limit");
+    expect(assertEditorReplaceWithinLimit(overLimit)).toBe(
+      "editor.replaceSelection exceeds size limit",
+    );
+  });
 });
 
 describe("editor snapshot/apply through Lua", () => {
