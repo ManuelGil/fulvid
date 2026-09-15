@@ -74,11 +74,19 @@ All packs that contribute commands use Lua (`entry.lua`). There is no declarativ
 | `ui` | UI notify owner | `ui.notify(message)` | Arbitrary DOM/HTML/SVG; date helpers | `maxNotifyMessageChars` | Oversized notify rejected |
 | `editor` | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation; navigation; identity stamps in Lua | `maxEditorSelectionChars` | Rejected / fail closed / stale rejected; see Editor section |
 | `document` | Untitled / document snapshot via seam | `document.getText` / `document.getCursor` / `document.reveal` / `document.createUntitled` | Filesystem write; activate/open document; live model; host template loader | `maxDocumentTextChars` (512 KiB); createUntitled reuses `maxTemplateBytes` | Rejected / fail closed |
-| `decorations` | Monaco decorations via seam | `decorations.set(ranges)` / `decorations.clear()` (closed host `style` tokens; per-extension) | Arbitrary CSS; live decoration APIs; product semantics; keystroke auto-refresh | `maxDecorationRanges` (500) | Rejected / fail closed / stale rejected |
+| `decorations` | Monaco decorations via seam | `decorations.set(ranges)` / `decorations.clear()` (closed `style` tokens **or** validated `appearance` colors; per-extension) | Arbitrary CSS/HTML/JS; live decoration APIs; product marker semantics; keystroke auto-refresh | `maxDecorationRanges` (500) | Rejected / fail closed / stale rejected |
+| `templates` | Generic Mustache substitute + UTC calendar date | `template.render(source, variables)` - escaped `{{name}}` only; string→string vars. Optional `clock.isoDate()` → `YYYY-MM-DD` (UTC) for pack-built context | Sections/partials/unescaped HTML; lambdas; filesystem; product variable factories (`getVariables`, ADR metadata); date/time subsystems | Template/output reuse `maxTemplateBytes`; 64 vars; key/value caps | Rejected / fail closed |
 
-Guest APIs are only the surfaces above. There is no generic `host.call`. There is no Lua `template.render`, `fulvid.date`, or command `prompts` - packs that need seed Markdown embed it in `entry.lua` (or open an editable document skeleton).
+Guest APIs are only the surfaces above. There is no generic `host.call`. There is no Lua `fulvid.date` or command `prompts`.
 
-Decoration `style` tokens are host visual primitives only: `info`, `warn`, `error`. Extensions choose which style to request; Fulvid does not assign meaning to document text when applying decorations.
+Decoration paint has two mutually exclusive range fields:
+
+- `style`: host severity tokens only - `info`, `warn`, `error` (generic chips; no product meaning).
+- `appearance`: extension-owned structured colors (`backgroundColor`, optional `color` / `bold` / `overviewColor` / `glyph`). Fulvid validates hex/`rgba(...)` only and synthesizes host-authored CSS classes - guests never supply CSS, HTML, or JS.
+
+Fulvid does not assign meaning to document text when applying decorations. Packs that care about `TODO`/`FIXME`, MDX comment tags, or any other product marker own that mapping and their colors themselves.
+
+`template.render` is intentionally domain-free: packs supply both the template text and the variable table. Fulvid does not invent ADR (or any other product) variable names, defaults, naming transforms, or clocks for interpolation. `clock.isoDate()` is a generic UTC calendar string only - packs decide whether to put it in their context.
 
 ## Absent by design
 

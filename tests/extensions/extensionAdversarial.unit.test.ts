@@ -338,10 +338,15 @@ describe("adversarial renderer apply boundary", () => {
           version: "0.0.0",
           api: 1,
           capabilities: ["lua", "commands", "ui", "document"],
+          location: "/tmp/test-extension",
+          state: "loaded" as const,
+          activation: "command" as const,
           commands: [{ id: "go", namespacedId: "local.adv-reg.go", title: "Go" }],
         },
       ],
       failed: [],
+      installed: [],
+      extensionsRoot: null,
     });
     configureExtensionHostActions({
       notify: () => undefined,
@@ -373,10 +378,15 @@ describe("adversarial renderer apply boundary", () => {
           version: "0.0.0",
           api: 1,
           capabilities: ["lua", "commands", "ui", "document"],
+          location: "/tmp/test-extension",
+          state: "loaded" as const,
+          activation: "command" as const,
           commands: [{ id: "go", namespacedId: "local.adv-reg2.go", title: "Go" }],
         },
       ],
       failed: [],
+      installed: [],
+      extensionsRoot: null,
     });
     configureExtensionHostActions({
       notify: () => {
@@ -424,10 +434,15 @@ describe("adversarial renderer apply boundary", () => {
           version: "0.0.0",
           api: 1,
           capabilities: ["lua", "commands", "ui", "decorations"],
+          location: "/tmp/test-extension",
+          state: "loaded" as const,
+          activation: "command" as const,
           commands: [{ id: "go", namespacedId: "local.adv-deco.go", title: "Go" }],
         },
       ],
       failed: [],
+      installed: [],
+      extensionsRoot: null,
     });
     configureExtensionHostActions({
       notify: () => undefined,

@@ -18,6 +18,10 @@ import {
   matchSettingsSearch,
 } from "../../modules/settings/settingsSearch";
 import { syncDocumentAnnotationsVisibleFromPreference } from "../../modules/editor/document/documentAnnotationVisibility";
+import { discoveredExtensions, setDiscoveredExtensions } from "../../extensions/extensionRegistry";
+import { confirmDialog } from "../../app/dialogs";
+import { notify } from "../../app/notify";
+import { desktopRequest } from "../../desktop/electrobunClient";
 import {
   THEME_FAMILIES,
   themeOptionsForFamily,
@@ -30,8 +34,6 @@ import {
 } from "../../../../package.json";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
-import { confirmDialog } from "../../app/dialogs";
-import { notify } from "../../app/notify";
 
 type SettingsCategory =
   | "general"
@@ -40,6 +42,7 @@ type SettingsCategory =
   | "markdown"
   | "preview"
   | "workspace"
+  | "extensions"
   | "accessibility"
   | "keyboard";
 
@@ -53,6 +56,7 @@ const SETTINGS_CATEGORIES: readonly {
   { id: "markdown", label: "settings.markdown" },
   { id: "preview", label: "settings.preview" },
   { id: "workspace", label: "settings.workspace" },
+  { id: "extensions", label: "settings.extensions" },
   { id: "accessibility", label: "settings.accessibility" },
   { id: "keyboard", label: "settings.keyboard" },
 ];
@@ -170,6 +174,74 @@ function selectCategory(category: SettingsCategory): void {
       section: category,
     },
   });
+}
+
+const installedExtensions = computed(() => discoveredExtensions.value.installed);
+
+function extensionStateLabel(state: string): string {
+  if (state === "loaded") {
+    return t("settings.extensionStateLoaded");
+  }
+  if (state === "allowed") {
+    return t("settings.extensionStateAllowed");
+  }
+  if (state === "blocked") {
+    return t("settings.extensionStateBlocked");
+  }
+  if (state === "failed") {
+    return t("settings.extensionStateFailed");
+  }
+  return state;
+}
+
+async function openExtensionFolder(extensionId: string): Promise<void> {
+  try {
+    const ok = await desktopRequest().revealExtensionPack({ id: extensionId });
+    if (!ok) {
+      notify(t("settings.extensionOpenFolderFailed"));
+    }
+  } catch {
+    notify(t("settings.extensionOpenFolderFailed"));
+  }
+}
+
+async function reviewBlockedExtension(extensionId: string): Promise<void> {
+  const pack = installedExtensions.value.find((entry) => entry.id === extensionId);
+  if (!pack || (pack.state !== "blocked" && pack.state !== "failed")) {
+    return;
+  }
+  const confirmed = await confirmDialog(
+    t("settings.extensionAllowMessage", {
+      name: pack.name,
+      id: pack.id,
+      reason: pack.reason ?? t("settings.extensionUnknownReason"),
+    }),
+    {
+      title: t("settings.extensionAllowTitle"),
+      confirmLabel: t("settings.extensionAllowConfirm"),
+      initialFocus: "cancel",
+    },
+  );
+  if (!confirmed) {
+    return;
+  }
+  try {
+    const result = await desktopRequest().allowBlockedExtension({ id: extensionId });
+    setDiscoveredExtensions(result);
+    const updated = result.installed.find((entry) => entry.id === extensionId);
+    if (updated && (updated.state === "loaded" || updated.state === "allowed")) {
+      notify(t("settings.extensionAllowSucceeded", { id: extensionId }));
+    } else {
+      notify(
+        t("settings.extensionAllowStillFailed", {
+          id: extensionId,
+          reason: updated?.reason ?? pack.reason ?? "",
+        }),
+      );
+    }
+  } catch {
+    notify(t("settings.extensionAllowFailed"));
+  }
 }
 
 async function activateSettingsSearchResult(index: number): Promise<void> {
@@ -1684,6 +1756,103 @@ async function onResetSettings(): Promise<void> {
           </section>
 
           <section
+            v-if="selectedCategory === 'extensions'"
+            class="settings-section"
+            aria-labelledby="settings-extensions"
+          >
+            <h2
+              id="settings-extensions"
+              class="settings-section__title"
+              data-settings-id="extensions.section"
+              tabindex="-1"
+            >
+              {{ t("settings.extensions") }}
+            </h2>
+            <p class="settings-option__hint" data-settings-id="extensions.intro">
+              {{ t("settings.extensionsHint") }}
+            </p>
+            <p
+              v-if="installedExtensions.length === 0"
+              class="settings-option__hint"
+              data-settings-id="extensions.empty"
+            >
+              {{ t("settings.extensionsEmpty") }}
+            </p>
+            <ul v-else class="settings-extension-list" data-settings-id="extensions.list">
+              <li
+                v-for="pack in installedExtensions"
+                :key="pack.id"
+                class="settings-extension-card"
+                :data-settings-id="`extensions.pack.${pack.id}`"
+              >
+                <div class="settings-extension-card__header">
+                  <h3 class="settings-extension-card__name">{{ pack.name }}</h3>
+                  <span class="settings-extension-card__state" :data-state="pack.state">
+                    {{ extensionStateLabel(pack.state) }}
+                  </span>
+                </div>
+                <dl class="settings-extension-card__meta">
+                  <div>
+                    <dt>{{ t("settings.extensionId") }}</dt>
+                    <dd>
+                      <code>{{ pack.id }}</code>
+                    </dd>
+                  </div>
+                  <div v-if="pack.version">
+                    <dt>{{ t("settings.extensionVersion") }}</dt>
+                    <dd>{{ pack.version }}</dd>
+                  </div>
+                  <div v-if="pack.author">
+                    <dt>{{ t("settings.extensionAuthor") }}</dt>
+                    <dd>{{ pack.author }}</dd>
+                  </div>
+                  <div v-if="pack.description">
+                    <dt>{{ t("settings.extensionDescription") }}</dt>
+                    <dd>{{ pack.description }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ t("settings.extensionCapabilities") }}</dt>
+                    <dd>
+                      {{
+                        pack.capabilities.length > 0
+                          ? pack.capabilities.join(", ")
+                          : t("settings.extensionCapabilitiesNone")
+                      }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{{ t("settings.extensionLocation") }}</dt>
+                    <dd>
+                      <code>{{ pack.location }}</code>
+                    </dd>
+                  </div>
+                  <div v-if="pack.reason">
+                    <dt>{{ t("settings.extensionReason") }}</dt>
+                    <dd>{{ pack.reason }}</dd>
+                  </div>
+                </dl>
+                <div class="settings-extension-card__actions">
+                  <button
+                    type="button"
+                    class="settings-reset__button"
+                    @click="openExtensionFolder(pack.id)"
+                  >
+                    {{ t("settings.extensionOpenFolder") }}
+                  </button>
+                  <button
+                    v-if="pack.state === 'blocked' || pack.state === 'failed'"
+                    type="button"
+                    class="settings-reset__button"
+                    @click="reviewBlockedExtension(pack.id)"
+                  >
+                    {{ t("settings.extensionReviewBlocked") }}
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+          <section
             v-if="selectedCategory === 'general'"
             class="settings-section"
             aria-labelledby="settings-about"
@@ -2481,6 +2650,75 @@ async function onResetSettings(): Promise<void> {
 
 .settings-about__item {
   @include object-metric-item;
+}
+
+.settings-extension-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $space-group;
+}
+
+.settings-extension-card {
+  padding: $space-group;
+  border: 1px solid $border-subtle;
+  border-radius: $radius;
+  background: color-mix(in srgb, $surface 78%, transparent);
+}
+
+.settings-extension-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $space-tight;
+  margin-bottom: $space-compact;
+}
+
+.settings-extension-card__name {
+  margin: 0;
+  font-size: $font-control;
+  font-weight: 600;
+}
+
+.settings-extension-card__state {
+  font-size: $font-label;
+  color: $text-secondary;
+}
+
+.settings-extension-card__state[data-state="blocked"],
+.settings-extension-card__state[data-state="failed"] {
+  color: $error-text;
+}
+
+.settings-extension-card__meta {
+  display: grid;
+  gap: $space-tight;
+  margin: 0 0 $space-group;
+}
+
+.settings-extension-card__meta div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.settings-extension-card__meta dt {
+  margin: 0;
+  font-size: $font-label;
+  color: $text-secondary;
+}
+
+.settings-extension-card__meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-extension-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-tight;
 }
 
 .settings-shortcuts {

@@ -108,6 +108,18 @@ describe("extension manifest contract", () => {
     expect(result).toEqual({ reason: "invalid extension id" });
   });
 
+  test("rejects commands capability without lua", () => {
+    expect(
+      validateExtensionManifest({
+        id: "local.host-notify",
+        name: "Notify",
+        version: "1.0.0",
+        api: 1,
+        capabilities: ["commands", "ui"],
+      }),
+    ).toEqual({ reason: "commands capability requires the lua capability" });
+  });
+
   test("rejects declarative commands and templates keys", () => {
     expect(
       validateExtensionManifest({
@@ -134,19 +146,21 @@ describe("extension manifest contract", () => {
     ).toEqual({ reason: "forbidden manifest key: templates" });
   });
 
-  test("rejects commands capability without lua", () => {
+  test("accepts templates capability with lua; rejects without lua", () => {
     expect(
       validateExtensionManifest({
-        id: "local.host-notify",
-        name: "Notify",
+        id: "local.adr-templates",
+        name: "ADR",
         version: "1.0.0",
         api: 1,
-        capabilities: ["commands", "ui"],
+        capabilities: ["lua", "commands", "ui", "document", "templates"],
+        entry: "init.lua",
       }),
-    ).toEqual({ reason: "commands capability requires the lua capability" });
-  });
-
-  test("rejects unknown templates capability", () => {
+    ).toMatchObject({
+      manifest: expect.objectContaining({
+        capabilities: expect.arrayContaining(["templates"]),
+      }),
+    });
     expect(
       validateExtensionManifest({
         id: "local.blank-note",
@@ -155,7 +169,7 @@ describe("extension manifest contract", () => {
         api: 1,
         capabilities: ["templates", "commands"],
       }),
-    ).toEqual({ reason: "unknown capability: templates" });
+    ).toEqual({ reason: "templates capability requires the lua capability" });
   });
 });
 

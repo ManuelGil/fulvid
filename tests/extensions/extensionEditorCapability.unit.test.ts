@@ -298,6 +298,9 @@ commands.register({
           version: "0.0.0",
           api: 1,
           capabilities: ["lua", "commands", "ui", "editor"],
+          location: "/tmp/test-extension",
+          state: "loaded" as const,
+          activation: "command" as const,
           commands: [
             {
               id: "wrapBold",
@@ -308,6 +311,8 @@ commands.register({
         },
       ],
       failed: [],
+      installed: [],
+      extensionsRoot: null,
     });
 
     const notifications: string[] = [];
@@ -353,6 +358,9 @@ commands.register({
           version: "0.0.0",
           api: 1,
           capabilities: ["lua", "commands", "ui", "editor"],
+          location: "/tmp/test-extension",
+          state: "loaded" as const,
+          activation: "command" as const,
           commands: [
             {
               id: "wrapBold",
@@ -363,6 +371,8 @@ commands.register({
         },
       ],
       failed: [],
+      installed: [],
+      extensionsRoot: null,
     });
     configureExtensionHostActions({
       notify: () => undefined,
@@ -400,6 +410,9 @@ commands.register({
           version: "0.0.0",
           api: 1,
           capabilities: ["lua", "commands", "ui", "editor"],
+          location: "/tmp/test-extension",
+          state: "loaded" as const,
+          activation: "command" as const,
           commands: [
             {
               id: "wrapBold",
@@ -410,6 +423,8 @@ commands.register({
         },
       ],
       failed: [],
+      installed: [],
+      extensionsRoot: null,
     });
     configureExtensionHostActions({
       notify: () => undefined,
@@ -512,6 +527,9 @@ commands.register({
           version: "0.0.0",
           api: 1,
           capabilities: ["lua", "commands", "ui", "editor"],
+          location: "/tmp/test-extension",
+          state: "loaded" as const,
+          activation: "command" as const,
           commands: [
             {
               id: "wrapBold",
@@ -522,6 +540,8 @@ commands.register({
         },
       ],
       failed: [],
+      installed: [],
+      extensionsRoot: null,
     });
     configureExtensionHostActions({
       notify: () => undefined,

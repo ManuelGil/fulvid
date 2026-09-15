@@ -53,6 +53,14 @@ type ExtensionDiscoveryRequests = {
     params: Record<string, never>;
     response: ExtensionDiscoveryResult;
   };
+  allowBlockedExtension: {
+    params: { id: string };
+    response: ExtensionDiscoveryResult;
+  };
+  revealExtensionPack: {
+    params: { id: string };
+    response: boolean;
+  };
   invokeExtensionLuaCommand: {
     params: {
       namespacedId: string;
@@ -85,7 +93,14 @@ type ExtensionDiscoveryRequests = {
               startColumn: number;
               endLine: number;
               endColumn: number;
-              style: string;
+              style?: string;
+              appearance?: {
+                backgroundColor: string;
+                color?: string;
+                bold?: boolean;
+                overviewColor?: string;
+                glyph?: boolean;
+              };
             }>;
           };
           createUntitled?: string;

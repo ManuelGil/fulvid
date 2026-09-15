@@ -4,6 +4,16 @@
   "version": "1.0.0",
   "api": 1,
   "description": "Creates an untitled blank note via document.createUntitled.",
+  "author": "Fulvid",
   "capabilities": ["lua", "commands", "ui", "document"],
-  "entry": "entry.lua"
+  "entry": "entry.lua",
+  "activation": "command",
+  "actions": [
+    {
+      "id": "createBlankNote",
+      "menu": "file.new",
+      "order": 10,
+      "title": "New Blank Note"
+    }
+  ]
 }

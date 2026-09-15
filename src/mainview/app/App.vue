@@ -90,14 +90,14 @@ import {
   usesNativeApplicationMenu,
 } from "../shell/applicationMenu/applicationMenuClient";
 import {
-  appendExtensionCommandsMenu,
+  integrateExtensionActionsIntoMenus,
   presentApplicationMenu,
   type ApplicationMenuState,
 } from "../shell/applicationMenu/applicationMenuModel";
 import { desktopRequest, onApplicationMenuClicked } from "../desktop/electrobunClient";
 import {
   configureExtensionHostActions,
-  listExtensionCommands,
+  listExtensionMenuCommands,
   runExtensionCommand,
   setDiscoveredExtensions,
 } from "../extensions/extensionRegistry";
@@ -648,9 +648,8 @@ onMounted(() => {
     .listDiscoveredExtensions({})
     .then((result) => {
       setDiscoveredExtensions(result);
+      // Startup toasts only for failed/blocked packs; Settings holds the inventory.
       for (const failure of result.failed) {
-        // Toast only here — Bun already logs the bounded host diagnostic.
-        // Re-logging would mirror guest failure text into the webview console stream.
         notify(t("extensions.loadFailed", { id: failure.id }));
       }
     })
@@ -879,7 +878,7 @@ async function openQuickOpen(): Promise<void> {
   }
   const rootPath = workspace.value?.path;
   if (!rootPath) {
-    // Selection succeeded but Folder is gone — fail visibly, not silently.
+    // Selection succeeded but Folder is gone - fail visibly, not silently.
     notify(t("workspace.noWorkspace"));
     return;
   }
@@ -1024,14 +1023,13 @@ const applicationMenuState = computed<ApplicationMenuState>(() => {
 });
 
 const presentedApplicationMenus = computed(() =>
-  appendExtensionCommandsMenu(
+  integrateExtensionActionsIntoMenus(
     presentApplicationMenu(
       applicationMenuSupport.value?.platform ?? "other",
       applicationMenuState.value,
       t,
     ),
-    listExtensionCommands(),
-    t("menu.extensions"),
+    listExtensionMenuCommands(),
   ),
 );
 

@@ -756,28 +756,123 @@ export function presentedMenuAction(item: PresentedMenuItem): string | null {
 }
 
 /**
- * Append a top-level Extensions menu when loaded extension commands are available.
- * Presentation only - ownership stays with extension -> host action.
+ * Place loaded extension actions into existing Fulvid menus.
+ * Presentation only - no Extensions top-level menu; invalid targets never appear.
  */
-export function appendExtensionCommandsMenu(
+export function integrateExtensionActionsIntoMenus(
   menus: readonly PresentedMenuBar[],
-  commands: readonly { namespacedId: string; title: string }[],
-  menuLabel: string,
+  commands: readonly {
+    namespacedId: string;
+    title: string;
+    menu?: string;
+    order?: number;
+    documentAction?: boolean;
+  }[],
 ): PresentedMenuBar[] {
-  if (commands.length === 0) {
+  const byTarget = new Map<string, PresentedMenuItem[]>();
+  const sortable = commands
+    .filter((command) => command.menu && !command.documentAction)
+    .slice()
+    .sort((a, b) => (a.order ?? 1000) - (b.order ?? 1000) || a.title.localeCompare(b.title));
+
+  for (const command of sortable) {
+    const target = command.menu;
+    if (!target) {
+      continue;
+    }
+    const list = byTarget.get(target) ?? [];
+    list.push({
+      type: "command",
+      id: command.namespacedId,
+      label: command.title,
+      enabled: true,
+    });
+    byTarget.set(target, list);
+  }
+
+  if (byTarget.size === 0) {
     return [...menus];
   }
-  return [
-    ...menus,
-    {
-      id: "extensions",
-      label: menuLabel,
-      items: commands.map((command) => ({
-        type: "command" as const,
-        id: command.namespacedId,
-        label: command.title,
-        enabled: true,
-      })),
-    },
-  ];
+
+  return menus.map((menu) => {
+    if (menu.id === "file") {
+      const additions = byTarget.get("file.new");
+      if (!additions?.length) {
+        return menu;
+      }
+      return {
+        ...menu,
+        items: insertIntoSubmenu(menu.items, "new", additions),
+      };
+    }
+    if (menu.id === "edit") {
+      const additions = byTarget.get("edit");
+      if (!additions?.length) {
+        return menu;
+      }
+      return {
+        ...menu,
+        items: appendWithSeparator(menu.items, additions, "edit-extension-actions"),
+      };
+    }
+    if (menu.id === "view") {
+      const additions = byTarget.get("view");
+      if (!additions?.length) {
+        return menu;
+      }
+      return {
+        ...menu,
+        items: appendWithSeparator(menu.items, additions, "view-extension-actions"),
+      };
+    }
+    if (menu.id === "navigate") {
+      const additions = byTarget.get("navigate");
+      if (!additions?.length) {
+        return menu;
+      }
+      return {
+        ...menu,
+        items: appendWithSeparator(menu.items, additions, "navigate-extension-actions"),
+      };
+    }
+    if (menu.id === "help") {
+      const additions = byTarget.get("help");
+      if (!additions?.length) {
+        return menu;
+      }
+      return {
+        ...menu,
+        items: appendWithSeparator(menu.items, additions, "help-extension-actions"),
+      };
+    }
+    return menu;
+  });
+}
+
+function insertIntoSubmenu(
+  items: readonly PresentedMenuItem[],
+  submenuId: string,
+  additions: readonly PresentedMenuItem[],
+): PresentedMenuItem[] {
+  return items.map((item) => {
+    if (item.type !== "submenu" || item.id !== submenuId) {
+      return item;
+    }
+    return {
+      ...item,
+      items: [
+        ...item.items,
+        { type: "separator", id: `${submenuId}-extension-actions` },
+        ...additions,
+      ],
+    };
+  });
+}
+
+function appendWithSeparator(
+  items: readonly PresentedMenuItem[],
+  additions: readonly PresentedMenuItem[],
+  separatorId: string,
+): PresentedMenuItem[] {
+  return [...items, { type: "separator", id: separatorId }, ...additions];
 }

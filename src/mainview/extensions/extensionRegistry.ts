@@ -38,7 +38,14 @@ export type ExtensionLuaInvokeResult =
           startColumn: number;
           endLine: number;
           endColumn: number;
-          style: string;
+          style?: string;
+          appearance?: {
+            backgroundColor: string;
+            color?: string;
+            bold?: boolean;
+            overviewColor?: string;
+            glyph?: boolean;
+          };
         }>;
       };
       createUntitled?: string;
@@ -63,6 +70,8 @@ let hostActions: ExtensionHostActions | null = null;
 export const discoveredExtensions: Ref<ExtensionDiscoveryResult> = ref({
   loaded: [],
   failed: [],
+  installed: [],
+  extensionsRoot: null,
 });
 
 export function configureExtensionHostActions(actions: ExtensionHostActions): void {
@@ -70,11 +79,41 @@ export function configureExtensionHostActions(actions: ExtensionHostActions): vo
 }
 
 export function setDiscoveredExtensions(result: ExtensionDiscoveryResult): void {
-  discoveredExtensions.value = result;
+  discoveredExtensions.value = {
+    loaded: result.loaded ?? [],
+    failed: result.failed ?? [],
+    installed: result.installed ?? result.loaded ?? [],
+    extensionsRoot: result.extensionsRoot ?? null,
+  };
 }
 
 export function listExtensionCommands(): readonly DiscoveredExtensionCommand[] {
   return discoveredExtensions.value.loaded.flatMap((extension) => extension.commands);
+}
+
+/** Menu-facing actions only (excludes document always-on commands). */
+export function listExtensionMenuCommands(): readonly DiscoveredExtensionCommand[] {
+  return listExtensionCommands().filter((command) => command.menu && !command.documentAction);
+}
+
+/** Document-oriented packs that should refresh when the active document changes. */
+export function listDocumentActivationCommands(): readonly {
+  extensionId: string;
+  namespacedId: string;
+}[] {
+  const result: { extensionId: string; namespacedId: string }[] = [];
+  for (const extension of discoveredExtensions.value.loaded) {
+    if (extension.activation !== "document" || !extension.documentAction) {
+      continue;
+    }
+    const command = extension.commands.find(
+      (entry) => entry.id === extension.documentAction || entry.documentAction,
+    );
+    if (command) {
+      result.push({ extensionId: extension.id, namespacedId: command.namespacedId });
+    }
+  }
+  return result;
 }
 
 function findExtensionCommand(
@@ -111,7 +150,10 @@ function describeInvokeFailure(error: string): LocalizedError {
  * Run a namespaced Lua extension command through host-owned apply only.
  * @returns true when a registered extension command handled the id
  */
-export async function runExtensionCommand(namespacedId: string): Promise<boolean> {
+export async function runExtensionCommand(
+  namespacedId: string,
+  options?: { silent?: boolean },
+): Promise<boolean> {
   const match = findExtensionCommand(namespacedId);
   if (!match) {
     return false;
@@ -294,13 +336,20 @@ export async function runExtensionCommand(namespacedId: string): Promise<boolean
     await hostActions.createUntitled(result.createUntitled);
   }
 
-  for (const message of result.notifications) {
-    hostActions.notify(message);
+  if (!options?.silent) {
+    for (const message of result.notifications) {
+      hostActions.notify(message);
+    }
   }
   return true;
 }
 
 export function resetExtensionRegistryForTests(): void {
   hostActions = null;
-  discoveredExtensions.value = { loaded: [], failed: [] };
+  discoveredExtensions.value = {
+    loaded: [],
+    failed: [],
+    installed: [],
+    extensionsRoot: null,
+  };
 }

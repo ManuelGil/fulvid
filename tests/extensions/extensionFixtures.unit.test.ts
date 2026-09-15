@@ -21,6 +21,7 @@ const ALLOWED_CAPABILITIES = new Set([
   "editor",
   "document",
   "decorations",
+  "templates",
 ]);
 const FORBIDDEN_MANIFEST_KEYS = new Set([
   "main",

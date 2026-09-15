@@ -18,6 +18,8 @@ import {
   configureExtensionDiscovery,
   discoverExtensions,
   getDiscoveredExtensions,
+  loadAllowedBlockedExtension,
+  resolveInstalledExtensionPath,
 } from "./extensions/discoverExtensions";
 import { invokeLuaExtensionCommand } from "./extensions/lua/luaExtensionRuntime";
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
@@ -60,6 +62,23 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
       ...filesystemRpcHandlers,
       takePendingExternalOpens: () => takePendingExternalOpens(),
       listDiscoveredExtensions: () => getDiscoveredExtensions(),
+      allowBlockedExtension: async ({ id }) => {
+        if (typeof id !== "string" || id.length === 0 || id.length > 256) {
+          return getDiscoveredExtensions();
+        }
+        return loadAllowedBlockedExtension(id);
+      },
+      revealExtensionPack: ({ id }) => {
+        if (typeof id !== "string" || id.length === 0 || id.length > 256) {
+          return false;
+        }
+        const path = resolveInstalledExtensionPath(id);
+        if (!path) {
+          return false;
+        }
+        Utils.showItemInFolder(path);
+        return true;
+      },
       invokeExtensionLuaCommand: (params) => invokeLuaExtensionCommand(params),
       setApplicationMenu: ({ items }) => setNativeApplicationMenu(items),
       getApplicationMenuSupport: () => applicationMenuSupport(),

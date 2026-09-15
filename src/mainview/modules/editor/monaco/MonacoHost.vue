@@ -49,7 +49,9 @@ import {
   registerFrontmatterDiagnostics,
 } from "./documentLanguage";
 import {
-  cssClassForExtensionDecoration,
+  monacoDecorationOptionsForRange,
+  ensureExtensionDecorationStyles,
+  ensureExtensionAppearanceStyles,
   type ExtensionDecorationRange,
 } from "../../../extensions/decorationCapability";
 
@@ -72,6 +74,8 @@ const emit = defineEmits<{
   scroll: [ratio: number];
   commandState: [state: EditorCommandState];
   annotateLine: [lineNumber: number];
+  /** Live model text changed - host document extensions may reprocess. */
+  contentChange: [];
 }>();
 
 const hostRef = ref<HTMLDivElement | null>(null);
@@ -477,7 +481,10 @@ function mountEditor(): void {
     registerMarkdownActions();
     updateBackToTopLabel();
   });
-  stopContentWatch = editor.onDidChangeModelContent(queueCommandState);
+  stopContentWatch = editor.onDidChangeModelContent(() => {
+    queueCommandState();
+    emit("contentChange");
+  });
   stopCursorWatch = editor.onDidChangeCursorPosition(queueCommandState);
   stopEditorKeyWatch = editor.onKeyDown((event) => {
     if (event.keyCode === monaco.KeyCode.Escape) {
@@ -928,20 +935,35 @@ function setExtensionDecorations(
   if (!editor) {
     return false;
   }
+  ensureExtensionDecorationStyles();
+  for (const range of ranges) {
+    if (range.appearance) {
+      ensureExtensionAppearanceStyles(range.appearance);
+    }
+  }
   let collection = extensionDecorationCollections.get(extensionId);
   if (!collection) {
     collection = editor.createDecorationsCollection([]);
     extensionDecorationCollections.set(extensionId, collection);
   }
   collection.set(
-    ranges.map((range) => ({
-      range: new monaco.Range(range.startLine, range.startColumn, range.endLine, range.endColumn),
-      options: {
-        className: cssClassForExtensionDecoration(range.style),
-        inlineClassName: cssClassForExtensionDecoration(range.style),
-        stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
-      },
-    })),
+    ranges.map((range) => {
+      const render = monacoDecorationOptionsForRange(range);
+      return {
+        range: new monaco.Range(range.startLine, range.startColumn, range.endLine, range.endColumn),
+        options: {
+          inlineClassName: render.inlineClassName,
+          ...(render.glyphMarginClassName
+            ? { glyphMarginClassName: render.glyphMarginClassName }
+            : {}),
+          stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+          overviewRuler: {
+            color: render.overviewRulerColor,
+            position: monaco.editor.OverviewRulerLane.Center,
+          },
+        },
+      };
+    }),
   );
   return true;
 }
@@ -1134,15 +1156,34 @@ onBeforeUnmount(() => {
   opacity: 0.85;
 }
 
+/*
+ * Fallback chip rules (also injected at apply-time via ensureExtensionDecorationStyles).
+ * Solid hex - no color-mix. Prefer the injected sheet's !important for WebKitGTK.
+ */
 .fulvid-ext-decoration-info {
-  background-color: color-mix(in srgb, #4a7fc4 16%, transparent);
+  box-decoration-break: clone;
+  border-radius: 0.2rem;
+  font-weight: 700;
+  padding: 0 0.12em;
+  background-color: #4a7fc4;
+  color: #ffffff !important;
 }
 
 .fulvid-ext-decoration-warn {
-  background-color: color-mix(in srgb, #c9a227 18%, transparent);
+  box-decoration-break: clone;
+  border-radius: 0.2rem;
+  font-weight: 700;
+  padding: 0 0.12em;
+  background-color: #d29922;
+  color: #0d1117 !important;
 }
 
 .fulvid-ext-decoration-error {
-  background-color: color-mix(in srgb, #c45c4a 18%, transparent);
+  box-decoration-break: clone;
+  border-radius: 0.2rem;
+  font-weight: 700;
+  padding: 0 0.12em;
+  background-color: #ff7b72;
+  color: #0d1117 !important;
 }
 </style>

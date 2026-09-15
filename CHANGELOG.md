@@ -12,11 +12,12 @@ This file is updated as part of the change, not reconstructed when a version is 
 ### Added
 
 - **Extensions (API v1)**: local Lua packs under `userData/extensions/` add commands through existing owners (notify, untitled, Monaco selection/document/decorations). Source-only Lua/Wasm on the Bun host; no marketplace, network, filesystem, or live Monaco authority. Reference packs: `extensions/`. Guide: [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
-- **Extension API expansion**: Lua packs may use least-privilege `document` (`getText` / `getCursor` / `reveal` / `createUntitled`), `decorations` (set/clear with host styles `info|warn|error`), and selection replace under `editor`. Snapshot/apply stays Bun-runtime -> renderer-apply through existing owners. No Lua `template.render`, `fulvid.date`, or command `prompts` - pack semantics live entirely outside Fulvid.
+- **Extension API expansion**: Lua packs may use least-privilege `document` (`getText` / `getCursor` / `reveal` / `createUntitled`), `decorations` (set/clear with host styles or validated `appearance`), selection replace under `editor`, and generic `template.render` under `templates`. Snapshot/apply stays Bun-runtime -> renderer-apply through existing owners. No `fulvid.date` or command `prompts` - product template semantics (ADR sections, defaults, naming) live in packs.
+- **Generic `templates` capability**: `template.render(source, variables)` substitutes escaped `{{name}}` only (bounded strings). Optional `clock.isoDate()` returns a UTC `YYYY-MM-DD` for pack-built context. No sections/partials/lambdas, no host variable factories, no ADR/domain knowledge.
 
 ### Changed
 
-- **Extensions host surface**: removed declarative host actions (`notify`, `createUntitledFromTemplate`) and the `templates` capability. All contributing packs use `entry.lua`; seed Markdown is embedded in the pack.
+- **Extensions host surface**: removed declarative host actions (`notify`, `createUntitledFromTemplate`). Packs use `entry.lua` / `init.lua`. Seed Markdown and rich template context are pack-owned; Fulvid only interpolates when `templates` is granted.
 - **Extensions documentation**: host docs describe only the generic extension contract. Pack-specific product vocabulary is not part of Fulvid.
 - **Extension host internals**: flatter command/engine maps, guest reduction folded into the Lua engine module, thinner registry orchestration.
 - **Extension host ceremony**: removed unused discovery helpers, re-exports, value-box wrappers, and redundant ID recomputation on the load path.

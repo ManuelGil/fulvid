@@ -4,6 +4,16 @@
   "version": "1.0.0",
   "api": 1,
   "description": "Minimal Lua command that posts a host notification. Reference for commands.register \u2192 ui.notify.",
+  "author": "Fulvid",
   "capabilities": ["lua", "commands", "ui"],
-  "entry": "entry.lua"
+  "entry": "entry.lua",
+  "activation": "command",
+  "actions": [
+    {
+      "id": "sayReady",
+      "menu": "help",
+      "order": 50,
+      "title": "Confirm extensions loaded"
+    }
+  ]
 }

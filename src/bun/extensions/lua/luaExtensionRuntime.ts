@@ -30,6 +30,7 @@ import {
   runLuaSourceWithBudget,
 } from "./luaEngine";
 import { LUA_EXTENSION_LIMITS } from "./luaLimits";
+import { renderExtensionTemplate } from "./extensionTemplateRender";
 
 export class LuaExtensionLoadError extends Error {
   constructor(readonly reason: string) {
@@ -112,6 +113,11 @@ function dropExtension(extensionId: string): void {
   }
 }
 
+/** Drop a pack's engine and commands after a failed post-load contract check. */
+export function unloadLuaExtensionPack(extensionId: string): void {
+  dropExtension(extensionId);
+}
+
 /** Test helper: drop all Lua engines and registrations. */
 export function resetLuaCommandStoreForTests(): void {
   for (const record of engines.values()) {
@@ -140,10 +146,13 @@ async function installBridge(
       setReveal: (pos: { lineNumber: number; column: number }) => void;
     };
     decorations?: DecorationsMutationRequest;
+    templates?: boolean;
   },
 ): Promise<void> {
   // Capability isolation: only expose tables granted for this call.
-  await engine.doString("editor = nil; document = nil; decorations = nil");
+  await engine.doString(
+    "editor = nil; document = nil; decorations = nil; template = nil; clock = nil",
+  );
 
   const seen = new Set<string>();
 
@@ -279,6 +288,7 @@ async function installBridge(
               endLine: record.endLine,
               endColumn: record.endColumn,
               style: record.style,
+              appearance: record.appearance,
             };
           }),
         );
@@ -291,6 +301,25 @@ async function installBridge(
       clear(): void {
         mutations.clear = true;
         mutations.set = undefined;
+      },
+    });
+  }
+
+  if (bridge.templates) {
+    engine.global.set("template", {
+      render(source: unknown, variables: unknown): string {
+        const rendered = renderExtensionTemplate(source, variables);
+        if (!rendered.ok) {
+          throw new Error(rendered.error);
+        }
+        return rendered.text;
+      },
+    });
+    // Generic UTC calendar date for seed documents. Not a date subsystem;
+    // packs decide whether/how to use it in their own variable context.
+    engine.global.set("clock", {
+      isoDate(): string {
+        return new Date().toISOString().slice(0, 10);
       },
     });
   }
@@ -356,7 +385,11 @@ export async function loadLuaExtensionPack(
   let engine: LuaEngine | null = null;
   try {
     engine = await createHardenedLuaEngine();
-    await installBridge(engine, manifest.id, { allowRegister: true, onNotify: null });
+    await installBridge(engine, manifest.id, {
+      allowRegister: true,
+      onNotify: null,
+      templates: manifest.capabilities.includes("templates"),
+    });
     await runLuaSourceWithBudget(engine, source);
 
     const committed = loadTxn.pending;
@@ -428,6 +461,7 @@ export async function invokeLuaExtensionCommand(
   const allowEditor = caps.includes("editor");
   const allowDocument = caps.includes("document");
   const allowDecorations = caps.includes("decorations");
+  const allowTemplates = caps.includes("templates");
 
   if (editorSnapshot && !allowEditor) {
     return { ok: false, error: "editor capability not granted" };
@@ -480,6 +514,7 @@ export async function invokeLuaExtensionCommand(
           }
         : undefined,
       decorations: allowDecorations ? decorationMutations : undefined,
+      templates: allowTemplates,
     });
 
     const runOutcome = command.run();
