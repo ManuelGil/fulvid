@@ -124,7 +124,7 @@ const selectedCategory = ref<SettingsCategory>(categoryFromRoute(route.query.sec
 const compactCategoryNav = ref(false);
 let compactCategoryNavMedia: MediaQueryList | null = null;
 
-/** Local UI state only — never persisted. */
+/** Local UI state only - never persisted. */
 const searchQuery = ref("");
 const searchSelectedIndex = ref(0);
 
@@ -1649,7 +1649,7 @@ async function onResetSettings(): Promise<void> {
                 <dd>{{ t("settings.shortcutCloseOthers") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
-                <dt><kbd>←</kbd> <kbd>→</kbd></dt>
+                <dt><kbd>←</kbd> <kbd>-></kbd></dt>
                 <dd>{{ t("settings.shortcutTabs") }}</dd>
               </div>
               <div class="settings-shortcuts__row">

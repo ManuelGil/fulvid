@@ -226,7 +226,7 @@ console.log("\nFulvid - environment check\n");
 for (const check of checks) {
   console.log(`  [${symbols[check.status]}] ${check.name.padEnd(width)}  ${check.detail}`);
   if (check.fix) {
-    console.log(`${" ".repeat(width + 11)}→ ${check.fix}`);
+    console.log(`${" ".repeat(width + 11)}-> ${check.fix}`);
   }
 }
 

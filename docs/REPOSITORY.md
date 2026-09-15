@@ -2,7 +2,7 @@
 
 Where Fulvid code and tests live.
 
-Ownership: [ARCHITECTURE.md](./ARCHITECTURE.md). Vocabulary: [CONCEPTS.md](./CONCEPTS.md). Extension Engine contract: [EXTENSIONS.md](./EXTENSIONS.md). Production promotion gates: [EXTENSION-PRODUCT-CONTRACT.md](./EXTENSION-PRODUCT-CONTRACT.md). Annotations: [ANNOTATIONS.md](./ANNOTATIONS.md). Graph: [GRAPH.md](./GRAPH.md).
+Ownership: [ARCHITECTURE.md](./ARCHITECTURE.md). Vocabulary: [CONCEPTS.md](./CONCEPTS.md). Extensions contract: [EXTENSIONS.md](./EXTENSIONS.md). Production promotion gates: [EXTENSION-PRODUCT-CONTRACT.md](./EXTENSION-PRODUCT-CONTRACT.md). Annotations: [ANNOTATIONS.md](./ANNOTATIONS.md). Graph: [GRAPH.md](./GRAPH.md).
 
 ```text
 README.md
@@ -24,7 +24,7 @@ src/mainview/shell/      Menus, sidebars, AppIcon.vue
 src/mainview/i18n/       EN/ES catalogs; see I18N.md
 src/mainview/styles/
 tests/                   Mirrors src/bun, src/mainview, and scripts/
-tests/extensions/        Extension Engine contract tests (+ disposable fixtures/)
+tests/extensions/        Extension contract/security tests (+ disposable fixtures/)
 scripts/                 validate, doctor, icons, smoke, compatibility / lua packaged smoke
 packaging/linux/         Manual Linux release and desktop/metainfo stubs
 packaging/windows/       Windows packaging (Actions)

@@ -1,7 +1,7 @@
 /**
  * Graph Core pipeline - membership in, geometry out.
  *
- *   filterRenderableEdges → depth map → structural edges → layout → composition
+ *   filterRenderableEdges -> depth map -> structural edges -> layout -> composition
  *
  * Stages must not change Search, Explorer, Focus, or document identity.
  * Representation (Sigma) starts after this function returns.

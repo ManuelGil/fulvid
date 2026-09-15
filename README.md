@@ -134,7 +134,7 @@ The files remain portable. Take the folder to another machine, or open it in som
 2. Open a `.md` or `.mdx` file from Explorer, a tab, or a resolved link.
 3. Edit the source.
 4. Turn on Preview when you want to read the page shape. Turn it off when you want the text back.
-5. Optionally use Quick Actions **Add annotation** (or the glyph margin / Navigate → Annotate) for a temporary line note while you rewrite. Hide glyphs from View when you want a quieter margin.
+5. Optionally use Quick Actions **Add annotation** (or the glyph margin / Navigate -> Annotate) for a temporary line note while you rewrite. Hide glyphs from View when you want a quieter margin.
 6. Save. The file on disk is what you just wrote.
 7. Keep using the same files in git or another tool. Fulvid does not need to stay running for the files to remain valid.
 
@@ -174,7 +174,7 @@ GitHub Releases is the public download channel. There is not a published release
 
 When a release is published, download it from [GitHub Releases](https://github.com/ManuelGil/fulvid/releases) and pick the file for your platform. Until then, use the steps below.
 
-You need [Bun](https://bun.sh) **1.4.2** or newer on the host (what `bun run doctor` checks). Electrobun's and Vite's CLIs also need [Node](https://nodejs.org/) 18 or newer on `PATH` (`#!/usr/bin/env node`). The packaged app embeds Electrobun 2.0.1 with Hutch's Bun **1.4.0** runtime — that packaged Bun version is independent of the host Bun you use to develop.
+You need [Bun](https://bun.sh) **1.4.2** or newer on the host (what `bun run doctor` checks). Electrobun's and Vite's CLIs also need [Node](https://nodejs.org/) 18 or newer on `PATH` (`#!/usr/bin/env node`). The packaged app embeds Electrobun 2.0.1 with Hutch's Bun **1.4.0** runtime - that packaged Bun version is independent of the host Bun you use to develop.
 
 On Linux you also need the WebKitGTK stack Electrobun links, including Ayatana AppIndicator:
 

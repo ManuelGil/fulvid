@@ -212,7 +212,7 @@ async function probePackagedBudgets(gluePath: string): Promise<void> {
 
 async function main(): Promise<void> {
   const { gluePath, cleanup } = await resolvePackagedGlueWasm();
-  console.log(`lua packaged smoke: glue.wasm → ${gluePath}`);
+  console.log(`lua packaged smoke: glue.wasm -> ${gluePath}`);
   console.log(`lua packaged smoke: platform ${process.platform}/${process.arch}`);
 
   const { LuaFactory } = await import("wasmoon");
@@ -251,13 +251,13 @@ async function main(): Promise<void> {
   const userData = await mkdtemp(join(tmpdir(), "fulvid-lua-packaged-"));
   const extensions = join(userData, "extensions");
   await mkdir(extensions, { recursive: true });
-  const fixture = join(root, "tests/extensions/fixtures/spike-lua-notify");
-  await cp(fixture, join(extensions, "local.spike-lua-notify"), { recursive: true });
-  await mkdir(join(extensions, "local.spike-lua-bad"), { recursive: true });
+  const fixture = join(root, "tests/extensions/fixtures/contract-lua-notify");
+  await cp(fixture, join(extensions, "local.contract-lua-notify"), { recursive: true });
+  await mkdir(join(extensions, "local.contract-lua-bad"), { recursive: true });
   await writeFile(
-    join(extensions, "local.spike-lua-bad", "manifest.json"),
+    join(extensions, "local.contract-lua-bad", "manifest.json"),
     JSON.stringify({
-      id: "local.spike-lua-bad",
+      id: "local.contract-lua-bad",
       name: "Bad",
       version: "0.0.0",
       api: 1,
@@ -265,7 +265,7 @@ async function main(): Promise<void> {
       entry: "entry.lua",
     }),
   );
-  await writeFile(join(extensions, "local.spike-lua-bad", "entry.lua"), "error('packaged-bad')");
+  await writeFile(join(extensions, "local.contract-lua-bad", "entry.lua"), "error('packaged-bad')");
 
   setLuaExecutionBudgetForTests(null);
   resetLuaFactoryForTests();
@@ -273,14 +273,14 @@ async function main(): Promise<void> {
   resetExtensionDiscoveryForTests();
   configureExtensionDiscovery(userData);
   const discovery = await discoverExtensions();
-  if (!discovery.loaded.some((pack) => pack.id === "local.spike-lua-notify")) {
+  if (!discovery.loaded.some((pack) => pack.id === "local.contract-lua-notify")) {
     throw new Error("valid Lua fixture failed to load in packaged smoke");
   }
-  if (!discovery.failed.some((failure) => failure.id === "local.spike-lua-bad")) {
+  if (!discovery.failed.some((failure) => failure.id === "local.contract-lua-bad")) {
     throw new Error("invalid Lua pack was not isolated in packaged smoke");
   }
 
-  const invoke = await invokeLuaExtensionCommand("local.spike-lua-notify.ping");
+  const invoke = await invokeLuaExtensionCommand("local.contract-lua-notify.ping");
   if (!invoke.ok || invoke.notifications[0] !== "pong") {
     throw new Error(`Lua ui.notify failed in packaged smoke: ${JSON.stringify(invoke)}`);
   }

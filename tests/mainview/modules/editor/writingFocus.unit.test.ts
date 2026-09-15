@@ -14,7 +14,7 @@ import {
 } from "../../../../src/mainview/modules/editor/writingFocus.ts";
 
 // Intent: Writing Focus is session chrome on the editor route only.
-// Keep-list ownership stays here — hide chrome, not capabilities.
+// Keep-list ownership stays here - hide chrome, not capabilities.
 describe("writing focus", () => {
   test("applies only on the editor route, keeps leave targets usable, and preserves capability surfaces", () => {
     writingFocusActive.value = false;
@@ -25,7 +25,7 @@ describe("writing focus", () => {
     expect(writingFocusActive.value).toBe(true);
     expect(writingFocusHidesEditorChrome("editor")).toBe(true);
     expect(writingFocusHidesEditorChrome("settings")).toBe(false);
-    // Tabs are hidden under Writing Focus — restore must stay on Monaco/empty.
+    // Tabs are hidden under Writing Focus - restore must stay on Monaco/empty.
     expect(writingFocusLeaveEditorTarget(true)).toBe("monaco");
     expect(writingFocusLeaveEditorTarget(false)).toBe("empty-or-main");
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".quick-actions");

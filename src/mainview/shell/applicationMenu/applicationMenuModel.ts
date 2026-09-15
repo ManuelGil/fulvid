@@ -757,7 +757,7 @@ export function presentedMenuAction(item: PresentedMenuItem): string | null {
 
 /**
  * Append a top-level Extensions menu when declarative commands are loaded.
- * Presentation only — ownership stays with extension → host action.
+ * Presentation only - ownership stays with extension -> host action.
  */
 export function appendExtensionCommandsMenu(
   menus: readonly PresentedMenuBar[],

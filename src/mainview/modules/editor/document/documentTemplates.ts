@@ -1,13 +1,13 @@
 /**
  * Seed text for "New Document from README".
  *
- * Templates are not document types, stored notes, or a second lifecycle —
+ * Templates are not document types, stored notes, or a second lifecycle -
  * only the initial buffer/file body for that explicit creation path.
  * Exactly one built-in core template: a README-shaped Markdown document.
  * Mustache interpolates the title; the result is ordinary Markdown.
  *
  * Extension packs supply their own Markdown bodies via discovery; those use
- * {@link expandTemplateDateTokens} only — not this README Mustache path.
+ * {@link expandTemplateDateTokens} only - not this README Mustache path.
  * "New Document" (blank) does not use this module.
  */
 import Mustache from "mustache";
@@ -95,7 +95,7 @@ export const DOCUMENT_TEMPLATES: readonly DocumentTemplate[] = [
   },
 ];
 
-/** Collapse whitespace; empty → fallback. Does not invent product metadata. */
+/** Collapse whitespace; empty -> fallback. Does not invent product metadata. */
 export function normalizeDocumentTemplateTitle(raw: string | undefined | null): string {
   if (raw == null) {
     return DEFAULT_README_TITLE;
@@ -130,7 +130,7 @@ export function documentTemplateDate(now = new Date()): string {
 
 /**
  * Expand host-owned `{date}` tokens in extension pack Markdown only.
- * Not a general expression language — never evaluates code.
+ * Not a general expression language - never evaluates code.
  */
 export function expandTemplateDateTokens(body: string, now = new Date()): string {
   return body.replaceAll(DATE_TOKEN, documentTemplateDate(now));

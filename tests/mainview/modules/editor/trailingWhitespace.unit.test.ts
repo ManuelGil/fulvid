@@ -6,7 +6,7 @@ import {
   trimTrailingWhitespaceInText,
 } from "../../../../src/mainview/modules/editor/trailingWhitespace.ts";
 
-// Intent: trailing trim is spaces/tabs at line end only — not EOL, not indent.
+// Intent: trailing trim is spaces/tabs at line end only - not EOL, not indent.
 describe("trailing whitespace", () => {
   test("detects spaces and tabs, including empty lines that are only whitespace", () => {
     expect(trailingWhitespaceOnLine("hello  ")).toEqual({ startColumn: 6, endColumn: 8 });

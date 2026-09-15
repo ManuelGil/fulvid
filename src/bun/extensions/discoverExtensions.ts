@@ -58,7 +58,7 @@ export function getDiscoveredExtensions(): ExtensionDiscoveryResult {
  * bodies. Continues after individual failures.
  */
 export async function discoverExtensions(): Promise<ExtensionDiscoveryResult> {
-  // Fresh discovery replaces prior Lua sessions — do not keep stale callbacks.
+  // Fresh discovery replaces prior Lua sessions - do not keep stale callbacks.
   resetLuaCommandStoreForTests();
 
   const root = extensionsRootPath;

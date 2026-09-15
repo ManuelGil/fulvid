@@ -1,9 +1,9 @@
-# Disposable Lua extension fixtures
+# Disposable extension contract fixtures
 
-These packs are **not** part of the production `extensions/` example set.
+These packs live under **tests** only. They are **not** Fulvid product examples.
 
-- Production examples: `local.capability-notify`, `local.declarative-pack`, `local.sort-lines` (copy into `userData/extensions`).
-- Fixtures here are disposable runtime experiments and may be deleted without changing the Extension API v1 contract.
-- They are **not** a permanent attack corpus. Permanent verification: `tests/extensions/*.unit.test.ts` and [`docs/EXTENSIONS.md`](../../../docs/EXTENSIONS.md).
+- Product reference packs: `extensions/local.host-notify`, `local.blank-note`, `local.sort-lines`
+- Fixtures here exercise discovery, isolation, budgets, and editor seams for permanent contract tests
+- They are **not** a permanent attack corpus and must not be presented as installable user examples
 
-Copy a pack into `userData/extensions/<id>/` only when experimenting locally. Restart Fulvid after copying (discovery is startup-only).
+Packaged smoke may copy `contract-lua-notify` into a temp `userData/extensions` for runtime verification only.

@@ -9,12 +9,12 @@ const EXTENSIONS_ROOT = join(import.meta.dir, "../../extensions");
  * Keep the set small; each pack demonstrates a durable first-release workflow.
  */
 const PRODUCTION_EXAMPLE_IDS = [
-  "local.capability-notify",
-  "local.declarative-pack",
+  "local.blank-note",
+  "local.host-notify",
   "local.sort-lines",
 ] as const;
 
-const DECLARATIVE_EXAMPLE_IDS = ["local.capability-notify", "local.declarative-pack"] as const;
+const DECLARATIVE_EXAMPLE_IDS = ["local.host-notify", "local.blank-note"] as const;
 
 const ALLOWED_CAPABILITIES = new Set(["commands", "ui", "templates", "lua", "editor"]);
 const ALLOWED_ACTIONS = new Set(["notify", "createUntitledFromTemplate"]);
@@ -102,24 +102,25 @@ describe("extension fixtures", () => {
     }
   });
 
-  test("capability-notify reaches only notify and never filesystem or Monaco", async () => {
+  test("host-notify reaches only notify and never filesystem or Monaco", async () => {
     const manifest = JSON.parse(
-      await readFile(join(EXTENSIONS_ROOT, "local.capability-notify", "manifest.json"), "utf8"),
+      await readFile(join(EXTENSIONS_ROOT, "local.host-notify", "manifest.json"), "utf8"),
     ) as FixtureManifest;
 
     expect(manifest.capabilities.sort()).toEqual(["commands", "ui"]);
     expect(manifest.templates).toBeUndefined();
     expect(manifest.commands).toHaveLength(1);
     expect(manifest.commands?.[0]?.action).toBe("notify");
+    expect(manifest.commands?.[0]?.id).toBe("sayReady");
     expect(manifest.capabilities).not.toContain("monaco");
     expect(Object.keys(manifest)).not.toContain("monaco");
 
-    const files = await collectFiles(join(EXTENSIONS_ROOT, "local.capability-notify"));
-    expect(files).toEqual(["manifest.json"]);
+    const files = await collectFiles(join(EXTENSIONS_ROOT, "local.host-notify"));
+    expect(files.sort()).toEqual(["README.md", "manifest.json"]);
   });
 
-  test("declarative-pack seeds a Markdown template, not executable code", async () => {
-    const root = join(EXTENSIONS_ROOT, "local.declarative-pack");
+  test("blank-note seeds a Markdown template, not executable code", async () => {
+    const root = join(EXTENSIONS_ROOT, "local.blank-note");
     const manifest = JSON.parse(
       await readFile(join(root, "manifest.json"), "utf8"),
     ) as FixtureManifest;
@@ -129,7 +130,7 @@ describe("extension fixtures", () => {
     expect(manifest.templates?.[0]?.file).toBe("templates/blank-note.md");
 
     const files = await collectFiles(root);
-    expect(files).toEqual(["manifest.json", "templates/blank-note.md"]);
+    expect(files.sort()).toEqual(["README.md", "manifest.json", "templates/blank-note.md"]);
 
     for (const relative of files) {
       expect(relative).not.toMatch(/\.(js|ts|mjs|cjs|lua|wasm|py)$/i);
@@ -152,7 +153,7 @@ describe("extension fixtures", () => {
     expect(manifest.commands).toBeUndefined();
 
     const files = await collectFiles(root);
-    expect(files).toEqual(["entry.lua", "manifest.json"]);
+    expect(files.sort()).toEqual(["README.md", "entry.lua", "manifest.json"]);
 
     const source = await readFile(join(root, "entry.lua"), "utf8");
     expect(source.startsWith("\u001bLua")).toBe(false);

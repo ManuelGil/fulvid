@@ -40,7 +40,7 @@ export type ExtensionLuaInvokeRequest = {
 export type ExtensionHostActions = {
   notify: (message: string) => void;
   createUntitled: (content: string) => void | Promise<void>;
-  /** Bun host RPC — required to run Lua-registered commands from the renderer. */
+  /** Bun host RPC - required to run Lua-registered commands from the renderer. */
   invokeLuaCommand?: (request: ExtensionLuaInvokeRequest) => Promise<ExtensionLuaInvokeResult>;
 };
 

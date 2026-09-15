@@ -715,7 +715,7 @@ watch(editorFocusChrome, (hiding) => {
       leftSidebarBeforeWritingFocus.value = leftSidebarOpen.value;
     }
     // Collapse to the existing compact rail; do not hide/inert the rail.
-    // Do not auto-focus the rail — leave keyboard focus on Monaco / Quick Actions.
+    // Do not auto-focus the rail - leave keyboard focus on Monaco / Quick Actions.
     if (leftSidebarOpen.value) {
       suppressSidebarAutoFocus = true;
       closeLeftSidebar();
@@ -868,7 +868,7 @@ function openGlobalSearch(): void {
  *
  * Candidates: live `workspace.scannedNotes` via DialogHost /
  * `quickOpenCandidatesFromNotes`. Overlay: `promptQuickOpen`.
- * Open: `openOrActivate` → `selectDocument`.
+ * Open: `openOrActivate` -> `selectDocument`.
  * Global Search stays `openGlobalSearch` (Ctrl/Cmd+Shift+F).
  */
 async function openQuickOpen(): Promise<void> {

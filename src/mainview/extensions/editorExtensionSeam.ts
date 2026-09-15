@@ -2,7 +2,7 @@
  * Renderer seam for production Lua editor capabilities (Extension API v1).
  *
  * Monaco remains the owner of live text. This module only registers callbacks
- * that EditorPage wires to MonacoHost — never a second buffer.
+ * that EditorPage wires to MonacoHost - never a second buffer.
  */
 import type { EditorSelectionSnapshot } from "./editorCapability";
 

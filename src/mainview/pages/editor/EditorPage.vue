@@ -351,7 +351,7 @@ async function saveAsEditorDocument(): Promise<void> {
     return;
   }
 
-  // Trim only after the user confirms a destination — cancel must not mutate.
+  // Trim only after the user confirms a destination - cancel must not mutate.
   if (settings.value.editor.trimTrailingWhitespaceOnSave) {
     monacoHostRef.value?.trimTrailingWhitespace();
   }
@@ -516,7 +516,7 @@ function togglePreview(): void {
 }
 
 function createNewDocument(): void {
-  // Same command as File → New → New Document and Quick Actions.
+  // Same command as File -> New -> New Document and Quick Actions.
   void executeCommand("newDocument");
 }
 

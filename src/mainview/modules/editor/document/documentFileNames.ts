@@ -1,6 +1,6 @@
 /**
  * Basename helpers for New Document / Save As prompts.
- * Pure string rules only — no Monaco, buffers, or filesystem I/O.
+ * Pure string rules only - no Monaco, buffers, or filesystem I/O.
  */
 import { isMarkdownFile, isSafeDocumentBasename } from "../../workspace/filesystem/workspaceTypes";
 

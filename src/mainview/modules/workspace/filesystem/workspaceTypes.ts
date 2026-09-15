@@ -28,7 +28,7 @@ export function isMarkdownFile(path: string): boolean {
 }
 
 /**
- * Explorer create/rename names must be basenames only — same refusal class as
+ * Explorer create/rename names must be basenames only - same refusal class as
  * host `requireSafeBasename` (no separators, traversal, or empty stems).
  */
 export function isSafeDocumentBasename(name: string): boolean {

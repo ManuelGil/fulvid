@@ -1,6 +1,8 @@
 # Extension Product Contract
 
-Contract required to promote Fulvid’s Extension Engine from experimental to a **single production product capability**.
+Accepted production contract for Fulvid **Extensions** (API v1).
+
+This document records the gates used to promote the system from experimental work to a single production product capability. Production-facing behavior is described in [EXTENSIONS.md](./EXTENSIONS.md). Historical gate language below is retained as the promotion specification; the acceptance record at the end reflects the current production state.
 
 Standing architecture/security detail: [EXTENSIONS.md](./EXTENSIONS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTURE.md). Review posture: [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md).
 
@@ -438,7 +440,7 @@ commands, templates, ui, lua, editor
 Editor:
 PRODUCTION
 
-  Strategy B — reject stale (documentId + alternativeVersionId +
+  Strategy B - reject stale (documentId + alternativeVersionId +
   selection offsets). Lua receives text only.
 
 Linux x64:
@@ -474,12 +476,12 @@ READY FOR PRODUCTION
 
 ### First-release workflows
 
-1. Command → notify (`local.capability-notify`)
-2. Template → untitled blank note (`local.declarative-pack`)
-3. Selection transform → sort lines (`local.sort-lines`)
+1. Command -> notify (`local.host-notify`)
+2. Template -> untitled blank note (`local.blank-note`)
+3. Selection transform -> sort lines (`local.sort-lines`)
 
 ### Remaining honesty (not blockers)
 
 - Capability isolation ≠ OS sandbox
-- No marketplace — local filesystem packages only
+- No marketplace - local filesystem packages only
 - Full interactive GUI smoke of every menu path is not substituted for contract tests; packaged runtime matrix remains the cross-platform gate

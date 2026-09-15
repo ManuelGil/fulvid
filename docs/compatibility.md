@@ -79,8 +79,8 @@ No Apple signing secrets on these jobs.
 | Platform | Desktop compatibility CI | Lua packaged smoke (`bun run smoke:lua-packaged`) |
 | --- | --- | --- |
 | Linux x64 | Tested | **Verified** (local + Compatibility Linux CI) |
-| Windows x64 | Tested | **Verified** (Compatibility Windows CI — Server 2022/2025) |
-| macOS arm64 | Tested | **Verified** (Compatibility macOS CI — 15/26 Apple Silicon) |
+| Windows x64 | Tested | **Verified** (Compatibility Windows CI - Server 2022/2025) |
+| macOS arm64 | Tested | **Verified** (Compatibility macOS CI - 15/26 Apple Silicon) |
 
 Evidence (Compatibility CI): [Windows run 34909418780](https://github.com/ManuelGil/fulvid/actions/runs/34909418780), [macOS run 34909421392](https://github.com/ManuelGil/fulvid/actions/runs/34909421392). Packaged Lua runtime is verified on the three supported desktop architectures above.
 

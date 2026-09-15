@@ -1,6 +1,6 @@
 {
-  "id": "local.declarative-pack",
-  "name": "Blank note template",
+  "id": "local.blank-note",
+  "name": "Blank note",
   "version": "1.0.0",
   "api": 1,
   "description": "Creates an untitled blank note with a dated heading via createUntitledFromTemplate.",

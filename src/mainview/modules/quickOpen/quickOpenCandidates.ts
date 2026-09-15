@@ -8,7 +8,7 @@
  * Not Search: candidates are document identity, not content hits.
  * Not a second index: refresh/open/close Folder rebuilds `scannedNotes`.
  *
- * Opening still goes through `openOrActivate({ kind: "workspace", ... })` →
+ * Opening still goes through `openOrActivate({ kind: "workspace", ... })` ->
  * `selectDocument`. A candidate path is not an authorization grant.
  */
 

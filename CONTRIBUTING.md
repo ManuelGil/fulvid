@@ -105,6 +105,6 @@ Compatibility CI is three separate workflows (Linux, Windows, macOS). They packa
 
 ## Dependencies
 
-Bun 1.4.2 (host/CI) and `bun.lock` are authoritative for development scripts. Electrobun 2.0.1's Hutch toolchain still pins **Bun 1.4.0** for the packaged `mainProcess: "bun"` runtime — that app runtime is not the host Bun. Run `bun run deps:check` before dependency changes. `bun run deps:outdated` lists updates without applying them. Recheck nested `brace-expansion` when upgrading Bun or Vue tooling. `package.json` `overrides` pin transitive advisories; do not drop a pin without an advisory or a replacement.
+Bun 1.4.2 (host/CI) and `bun.lock` are authoritative for development scripts. Electrobun 2.0.1's Hutch toolchain still pins **Bun 1.4.0** for the packaged `mainProcess: "bun"` runtime - that app runtime is not the host Bun. Run `bun run deps:check` before dependency changes. `bun run deps:outdated` lists updates without applying them. Recheck nested `brace-expansion` when upgrading Bun or Vue tooling. `package.json` `overrides` pin transitive advisories; do not drop a pin without an advisory or a replacement.
 
 Monthly security automation is `.github/workflows/dependency-security.yml`. It is maintainer process, not packaging.

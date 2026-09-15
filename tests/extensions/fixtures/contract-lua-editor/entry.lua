@@ -1,4 +1,5 @@
--- Disposable experimental editor fixture: wrap primary selection in markdown bold markers.
+-- Test-only editor fixture: wrap primary selection in markdown bold markers.
+-- Not a product example (core already owns bold). Used by contract tests only.
 commands.register({
   id = "wrapBold",
   title = "Wrap Bold",

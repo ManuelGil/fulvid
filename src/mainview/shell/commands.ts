@@ -85,7 +85,7 @@ export function toAriaKeyshortcuts(shortcut?: string): string | undefined {
 
 /**
  * Closed command / Quick Action icon vocabulary (subset of AppIcon names).
- * Single source for `CommandIcon` — do not accept arbitrary strings as icons.
+ * Single source for `CommandIcon` - do not accept arbitrary strings as icons.
  */
 export const COMMAND_ICONS = [
   "document",
@@ -133,7 +133,7 @@ export type CommandDefinition = {
 export type QuickActionGroup = "file" | "edit" | "search" | "fulvid";
 
 /**
- * Semantic subgroups inside a group. Metadata only — no extra separators.
+ * Semantic subgroups inside a group. Metadata only - no extra separators.
  */
 export type QuickActionSubgroup =
   "document" | "workspace" | "history" | "clipboard" | "view" | "mode" | "panels";
@@ -141,13 +141,13 @@ export type QuickActionSubgroup =
 /**
  * Overflow survival when the toolbar narrows.
  *
- * - `core` — keep longest
- * - `secondary` — next
- * - `overflow` — first into More
+ * - `core` - keep longest
+ * - `secondary` - next
+ * - `overflow` - first into More
  *
  * Two independent axes:
- * - `order` — presentation within subgroup (toolbar / More)
- * - `overflowOrder` — leave order within the same tier (lower leaves first)
+ * - `order` - presentation within subgroup (toolbar / More)
+ * - `overflowOrder` - leave order within the same tier (lower leaves first)
  *
  * Neither axis uses declaration-array position. Equal `overflowOrder` within a
  * tier falls back to command `id` only (no extra metadata field). Prefer unique
@@ -170,7 +170,7 @@ const handlers = new Map<CommandId, CommandHandler>();
 
 /**
  * Declared Quick Actions. Classification is required for every entry.
- * This list is command metadata for the shell toolbar — not a generic registry.
+ * This list is command metadata for the shell toolbar - not a generic registry.
  */
 export const quickActions: readonly QuickActionDefinition[] = [
   {
@@ -254,7 +254,7 @@ export const quickActions: readonly QuickActionDefinition[] = [
     group: "edit",
     subgroup: "document",
     order: 10,
-    // Contextual Add/Edit on the current document — interaction is editing, not Fulvid chrome.
+    // Contextual Add/Edit on the current document - interaction is editing, not Fulvid chrome.
     tier: "secondary",
     overflowOrder: 50,
   },
@@ -376,7 +376,7 @@ export const quickActions: readonly QuickActionDefinition[] = [
     overflowOrder: 30,
   },
   // Fulvid: app presentation / surfaces (not feature ownership of every command).
-  // Presentation: view → mode → panels. Overflow leave: Explorer → Focus → Preview last.
+  // Presentation: view -> mode -> panels. Overflow leave: Explorer -> Focus -> Preview last.
   // Annotation lives in Edit/document; overflow stickiness still Preview > Annotation > Focus > Explorer.
   {
     id: "togglePreview",
@@ -385,7 +385,7 @@ export const quickActions: readonly QuickActionDefinition[] = [
     group: "fulvid",
     subgroup: "view",
     order: 10,
-    // Document representation toggle; no QA shortcut — most persistent of the former Fulvid set.
+    // Document representation toggle; no QA shortcut - most persistent of the former Fulvid set.
     tier: "secondary",
     overflowOrder: 60,
   },
@@ -408,7 +408,7 @@ export const quickActions: readonly QuickActionDefinition[] = [
     group: "fulvid",
     subgroup: "panels",
     order: 10,
-    // Panel visibility; Folder/left nav still cover navigation — first to leave.
+    // Panel visibility; Folder/left nav still cover navigation - first to leave.
     tier: "overflow",
     overflowOrder: 20,
   },

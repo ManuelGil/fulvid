@@ -3,7 +3,7 @@
  *
  * Open dirty buffers: Monaco edit only (user Save persists).
  * Open clean buffers and closed files: edit then existing writeDocument/save.
- * Not a transaction — callers must report partial failure honestly.
+ * Not a transaction - callers must report partial failure honestly.
  *
  * Closed-file bases always come from a fresh disk read (mtime conflict check).
  * Every edit requires the planned `previous` span to still match, so await gaps

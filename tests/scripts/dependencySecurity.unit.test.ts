@@ -25,7 +25,7 @@ describe("dependency security maintenance", () => {
         }),
       ),
     ).toEqual([
-      "blocked: transitive-package 2.1.0 → 2.1.4 (blocked by parent-package@1.0.0)",
+      "blocked: transitive-package 2.1.0 -> 2.1.4 (blocked by parent-package@1.0.0)",
       "unfixable: unfixable-package 1.0.0 (no published safe version was reported)",
     ]);
 

@@ -113,7 +113,7 @@ export async function authorizedDesktopPath(path: string): Promise<string> {
 }
 
 /**
- * Session-only capability: UUID token → one absolute path.
+ * Session-only capability: UUID token -> one absolute path.
  *
  * Bounded at 512 entries (oldest evicted). The stored path is the sole write
  * target for standalone saves; the renderer cannot substitute another path.

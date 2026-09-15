@@ -162,7 +162,7 @@ export function promptQuickOpen(): Promise<string | null> {
 
 /**
  * Pick one id from a caller-provided list. Used for heading selection and
- * similar one-shot choices — not a second Quick Open / Command Palette.
+ * similar one-shot choices - not a second Quick Open / Command Palette.
  */
 export function promptPick(options: {
   title: string;

@@ -2,16 +2,16 @@
  * Production editor capability contract (Extension API v1).
  *
  * Explicit guest surface (requires capability `editor` + `lua`):
- *   - editor.getSelection() → string (frozen primary-selection text snapshot)
- *   - editor.replaceSelection(text) → queues one replace; applied after Lua returns
+ *   - editor.getSelection() -> string (frozen primary-selection text snapshot)
+ *   - editor.replaceSelection(text) -> queues one replace; applied after Lua returns
  *
  * Protocol:
  *   renderer snapshots selection text + host-only identity stamps
- *     → Bun/Lua (text data only)
- *     → validate stamps still current
- *     → MonacoHost apply
+ *     -> Bun/Lua (text data only)
+ *     -> validate stamps still current
+ *     -> MonacoHost apply
  *
- * Stale-operation semantics (strategy B — reject stale):
+ * Stale-operation semantics (strategy B - reject stale):
  *   Snapshot carries selected text plus host-only document id, Monaco
  *   alternativeVersionId, and selection offsets. Lua never sees identity stamps.
  *   Apply verifies the active document and selection stamps still match; otherwise
@@ -19,8 +19,8 @@
  *   inactive buffer.
  *
  * Owner chain:
- *   Lua → Bun bridge → renderer seam → MonacoHost.getSelectedText /
- *   MonacoHost.replacePrimarySelection (executeEdits) → dirty/undo via Monaco model
+ *   Lua -> Bun bridge -> renderer seam -> MonacoHost.getSelectedText /
+ *   MonacoHost.replacePrimarySelection (executeEdits) -> dirty/undo via Monaco model
  *
  * Absent by design: editor.get, open/activate/selectDocument, filesystem, host.call,
  * Monaco/ITextModel/IEditor objects, multi-cursor, live mid-invoke editor RPC.

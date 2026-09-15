@@ -477,7 +477,7 @@ export default {
       "Pin the current heading at the top while you scroll through its section. Hidden automatically while Writing Focus is on.",
     editorWhitespace: "Whitespace",
     editorWhitespaceHint:
-      "When spaces and tabs are drawn as dots or arrows.\n\nHidden never shows them. Selection shows them only in the selected text. Always shows them everywhere — including trailing whitespace at line ends.",
+      "When spaces and tabs are drawn as dots or arrows.\n\nHidden never shows them. Selection shows them only in the selected text. Always shows them everywhere - including trailing whitespace at line ends.",
     editorWhitespaceNone: "Hidden",
     editorWhitespaceSelection: "Selection",
     editorWhitespaceAll: "Always",

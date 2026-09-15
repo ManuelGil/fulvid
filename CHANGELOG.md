@@ -13,12 +13,12 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Added
 
-- **New Document from selection**: File → New and Quick Actions open an untitled buffer with the exact selected editor text and, when the source is a folder document, a `formatDocumentLink` backlink (no line-address references). Save As persists it like any other untitled tab.
-- **Trim trailing whitespace**: Edit / Quick Actions removes trailing spaces and tabs before each line ending via Monaco edits (undoable). Settings → Editor → Trim trailing whitespace on Save is off by default.
+- **New Document from selection**: File -> New and Quick Actions open an untitled buffer with the exact selected editor text and, when the source is a folder document, a `formatDocumentLink` backlink (no line-address references). Save As persists it like any other untitled tab.
+- **Trim trailing whitespace**: Edit / Quick Actions removes trailing spaces and tabs before each line ending via Monaco edits (undoable). Settings -> Editor -> Trim trailing whitespace on Save is off by default.
 
 ### Changed
 
-- **New Document from README** with a folder open: File → New and Quick Actions prompt and write at the Folder root (Explorer New still writes in the selected directory). Without a folder, README remains an untitled seeded buffer until Save As.
+- **New Document from README** with a folder open: File -> New and Quick Actions prompt and write at the Folder root (Explorer New still writes in the selected directory). Without a folder, README remains an untitled seeded buffer until Save As.
 - Document links with duplicate stem/alias/title matches stay **first-wins**; hover and Context can show the other matches as honesty. An unresolved link with exactly one near-match may offer that candidate as a soft open (definition / Inspector).
 - Writing Focus: hide chrome, keep capabilities (Quick Actions and other keep-list surfaces stay usable). Still independent of native Full Screen.
 
@@ -26,8 +26,8 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Added
 
-- **New Document from README**: create a Markdown document prefilled with a single built-in README-shaped body (title from the parent folder when created in Explorer). Blank **New Document** remains available. File → New, Quick Actions, and Explorer New expose both; the editor tab New control still creates a blank document. Not a template manager or template gallery.
-- **Insert document link** and **Insert table of contents** (Edit menu and Quick Actions): insert a Markdown or Wikilink to a Folder document (optionally a heading) using the active `linkMode`, or a deterministic same-document heading TOC. Ordinary source text only — no live TOC sync and no second document model.
+- **New Document from README**: create a Markdown document prefilled with a single built-in README-shaped body (title from the parent folder when created in Explorer). Blank **New Document** remains available. File -> New, Quick Actions, and Explorer New expose both; the editor tab New control still creates a blank document. Not a template manager or template gallery.
+- **Insert document link** and **Insert table of contents** (Edit menu and Quick Actions): insert a Markdown or Wikilink to a Folder document (optionally a heading) using the active `linkMode`, or a deterministic same-document heading TOC. Ordinary source text only - no live TOC sync and no second document model.
 - Settings Search: find preferences on the Settings page by label, description, and category in the current language. Does not search documents or the Folder.
 - Explorer rename preserves resolvable document references: after a successful filesystem rename, Fulvid rewrites DocumentLink targets that already pointed at that document (open buffers and closed scanned notes), keeping labels and `#` fragments. Partial link-update failures are reported; this is not a multi-file transaction or generic refactor.
 
@@ -47,8 +47,8 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Added
 
-- Session-local document annotations: short plain-text notes on tracked positions in the open document. Primary entry: Quick Actions **Add annotation** / **Edit annotation** (same `annotateDocument` command as Navigate → Annotate and the glyph margin). Not persistent; not part of the Markdown/MDX file.
-- Show/Hide document annotations presentation (View menu), with Settings → Editor preferred default. Hiding does not delete annotations.
+- Session-local document annotations: short plain-text notes on tracked positions in the open document. Primary entry: Quick Actions **Add annotation** / **Edit annotation** (same `annotateDocument` command as Navigate -> Annotate and the glyph margin). Not persistent; not part of the Markdown/MDX file.
+- Show/Hide document annotations presentation (View menu), with Settings -> Editor preferred default. Hiding does not delete annotations.
 
 ### Changed
 
@@ -61,7 +61,7 @@ This file is updated as part of the change, not reconstructed when a version is 
 - Settings -> General: Reset settings restores persisted preferences to built-in defaults (documents, Folder, tabs, and files stay unchanged).
 
 
-- Settings → Document location: choose Main panel, Window title, or Hidden for the same document-path projection (never a grant).
+- Settings -> Document location: choose Main panel, Window title, or Hidden for the same document-path projection (never a grant).
 
 ### Changed
 
@@ -88,7 +88,7 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Changed
 
-- Writing Focus on the editor route now hides the chrome that gets in the way of writing (sidebars, tabs, format bar, statusbar) while Monaco stays the editor. Session-only; not Graph Focus; not Full Screen. Shortcuts: Ctrl+Shift+Enter on Windows and Linux and Cmd+Shift+Enter on macOS (see 0.4.0 keyboard note — Global Search took Ctrl/Cmd+Shift+F).
+- Writing Focus on the editor route now hides the chrome that gets in the way of writing (sidebars, tabs, format bar, statusbar) while Monaco stays the editor. Session-only; not Graph Focus; not Full Screen. Shortcuts: Ctrl+Shift+Enter on Windows and Linux and Cmd+Shift+Enter on macOS (see 0.4.0 keyboard note - Global Search took Ctrl/Cmd+Shift+F).
 
 ## [0.2.0] - 2026-09-10
 

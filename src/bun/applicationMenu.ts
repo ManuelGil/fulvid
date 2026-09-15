@@ -41,7 +41,7 @@ export function installNativeApplicationMenu(sendClick: (action: string) => void
   // native bar on macOS and Windows; Linux is a documented no-op
   // (electrobunApplicationMenu.ts).
   // Placeholder until the renderer syncs the real menu. Do not use role
-  // "quit" here — that would bypass the renderer's dirty-document guard.
+  // "quit" here - that would bypass the renderer's dirty-document guard.
   ApplicationMenu.setApplicationMenu([
     {
       label: "Fulvid",

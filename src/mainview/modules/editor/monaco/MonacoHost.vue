@@ -449,7 +449,7 @@ function mountEditor(): void {
     if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
       return;
     }
-    // Left button only — do not open annotate on right/middle click.
+    // Left button only - do not open annotate on right/middle click.
     if (!event.event.leftButton) {
       return;
     }
@@ -857,7 +857,7 @@ function getExtensionApplyContext(): {
 /**
  * Replace the primary selection (or insert at the cursor when empty).
  * Empty `text` clears the selection. Returns false when no editor/model.
- * Undoable Monaco edit — dirty state follows the model.
+ * Undoable Monaco edit - dirty state follows the model.
  */
 function replacePrimarySelection(text: string): boolean {
   if (!editor) {

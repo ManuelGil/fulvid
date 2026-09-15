@@ -616,7 +616,7 @@ export function createGraphRenderer(): GraphRenderer {
   };
 
   /**
-   * Focus is on-screen in viewport pixels (framed-graph → viewport).
+   * Focus is on-screen in viewport pixels (framed-graph -> viewport).
    * Used after resize to detect a broken view without storing camera state.
    */
   const isFocusOnScreen = (): boolean => {
@@ -709,7 +709,7 @@ export function createGraphRenderer(): GraphRenderer {
       labelColor: { attribute: "labelColor" },
       defaultDrawNodeLabel: drawNodeLabelBelow,
       minEdgeThickness: 1.05,
-      // autoRescale (default true) maps layout → framed space; camera {0.5,0.5,1} frames it.
+      // autoRescale (default true) maps layout -> framed space; camera {0.5,0.5,1} frames it.
       autoRescale: true,
       autoCenter: true,
       // Without a max zoom-out, large neighborhoods stay visible in the viewport.

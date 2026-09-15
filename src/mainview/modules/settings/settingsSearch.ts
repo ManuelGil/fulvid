@@ -351,7 +351,7 @@ function normalizeSearchText(value: string): string {
 }
 
 /**
- * Rank: label prefix → label → category → hint → terms. Lower is better.
+ * Rank: label prefix -> label -> category -> hint -> terms. Lower is better.
  * Empty query yields no hits (Settings UI stays in its normal category view).
  */
 function matchRank(

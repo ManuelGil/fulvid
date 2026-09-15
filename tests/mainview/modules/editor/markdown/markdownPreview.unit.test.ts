@@ -124,7 +124,7 @@ describe("markdown preview", () => {
       title: "Note",
       sourcePath: "note.md",
     });
-    // Export is Preview wrapped as a document — not a second renderer that
+    // Export is Preview wrapped as a document - not a second renderer that
     // could reintroduce active HTML.
     expect(exported.html.startsWith("<!doctype html>\n<html>")).toBe(true);
     expect(exported.preview.html).toBe(preview.html);

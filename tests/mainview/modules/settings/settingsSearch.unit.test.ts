@@ -39,7 +39,7 @@ function translateWith(catalog: Record<string, string>): (key: string) => string
 }
 
 // Intent: Settings Search projects static preference metadata in the active locale.
-// Growth boundary: one semantic test — quiet empty query, locale hits, label>hint rank.
+// Growth boundary: one semantic test - quiet empty query, locale hits, label>hint rank.
 describe("settings search", () => {
   test("matches locale preference text without inventing settings; labels outrank hints", () => {
     const before = structuredClone(defaultSettings());

@@ -104,7 +104,7 @@ These surfaces need another look whenever they change. This is not a checklist o
 - Content Security Policy on the packaged page
 - Packaging, install layout, and shipped artifacts
 - Dependency and workflow supply chain
-- Extension Engine runtime (Wasmoon / `glue.wasm`), guest restrictions, budgets, and capability surface ([EXTENSIONS.md](./EXTENSIONS.md))
+- Extension System runtime (Wasmoon / `glue.wasm`), guest restrictions, budgets, and capability surface ([EXTENSIONS.md](./EXTENSIONS.md))
 
 Windows junction and reparse-point containment, and macOS equivalent attacks, are review items. They are not covered by the Linux adversarial review recorded below.
 
@@ -132,7 +132,7 @@ Unreadable or vanished entries during a scan are skipped and counted. That is a 
 
 Automated coverage that is actually in the repository:
 
-- **Unit tests** - Preview inertness and density timing; link resolution scale and semantics; RPC parameter shape and size; `selectDocument` ↔ Focus pairing; Writing Focus ⊥ native Full Screen; Extension Engine contract tests under `tests/extensions/` ([EXTENSIONS.md](./EXTENSIONS.md#tests-as-security-contracts))
+- **Unit tests** - Preview inertness and density timing; link resolution scale and semantics; RPC parameter shape and size; `selectDocument` ↔ Focus pairing; Writing Focus ⊥ native Full Screen; Extension contract tests under `tests/extensions/` ([EXTENSIONS.md](./EXTENSIONS.md#tests-as-security-contracts))
 - **Integration tests** - folder containment (lexical and canonical, including symlinks); grants; External Open resolve path; scan skip of unreadable or vanished entries; scan ceilings; document I/O and exclusive create; RPC error containment
 - **Smoke** - real editing loop; optional packaged launch (`bun run smoke:compatibility`); Lua packaged runtime (`bun run smoke:lua-packaged`)
 - **Compatibility CI** - package and launch on the images in [compatibility.md](./compatibility.md). That is runtime compatibility, not a filesystem red team
@@ -172,7 +172,7 @@ Re-read this document and re-run the relevant tests (and, when the change is lar
 - A new OS or architecture is claimed as supported
 - Packaging, install layout, or the public distribution channel changes
 - A relevant upstream vulnerability appears, or Fulvid starts processing a new kind of input
-- Wasmoon / embedded Lua / `glue.wasm` is upgraded or replaced, or Extension Engine capabilities/budgets change ([EXTENSIONS.md](./EXTENSIONS.md))
+- Wasmoon / embedded Lua / `glue.wasm` is upgraded or replaced, or Extension System capabilities/budgets change ([EXTENSIONS.md](./EXTENSIONS.md))
 
 ## Evidence and audit history
 

@@ -9,7 +9,7 @@ Debian desktop file: [packaging/linux/desktop/fulvid.desktop](../packaging/linux
 ## Requirements
 
 - Linux x86_64
-- [Bun](https://bun.sh) **1.4.2** or newer on the host (`bun run doctor`). Packaged Electrobun 2.0.1 ships Hutch Bun 1.4.0 inside the app — do not confuse the two.
+- [Bun](https://bun.sh) **1.4.2** or newer on the host (`bun run doctor`). Packaged Electrobun 2.0.1 ships Hutch Bun 1.4.0 inside the app - do not confuse the two.
 - `dpkg-deb`
 - `gpg` and the matching private key in the local GnuPG keyring, if you want a signed set
 

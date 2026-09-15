@@ -111,7 +111,7 @@ describe("document I/O", () => {
         ],
       });
       expect(await readdir(join(root, "notes"))).toEqual(["example.mdx"]);
-      // A successful write leaves only the document — no `.tmp` sibling from the
+      // A successful write leaves only the document - no `.tmp` sibling from the
       // atomic rename path. That is the observable atomicity contract.
 
       const renamed = await renameDocument(

@@ -27,7 +27,7 @@ import { setNativeWindowTitle } from "./windowTitle";
 // Folder approvals are host state: which folders a person picked in a dialog.
 // Configuring the store here keeps the approval rules free of the runtime.
 configureWorkspaceApprovals(Utils.paths.userData);
-// Declarative packs live under userData/extensions — filesystem is source of truth.
+// Declarative packs live under userData/extensions - filesystem is source of truth.
 configureExtensionDiscovery(Utils.paths.userData);
 await discoverExtensions();
 

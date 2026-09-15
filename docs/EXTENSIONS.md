@@ -1,4 +1,4 @@
-# Extension Engine
+# Extensions
 
 Architectural and security contract for Fulvid’s **Extensions** product (Extension API v1).
 
@@ -6,7 +6,7 @@ Ownership summary: [ARCHITECTURE.md](./ARCHITECTURE.md). Product vocabulary: [CO
 
 **Production promotion gates:** [EXTENSION-PRODUCT-CONTRACT.md](./EXTENSION-PRODUCT-CONTRACT.md).
 
-Lua is a **supported extension runtime** inside Extensions — not a second product and not a general scripting environment.
+Lua is a **supported extension runtime** inside Extensions - not a second product and not a general scripting environment.
 
 
 ## Architectural contract
@@ -19,11 +19,11 @@ Declared capability
 Existing host owner
 ```
 
-The Extension Engine orchestrates extension capabilities; it does not become the owner of the underlying product behavior.
+The Extension System orchestrates extension capabilities; it does not become the owner of the underlying product behavior.
 
-An extension capability must call an existing owner or seam rather than recreate ownership inside the Extension Engine.
+An extension capability must call an existing owner or seam rather than recreate ownership inside the Extension System.
 
-| Concern | Owner (not the Extension Engine) |
+| Concern | Owner (not the Extension System) |
 | --- | --- |
 | Filesystem authority | Bun filesystem host (`src/bun/filesystem/`) |
 | Document selection / Focus | Session + Focus owners ([ARCHITECTURE.md](./ARCHITECTURE.md)) |
@@ -33,7 +33,7 @@ An extension capability must call an existing owner or seam rather than recreate
 | Graph | Graph projection |
 | Renderer / Preview inertness | Preview owner |
 
-Never: `extension → Vue / Monaco / filesystem` as a direct authority path.
+Never: `extension -> Vue / Monaco / filesystem` as a direct authority path.
 
 ## What the Engine is not
 
@@ -56,13 +56,13 @@ The current Engine is **not**:
 
 ## Current capability surface
 
-Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api": 1`). Repository packs under [`extensions/`](../extensions/) are production examples to copy into that path — not the load path itself.
+Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api": 1`). Repository packs under [`extensions/`](../extensions/) are production examples to copy into that path - not the load path itself.
 
 ### Declarative
 
 | Capability / surface | Authority owner | Permitted operation | Explicitly absent | Limits | Failure |
 | --- | --- | --- | --- | --- | --- |
-| `commands` (declarative) | Extension registry → existing host action | Register namespaced command ids that invoke declared host actions | Arbitrary handlers, Monaco, filesystem | Closed action set; closed icon vocabulary | Invalid pack fails in isolation; user sees notify |
+| `commands` (declarative) | Extension registry -> existing host action | Register namespaced command ids that invoke declared host actions | Arbitrary handlers, Monaco, filesystem | Closed action set; closed icon vocabulary | Invalid pack fails in isolation; user sees notify |
 | templates + `createUntitledFromTemplate` | Document / untitled creation owner | Seed an untitled buffer from a contained Markdown template | Template as executable code; path traversal | Template must stay inside the pack | Isolated pack failure; missing template notify |
 | `notify` / `ui` | UI notify owner | Show a host notification | Arbitrary UI injection | `maxNotifyMessageChars` for Lua `ui.notify` | Rejected / localized failure |
 
@@ -72,7 +72,7 @@ Declarative packs do not execute Lua, JavaScript, or MDX.
 
 | Capability / surface | Authority owner | Permitted operation | Explicitly absent | Limits | Failure |
 | --- | --- | --- | --- | --- | --- |
-| `lua` + `commands` | Lua host runtime → registry | `commands.register` then host invoke of `run` | Declarative command tables on the same pack; generic bridges | `LUA_EXTENSION_LIMITS` (source, commands, execution, memory) | Load/invoke fails closed; neighbors continue |
+| `lua` + `commands` | Lua host runtime -> registry | `commands.register` then host invoke of `run` | Declarative command tables on the same pack; generic bridges | `LUA_EXTENSION_LIMITS` (source, commands, execution, memory) | Load/invoke fails closed; neighbors continue |
 | `ui` | UI notify owner | `ui.notify(message)` | Arbitrary DOM/HTML/SVG | `maxNotifyMessageChars` | Oversized notify rejected |
 | `editor` (**PRODUCTION**) | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation; identity stamps in Lua | `maxEditorSelectionChars` | Rejected / fail closed / stale rejected; see Editor section |
 
@@ -97,7 +97,7 @@ bytecode execution
 Lua package/module loading
 ```
 
-Absence is intentional containment, not an unfinished backlog item. A future addition requires a new explicit security and design decision, documentation, and contract tests — together.
+Absence is intentional containment, not an unfinished backlog item. A future addition requires a new explicit security and design decision, documentation, and contract tests - together.
 
 ## Editor (PRODUCTION)
 
@@ -115,7 +115,7 @@ validate stamps still current
 Monaco owner/seam apply
 ```
 
-**Stale-operation strategy: B — reject stale.**
+**Stale-operation strategy: B - reject stale.**
 
 Host-only snapshot stamps (never exposed to Lua):
 
@@ -196,15 +196,15 @@ Future runtimes need not use Wasm. They must not quietly become a privileged scr
 
 ## Engine removal checklist
 
-If the Extension Engine is removed from Fulvid, complete removal should account for:
+If the Extension System is removed from Fulvid, complete removal should account for:
 
 ```text
 discovery                         src/bun/extensions/
 manifest validation               src/mainview/extensions/extensionManifest.ts
 host registry                     src/mainview/extensions/extensionRegistry.ts
 runtime                           src/bun/extensions/lua/
-packaged glue.wasm                electrobun.config.ts copy → bun/glue.wasm
-menu integration                  Application Menu → Extensions
+packaged glue.wasm                electrobun.config.ts copy -> bun/glue.wasm
+menu integration                  Application Menu -> Extensions
 userData extension paths          Utils.paths.userData/extensions
 documentation                     docs/EXTENSIONS.md, ARCHITECTURE, INVARIANTS, CONCEPTS, compatibility
 i18n strings                      extension-related catalog keys
@@ -231,7 +231,7 @@ This is a checklist, not a removal script.
 | Permanent contract tests | `tests/extensions/` |
 | Declarative fixtures | `extensions/` |
 | Disposable Lua fixtures | `tests/extensions/fixtures/` |
-| Packaged glue | `electrobun.config.ts` → `bun/glue.wasm` |
+| Packaged glue | `electrobun.config.ts` -> `bun/glue.wasm` |
 | Packaged smoke | `scripts/luaPackagedSmoke.ts` (`bun run smoke:lua-packaged`) |
 | Docs | this file; cross-links in ARCHITECTURE, INVARIANTS, CONCEPTS, SECURITY-AND-RESILIENCE, compatibility |
 
@@ -243,11 +243,11 @@ Permanent tests under `tests/extensions/` protect architectural and security bou
 | --- | --- |
 | Can an extension escape containment / own Monaco or filesystem? | `extensionUiBoundary.unit.test.ts`, `extensionFixtures.unit.test.ts` |
 | Can it execute bytecode? | Load path rejects bytecode (`extensionLuaRuntime` / runtime) |
-| Can it recover prohibited Lua globals? | `lua guest environment` — dangerous stdlib absent after reduction |
-| Can it bypass execution limits? | `lua execution and memory budgets` — interrupt on load/invoke |
-| Can it bypass memory limits? | same — controlled memory failure + neighbor isolation |
+| Can it recover prohibited Lua globals? | `lua guest environment` - dangerous stdlib absent after reduction |
+| Can it bypass execution limits? | `lua execution and memory budgets` - interrupt on load/invoke |
+| Can it bypass memory limits? | same - controlled memory failure + neighbor isolation |
 | Can it exceed capability limits? | notify size; command registration; editor size tests |
-| Can malformed packs poison discovery? | `extensionDiscovery.unit.test.ts` — isolation / fail closed |
+| Can malformed packs poison discovery? | `extensionDiscovery.unit.test.ts` - isolation / fail closed |
 | Can one extension affect another? | failed pack does not block valid neighbor (Lua + editor suites) |
 | Can editor access exceed its contract? | `extensionEditorCapability.unit.test.ts` |
 | Can the editor size boundary regress (including constant mutation)? | `pins selection and replace boundary at 256 KiB` |
@@ -299,6 +299,6 @@ Platform packaging verification for the Lua runtime: [compatibility.md](./compat
 
 ## Terminology
 
-Use repository terms: **Extension Engine**, **extension**, **capability**, **pack**, **host**, **guest**, **owner**, **seam**.
+Use repository terms: **Extensions** / **Extension System**, **extension**, **capability**, **pack**, **host**, **guest**, **owner**, **seam**.
 
-Do not introduce competing names (`plugin host`, `plugin sandbox`, `script host`, `extension application`, `extension VM`) unless this repository intentionally defines them.
+Do not introduce competing names (`plugin host`, `plugin sandbox`, `script host`, `extension application`, `extension VM`, `Lua Engine` as a second product) unless this repository intentionally defines them.

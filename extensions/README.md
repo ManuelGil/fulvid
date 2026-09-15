@@ -1,63 +1,72 @@
-# Extensions
+# Extensions - reference packs
 
-Local-first Fulvid **Extensions** — declarative and Lua packs that contribute commands and document workflows through existing Fulvid owners.
+These directories are **real reference extensions** maintained with Fulvid. They are intentionally small, useful examples of the **production Extension API v1**.
 
-Authoritative contracts:
+They are **not** empty scaffolds, hello-world stubs, or architecture spikes.
 
-- Product / promotion: [`docs/EXTENSION-PRODUCT-CONTRACT.md`](../docs/EXTENSION-PRODUCT-CONTRACT.md)
-- Architecture & security: [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md)
-
-## Install model
-
-Extensions load from:
+Copy a pack into:
 
 ```text
 userData/extensions/<id>/
 ```
 
-This repository’s `extensions/` packs are **production examples** you can copy into that directory. There is no marketplace.
+Then restart Fulvid (discovery is startup-only). There is no marketplace.
 
-Restart Fulvid after copying (discovery is startup-only).
-
-## First-release examples
-
-| Id | Workflow |
-| --- | --- |
-| `local.capability-notify` | Command → host `notify` |
-| `local.declarative-pack` | Template → untitled blank note (`{date}` expanded) |
-| `local.sort-lines` | Lua + editor: sort selected lines A→Z |
-
-## Product boundary
+## Canonical contract
 
 ```text
-Fulvid
-  └── Extensions
-       ├── declarative extensions
-       └── Lua extensions → constrained capabilities
+Fulvid Extensions
+API: 1
+
+Capabilities:
+  commands
+  templates
+  ui
+  lua
+  editor
 ```
 
-Lua is a **supported extension runtime**, not a separate product and not a general scripting environment.
+Full contract: [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md). Promotion / acceptance record: [`docs/EXTENSION-PRODUCT-CONTRACT.md`](../docs/EXTENSION-PRODUCT-CONTRACT.md).
 
-**Extensions are locally installed executable code.** Fulvid constrains their capabilities but does not provide an OS-level sandbox.
+**Lua** is a supported extension runtime inside Extensions - not a separate product and not a general scripting environment.
 
-## Extension API v1
+**Extensions are locally installed executable code.** Fulvid constrains capabilities (and isolates Wasm guest memory) but does **not** provide an OS-level sandbox.
 
-Manifests require `"api": 1`.
+## Reference packs
 
-Production capabilities: `commands`, `templates`, `ui`, `lua`, `editor`.
+| Id | Pattern demonstrated |
+| --- | --- |
+| [`local.host-notify`](./local.host-notify/) | Declarative command -> host `notify` |
+| [`local.blank-note`](./local.blank-note/) | Declarative template -> untitled document |
+| [`local.sort-lines`](./local.sort-lines/) | Lua + editor: selection transform with reject-stale apply |
 
-Editor (`getSelection` / `replaceSelection`) uses snapshot → Lua (text only) → reject-stale apply through Monaco. See [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md).
+Each pack has a README covering purpose, why it is an extension, capabilities, data flow, what to copy / not copy, and its security boundary.
+
+## Declarative vs Lua
+
+| Kind | When to use |
+| --- | --- |
+| Declarative | Static commands/templates that call existing host actions |
+| Lua (`entry.lua`) | Bounded transformations when static declaration is not enough |
+
+## Adding another permanent example
+
+Add a pack here only when it:
+
+1. performs a useful user-visible action;
+2. demonstrates a reusable production pattern;
+3. uses only the public Extension API v1 surface;
+4. stays small enough to read in one sitting;
+5. includes a README in the format above.
+
+Do not add empty scaffolds, diagnostic pings, or test-only fixtures here. Contract/security fixtures live under `tests/extensions/`.
 
 ## Layout
 
 ```text
 extensions/
   README.md
-  local.capability-notify/manifest.json
-  local.declarative-pack/manifest.json
-  local.declarative-pack/templates/blank-note.md
-  local.sort-lines/manifest.json
-  local.sort-lines/entry.lua
+  local.host-notify/
+  local.blank-note/
+  local.sort-lines/
 ```
-
-Disposable runtime experiments (not the production set): `tests/extensions/fixtures/`.

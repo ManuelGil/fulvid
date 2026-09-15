@@ -3,7 +3,7 @@
  *
  * Labels are honest: `implemented` means Fulvid enforces the cap with an
  * observable failure. Wasm memory isolation and wasmoon thread hooks are
- * capability/resource controls — not an OS sandbox.
+ * capability/resource controls - not an OS sandbox.
  */
 
 export const LUA_EXTENSION_LIMITS = {
@@ -23,7 +23,7 @@ export const LUA_EXTENSION_LIMITS = {
    * Wall-clock budget for entry.lua load and for each command `run`.
    * Load uses wasmoon `Thread.run({ timeout })` (hooks interrupt a tight
    * `while true do end`). Command invoke relies on engine `functionTimeout`
-   * (same hook path for Lua→JS callbacks). Not a Promise.race abandon.
+   * (same hook path for Lua->JS callbacks). Not a Promise.race abandon.
    */
   maxExecutionMs: { value: 2_000, status: "implemented" as const },
   /**

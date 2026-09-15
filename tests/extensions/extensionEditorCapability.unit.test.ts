@@ -29,7 +29,7 @@ import {
 } from "../../src/mainview/extensions/extensionRegistry.ts";
 import { validateExtensionManifest } from "../../src/mainview/extensions/extensionManifest.ts";
 
-const EDITOR_FIXTURE = join(import.meta.dir, "fixtures/spike-lua-editor");
+const EDITOR_FIXTURE = join(import.meta.dir, "fixtures/contract-lua-editor");
 const SORT_LINES_EXAMPLE = join(import.meta.dir, "../../extensions/local.sort-lines");
 
 function editorSnap(
@@ -80,7 +80,7 @@ describe("editor capability contract", () => {
   test("accepts editor only with lua", () => {
     expect(
       validateExtensionManifest({
-        id: "local.spike-lua-editor",
+        id: "local.contract-lua-editor",
         name: "Editor",
         version: "0.0.0",
         api: 1,
@@ -143,7 +143,7 @@ describe("editor capability contract", () => {
 describe("editor snapshot/apply through Lua", () => {
   test("wraps selection via replaceSelection and notifies", async () => {
     const root = await tempRoot("wrap");
-    const pack = join(root, "local.spike-lua-editor");
+    const pack = join(root, "local.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
     const validated = validateExtensionManifest(
       JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
@@ -154,7 +154,7 @@ describe("editor snapshot/apply through Lua", () => {
     await loadLuaExtensionPack(pack, validated.manifest);
 
     const result = await invokeLuaExtensionCommand({
-      namespacedId: "local.spike-lua-editor.wrapBold",
+      namespacedId: "local.contract-lua-editor.wrapBold",
       editor: editorSnap("hello"),
     });
     expect(result).toEqual({
@@ -168,9 +168,9 @@ describe("editor snapshot/apply through Lua", () => {
     const root = await tempRoot("no-editor");
     const pack = await writePack(
       root,
-      "local.spike-lua-noed",
+      "local.contract-lua-noed",
       {
-        id: "local.spike-lua-noed",
+        id: "local.contract-lua-noed",
         name: "NoEd",
         version: "0.0.0",
         api: 1,
@@ -198,12 +198,12 @@ commands.register({
     }
     await loadLuaExtensionPack(pack, validated.manifest);
     const result = await invokeLuaExtensionCommand({
-      namespacedId: "local.spike-lua-noed.ping",
+      namespacedId: "local.contract-lua-noed.ping",
       editor: editorSnap("secret"),
     });
     expect(result).toEqual({ ok: false, error: "editor capability not granted" });
 
-    const allowed = await invokeLuaExtensionCommand("local.spike-lua-noed.ping");
+    const allowed = await invokeLuaExtensionCommand("local.contract-lua-noed.ping");
     expect(allowed).toEqual({ ok: true, notifications: ["ok"] });
   });
 
@@ -211,9 +211,9 @@ commands.register({
     const root = await tempRoot("big-replace");
     const pack = await writePack(
       root,
-      "local.spike-lua-bigrep",
+      "local.contract-lua-bigrep",
       {
-        id: "local.spike-lua-bigrep",
+        id: "local.contract-lua-bigrep",
         name: "Big",
         version: "0.0.0",
         api: 1,
@@ -240,7 +240,7 @@ commands.register({
     }
     await loadLuaExtensionPack(pack, validated.manifest);
     const result = await invokeLuaExtensionCommand({
-      namespacedId: "local.spike-lua-bigrep.boom",
+      namespacedId: "local.contract-lua-bigrep.boom",
       editor: editorSnap("x"),
     });
     expect(result.ok).toBe(false);
@@ -251,7 +251,7 @@ commands.register({
 
   test("registry applies replace through the Monaco seam owner", async () => {
     const root = await tempRoot("seam");
-    const pack = join(root, "local.spike-lua-editor");
+    const pack = join(root, "local.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
     const validated = validateExtensionManifest(
       JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
@@ -275,7 +275,7 @@ commands.register({
     setDiscoveredExtensions({
       loaded: [
         {
-          id: "local.spike-lua-editor",
+          id: "local.contract-lua-editor",
           name: "Editor",
           version: "0.0.0",
           api: 1,
@@ -283,7 +283,7 @@ commands.register({
           commands: [
             {
               id: "wrapBold",
-              namespacedId: "local.spike-lua-editor.wrapBold",
+              namespacedId: "local.contract-lua-editor.wrapBold",
               title: "Lua Wrap Bold",
               action: "lua",
             },
@@ -301,14 +301,14 @@ commands.register({
       invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
     });
 
-    expect(await runExtensionCommand("local.spike-lua-editor.wrapBold")).toBe(true);
+    expect(await runExtensionCommand("local.contract-lua-editor.wrapBold")).toBe(true);
     expect(applied).toEqual(["**world**"]);
     expect(notifications).toEqual(["wrapped"]);
   });
 
   test("rejects stale editor apply when document or selection stamps change", async () => {
     const root = await tempRoot("stale");
-    const pack = join(root, "local.spike-lua-editor");
+    const pack = join(root, "local.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
     const validated = validateExtensionManifest(
       JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
@@ -334,7 +334,7 @@ commands.register({
     setDiscoveredExtensions({
       loaded: [
         {
-          id: "local.spike-lua-editor",
+          id: "local.contract-lua-editor",
           name: "Editor",
           version: "0.0.0",
           api: 1,
@@ -342,7 +342,7 @@ commands.register({
           commands: [
             {
               id: "wrapBold",
-              namespacedId: "local.spike-lua-editor.wrapBold",
+              namespacedId: "local.contract-lua-editor.wrapBold",
               title: "Lua Wrap Bold",
               action: "lua",
             },
@@ -358,14 +358,14 @@ commands.register({
       invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
     });
 
-    await expect(runExtensionCommand("local.spike-lua-editor.wrapBold")).rejects.toThrow(
+    await expect(runExtensionCommand("local.contract-lua-editor.wrapBold")).rejects.toThrow(
       /document or selection changed/i,
     );
   });
 
   test("replace without active editor fails closed", async () => {
     const root = await tempRoot("no-monaco");
-    const pack = join(root, "local.spike-lua-editor");
+    const pack = join(root, "local.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
     const validated = validateExtensionManifest(
       JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
@@ -383,7 +383,7 @@ commands.register({
     setDiscoveredExtensions({
       loaded: [
         {
-          id: "local.spike-lua-editor",
+          id: "local.contract-lua-editor",
           name: "Editor",
           version: "0.0.0",
           api: 1,
@@ -391,7 +391,7 @@ commands.register({
           commands: [
             {
               id: "wrapBold",
-              namespacedId: "local.spike-lua-editor.wrapBold",
+              namespacedId: "local.contract-lua-editor.wrapBold",
               title: "Lua Wrap Bold",
               action: "lua",
             },
@@ -407,14 +407,14 @@ commands.register({
       invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
     });
 
-    await expect(runExtensionCommand("local.spike-lua-editor.wrapBold")).rejects.toThrow(
+    await expect(runExtensionCommand("local.contract-lua-editor.wrapBold")).rejects.toThrow(
       /Open a document in the editor first/i,
     );
   });
 
   test("empty selection notifies without mutating", async () => {
     const root = await tempRoot("empty");
-    const pack = join(root, "local.spike-lua-editor");
+    const pack = join(root, "local.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
     const validated = validateExtensionManifest(
       JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
@@ -424,7 +424,7 @@ commands.register({
     }
     await loadLuaExtensionPack(pack, validated.manifest);
     const result = await invokeLuaExtensionCommand({
-      namespacedId: "local.spike-lua-editor.wrapBold",
+      namespacedId: "local.contract-lua-editor.wrapBold",
       editor: editorSnap(""),
     });
     expect(result).toEqual({ ok: true, notifications: ["no selection"] });
@@ -434,9 +434,9 @@ commands.register({
     const root = await tempRoot("plain");
     const pack = await writePack(
       root,
-      "local.spike-lua-plain",
+      "local.contract-lua-plain",
       {
-        id: "local.spike-lua-plain",
+        id: "local.contract-lua-plain",
         name: "Plain",
         version: "0.0.0",
         api: 1,
@@ -472,7 +472,7 @@ commands.register({
     }
     await loadLuaExtensionPack(pack, validated.manifest);
     const result = await invokeLuaExtensionCommand({
-      namespacedId: "local.spike-lua-plain.probe",
+      namespacedId: "local.contract-lua-plain.probe",
       editor: editorSnap("plain-data"),
     });
     expect(result).toEqual({ ok: true, notifications: ["plain-data"] });
@@ -480,7 +480,7 @@ commands.register({
 
   test("registry rejects oversized selection snapshots before invoke", async () => {
     const root = await tempRoot("big-sel");
-    const pack = join(root, "local.spike-lua-editor");
+    const pack = join(root, "local.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
     const validated = validateExtensionManifest(
       JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
@@ -499,7 +499,7 @@ commands.register({
     setDiscoveredExtensions({
       loaded: [
         {
-          id: "local.spike-lua-editor",
+          id: "local.contract-lua-editor",
           name: "Editor",
           version: "0.0.0",
           api: 1,
@@ -507,7 +507,7 @@ commands.register({
           commands: [
             {
               id: "wrapBold",
-              namespacedId: "local.spike-lua-editor.wrapBold",
+              namespacedId: "local.contract-lua-editor.wrapBold",
               title: "Lua Wrap Bold",
               action: "lua",
             },
@@ -523,7 +523,7 @@ commands.register({
       invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
     });
 
-    await expect(runExtensionCommand("local.spike-lua-editor.wrapBold")).rejects.toThrow(
+    await expect(runExtensionCommand("local.contract-lua-editor.wrapBold")).rejects.toThrow(
       /size limit/i,
     );
   });
@@ -532,9 +532,9 @@ commands.register({
     const root = await tempRoot("iso");
     const bad = await writePack(
       root,
-      "local.spike-lua-baded",
+      "local.contract-lua-baded",
       {
-        id: "local.spike-lua-baded",
+        id: "local.contract-lua-baded",
         name: "Bad",
         version: "0.0.0",
         api: 1,
@@ -553,7 +553,7 @@ commands.register({
 `,
       },
     );
-    const good = join(root, "local.spike-lua-editor");
+    const good = join(root, "local.contract-lua-editor");
     await cp(EDITOR_FIXTURE, good, { recursive: true });
 
     const badManifest = validateExtensionManifest(
@@ -569,7 +569,7 @@ commands.register({
     await loadLuaExtensionPack(good, goodManifest.manifest);
 
     const failed = await invokeLuaExtensionCommand({
-      namespacedId: "local.spike-lua-baded.boom",
+      namespacedId: "local.contract-lua-baded.boom",
       editor: editorSnap("x"),
     });
     expect(failed.ok).toBe(false);
@@ -579,7 +579,7 @@ commands.register({
 
     expect(
       await invokeLuaExtensionCommand({
-        namespacedId: "local.spike-lua-editor.wrapBold",
+        namespacedId: "local.contract-lua-editor.wrapBold",
         editor: editorSnap("ok"),
       }),
     ).toEqual({

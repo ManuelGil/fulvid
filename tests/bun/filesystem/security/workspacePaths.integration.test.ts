@@ -55,11 +55,11 @@ describe("folder path containment", () => {
     await mkdir(root);
     await mkdir(outside);
     await writeFile(join(outside, "secret.md"), "secret\n");
-    // Junctions on Windows, directory symlinks elsewhere — same escape property.
+    // Junctions on Windows, directory symlinks elsewhere - same escape property.
     await linkDirectory(outside, join(root, "link"));
 
     try {
-      // Lexically under the root; canonically outside — must refuse.
+      // Lexically under the root; canonically outside - must refuse.
       expect(containedPath(root, "link/secret.md")).toBe(join(root, "link/secret.md"));
       await expect(assertCanonicallyContained(root, "link/secret.md")).rejects.toThrow(OUTSIDE);
       await expect(assertCanonicallyContained(root, "link")).rejects.toThrow(OUTSIDE);

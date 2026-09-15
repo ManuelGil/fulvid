@@ -1,7 +1,7 @@
 /**
  * Host-owned store for Lua-registered extension commands.
  *
- * Commit only after a successful registration phase. Never a second command bus —
+ * Commit only after a successful registration phase. Never a second command bus -
  * renderer still dispatches through the existing extension command seam + RPC.
  */
 import type { LuaEngine } from "wasmoon";
@@ -127,7 +127,7 @@ export function luaExtensionHasCapability(extensionId: string, capability: strin
   return sessions.get(extensionId)?.capabilities.includes(capability) ?? false;
 }
 
-/** Close all Lua sessions — used by tests and discovery reset. */
+/** Close all Lua sessions - used by tests and discovery reset. */
 export function resetLuaCommandStoreForTests(): void {
   for (const session of sessions.values()) {
     try {

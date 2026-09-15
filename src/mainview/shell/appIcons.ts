@@ -1,7 +1,7 @@
 /**
  * Closed declarative AppIcon vocabulary.
  *
- * Identifiers are data Fulvid owns — not component names, HTML, SVG, or paths.
+ * Identifiers are data Fulvid owns - not component names, HTML, SVG, or paths.
  * Unknown strings must not become presentation; see `resolveAppIconName`.
  * `AppIcon.vue` only renders resolved names; do not rebuild this map there.
  */
@@ -132,9 +132,9 @@ export const APP_ICONS: Record<IconName, FunctionalComponent> = {
   "close-all": CopyX,
   preview: Eye,
   focus: Focus,
-  // Margin markers on a line — not sticky-notes, comments, or bookmarks.
+  // Margin markers on a line - not sticky-notes, comments, or bookmarks.
   annotations: Highlighter,
-  // Folder-wide content search — distinct from local Monaco find (`search`).
+  // Folder-wide content search - distinct from local Monaco find (`search`).
   "file-search": FileSearch,
   dirty: Circle,
   "chevron-down": ChevronDown,

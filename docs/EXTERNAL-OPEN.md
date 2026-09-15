@@ -31,14 +31,14 @@ parseExternalOpenRequest   shape only, no I/O
       │
       ▼
 takePendingExternalOpens   resolves through existing host authority
-      │                    file   → readSelectedDocument + grantDocument
-      │                    folder → authorizeChosenWorkspaceRoot
+      │                    file   -> readSelectedDocument + grantDocument
+      │                    folder -> authorizeChosenWorkspaceRoot
       ▼
 ResolvedExternalOpen       a grant snapshot, an authorized root, or a refusal
       │
       ▼
-applyPendingExternalOpens  file   → openOrActivate  (→ selectDocument → Focus)
-                           folder → selectRecentWorkspace (→ scan → load)
+applyPendingExternalOpens  file   -> openOrActivate  (-> selectDocument -> Focus)
+                           folder -> selectRecentWorkspace (-> scan -> load)
 ```
 
 ## The contract
@@ -82,7 +82,7 @@ Fields outside the contract are dropped during parsing. `command`, `trusted`,
 | Folder access | `authorizeChosenWorkspaceRoot` | Unchanged. The Folder dialog's own path |
 | Containment | `workspacePaths` | Unchanged, and applies to everything inside an opened folder |
 | Document lifecycle | `openOrActivate` | Pairs Focus through `selectDocument` |
-| Folder lifecycle | `selectRecentWorkspace` → `loadWorkspace` | Same scan, same preflight (Markdown/MDX present, or a partial scan), same ceilings |
+| Folder lifecycle | `selectRecentWorkspace` -> `loadWorkspace` | Same scan, same preflight (Markdown/MDX present, or a partial scan), same ceilings |
 
 **Filesystem authority does not move.** There is no second authority, no
 "external" grant kind, and no path in this layer that skips a check. A request
@@ -154,7 +154,7 @@ exists to avoid.
 | Concern | Upstream | Role for Fulvid |
 | --- | --- | --- |
 | Argv forwarding (Linux/Windows launcher) | [blackboardsh/electrobun#483](https://github.com/blackboardsh/electrobun/issues/483) | **Primary** open request: packaged launcher must append remaining OS arguments when spawning the app runtime |
-| Argv drop on Electrobun 2.0.1 Linux | [blackboardsh/electrobun#554](https://github.com/blackboardsh/electrobun/issues/554) | Independent Fulvid reproduction / confirmation of #483 against 2.0.1 — not a separate defect class |
+| Argv drop on Electrobun 2.0.1 Linux | [blackboardsh/electrobun#554](https://github.com/blackboardsh/electrobun/issues/554) | Independent Fulvid reproduction / confirmation of #483 against 2.0.1 - not a separate defect class |
 | macOS Markdown / existing UTI associations | [blackboardsh/electrobun#551](https://github.com/blackboardsh/electrobun/issues/551) | Independent: `fileAssociations` must be able to claim existing types such as Markdown, not only app-specific UTIs |
 | Single-instance / running-instance handoff | [blackboardsh/electrobun#465](https://github.com/blackboardsh/electrobun/issues/465) | Independent: a second launch must be able to route an open to an already running instance without a Fulvid-invented IPC surface |
 
@@ -177,16 +177,16 @@ Packaged Native OS Integration (Open with / associations / warm start) stays
 **deferred** until a **stable** Electrobun release closes the gaps above. Do not
 treat `2.0.2-beta.*` as delivery. Reopen Fulvid work only when:
 
-1. **Argv forwarding** — A stable Electrobun release documents and ships launcher
+1. **Argv forwarding** - A stable Electrobun release documents and ships launcher
    forwarding of remaining OS arguments to the Bun (or Cottontail) host on Linux
    and Windows (#483 closed or equivalent in release notes). Re-verify with a
    packaged Fulvid build; Fulvid already has the argv adapter and Linux `%F`
    desktop wiring.
-2. **File associations** — Stable Electrobun can register for existing types
+2. **File associations** - Stable Electrobun can register for existing types
    such as Markdown on macOS (#551) and can register Windows/Linux associations
    that actually reach the host once argv forwarding exists. Only then expand
    MIME / registry / `fileAssociations` beyond the prepared Linux Markdown MIME.
-3. **Running-instance handoff** — Stable Electrobun provides an official
+3. **Running-instance handoff** - Stable Electrobun provides an official
    single-instance or open-url-to-running-instance contract (#465) that Fulvid
    can drain through the existing external-open queue without sockets, pipes,
    daemons, or a second authority.

@@ -47,7 +47,7 @@ describe("product terminology", () => {
     expect(es.actions.focusMode).toBe("Foco de escritura");
     expect(es.actions.exitFocusMode).toBe("Salir del foco de escritura");
     expect(es.menu.focusMode).toBe("Foco de escritura");
-    // Graph Focus is still "Focus" / "Enfocar" — not Writing Focus.
+    // Graph Focus is still "Focus" / "Enfocar" - not Writing Focus.
     expect(en.actions.focus).toBe("Focus");
     expect(es.actions.focus).toBe("Enfocar");
 

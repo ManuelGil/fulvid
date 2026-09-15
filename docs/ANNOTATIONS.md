@@ -21,7 +21,7 @@ They are a poor fit for content that belongs in the file, durable bookmarks, or 
 The primary task is to add a note on the current line.
 
 1. Place the cursor on a line that has no annotation (or click an empty spot in the glyph margin).
-2. Choose **Add annotation** in Quick Actions (highlighter icon, Edit group), or **Navigate → Annotate**.
+2. Choose **Add annotation** in Quick Actions (highlighter icon, Edit group), or **Navigate -> Annotate**.
 3. Enter short plain text (up to 200 characters). Empty input cancels.
 
 Quick Actions and Navigate use the same command (`annotateDocument`) and the same DialogHost / upsert flow.
@@ -34,7 +34,7 @@ When the cursor is on a line that already has an annotation, Quick Actions shows
 
 ![Edit annotation](../assets/screenshots/annotations-edit.png)
 
-You can also use **Navigate → Annotate** or click the existing glyph to edit.
+You can also use **Navigate -> Annotate** or click the existing glyph to edit.
 
 ## Created annotation
 
@@ -49,7 +49,7 @@ At most one annotation per line. Soft limit: 32 annotations per open document.
 **Show document annotations** / **Hide document annotations** control presentation only. They do not create, edit, or delete notes.
 
 - **View** menu: session Show / Hide
-- **Settings → Editor**: preferred default for whether glyphs start visible
+- **Settings -> Editor**: preferred default for whether glyphs start visible
 
 Hiding removes glyphs and glyph hover. Notes remain until you clear them, close the tab, or quit. Next / Previous still move the cursor to annotated lines while hidden. Quick Actions stay on Add/Edit for the current line.
 
@@ -59,9 +59,9 @@ Hiding removes glyphs and glyph hover. Notes remain until you clear them, close 
 
 | Action | Where |
 | --- | --- |
-| Remove annotation on the current line | Navigate → Remove annotation |
-| Jump to next / previous | Navigate → Next / Previous annotation |
-| Remove every annotation in this document | Navigate → Clear annotations |
+| Remove annotation on the current line | Navigate -> Remove annotation |
+| Jump to next / previous | Navigate -> Next / Previous annotation |
+| Remove every annotation in this document | Navigate -> Clear annotations |
 
 ## Limits and lifecycle
 
@@ -76,7 +76,7 @@ Hiding removes glyphs and glyph hover. Notes remain until you clear them, close 
 | Soft cap | 32 annotations per open document |
 | Show ≠ delete | Hide is presentation only |
 
-**Show document annotations** under Settings → Editor is the preferred default when Fulvid starts or when you change/reset that setting. A session Show/Hide (View) can differ until you change the setting, reset settings, or restart. Resetting settings does **not** delete existing session annotations.
+**Show document annotations** under Settings -> Editor is the preferred default when Fulvid starts or when you change/reset that setting. A session Show/Hide (View) can differ until you change the setting, reset settings, or restart. Resetting settings does **not** delete existing session annotations.
 
 ## What annotations are not
 
@@ -101,4 +101,4 @@ Implementation lives under `src/mainview/modules/editor/document/` (`documentAnn
 | Preferred visibility default | `settings.editor.showDocumentAnnotations` (persisted preference only) |
 | Quick Action Add vs Edit label | Pure helpers from cursor-line presence (`hasAnnotationAtCursor` in editor command state) |
 
-Do not add persistence, sidecars, Graph/Search integration, or an AnnotationManager service without an explicit product decision. Glyph hover text is escaped plain Markdown with untrusted hover options — treat annotation content as untrusted input.
+Do not add persistence, sidecars, Graph/Search integration, or an AnnotationManager service without an explicit product decision. Glyph hover text is escaped plain Markdown with untrusted hover options - treat annotation content as untrusted input.

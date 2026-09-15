@@ -8,7 +8,7 @@ import {
 } from "../../../../../src/mainview/modules/editor/document/documentTemplates.ts";
 import { renderMarkdownPreview } from "../../../../../src/mainview/modules/editor/markdown/markdownPreview.ts";
 
-// Intent: one built-in README seed — title rules and inert interpolation.
+// Intent: one built-in README seed - title rules and inert interpolation.
 // Growth boundary: do not add per-section body assertions.
 describe("document templates", () => {
   test("README seed interpolates title with README fallback and stays substantial Markdown", () => {

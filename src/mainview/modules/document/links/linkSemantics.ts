@@ -68,7 +68,7 @@ export interface GraphEdge {
 
 /**
  * Edges connect nodes within the projection only, deduplicated per
- * source→target pair - the product-wide definition of a reference.
+ * source->target pair - the product-wide definition of a reference.
  */
 export interface FocusGraph {
   focusPath: string;
@@ -380,7 +380,7 @@ export function buildFocusGraph(
 
 /**
  * Every resolved reference between two distinct documents in the given
- * notes, deduplicated per source→target pair - the single definition of a
+ * notes, deduplicated per source->target pair - the single definition of a
  * reference product-wide. One pass over the evidence, shared by workspace
  * structure facts, per-note reference counts, and the Document Context panel.
  */

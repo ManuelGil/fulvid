@@ -62,7 +62,7 @@ export interface EditorSettings {
   renderWhitespace: EditorRenderWhitespace;
   /**
    * When true, remove trailing spaces/tabs from the active model via Monaco
-   * edits immediately before Save / Save As. Default off — explicit, not silent.
+   * edits immediately before Save / Save As. Default off - explicit, not silent.
    */
   trimTrailingWhitespaceOnSave: boolean;
   showMarkdownFormatBar: boolean;

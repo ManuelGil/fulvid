@@ -45,7 +45,7 @@ const FORBIDDEN_MANIFEST_KEYS = new Set([
   "monaco",
 ]);
 
-/** `local.<name>` ids — fixtures and user packs share this shape. */
+/** `local.<name>` ids - fixtures and user packs share this shape. */
 const EXTENSION_ID_PATTERN = /^local\.[a-z][a-z0-9-]*(\.[a-z0-9-]+)*$/;
 const COMMAND_ID_PATTERN = /^[a-z][a-zA-Z0-9]*$/;
 const TEMPLATE_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
@@ -71,13 +71,13 @@ export type ExtensionManifest = {
   api: number;
   description?: string;
   capabilities: ExtensionCapability[];
-  /** Relative `.lua` source — required when capabilities include `lua`. */
+  /** Relative `.lua` source - required when capabilities include `lua`. */
   entry?: string;
   commands?: ExtensionManifestCommand[];
   templates?: ExtensionManifestTemplate[];
 };
 
-/** Host→renderer DTO after discovery (template bodies already loaded). */
+/** Host->renderer DTO after discovery (template bodies already loaded). */
 export type DiscoveredExtensionCommand = {
   id: string;
   namespacedId: string;
@@ -151,7 +151,7 @@ export function parseNamespacedExtensionCommandId(
   if (separator <= 0 || separator === namespacedId.length - 1) {
     return null;
   }
-  // extension ids contain dots (`local.capability-notify`); command id is the final segment.
+  // extension ids contain dots (`local.host-notify`); command id is the final segment.
   const commandId = namespacedId.slice(separator + 1);
   const extensionId = namespacedId.slice(0, separator);
   if (!isValidExtensionId(extensionId) || !COMMAND_ID_PATTERN.test(commandId)) {
@@ -162,7 +162,7 @@ export function parseNamespacedExtensionCommandId(
 
 /**
  * Validate a parsed JSON value as an Extension API v1 manifest.
- * Returns a reason string on failure — never throws.
+ * Returns a reason string on failure - never throws.
  */
 export function validateExtensionManifest(value: unknown): ManifestValidationResult {
   if (!isRecord(value)) {

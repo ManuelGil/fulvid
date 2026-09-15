@@ -53,7 +53,7 @@ afterEach(() => {
 describe("extension manifest contract", () => {
   test("accepts a valid api 0 manifest", () => {
     const result = validateExtensionManifest({
-      id: "local.capability-notify",
+      id: "local.host-notify",
       name: "Notify",
       version: "1.0.0",
       api: 1,
@@ -65,7 +65,7 @@ describe("extension manifest contract", () => {
 
   test("rejects an unsupported api version", () => {
     const result = validateExtensionManifest({
-      id: "local.capability-notify",
+      id: "local.host-notify",
       name: "Notify",
       version: "1.0.0",
       api: 2,
@@ -76,7 +76,7 @@ describe("extension manifest contract", () => {
 
   test("rejects an unknown capability", () => {
     const result = validateExtensionManifest({
-      id: "local.capability-notify",
+      id: "local.host-notify",
       name: "Notify",
       version: "1.0.0",
       api: 1,
@@ -247,17 +247,17 @@ describe("extension discovery", () => {
 });
 
 describe("declarative host actions", () => {
-  test("capability-notify and declarative-pack fixtures register through host actions", async () => {
+  test("host-notify and blank-note examples register through host actions", async () => {
     const userData = join(await tempExtensionsRoot("fix"), "userData");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
 
     // Copy permanent fixtures into userData (production load path).
-    for (const id of ["local.capability-notify", "local.declarative-pack"] as const) {
+    for (const id of ["local.host-notify", "local.blank-note"] as const) {
       const sourceManifest = await Bun.file(join(REPO_FIXTURES, id, "manifest.json")).text();
       await mkdir(join(extensions, id), { recursive: true });
       await writeFile(join(extensions, id, "manifest.json"), sourceManifest);
-      if (id === "local.declarative-pack") {
+      if (id === "local.blank-note") {
         await mkdir(join(extensions, id, "templates"), { recursive: true });
         await writeFile(
           join(extensions, id, "templates", "blank-note.md"),
@@ -269,8 +269,8 @@ describe("declarative host actions", () => {
     configureExtensionDiscovery(userData);
     const discovered = await discoverExtensions();
     expect(discovered.loaded.map((pack) => pack.id).sort()).toEqual([
-      "local.capability-notify",
-      "local.declarative-pack",
+      "local.blank-note",
+      "local.host-notify",
     ]);
     setDiscoveredExtensions(discovered);
 
@@ -284,13 +284,13 @@ describe("declarative host actions", () => {
     });
 
     expect(
-      await runExtensionCommand(namespacedExtensionCommandId("local.capability-notify", "ping")),
+      await runExtensionCommand(namespacedExtensionCommandId("local.host-notify", "sayReady")),
     ).toBe(true);
-    expect(notifications[0]).toContain("host notify");
+    expect(notifications[0]).toMatch(/Extensions are available|host notify/i);
 
     expect(
       await runExtensionCommand(
-        namespacedExtensionCommandId("local.declarative-pack", "createBlankNote"),
+        namespacedExtensionCommandId("local.blank-note", "createBlankNote"),
       ),
     ).toBe(true);
     expect(untitledBodies).toHaveLength(1);

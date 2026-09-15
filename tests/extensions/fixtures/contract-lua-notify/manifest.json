@@ -1,0 +1,9 @@
+{
+  "id": "local.contract-lua-notify",
+  "name": "local.contract-lua-notify",
+  "version": "0.0.0-spike",
+  "api": 1,
+  "description": "Test-only Lua notify fixture for contract/security suites. Not a product example.",
+  "capabilities": ["lua", "commands", "ui"],
+  "entry": "entry.lua"
+}

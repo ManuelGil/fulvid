@@ -1,4 +1,4 @@
--- Sort the primary selection's lines A→Z. Empty selection notifies without mutating.
+-- Sort the primary selection's lines A->Z. Empty selection notifies without mutating.
 local function split_lines(text)
   local lines = {}
   local start = 1

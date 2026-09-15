@@ -6,7 +6,7 @@
  */
 import type { LuaEngine } from "wasmoon";
 
-/** Globals removed after standard libs open — no filesystem/process/module loading. */
+/** Globals removed after standard libs open - no filesystem/process/module loading. */
 export const LUA_GUEST_REMOVED_GLOBALS = [
   "io",
   "os",
@@ -41,7 +41,7 @@ export async function reduceLuaGuestEnvironment(engine: LuaEngine): Promise<void
   `);
 }
 
-/** Probe helpers for Security Harness — return Lua `type(_G[name])`. */
+/** Probe helpers for Security Harness - return Lua `type(_G[name])`. */
 export async function luaGlobalType(engine: LuaEngine, name: string): Promise<string> {
   const result = await engine.doString(`return type(_G[${JSON.stringify(name)}])`);
   return String(result);

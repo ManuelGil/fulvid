@@ -128,7 +128,7 @@ function advisoryFromVulnerability(
       paths.some((path) => path === packageName)
         ? "direct"
         : "transitive",
-    via: paths.length > 1 ? paths.slice(0, -1).join(" → ") : undefined,
+    via: paths.length > 1 ? paths.slice(0, -1).join(" -> ") : undefined,
   };
 }
 
@@ -166,7 +166,7 @@ function legacyAdvisories(
         directPackages.has(packageName) || paths.some((path) => path === packageName)
           ? "direct"
           : "transitive",
-      via: paths.length > 1 ? paths.slice(0, -1).join(" → ") : undefined,
+      via: paths.length > 1 ? paths.slice(0, -1).join(" -> ") : undefined,
     });
   }
   return result;
@@ -333,7 +333,7 @@ export function parseFixPlanIssues(raw: string): string[] {
           : key === "unfixable"
             ? "no published safe version was reported"
             : key;
-      issues.push(`${key}: ${name}${from ? ` ${from}` : ""}${to ? ` → ${to}` : ""} (${reason})`);
+      issues.push(`${key}: ${name}${from ? ` ${from}` : ""}${to ? ` -> ${to}` : ""} (${reason})`);
     }
   }
   return issues;

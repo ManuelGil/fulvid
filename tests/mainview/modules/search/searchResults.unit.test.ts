@@ -25,7 +25,7 @@ function note(path: string, content: string): ScannedNote {
 }
 
 // Intent: body-search coordinates, matching flags, and inert snippets.
-// Snippet highlighting must treat markup as plain text — never as HTML.
+// Snippet highlighting must treat markup as plain text - never as HTML.
 describe("global document search", () => {
   test("finds and groups body matches with matching flags, treating markup as plain text", () => {
     const hits = searchDocuments(
