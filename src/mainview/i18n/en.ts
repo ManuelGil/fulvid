@@ -113,6 +113,8 @@ export default {
     hideAnnotations: "Hide document annotations",
     focusMode: "Writing Focus",
     exitFocusMode: "Exit Writing Focus",
+    writingFocusOn: "Writing Focus on",
+    writingFocusOff: "Writing Focus off",
     find: "Find",
     quickOpen: "Quick Open",
     here: "Here",

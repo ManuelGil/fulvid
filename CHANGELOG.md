@@ -9,6 +9,10 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+### Added
+
+- **Extensions (API v1)**: local packs under `userData/extensions/` add commands through existing owners (notify, untitled-from-template, Lua editor selection replace). Source-only Lua/Wasm on the Bun host; no marketplace, network, filesystem, or live Monaco authority. Reference packs: `extensions/`. Guide: [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
+
 ## [0.8.0] - 2026-09-14
 
 ### Added

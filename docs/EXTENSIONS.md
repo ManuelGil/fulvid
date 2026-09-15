@@ -1,11 +1,11 @@
 # Extensions
 
-Fulvid’s local **Extensions** system (API v1): small packs that add commands and document workflows through existing Fulvid owners.
+Fulvid's local **Extensions** system (API v1): small packs that add commands and document workflows through existing Fulvid owners.
 
 | Audience | Start here |
 | --- | --- |
 | User | What Extensions can and cannot do (below); install by copying a pack into `userData/extensions/` |
-| Plugin author | Capability tables + [reference packs](../extensions/) |
+| Extension author | Capability tables + [reference packs](../extensions/) |
 | Maintainer | Ownership, budgets, footprint, and [tests as security contracts](#tests-as-security-contracts) |
 
 Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [CONCEPTS.md](./CONCEPTS.md) · [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md) · [`extensions/README.md`](../extensions/README.md)
@@ -19,9 +19,9 @@ Lua is a **supported extension runtime** inside Extensions - not a second produc
 
 ```text
 Extension
-    ↓
+    ->
 Declared capability
-    ↓
+    ->
 Existing host owner
 ```
 
@@ -69,8 +69,8 @@ Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api":
 | Capability / surface | Authority owner | Permitted operation | Explicitly absent | Limits | Failure |
 | --- | --- | --- | --- | --- | --- |
 | `commands` (declarative) | Extension registry -> existing host action | Register namespaced command ids that invoke declared host actions | Arbitrary handlers, Monaco, filesystem | Closed action set; closed icon vocabulary | Invalid pack fails in isolation; user sees notify |
-| templates + `createUntitledFromTemplate` | Document / untitled creation owner | Seed an untitled buffer from a contained Markdown template | Template as executable code; path traversal | Template must stay inside the pack | Isolated pack failure; missing template notify |
-| `notify` / `ui` | UI notify owner | Show a host notification | Arbitrary UI injection | `maxNotifyMessageChars` for Lua `ui.notify` | Rejected / localized failure |
+| templates + `createUntitledFromTemplate` | Document / untitled creation owner | Seed an untitled buffer from a contained Markdown template (host expands `{date}` at creation) | Template as executable code; path traversal | Template must stay inside the pack; `EXTENSION_PACK_LIMITS.maxTemplateBytes` | Isolated pack failure; missing/oversized template notify |
+| `notify` / `ui` | UI notify owner | Show a host notification | Arbitrary UI injection | `EXTENSION_PACK_LIMITS.maxNotifyMessageChars` (declarative and Lua) | Rejected / localized failure |
 
 Declarative packs do not execute Lua, JavaScript, or MDX.
 
@@ -141,15 +141,17 @@ Permanent stale test: `rejects stale editor apply when document or selection sta
 
 ## Security and resource budgets
 
-Authoritative constants: `LUA_EXTENSION_LIMITS` in `src/bun/extensions/lua/luaLimits.ts` (editor mirrors via `EDITOR_EXTENSION_LIMITS` in `src/mainview/extensions/editorCapability.ts`).
+Authoritative constants: `EXTENSION_PACK_LIMITS` in `src/mainview/extensions/extensionManifest.ts` (manifest, template, notify) and `LUA_EXTENSION_LIMITS` in `src/bun/extensions/lua/luaLimits.ts` (Lua source/execution/memory/commands; notify reuses the pack limit). Editor mirrors via `EDITOR_EXTENSION_LIMITS` in `src/mainview/extensions/editorCapability.ts`.
 
 | Budget | Constant | Security purpose |
 | --- | --- | --- |
+| Manifest size | `maxManifestBytes` | Caps discovery DTO input |
+| Template body size | `maxTemplateBytes` | Caps template text loaded into discovery |
 | Lua source size | `maxSourceBytes` | Caps guest source accepted at load |
 | Execution timeout | `maxExecutionMs` | Interrupts runaway guest work |
 | Guest memory | `maxWasmMemoryBytes` | Caps Wasm guest heap growth |
 | Command count | `maxCommandsPerExtension` | Caps registrations per pack |
-| Notification size | `maxNotifyMessageChars` | Caps notify payload |
+| Notification size | `maxNotifyMessageChars` | Caps notify payload (declarative and Lua) |
 | Editor selection / replace | `maxEditorSelectionChars` | Caps snapshot and replacement text |
 
 A budget is a **security/resource boundary**, not merely a performance optimization. Changing a budget value is a contract change and must keep permanent verification that pins observable boundary behavior (not only relative `limit + 1` derived from the constant).
@@ -265,7 +267,7 @@ A test protecting a documented security boundary may only be removed when the bo
 
 ```text
 documented boundary
-        ↕
+        <->
 permanent verification
 ```
 

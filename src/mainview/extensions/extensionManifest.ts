@@ -9,6 +9,19 @@
 export const EXTENSION_API_VERSION = 1;
 
 /**
+ * Pack-wide resource budgets (declarative and Lua share notify/template caps).
+ * Changing a value is a contract change — pin behavior in tests/extensions.
+ */
+export const EXTENSION_PACK_LIMITS = {
+  /** Maximum UTF-8 byte length of manifest.json. */
+  maxManifestBytes: 64 * 1024,
+  /** Maximum UTF-8 byte length of one Markdown template body. */
+  maxTemplateBytes: 256 * 1024,
+  /** Maximum UTF-16 code units for notify messages (declarative and Lua). */
+  maxNotifyMessageChars: 500,
+} as const;
+
+/**
  * Closed capability surface for Extension API v1.
  * Declaring a capability grants no resource. `lua` selects the host Wasm runtime.
  */
@@ -322,6 +335,9 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
       if (entryCommand.action === "notify") {
         if (typeof entryCommand.message !== "string" || entryCommand.message.trim().length === 0) {
           return { reason: "notify action requires message" };
+        }
+        if (entryCommand.message.length > EXTENSION_PACK_LIMITS.maxNotifyMessageChars) {
+          return { reason: "notify message exceeds budget" };
         }
         command.message = entryCommand.message;
       }

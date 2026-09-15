@@ -113,6 +113,8 @@ export default {
     hideAnnotations: "Ocultar anotaciones del documento",
     focusMode: "Foco de escritura",
     exitFocusMode: "Salir del foco de escritura",
+    writingFocusOn: "Foco de escritura activado",
+    writingFocusOff: "Foco de escritura desactivado",
     find: "Buscar",
     quickOpen: "Apertura rápida",
     here: "Aquí",

@@ -10,6 +10,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
+  EXTENSION_PACK_LIMITS,
   namespacedExtensionCommandId,
   validateExtensionManifest,
   type DiscoveredExtension,
@@ -133,9 +134,23 @@ async function loadExtensionPack(
   const manifestPath = join(packRoot, "manifest.json");
   let raw: string;
   try {
+    const manifestStat = await stat(manifestPath);
+    if (!manifestStat.isFile()) {
+      throw new ExtensionPackError("missing manifest.json");
+    }
+    if (manifestStat.size > EXTENSION_PACK_LIMITS.maxManifestBytes) {
+      throw new ExtensionPackError("manifest exceeds budget");
+    }
     raw = await readFile(manifestPath, "utf8");
-  } catch {
+  } catch (error) {
+    if (error instanceof ExtensionPackError) {
+      throw error;
+    }
     throw new ExtensionPackError("missing manifest.json");
+  }
+
+  if (Buffer.byteLength(raw, "utf8") > EXTENSION_PACK_LIMITS.maxManifestBytes) {
+    throw new ExtensionPackError("manifest exceeds budget");
   }
 
   let parsed: unknown;
@@ -228,8 +243,14 @@ async function loadTemplates(
     if (!relativeFile.endsWith(".md") && !relativeFile.endsWith(".markdown")) {
       throw new ExtensionPackError(`template must be Markdown: ${template.file}`);
     }
+    if (fileStat.size > EXTENSION_PACK_LIMITS.maxTemplateBytes) {
+      throw new ExtensionPackError(`template exceeds budget: ${template.file}`);
+    }
 
     const content = await readFile(lexicalTarget, "utf8");
+    if (Buffer.byteLength(content, "utf8") > EXTENSION_PACK_LIMITS.maxTemplateBytes) {
+      throw new ExtensionPackError(`template exceeds budget: ${template.file}`);
+    }
     out.push({
       id: template.id,
       name: template.name,

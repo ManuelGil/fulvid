@@ -87,9 +87,9 @@ The Extension System is an **orchestrator**, not an owner of underlying product 
 
 ```text
 Extension
-    ↓
+    ->
 Capability
-    ↓
+    ->
 Existing Fulvid owner
 ```
 
@@ -210,13 +210,13 @@ The Lua guest receives **text snapshots**, not Monaco objects.
 
 ```text
 snapshot
-    ↓
+    ->
 Lua execution
-    ↓
+    ->
 validated result
-    ↓
+    ->
 existing Monaco owner/seam
-    ↓
+    ->
 document mutation
 ```
 
@@ -353,7 +353,7 @@ Large adversarial corpora remain disposable. The repository should contain minim
 
 ## 28. Removal contract
 
-The Extension System must remain removable as a coherent subsystem. Complete removal must account for discovery, manifest validation, host registry, runtime, `glue.wasm`, menus, i18n, userData paths, dependencies, packaging, documentation, tests, fixtures, and security/compatibility references. See [EXTENSIONS.md](./EXTENSIONS.md#engine-removal-checklist).
+The Extension System must remain removable as a coherent subsystem. Complete removal must account for discovery, manifest validation, host registry, runtime, `glue.wasm`, menus, i18n, userData paths, dependencies, packaging, documentation, tests, fixtures, and security/compatibility references. See [EXTENSIONS.md](./EXTENSIONS.md#extension-system-removal-checklist).
 
 ## 29. Runtime replacement contract
 
@@ -365,7 +365,7 @@ Adding a capability requires explicit review defining owner, authority, argument
 
 ## 31. Product UX contract
 
-Users should experience **Extensions** (declarative and Lua), not a second conceptual “Lua Engine” product. Lua implementation details are not a second user-facing product.
+Users should experience **Extensions** (declarative and Lua), not a second conceptual "Lua Engine" product. Lua implementation details are not a second user-facing product.
 
 ## 32. Documentation contract
 
@@ -378,20 +378,20 @@ Once promoted, production documentation must not continue describing the product
 Promotion is blocked if any of the following is true:
 
 ```text
-❌ Editor can modify the wrong document
-❌ Lua can obtain arbitrary host objects
-❌ Lua can execute arbitrary bytecode
-❌ Lua can recover prohibited host authority
-❌ filesystem containment can be bypassed
-❌ resource limits are unenforced
-❌ hostile extension can permanently poison discovery
-❌ hostile extension can compromise another extension
-❌ packaged runtime differs materially from validated runtime
-❌ supported platform has a security-specific behavior divergence
-❌ public API remains undocumented
-❌ public API is still described as experimental
-❌ permanent tests do not protect documented security boundaries
-❌ known high/critical applicable vulnerability remains unresolved
+FAIL: Editor can modify the wrong document
+FAIL: Lua can obtain arbitrary host objects
+FAIL: Lua can execute arbitrary bytecode
+FAIL: Lua can recover prohibited host authority
+FAIL: filesystem containment can be bypassed
+FAIL: resource limits are unenforced
+FAIL: hostile extension can permanently poison discovery
+FAIL: hostile extension can compromise another extension
+FAIL: packaged runtime differs materially from validated runtime
+FAIL: supported platform has a security-specific behavior divergence
+FAIL: public API remains undocumented
+FAIL: public API is still described as experimental
+FAIL: permanent tests do not protect documented security boundaries
+FAIL: known high/critical applicable vulnerability remains unresolved
 ```
 
 ## 34. Promotion criteria

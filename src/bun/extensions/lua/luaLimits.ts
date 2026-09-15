@@ -4,7 +4,11 @@
  * Labels are honest: `implemented` means Fulvid enforces the cap with an
  * observable failure. Wasm memory isolation and wasmoon thread hooks are
  * capability/resource controls - not an OS sandbox.
+ *
+ * Notify character budget is shared with declarative packs via
+ * EXTENSION_PACK_LIMITS (single contract value).
  */
+import { EXTENSION_PACK_LIMITS } from "../../../mainview/extensions/extensionManifest";
 
 export const LUA_EXTENSION_LIMITS = {
   /** Maximum UTF-8 byte length of entry.lua source. */
@@ -12,7 +16,10 @@ export const LUA_EXTENSION_LIMITS = {
   /** Maximum commands one extension may register. */
   maxCommandsPerExtension: { value: 16, status: "implemented" as const },
   /** Maximum UTF-16 code units accepted by ui.notify. */
-  maxNotifyMessageChars: { value: 500, status: "implemented" as const },
+  maxNotifyMessageChars: {
+    value: EXTENSION_PACK_LIMITS.maxNotifyMessageChars,
+    status: "implemented" as const,
+  },
   /**
    * Wasm guest heap ceiling (bytes). Requires `traceAllocations: true` and
    * `setMemoryMax` on each engine. Exceeding fails with a controlled Lua

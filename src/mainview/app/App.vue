@@ -703,10 +703,10 @@ const routeAnnouncement = computed(() => {
 
 const focusModeAnnouncement = ref("");
 watch(writingFocusActive, (active) => {
-  focusModeAnnouncement.value = active ? t("actions.focusMode") : t("actions.exitFocusMode");
+  focusModeAnnouncement.value = active ? t("actions.writingFocusOn") : t("actions.writingFocusOff");
 });
 
-/** Restore left sidebar after Strong Writing Focus collapses it. */
+/** Restore left sidebar after Writing Focus collapses it. */
 const leftSidebarBeforeWritingFocus = ref<boolean | null>(null);
 
 watch(editorFocusChrome, (hiding) => {

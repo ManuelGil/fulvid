@@ -9,6 +9,7 @@ import {
   resetExtensionDiscoveryForTests,
 } from "../../src/bun/extensions/discoverExtensions.ts";
 import {
+  EXTENSION_PACK_LIMITS,
   validateExtensionManifest,
   namespacedExtensionCommandId,
 } from "../../src/mainview/extensions/extensionManifest.ts";
@@ -51,7 +52,7 @@ afterEach(() => {
 });
 
 describe("extension manifest contract", () => {
-  test("accepts a valid api 0 manifest", () => {
+  test("accepts a valid api 1 manifest", () => {
     const result = validateExtensionManifest({
       id: "local.host-notify",
       name: "Notify",
@@ -94,6 +95,25 @@ describe("extension manifest contract", () => {
       capabilities: ["commands"],
     });
     expect(result).toEqual({ reason: "invalid extension id" });
+  });
+
+  test("rejects an oversized declarative notify message", () => {
+    const result = validateExtensionManifest({
+      id: "local.host-notify",
+      name: "Notify",
+      version: "1.0.0",
+      api: 1,
+      capabilities: ["commands"],
+      commands: [
+        {
+          id: "ping",
+          title: "Ping",
+          action: "notify",
+          message: "x".repeat(501),
+        },
+      ],
+    });
+    expect(result).toEqual({ reason: "notify message exceeds budget" });
   });
 });
 
@@ -243,6 +263,42 @@ describe("extension discovery", () => {
     const escapeFailure = result.failed.find((failure) => failure.id === "local.escape");
     expect(escapeFailure).toBeDefined();
     expect(escapeFailure?.reason).toMatch(/outside|invalid/i);
+  });
+
+  test("rejects a template that exceeds the pack budget", async () => {
+    const userData = join(await tempExtensionsRoot("tpl-budget"), "userData");
+    const extensions = join(userData, "extensions");
+    await mkdir(extensions, { recursive: true });
+    const oversized = `${"a".repeat(EXTENSION_PACK_LIMITS.maxTemplateBytes + 1)}\n`;
+    await writePack(
+      extensions,
+      "local.huge",
+      {
+        id: "local.huge",
+        name: "Huge",
+        version: "1.0.0",
+        api: 1,
+        capabilities: ["templates", "commands"],
+        templates: [{ id: "sample", name: "Sample", file: "templates/sample.md" }],
+        commands: [
+          {
+            id: "createSample",
+            title: "Create",
+            action: "createUntitledFromTemplate",
+            template: "sample",
+          },
+        ],
+      },
+      { "templates/sample.md": oversized },
+    );
+
+    configureExtensionDiscovery(userData);
+    const result = await discoverExtensions();
+    expect(result.loaded).toEqual([]);
+    expect(result.failed.some((failure) => failure.id === "local.huge")).toBe(true);
+    expect(result.failed.find((failure) => failure.id === "local.huge")?.reason).toMatch(
+      /exceeds budget/i,
+    );
   });
 });
 

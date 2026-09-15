@@ -1,25 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
 
 import { resolveAppIconName } from "../../src/mainview/shell/appIcons.ts";
 import { COMMAND_ICONS, isCommandIcon, quickActions } from "../../src/mainview/shell/commands.ts";
 import { WRITING_FOCUS_KEPT_SELECTORS } from "../../src/mainview/modules/editor/writingFocus.ts";
 
-const EXTENSIONS_ROOT = join(import.meta.dir, "../../extensions");
-
-type FixtureManifest = {
-  capabilities: string[];
-  commands?: Array<Record<string, unknown>>;
-};
-
-async function readManifest(id: string): Promise<FixtureManifest> {
-  return JSON.parse(
-    await readFile(join(EXTENSIONS_ROOT, id, "manifest.json"), "utf8"),
-  ) as FixtureManifest;
-}
-
 // Intent: presentation may gain seams later; authority must not travel with UI.
+// Pack surface denial (monaco/filesystem/html injection) lives in extensionFixtures.
 describe("extension UI boundary", () => {
   test("rejects arbitrary application icon identifiers", () => {
     expect(resolveAppIconName("focus")).toBe("focus");
@@ -48,27 +34,5 @@ describe("extension UI boundary", () => {
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain("[data-application-menu]");
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".toast-host");
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".dialog-host");
-  });
-
-  test("forbids fixture authority over Monaco, filesystem, or injectable UI", async () => {
-    const dirs = (await readdir(EXTENSIONS_ROOT, { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory() && entry.name.startsWith("local."))
-      .map((entry) => entry.name)
-      .sort();
-    expect(dirs).toEqual(["local.blank-note", "local.host-notify", "local.sort-lines"]);
-
-    for (const id of dirs) {
-      const manifest = await readManifest(id);
-      expect(manifest.capabilities).not.toContain("monaco");
-      expect(manifest.capabilities).not.toContain("filesystem");
-      for (const command of manifest.commands ?? []) {
-        expect(command).not.toHaveProperty("html");
-        expect(command).not.toHaveProperty("svg");
-        expect(command).not.toHaveProperty("component");
-        expect(command).not.toHaveProperty("placement");
-        expect(command).not.toHaveProperty("monaco");
-        expect(command).not.toHaveProperty("fs");
-      }
-    }
   });
 });

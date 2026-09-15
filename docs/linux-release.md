@@ -61,4 +61,4 @@ gpg --verify artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
 (cd artifacts && sha256sum -c SHA256SUMS)
 ```
 
-Copy the files you need onto a GitHub Release yourself. Use the matching file under [releases/](./releases/) as the body (`v0.4.0.md` for this version).
+Copy the files you need onto a GitHub Release yourself. Use the matching file under [releases/](./releases/) as the body (`v0.8.0.md` for the current published notes; use `vX.Y.Z.md` for the version you are shipping).
