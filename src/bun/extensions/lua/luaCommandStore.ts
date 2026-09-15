@@ -1,8 +1,9 @@
 /**
  * Host-owned store for Lua-registered extension commands.
  *
- * Commit only after a successful registration phase. Never a second command bus -
- * renderer still dispatches through the existing extension command seam + RPC.
+ * Commands commit only after entry.lua finishes successfully. This is not a
+ * second command bus - the renderer still dispatches through the extension
+ * command seam and host RPC.
  */
 import type { LuaEngine } from "wasmoon";
 

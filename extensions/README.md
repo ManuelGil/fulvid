@@ -2,7 +2,7 @@
 
 These directories are **real reference extensions** maintained with Fulvid. They are intentionally small, useful examples of the **production Extension API v1**.
 
-They are **not** empty scaffolds, hello-world stubs, or architecture spikes.
+They are not empty scaffolds or stubs.
 
 Copy a pack into:
 
@@ -26,7 +26,7 @@ Capabilities:
   editor
 ```
 
-Full contract: [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md). Promotion / acceptance record: [`docs/EXTENSION-PRODUCT-CONTRACT.md`](../docs/EXTENSION-PRODUCT-CONTRACT.md).
+Full contract: [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md).
 
 **Lua** is a supported extension runtime inside Extensions - not a separate product and not a general scripting environment.
 

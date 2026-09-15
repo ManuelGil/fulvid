@@ -97,7 +97,7 @@ Path: `extension -> declared capability / command -> existing owner -> existing 
 | Category | Surfaces / rules |
 | --- | --- |
 | **Current** | Discovery loads `userData/extensions` at startup (**Extension API v1**). Invalid packs fail in isolation. Permanent examples under [`extensions/`](../extensions/). Host actions: `notify`, `createUntitledFromTemplate`. **Lua:** supported runtime via wasmoon (embedded PUC Lua 5.4.5 / Wasm) with `commands.register` / `ui.notify` under `LUA_EXTENSION_LIMITS`. **Editor (PRODUCTION):** `editor.getSelection` / `editor.replaceSelection` - text snapshot + host-only identity stamps -> Lua text-only -> reject-stale apply through Monaco. Capability isolation ≠ OS sandbox. Full contract: [`EXTENSIONS.md`](./EXTENSIONS.md). |
-| **Future seam** | Additional capabilities only via an explicit security/design decision - not a routine API widening |
+| **Additional capabilities** | Only via an explicit security/design decision - not a routine API widening |
 | **Core-controlled** | Focus, dirty state, document selection, Writing Focus policy, grants, filesystem, Graph, Preview inertness, native Full Screen, right-rail panel set, Statusbar indicators, tabs chrome |
 | **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, parallel IPC channels, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution, extension-owned dirty/selection state, generic `host.call` bridges, bytecode entry, undeclared executable surfaces |
 

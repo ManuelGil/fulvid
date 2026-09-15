@@ -26,6 +26,7 @@ Keep pull requests focused.
 - Releases: [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). Actions is the main path. The Linux Makefile is a local helper.
 - User-facing changes: add an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) in the same change. When a version is released, move those entries under that version and open a new `Unreleased` section. Do not reconstruct a version from git history at the last minute, log every commit, or rewrite a published version except to fix a factual error.
 - Trust, filesystem, Preview, CSP, and packaging: [docs/SECURITY-AND-RESILIENCE.md](docs/SECURITY-AND-RESILIENCE.md). Update that document when a listed review trigger fires. Report vulnerabilities via [SECURITY.md](SECURITY.md).
+- Extensions (local packs under `userData/extensions`, API v1): [docs/EXTENSIONS.md](docs/EXTENSIONS.md). Start from the reference packs in [`extensions/`](extensions/). Extend through existing owners - do not give packs filesystem, network, process, or live Monaco authority. Contract tests: `tests/extensions/`.
 
 ## Desktop toolchain
 

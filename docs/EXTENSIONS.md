@@ -1,12 +1,18 @@
 # Extensions
 
-Architectural and security contract for Fulvid’s **Extensions** product (Extension API v1).
+Fulvid’s local **Extensions** system (API v1): small packs that add commands and document workflows through existing Fulvid owners.
 
-Ownership summary: [ARCHITECTURE.md](./ARCHITECTURE.md). Product vocabulary: [CONCEPTS.md](./CONCEPTS.md). Standing security review: [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md). Fixtures / examples: [`extensions/README.md`](../extensions/README.md).
+| Audience | Start here |
+| --- | --- |
+| User | What Extensions can and cannot do (below); install by copying a pack into `userData/extensions/` |
+| Plugin author | Capability tables + [reference packs](../extensions/) |
+| Maintainer | Ownership, budgets, footprint, and [tests as security contracts](#tests-as-security-contracts) |
 
-**Production promotion gates:** [EXTENSION-PRODUCT-CONTRACT.md](./EXTENSION-PRODUCT-CONTRACT.md).
+Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [CONCEPTS.md](./CONCEPTS.md) · [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md) · [`extensions/README.md`](../extensions/README.md)
 
 Lua is a **supported extension runtime** inside Extensions - not a second product and not a general scripting environment.
+
+**Extensions are locally installed executable code.** Fulvid constrains capabilities (and isolates Wasm guest memory) but does **not** provide an OS-level sandbox. There is no marketplace, account, or cloud install path.
 
 
 ## Architectural contract
@@ -35,9 +41,9 @@ An extension capability must call an existing owner or seam rather than recreate
 
 Never: `extension -> Vue / Monaco / filesystem` as a direct authority path.
 
-## What the Engine is not
+## What Extensions is not
 
-The current Engine is **not**:
+The Extension System is **not**:
 
 - a general scripting environment
 - a plugin OS
@@ -74,7 +80,7 @@ Declarative packs do not execute Lua, JavaScript, or MDX.
 | --- | --- | --- | --- | --- | --- |
 | `lua` + `commands` | Lua host runtime -> registry | `commands.register` then host invoke of `run` | Declarative command tables on the same pack; generic bridges | `LUA_EXTENSION_LIMITS` (source, commands, execution, memory) | Load/invoke fails closed; neighbors continue |
 | `ui` | UI notify owner | `ui.notify(message)` | Arbitrary DOM/HTML/SVG | `maxNotifyMessageChars` | Oversized notify rejected |
-| `editor` (**PRODUCTION**) | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation; identity stamps in Lua | `maxEditorSelectionChars` | Rejected / fail closed / stale rejected; see Editor section |
+| `editor` | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation; identity stamps in Lua | `maxEditorSelectionChars` | Rejected / fail closed / stale rejected; see Editor section |
 
 Guest APIs are only the surfaces above. There is no generic `host.call`.
 
@@ -99,9 +105,9 @@ Lua package/module loading
 
 Absence is intentional containment, not an unfinished backlog item. A future addition requires a new explicit security and design decision, documentation, and contract tests - together.
 
-## Editor (PRODUCTION)
+## Editor
 
-**Editor capability is PRODUCTION** under Extension API v1.
+Editor capability under Extension API v1.
 
 Protocol:
 
@@ -115,7 +121,7 @@ validate stamps still current
 Monaco owner/seam apply
 ```
 
-**Stale-operation strategy: B - reject stale.**
+**Stale operations are rejected.** If the active document, Monaco content version, or selection offsets change between snapshot and apply, the command fails with a localized error and performs no mutation.
 
 Host-only snapshot stamps (never exposed to Lua):
 
@@ -194,7 +200,7 @@ Future runtimes need not use Wasm. They must not quietly become a privileged scr
 
 **Reuse:** Reusing the runtime implementation elsewhere in Fulvid does **not** imply reusing or expanding its authority. Reuse must preserve capability scoping, existing owner boundaries, guest restrictions, resource budgets, failure isolation, source-only execution, and no arbitrary host bridge.
 
-## Engine removal checklist
+## Extension System removal checklist
 
 If the Extension System is removed from Fulvid, complete removal should account for:
 
@@ -210,7 +216,7 @@ documentation                     docs/EXTENSIONS.md, ARCHITECTURE, INVARIANTS, 
 i18n strings                      extension-related catalog keys
 tests                             tests/extensions/
 temporary fixtures                tests/extensions/fixtures/
-permanent fixtures                extensions/
+reference packs                   extensions/
 build/package configuration       packaging + Electrobun copy rules
 dependencies                      wasmoon (and related)
 security documentation            SECURITY-AND-RESILIENCE.md
@@ -296,6 +302,8 @@ Capability isolation ≠ OS sandbox
 Extensions are locally installed executable code. Fulvid constrains capabilities; it does not provide an OS-level sandbox.
 
 Platform packaging verification for the Lua runtime: [compatibility.md](./compatibility.md). That matrix is not a claim of complete cross-platform adversarial security coverage.
+
+Promotion gates and acceptance record (historical specification for how the surface became production): [EXTENSION-PRODUCT-CONTRACT.md](./EXTENSION-PRODUCT-CONTRACT.md).
 
 ## Terminology
 

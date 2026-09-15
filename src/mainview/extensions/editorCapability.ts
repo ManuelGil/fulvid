@@ -11,7 +11,7 @@
  *     -> validate stamps still current
  *     -> MonacoHost apply
  *
- * Stale-operation semantics (strategy B - reject stale):
+ * Stale-operation semantics (reject stale):
  *   Snapshot carries selected text plus host-only document id, Monaco
  *   alternativeVersionId, and selection offsets. Lua never sees identity stamps.
  *   Apply verifies the active document and selection stamps still match; otherwise

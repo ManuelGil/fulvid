@@ -55,6 +55,8 @@ Pin a short temporary note on a line with **document annotations**. Use Quick Ac
 
 Look at an Outline of headings, or at Document Context for references and facts taken from the focused folder document. Graph shows that document among the documents it actually links to. It is a map of resolved links, not a knowledge base and not a score of how "good" a note is.
 
+Install **local Extensions** when you want small add-ons - a menu command, a note template, or a bounded selection transform - without giving them the filesystem, network, or the live editor. Packs live under your user data folder as ordinary files you can inspect. Details: [docs/EXTENSIONS.md](docs/EXTENSIONS.md). Examples: [`extensions/`](extensions/).
+
 The chrome is English or Spanish. Document text, filenames, and link targets are never translated.
 
 ![MDX opened as source in Fulvid](assets/screenshots/editor-mdx.png)
@@ -225,6 +227,7 @@ The README is the public introduction. These documents go deeper when you need t
 
 - [Concepts](docs/CONCEPTS.md) - product vocabulary
 - [Document annotations](docs/ANNOTATIONS.md) - session-local line notes in the editor
+- [Extensions](docs/EXTENSIONS.md) - local extension packs (API v1); examples in [`extensions/`](extensions/)
 - [Architecture](docs/ARCHITECTURE.md) - who owns which behavior
 - [Contributing](CONTRIBUTING.md) - how to work in the repo
 - [Distribution](docs/DISTRIBUTION.md) - packaging and GitHub Releases

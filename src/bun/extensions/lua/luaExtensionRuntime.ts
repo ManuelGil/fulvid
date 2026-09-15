@@ -6,7 +6,7 @@
  * declares `editor`: editor.getSelection / editor.replaceSelection (snapshot/apply).
  *
  * Runtime lives only in the Bun host. Defensive budgets: thread/function timeouts
- * and Wasm `setMemoryMax` (capability/resource limits - NOT an OS sandbox).
+ * and Wasm `setMemoryMax` (capability/resource limits - not an OS sandbox).
  */
 import { readFile, stat } from "node:fs/promises";
 
