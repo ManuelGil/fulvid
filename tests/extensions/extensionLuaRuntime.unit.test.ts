@@ -11,24 +11,19 @@ import {
 } from "../../src/bun/extensions/discoverExtensions.ts";
 import {
   findLuaCommand,
-  listLuaCommandsForExtension,
-  pendingLuaCommandCount,
+  invokeLuaExtensionCommand,
+  loadLuaExtensionPack,
   resetLuaCommandStoreForTests,
-} from "../../src/bun/extensions/lua/luaCommandStore.ts";
+} from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
+
 import {
   createHardenedLuaEngine,
+  luaGlobalType,
+  reduceLuaGuestEnvironment,
+  resetLuaFactoryForTests,
   resolveWasmoonGlueWasmPath,
   runLuaSourceWithBudget,
 } from "../../src/bun/extensions/lua/luaEngine.ts";
-import {
-  invokeLuaExtensionCommand,
-  loadLuaExtensionPack,
-  resetLuaFactoryForTests,
-} from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
-import {
-  reduceLuaGuestEnvironment,
-  luaGlobalType,
-} from "../../src/bun/extensions/lua/luaGuestEnvironment.ts";
 import {
   LUA_EXTENSION_LIMITS,
   setLuaExecutionBudgetForTests,
@@ -138,7 +133,7 @@ describe("lua extension manifest contract", () => {
         entry: "entry.lua",
         commands: [{ id: "ping", title: "Ping", action: "notify", message: "x" }],
       }),
-    ).toEqual({ reason: "lua packs register commands from entry.lua, not the manifest" });
+    ).toEqual({ reason: "forbidden manifest key: commands" });
   });
 
   test("rejects traversal and drive-letter entry paths at validation", () => {
@@ -210,8 +205,6 @@ error("boom after register")
 
     await expect(loadPack(pack)).rejects.toBeDefined();
     expect(findLuaCommand("local.contract-lua-bad.one")).toBeNull();
-    expect(listLuaCommandsForExtension("local.contract-lua-bad")).toEqual([]);
-    expect(pendingLuaCommandCount()).toBe(0);
   });
 
   test("one failed Lua pack does not stop a valid neighbor", async () => {
@@ -234,7 +227,6 @@ error("boom after register")
         id: "ping",
         namespacedId: "local.contract-lua-notify.ping",
         title: "Lua Ping",
-        action: "lua",
       },
     ]);
   });
@@ -342,7 +334,6 @@ while true do end
     });
     expect(Date.now() - started).toBeLessThan(2_000);
     expect(findLuaCommand("local.contract-lua-loop.one")).toBeNull();
-    expect(pendingLuaCommandCount()).toBe(0);
   });
 
   test("interrupts infinite loop during command invoke; host stays usable", async () => {
@@ -454,7 +445,6 @@ end
       reason: "memory limit exceeded",
     });
     expect(findLuaCommand("local.contract-lua-oom.one")).toBeNull();
-    expect(pendingLuaCommandCount()).toBe(0);
   });
 
   test("memory failure during load does not block a later valid extension", async () => {

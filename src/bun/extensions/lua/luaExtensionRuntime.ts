@@ -1,12 +1,6 @@
 /**
- * Load entry.lua in an isolated wasmoon engine and register commands through an
- * explicit capability bridge (never a generic host.call).
- *
- * Guest APIs: commands.register (load), ui.notify (invoke), and when the pack
- * declares `editor`: editor.getSelection / editor.replaceSelection (snapshot/apply).
- *
- * Runtime lives only in the Bun host. Defensive budgets: thread/function timeouts
- * and Wasm `setMemoryMax` (capability/resource limits - not an OS sandbox).
+ * Load entry.lua and invoke commands through an explicit capability bridge.
+ * No generic host.call. Budgets via wasmoon hooks / Wasm memory max.
  */
 import { readFile, stat } from "node:fs/promises";
 
@@ -20,33 +14,22 @@ import type {
   EditorMutationRequest,
   EditorSelectionSnapshot,
 } from "../../../mainview/extensions/editorCapability";
+import type { DocumentSnapshot } from "../../../mainview/extensions/documentCapability";
+import {
+  parseExtensionDecorationRanges,
+  type DecorationsMutationRequest,
+} from "../../../mainview/extensions/decorationCapability";
 import {
   assertCanonicallyContained,
   containedPath,
   WorkspaceBoundaryError,
 } from "../../filesystem/security/workspacePaths";
 import {
-  beginLuaRegistration,
-  commitLuaRegistration,
-  discardLuaRegistration,
-  findLuaCommand,
-  getLuaEngineForExtension,
-  isLuaRegistering,
-  luaExtensionHasCapability,
-  pendingLuaCommandCount,
-  queuePendingLuaCommand,
-  type LuaRegisteredCommand,
-} from "./luaCommandStore";
-import {
   createHardenedLuaEngine,
   describeLuaRuntimeFailure,
-  resetLuaFactoryForTests,
   runLuaSourceWithBudget,
 } from "./luaEngine";
 import { LUA_EXTENSION_LIMITS } from "./luaLimits";
-
-export { resetLuaFactoryForTests };
-export { resolveWasmoonGlueWasmPath } from "./luaEngine";
 
 export class LuaExtensionLoadError extends Error {
   constructor(readonly reason: string) {
@@ -55,39 +38,117 @@ export class LuaExtensionLoadError extends Error {
   }
 }
 
+export type LuaRegisteredCommand = {
+  extensionId: string;
+  commandId: string;
+  namespacedId: string;
+  title: string;
+  run: () => unknown;
+};
+
 export type LuaInvokeRequest = {
   namespacedId: string;
   editor?: EditorSelectionSnapshot;
+  document?: DocumentSnapshot;
 };
 
-export type LuaInvokeSuccess = {
-  ok: true;
-  notifications: string[];
-  editor?: EditorMutationRequest;
+export type LuaInvokeResult =
+  | {
+      ok: true;
+      notifications: string[];
+      editor?: EditorMutationRequest;
+      decorations?: DecorationsMutationRequest;
+      createUntitled?: string;
+      reveal?: { lineNumber: number; column: number };
+    }
+  | { ok: false; error: string };
+
+const engines = new Map<string, { engine: LuaEngine; capabilities: readonly string[] }>();
+const commands = new Map<string, LuaRegisteredCommand>();
+
+/** Protects partial registration if entry.lua fails mid-load. */
+let loadTxn: { extensionId: string; pending: LuaRegisteredCommand[] } | null = null;
+/** Rejects overlapping invokes against the shared engine maps. */
+let invoking = false;
+
+const EMPTY_EDITOR: EditorSelectionSnapshot = {
+  selection: "",
+  documentId: "",
+  alternativeVersionId: -1,
+  startOffset: 0,
+  endOffset: 0,
 };
 
-export type LuaInvokeFailure = { ok: false; error: string };
+const EMPTY_DOCUMENT: DocumentSnapshot = {
+  text: "",
+  documentId: "",
+  alternativeVersionId: -1,
+  cursorLine: 1,
+  cursorColumn: 1,
+};
 
-export type LuaInvokeResult = LuaInvokeSuccess | LuaInvokeFailure;
+function closeEngine(engine: LuaEngine | null): void {
+  if (!engine) {
+    return;
+  }
+  try {
+    engine.global.close();
+  } catch {
+    // best-effort
+  }
+}
 
-function installCapabilityBridge(
+function dropExtension(extensionId: string): void {
+  const record = engines.get(extensionId);
+  if (record) {
+    closeEngine(record.engine);
+    engines.delete(extensionId);
+  }
+  for (const [namespacedId, command] of commands) {
+    if (command.extensionId === extensionId) {
+      commands.delete(namespacedId);
+    }
+  }
+}
+
+/** Test helper: drop all Lua engines and registrations. */
+export function resetLuaCommandStoreForTests(): void {
+  for (const record of engines.values()) {
+    closeEngine(record.engine);
+  }
+  engines.clear();
+  commands.clear();
+  loadTxn = null;
+  invoking = false;
+}
+
+export function findLuaCommand(namespacedId: string): LuaRegisteredCommand | null {
+  return commands.get(namespacedId) ?? null;
+}
+
+async function installBridge(
   engine: LuaEngine,
   extensionId: string,
-  options: {
-    onNotify: (message: string) => void;
+  bridge: {
     allowRegister: boolean;
-    allowNotify: boolean;
-    editor?: {
-      snapshot: EditorSelectionSnapshot;
-      mutations: EditorMutationRequest;
+    onNotify: ((message: string) => void) | null;
+    editor?: { snapshot: EditorSelectionSnapshot; mutations: EditorMutationRequest };
+    document?: {
+      snapshot: DocumentSnapshot;
+      setUntitled: (text: string) => void;
+      setReveal: (pos: { lineNumber: number; column: number }) => void;
     };
+    decorations?: DecorationsMutationRequest;
   },
-): void {
-  const seenIds = new Set<string>();
+): Promise<void> {
+  // Capability isolation: only expose tables granted for this call.
+  await engine.doString("editor = nil; document = nil; decorations = nil");
+
+  const seen = new Set<string>();
 
   engine.global.set("commands", {
     register(definition: { id?: unknown; title?: unknown; run?: unknown }): void {
-      if (!options.allowRegister || !isLuaRegistering()) {
+      if (!bridge.allowRegister || !loadTxn || loadTxn.extensionId !== extensionId) {
         throw new Error("commands.register is only allowed during extension load");
       }
       if (typeof definition !== "object" || definition === null) {
@@ -102,30 +163,32 @@ function installCapabilityBridge(
       if (typeof title !== "string" || title.trim().length === 0) {
         throw new Error("invalid Lua command title");
       }
+      if (title.length > LUA_EXTENSION_LIMITS.maxCommandTitleChars.value) {
+        throw new Error("command title exceeds size limit");
+      }
       if (typeof run !== "function") {
         throw new Error("commands.register requires a run function");
       }
-      if (seenIds.has(id)) {
+      if (seen.has(id)) {
         throw new Error(`duplicate command id: ${id}`);
       }
-      if (pendingLuaCommandCount() >= LUA_EXTENSION_LIMITS.maxCommandsPerExtension.value) {
+      if (loadTxn.pending.length >= LUA_EXTENSION_LIMITS.maxCommandsPerExtension.value) {
         throw new Error("command registration limit exceeded");
       }
-      seenIds.add(id);
-      const command: LuaRegisteredCommand = {
+      seen.add(id);
+      loadTxn.pending.push({
         extensionId,
         commandId: id,
         namespacedId: namespacedExtensionCommandId(extensionId, id),
         title,
         run: run as () => unknown,
-      };
-      queuePendingLuaCommand(command);
+      });
     },
   });
 
   engine.global.set("ui", {
     notify(message: unknown): void {
-      if (!options.allowNotify) {
+      if (!bridge.onNotify) {
         throw new Error("ui.notify is not available during registration");
       }
       if (typeof message !== "string") {
@@ -134,16 +197,14 @@ function installCapabilityBridge(
       if (message.length > LUA_EXTENSION_LIMITS.maxNotifyMessageChars.value) {
         throw new Error("ui.notify message exceeds size limit");
       }
-      options.onNotify(message);
+      bridge.onNotify(message);
     },
   });
 
-  if (options.editor) {
-    const { snapshot, mutations } = options.editor;
+  if (bridge.editor) {
+    const { snapshot, mutations } = bridge.editor;
     engine.global.set("editor", {
-      getSelection(): string {
-        return snapshot.selection;
-      },
+      getSelection: () => snapshot.selection,
       replaceSelection(text: unknown): void {
         if (typeof text !== "string") {
           throw new Error("editor.replaceSelection requires a string");
@@ -155,42 +216,109 @@ function installCapabilityBridge(
       },
     });
   }
+
+  if (bridge.document) {
+    const { snapshot, setUntitled, setReveal } = bridge.document;
+    engine.global.set("document", {
+      getText: () => snapshot.text,
+      getCursor: () => ({ line: snapshot.cursorLine, column: snapshot.cursorColumn }),
+      reveal(line: unknown, column: unknown): void {
+        const max = LUA_EXTENSION_LIMITS.maxRevealPosition.value;
+        if (
+          typeof line !== "number" ||
+          typeof column !== "number" ||
+          !Number.isInteger(line) ||
+          !Number.isInteger(column) ||
+          line < 1 ||
+          column < 1 ||
+          line > max ||
+          column > max
+        ) {
+          throw new Error("document.reveal requires a bounded positive integer position");
+        }
+        setReveal({ lineNumber: line, column });
+      },
+      createUntitled(markdown: unknown): void {
+        if (typeof markdown !== "string") {
+          throw new Error("document.createUntitled requires a string");
+        }
+        if (markdown.length > LUA_EXTENSION_LIMITS.maxCreateUntitledChars.value) {
+          throw new Error("document.createUntitled exceeds size limit");
+        }
+        setUntitled(markdown);
+      },
+    });
+  }
+
+  if (bridge.decorations) {
+    const mutations = bridge.decorations;
+    engine.global.set("decorations", {
+      set(ranges: unknown): void {
+        const list = Array.isArray(ranges)
+          ? ranges
+          : typeof ranges === "object" && ranges !== null
+            ? Object.keys(ranges)
+                .filter((key) => /^\d+$/.test(key))
+                .map((key) => Number(key))
+                .sort((a, b) => a - b)
+                .map((index) => (ranges as Record<string, unknown>)[String(index)])
+            : null;
+        if (!list) {
+          throw new Error("decorations.set requires an array");
+        }
+        const parsed = parseExtensionDecorationRanges(
+          list.map((entry) => {
+            if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+              throw new Error("decoration range must be an object");
+            }
+            const record = entry as Record<string, unknown>;
+            return {
+              startLine: record.startLine,
+              startColumn: record.startColumn,
+              endLine: record.endLine,
+              endColumn: record.endColumn,
+              style: record.style,
+            };
+          }),
+        );
+        if (!parsed.ok) {
+          throw new Error(parsed.error);
+        }
+        mutations.set = parsed.ranges;
+        mutations.clear = undefined;
+      },
+      clear(): void {
+        mutations.clear = true;
+        mutations.set = undefined;
+      },
+    });
+  }
 }
 
-/**
- * Load entry.lua for a lua-capable pack. Commits registrations only on success.
- * @returns committed command metadata for the discovery DTO
- */
 export async function loadLuaExtensionPack(
   packRoot: string,
   manifest: ExtensionManifest,
 ): Promise<readonly LuaRegisteredCommand[]> {
-  if (!manifest.capabilities.includes("lua")) {
-    throw new LuaExtensionLoadError("lua capability required");
-  }
-  if (!manifest.entry) {
-    throw new LuaExtensionLoadError("lua packs require entry");
+  if (!manifest.capabilities.includes("lua") || !manifest.entry) {
+    throw new LuaExtensionLoadError("lua packs require lua capability and entry");
   }
 
   const relativeEntry = manifest.entry.replace(/\\/g, "/");
-  if (!relativeEntry.endsWith(".lua")) {
-    throw new LuaExtensionLoadError("entry must be a .lua source file");
-  }
-  if (relativeEntry.includes("\0")) {
+  if (!relativeEntry.endsWith(".lua") || relativeEntry.includes("\0")) {
     throw new LuaExtensionLoadError("invalid entry path");
   }
 
+  let entryPath: string;
   try {
-    containedPath(packRoot, relativeEntry);
+    entryPath = containedPath(packRoot, relativeEntry);
     await assertCanonicallyContained(packRoot, relativeEntry);
   } catch (error) {
-    if (error instanceof WorkspaceBoundaryError) {
-      throw new LuaExtensionLoadError("entry path outside extension");
-    }
-    throw new LuaExtensionLoadError("invalid entry path");
+    throw new LuaExtensionLoadError(
+      error instanceof WorkspaceBoundaryError
+        ? "entry path outside extension"
+        : "invalid entry path",
+    );
   }
-
-  const entryPath = containedPath(packRoot, relativeEntry);
 
   let entryStat;
   try {
@@ -198,37 +326,49 @@ export async function loadLuaExtensionPack(
   } catch {
     throw new LuaExtensionLoadError(`missing entry file: ${manifest.entry}`);
   }
-  if (!entryStat.isFile()) {
-    throw new LuaExtensionLoadError(`entry is not a file: ${manifest.entry}`);
-  }
-  if (entryStat.size > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
-    throw new LuaExtensionLoadError("entry.lua exceeds size limit");
+  if (!entryStat.isFile() || entryStat.size > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
+    throw new LuaExtensionLoadError(
+      entryStat.isFile()
+        ? "entry.lua exceeds size limit"
+        : `entry is not a file: ${manifest.entry}`,
+    );
   }
 
   const source = await readFile(entryPath, "utf8");
-  if (Buffer.byteLength(source, "utf8") > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
-    throw new LuaExtensionLoadError("entry.lua exceeds size limit");
-  }
-  // Reject Lua binary chunk signatures (bytecode).
-  if (source.startsWith("\u001bLua") || source.includes("\0")) {
-    throw new LuaExtensionLoadError("bytecode entry is not allowed");
+  if (
+    Buffer.byteLength(source, "utf8") > LUA_EXTENSION_LIMITS.maxSourceBytes.value ||
+    source.startsWith("\u001bLua") ||
+    source.includes("\0")
+  ) {
+    throw new LuaExtensionLoadError(
+      source.startsWith("\u001bLua") || source.includes("\0")
+        ? "bytecode entry is not allowed"
+        : "entry.lua exceeds size limit",
+    );
   }
 
+  if (loadTxn || invoking) {
+    throw new LuaExtensionLoadError("Lua registration reentrancy is not allowed");
+  }
+  loadTxn = { extensionId: manifest.id, pending: [] };
+
   let engine: LuaEngine | null = null;
-  beginLuaRegistration(manifest.id, manifest.capabilities);
   try {
     engine = await createHardenedLuaEngine();
-    installCapabilityBridge(engine, manifest.id, {
-      allowRegister: true,
-      allowNotify: false,
-      onNotify: () => {
-        throw new Error("ui.notify is not available during registration");
-      },
-    });
+    await installBridge(engine, manifest.id, { allowRegister: true, onNotify: null });
     await runLuaSourceWithBudget(engine, source);
-    return commitLuaRegistration(engine);
+
+    const committed = loadTxn.pending;
+    dropExtension(manifest.id);
+    engines.set(manifest.id, { engine, capabilities: [...manifest.capabilities] });
+    for (const command of committed) {
+      commands.set(command.namespacedId, command);
+    }
+    loadTxn = null;
+    return committed;
   } catch (error) {
-    discardLuaRegistration(engine);
+    closeEngine(engine);
+    loadTxn = null;
     if (error instanceof LuaExtensionLoadError) {
       throw error;
     }
@@ -236,29 +376,63 @@ export async function loadLuaExtensionPack(
   }
 }
 
-/**
- * Invoke a committed Lua command. Collects ui.notify messages and optional
- * editor.replaceSelection mutations for the renderer to apply.
- */
 export async function invokeLuaExtensionCommand(
   request: LuaInvokeRequest | string,
 ): Promise<LuaInvokeResult> {
-  const namespacedId = typeof request === "string" ? request : request.namespacedId;
+  const namespacedId = typeof request === "string" ? request : request?.namespacedId;
+  if (typeof namespacedId !== "string" || namespacedId.length === 0 || namespacedId.length > 256) {
+    return { ok: false, error: "invalid invoke request" };
+  }
   const editorSnapshot = typeof request === "string" ? undefined : request.editor;
+  const documentSnapshot = typeof request === "string" ? undefined : request.document;
 
-  const command = findLuaCommand(namespacedId);
-  if (!command) {
-    return { ok: false, error: "unknown lua command" };
+  if (editorSnapshot !== undefined) {
+    if (
+      typeof editorSnapshot !== "object" ||
+      editorSnapshot === null ||
+      typeof editorSnapshot.selection !== "string" ||
+      typeof editorSnapshot.documentId !== "string" ||
+      typeof editorSnapshot.alternativeVersionId !== "number" ||
+      typeof editorSnapshot.startOffset !== "number" ||
+      typeof editorSnapshot.endOffset !== "number"
+    ) {
+      return { ok: false, error: "invalid editor snapshot" };
+    }
+  }
+  if (documentSnapshot !== undefined) {
+    if (
+      typeof documentSnapshot !== "object" ||
+      documentSnapshot === null ||
+      typeof documentSnapshot.text !== "string" ||
+      typeof documentSnapshot.documentId !== "string" ||
+      typeof documentSnapshot.alternativeVersionId !== "number" ||
+      typeof documentSnapshot.cursorLine !== "number" ||
+      typeof documentSnapshot.cursorColumn !== "number"
+    ) {
+      return { ok: false, error: "invalid document snapshot" };
+    }
   }
 
-  const engine = getLuaEngineForExtension(command.extensionId);
-  if (!engine) {
-    return { ok: false, error: "lua session missing" };
+  const command = commands.get(namespacedId);
+  const record = command ? engines.get(command.extensionId) : undefined;
+  if (!command || !record) {
+    return { ok: false, error: command ? "lua session missing" : "unknown lua command" };
   }
 
-  const allowEditor = luaExtensionHasCapability(command.extensionId, "editor");
+  if (invoking || loadTxn) {
+    return { ok: false, error: "lua invocation reentrancy is not allowed" };
+  }
+
+  const caps = record.capabilities;
+  const allowEditor = caps.includes("editor");
+  const allowDocument = caps.includes("document");
+  const allowDecorations = caps.includes("decorations");
+
   if (editorSnapshot && !allowEditor) {
     return { ok: false, error: "editor capability not granted" };
+  }
+  if (documentSnapshot && !allowDocument && !allowDecorations) {
+    return { ok: false, error: "document capability not granted" };
   }
   if (
     editorSnapshot &&
@@ -266,41 +440,78 @@ export async function invokeLuaExtensionCommand(
   ) {
     return { ok: false, error: "editor selection exceeds size limit" };
   }
+  if (
+    documentSnapshot &&
+    allowDocument &&
+    documentSnapshot.text.length > LUA_EXTENSION_LIMITS.maxDocumentTextChars.value
+  ) {
+    return { ok: false, error: "document text exceeds size limit" };
+  }
 
   const notifications: string[] = [];
-  const mutations: EditorMutationRequest = {};
-  installCapabilityBridge(engine, command.extensionId, {
-    allowRegister: false,
-    allowNotify: true,
-    onNotify: (message) => {
-      notifications.push(message);
-    },
-    editor: allowEditor
-      ? {
-          snapshot: editorSnapshot ?? {
-            selection: "",
-            documentId: "",
-            alternativeVersionId: -1,
-            startOffset: 0,
-            endOffset: 0,
-          },
-          mutations,
-        }
-      : undefined,
-  });
+  const editorMutations: EditorMutationRequest = {};
+  const decorationMutations: DecorationsMutationRequest = {};
+  let createUntitled: string | undefined;
+  let reveal: { lineNumber: number; column: number } | undefined;
 
+  invoking = true;
   try {
-    // Ensure packs without `editor` cannot see a leftover host table.
-    if (!allowEditor) {
-      await engine.doString("editor = nil");
+    await installBridge(record.engine, command.extensionId, {
+      allowRegister: false,
+      onNotify: (message) => {
+        if (notifications.length >= LUA_EXTENSION_LIMITS.maxNotificationsPerInvoke.value) {
+          throw new Error("ui.notify count exceeds size limit");
+        }
+        notifications.push(message);
+      },
+      editor: allowEditor
+        ? { snapshot: editorSnapshot ?? EMPTY_EDITOR, mutations: editorMutations }
+        : undefined,
+      document: allowDocument
+        ? {
+            snapshot: documentSnapshot ?? EMPTY_DOCUMENT,
+            setUntitled: (text) => {
+              createUntitled = text;
+            },
+            setReveal: (pos) => {
+              reveal = pos;
+            },
+          }
+        : undefined,
+      decorations: allowDecorations ? decorationMutations : undefined,
+    });
+
+    const runOutcome = command.run();
+    // Reject thenables so a hanging Promise cannot pin `invoking` forever.
+    if (
+      runOutcome !== null &&
+      runOutcome !== undefined &&
+      (typeof runOutcome === "object" || typeof runOutcome === "function") &&
+      typeof (runOutcome as { then?: unknown }).then === "function"
+    ) {
+      return { ok: false, error: "async command results are not allowed" };
     }
-    await Promise.resolve(command.run());
-    const result: LuaInvokeSuccess = { ok: true, notifications };
-    if (allowEditor && mutations.replaceSelection !== undefined) {
-      result.editor = { replaceSelection: mutations.replaceSelection };
+
+    const result: Extract<LuaInvokeResult, { ok: true }> = { ok: true, notifications };
+    if (allowEditor && editorMutations.replaceSelection !== undefined) {
+      result.editor = { replaceSelection: editorMutations.replaceSelection };
+    }
+    if (allowDecorations && (decorationMutations.clear || decorationMutations.set)) {
+      result.decorations = {
+        ...(decorationMutations.clear ? { clear: true } : {}),
+        ...(decorationMutations.set ? { set: decorationMutations.set } : {}),
+      };
+    }
+    if (allowDocument && createUntitled !== undefined) {
+      result.createUntitled = createUntitled;
+    }
+    if (allowDocument && reveal !== undefined) {
+      result.reveal = reveal;
     }
     return result;
   } catch (error) {
     return { ok: false, error: describeLuaRuntimeFailure(error) };
+  } finally {
+    invoking = false;
   }
 }

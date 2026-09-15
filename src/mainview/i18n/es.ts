@@ -29,7 +29,6 @@ export default {
     memoryExceeded: "Esa extensión usó demasiada memoria y se detuvo.",
     sizeLimitExceeded: "Esa extensión alcanzó un límite de tamaño.",
     commandFailed: "Ese comando de extensión no pudo completarse.",
-    templateMissing: "Falta la plantilla de esa extensión.",
   },
   toolbar: {
     undo: "Deshacer",

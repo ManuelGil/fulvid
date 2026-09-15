@@ -19,7 +19,6 @@ The Extension Engine and Lua runtime must not be treated as two independent expe
 ```text
 Fulvid
   └── Extensions
-       ├── declarative extensions
        └── Lua extensions
             └── constrained capabilities
 ```
@@ -68,7 +67,7 @@ If any mandatory capability remains experimental, the entire corresponding publi
 
 The supported product is:
 
-> A local, filesystem-oriented extension system that allows declarative and Lua extensions to contribute narrowly scoped commands, templates, notifications, and explicitly defined editor transformations through existing Fulvid owners.
+> A local, filesystem-oriented extension system that allows Lua extensions to contribute narrowly scoped commands, notifications, and explicitly defined editor/document transformations through existing Fulvid owners.
 
 The extension system:
 
@@ -188,9 +187,10 @@ Current production candidates:
 
 ```text
 commands
-templates
 ui.notify
 editor
+document
+decorations
 ```
 
 The exact public API must be frozen before promotion. No capability may be considered implicitly available because the host happens to expose an internal function. Only documented capability APIs are public.
@@ -365,7 +365,7 @@ Adding a capability requires explicit review defining owner, authority, argument
 
 ## 31. Product UX contract
 
-Users should experience **Extensions** (declarative and Lua), not a second conceptual "Lua Engine" product. Lua implementation details are not a second user-facing product.
+Users should experience **Extensions** (Lua packs), not a second conceptual "Lua Engine" product. Lua implementation details are not a second user-facing product.
 
 ## 32. Documentation contract
 
@@ -435,7 +435,7 @@ Embedded Lua:
 5.4.5 (build-source provenance)
 
 Production capabilities:
-commands, templates, ui, lua, editor
+commands, ui, lua, editor, document, decorations
 
 Editor:
 PRODUCTION

@@ -11,7 +11,15 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Added
 
-- **Extensions (API v1)**: local packs under `userData/extensions/` add commands through existing owners (notify, untitled-from-template, Lua editor selection replace). Source-only Lua/Wasm on the Bun host; no marketplace, network, filesystem, or live Monaco authority. Reference packs: `extensions/`. Guide: [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
+- **Extensions (API v1)**: local Lua packs under `userData/extensions/` add commands through existing owners (notify, untitled, Monaco selection/document/decorations). Source-only Lua/Wasm on the Bun host; no marketplace, network, filesystem, or live Monaco authority. Reference packs: `extensions/`. Guide: [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
+- **Extension API expansion**: Lua packs may use least-privilege `document` (`getText` / `getCursor` / `reveal` / `createUntitled`), `decorations` (set/clear with host styles `info|warn|error`), and selection replace under `editor`. Snapshot/apply stays Bun-runtime -> renderer-apply through existing owners. No Lua `template.render`, `fulvid.date`, or command `prompts` - pack semantics live entirely outside Fulvid.
+
+### Changed
+
+- **Extensions host surface**: removed declarative host actions (`notify`, `createUntitledFromTemplate`) and the `templates` capability. All contributing packs use `entry.lua`; seed Markdown is embedded in the pack.
+- **Extensions documentation**: host docs describe only the generic extension contract. Pack-specific product vocabulary is not part of Fulvid.
+- **Extension host internals**: flatter command/engine maps, guest reduction folded into the Lua engine module, thinner registry orchestration.
+- **Extension host ceremony**: removed unused discovery helpers, re-exports, value-box wrappers, and redundant ID recomputation on the load path.
 
 ## [0.8.0] - 2026-09-14
 

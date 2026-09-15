@@ -3,14 +3,7 @@
   "name": "Host notify",
   "version": "1.0.0",
   "api": 1,
-  "description": "Minimal declarative command that posts a host notification. Reference for command \u2192 ui/notify without Lua.",
-  "capabilities": ["commands", "ui"],
-  "commands": [
-    {
-      "id": "sayReady",
-      "title": "Extensions: Confirm extensions loaded",
-      "action": "notify",
-      "message": "Extensions are available. This pack used only the host notify owner."
-    }
-  ]
+  "description": "Minimal Lua command that posts a host notification. Reference for commands.register \u2192 ui.notify.",
+  "capabilities": ["lua", "commands", "ui"],
+  "entry": "entry.lua"
 }

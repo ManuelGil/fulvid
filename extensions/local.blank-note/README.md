@@ -2,48 +2,47 @@
 
 ## Purpose
 
-Creates an untitled Markdown note with a dated heading from a pack-local template.
+Creates an untitled blank note with a heading and a date placeholder.
 
 ## Why it belongs in an extension
 
-Personal or team note shapes should not bloat Fulvid’s built-in “New Document from README” catalog. Packs keep those shapes local and removable.
+Document seed text is extension product behavior. Fulvid only bridges `document.createUntitled` to the existing untitled-document owner.
 
 ## Capabilities used
 
-- `templates`
-- `commands` (`createUntitledFromTemplate`)
+- `lua`
+- `commands`
+- `ui`
+- `document` (`document.createUntitled`)
 
 ## How it works
 
 ```text
 Extensions menu -> local.blank-note.createBlankNote
     ↓
-load templates/blank-note.md (contained in the pack)
+Lua run()
     ↓
-expand {date}
-    ↓
-existing untitled-document owner
+document.createUntitled(markdown) -> untitled owner
+ui.notify -> toast
 ```
 
 ## What to copy
 
-- Template file path relative to the pack root
-- Declarative command -> `createUntitledFromTemplate`
-- `{date}` token expansion (host-owned)
+- Closed `api: 1` manifest with `document` + `entry`
+- Embed seed Markdown in `entry.lua` (no host template loader)
 
 ## What not to copy
 
-- The empty heading / Notes section - replace with your own structure
-- Do not treat this as a Fulvid product template library
+- Expecting the host to expand `{date}` or load pack `.md` templates
 
 ## Security boundary
 
-Template paths must stay inside the pack. The pack cannot execute Lua/JS/MDX and cannot touch the filesystem beyond the host’s untitled-create path.
+No filesystem write into the Folder. Untitled creation goes through the host document owner with size budgets. Guest `os` is unavailable; date text is a static placeholder.
 
 ## Files
 
 | File | Role |
 | --- | --- |
-| `manifest.json` | Extension API v1 manifest, template, and command |
-| `templates/blank-note.md` | Markdown body (`{date}` expanded by the host) |
+| `manifest.json` | Extension API v1 manifest |
+| `entry.lua` | Seed body + command registration |
 | `README.md` | This reference note |

@@ -3,21 +3,7 @@
   "name": "Blank note",
   "version": "1.0.0",
   "api": 1,
-  "description": "Creates an untitled blank note with a dated heading via createUntitledFromTemplate.",
-  "capabilities": ["templates", "commands"],
-  "templates": [
-    {
-      "id": "blank-note",
-      "name": "Blank note",
-      "file": "templates/blank-note.md"
-    }
-  ],
-  "commands": [
-    {
-      "id": "createBlankNote",
-      "title": "Extensions: New blank note",
-      "action": "createUntitledFromTemplate",
-      "template": "blank-note"
-    }
-  ]
+  "description": "Creates an untitled blank note via document.createUntitled.",
+  "capabilities": ["lua", "commands", "ui", "document"],
+  "entry": "entry.lua"
 }

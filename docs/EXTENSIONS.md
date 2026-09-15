@@ -2,6 +2,8 @@
 
 Fulvid's local **Extensions** system (API v1): small packs that add commands and document workflows through existing Fulvid owners.
 
+**Boundary:** Fulvid is the host (runtime, capabilities, generic primitives). Extensions own product behavior - matching rules, labels, commands, and document semantics live only inside each installed pack. Deleting an extension must not require changing Fulvid core. The host discovers packs from `userData/extensions/` manifests; it has no built-in catalog of third-party packs.
+
 | Audience | Start here |
 | --- | --- |
 | User | What Extensions can and cannot do (below); install by copying a pack into `userData/extensions/` |
@@ -64,25 +66,19 @@ The Extension System is **not**:
 
 Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api": 1`). Repository packs under [`extensions/`](../extensions/) are production examples to copy into that path - not the load path itself.
 
-### Declarative
+All packs that contribute commands use Lua (`entry.lua`). There is no declarative host-action path.
 
 | Capability / surface | Authority owner | Permitted operation | Explicitly absent | Limits | Failure |
 | --- | --- | --- | --- | --- | --- |
-| `commands` (declarative) | Extension registry -> existing host action | Register namespaced command ids that invoke declared host actions | Arbitrary handlers, Monaco, filesystem | Closed action set; closed icon vocabulary | Invalid pack fails in isolation; user sees notify |
-| templates + `createUntitledFromTemplate` | Document / untitled creation owner | Seed an untitled buffer from a contained Markdown template (host expands `{date}` at creation) | Template as executable code; path traversal | Template must stay inside the pack; `EXTENSION_PACK_LIMITS.maxTemplateBytes` | Isolated pack failure; missing/oversized template notify |
-| `notify` / `ui` | UI notify owner | Show a host notification | Arbitrary UI injection | `EXTENSION_PACK_LIMITS.maxNotifyMessageChars` (declarative and Lua) | Rejected / localized failure |
+| `lua` + `commands` | Lua host runtime -> registry | `commands.register` then host invoke of `run()` | Manifest command tables; generic bridges; host prompts | `LUA_EXTENSION_LIMITS` (source, commands, execution, memory) | Load/invoke fails closed; neighbors continue |
+| `ui` | UI notify owner | `ui.notify(message)` | Arbitrary DOM/HTML/SVG; date helpers | `maxNotifyMessageChars` | Oversized notify rejected |
+| `editor` | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation; navigation; identity stamps in Lua | `maxEditorSelectionChars` | Rejected / fail closed / stale rejected; see Editor section |
+| `document` | Untitled / document snapshot via seam | `document.getText` / `document.getCursor` / `document.reveal` / `document.createUntitled` | Filesystem write; activate/open document; live model; host template loader | `maxDocumentTextChars` (512 KiB); createUntitled reuses `maxTemplateBytes` | Rejected / fail closed |
+| `decorations` | Monaco decorations via seam | `decorations.set(ranges)` / `decorations.clear()` (closed host `style` tokens; per-extension) | Arbitrary CSS; live decoration APIs; product semantics; keystroke auto-refresh | `maxDecorationRanges` (500) | Rejected / fail closed / stale rejected |
 
-Declarative packs do not execute Lua, JavaScript, or MDX.
+Guest APIs are only the surfaces above. There is no generic `host.call`. There is no Lua `template.render`, `fulvid.date`, or command `prompts` - packs that need seed Markdown embed it in `entry.lua` (or open an editable document skeleton).
 
-### Lua
-
-| Capability / surface | Authority owner | Permitted operation | Explicitly absent | Limits | Failure |
-| --- | --- | --- | --- | --- | --- |
-| `lua` + `commands` | Lua host runtime -> registry | `commands.register` then host invoke of `run` | Declarative command tables on the same pack; generic bridges | `LUA_EXTENSION_LIMITS` (source, commands, execution, memory) | Load/invoke fails closed; neighbors continue |
-| `ui` | UI notify owner | `ui.notify(message)` | Arbitrary DOM/HTML/SVG | `maxNotifyMessageChars` | Oversized notify rejected |
-| `editor` | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation; identity stamps in Lua | `maxEditorSelectionChars` | Rejected / fail closed / stale rejected; see Editor section |
-
-Guest APIs are only the surfaces above. There is no generic `host.call`.
+Decoration `style` tokens are host visual primitives only: `info`, `warn`, `error`. Extensions choose which style to request; Fulvid does not assign meaning to document text when applying decorations.
 
 ## Absent by design
 
@@ -141,18 +137,21 @@ Permanent stale test: `rejects stale editor apply when document or selection sta
 
 ## Security and resource budgets
 
-Authoritative constants: `EXTENSION_PACK_LIMITS` in `src/mainview/extensions/extensionManifest.ts` (manifest, template, notify) and `LUA_EXTENSION_LIMITS` in `src/bun/extensions/lua/luaLimits.ts` (Lua source/execution/memory/commands; notify reuses the pack limit). Editor mirrors via `EDITOR_EXTENSION_LIMITS` in `src/mainview/extensions/editorCapability.ts`.
+Authoritative constants: `EXTENSION_PACK_LIMITS` in `src/mainview/extensions/extensionManifest.ts` (manifest, create-untitled body, notify) and `LUA_EXTENSION_LIMITS` in `src/bun/extensions/lua/luaLimits.ts` (Lua source/execution/memory/commands; notify reuses the pack limit). Editor mirrors via `EDITOR_EXTENSION_LIMITS` in `src/mainview/extensions/editorCapability.ts`.
 
 | Budget | Constant | Security purpose |
 | --- | --- | --- |
 | Manifest size | `maxManifestBytes` | Caps discovery DTO input |
-| Template body size | `maxTemplateBytes` | Caps template text loaded into discovery |
+| Create untitled body | `maxTemplateBytes` | Caps `document.createUntitled` body (name retained) |
 | Lua source size | `maxSourceBytes` | Caps guest source accepted at load |
 | Execution timeout | `maxExecutionMs` | Interrupts runaway guest work |
 | Guest memory | `maxWasmMemoryBytes` | Caps Wasm guest heap growth |
 | Command count | `maxCommandsPerExtension` | Caps registrations per pack |
-| Notification size | `maxNotifyMessageChars` | Caps notify payload (declarative and Lua) |
+| Notification size | `maxNotifyMessageChars` | Caps notify payload |
 | Editor selection / replace | `maxEditorSelectionChars` | Caps snapshot and replacement text |
+| Document text | `maxDocumentTextChars` | Caps `document.getText` snapshot (512 KiB UTF-16) |
+| Decoration | `maxDecorationRanges` | Caps ranges per `decorations.set` |
+| Create untitled | `maxCreateUntitledChars` (= `maxTemplateBytes`) | Caps `document.createUntitled` body |
 
 A budget is a **security/resource boundary**, not merely a performance optimization. Changing a budget value is a contract change and must keep permanent verification that pins observable boundary behavior (not only relative `limit + 1` derived from the constant).
 

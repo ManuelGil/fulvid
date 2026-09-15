@@ -6,28 +6,29 @@ Posts a single host notification confirming that Extensions are available.
 
 ## Why it belongs in an extension
 
-It is the smallest complete declarative command workflow. Authors reuse it when they need a menu command that only notifies - without Lua and without growing Fulvid’s core menus.
+It is the smallest complete Lua command workflow. Authors reuse it when they need a menu command that only notifies - without growing Fulvid’s core menus.
 
 ## Capabilities used
 
+- `lua`
 - `commands`
-- `ui` (host action `notify`)
+- `ui` (`ui.notify`)
 
 ## How it works
 
 ```text
 Extensions menu -> local.host-notify.sayReady
     ↓
-host notify owner
+Lua run()
     ↓
-toast
+ui.notify -> host notify owner -> toast
 ```
 
 ## What to copy
 
-- Closed `api: 1` manifest
+- Closed `api: 1` manifest with `entry`
 - Namespaced command id (`<extensionId>.<commandId>`)
-- Declarative `action: "notify"` with a static message
+- `commands.register` + `ui.notify` during invoke
 
 ## What not to copy
 
@@ -35,11 +36,12 @@ toast
 
 ## Security boundary
 
-This pack cannot access the filesystem, network, process APIs, Monaco, or Lua. It only triggers the existing notify owner.
+This pack cannot access the filesystem, network, process APIs, or Monaco. It only triggers the existing notify owner through the Lua bridge.
 
 ## Files
 
 | File | Role |
 | --- | --- |
-| `manifest.json` | Extension API v1 manifest and command |
+| `manifest.json` | Extension API v1 manifest |
+| `entry.lua` | Command registration |
 | `README.md` | This reference note |

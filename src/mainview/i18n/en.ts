@@ -29,7 +29,6 @@ export default {
     memoryExceeded: "That extension used too much memory and was stopped.",
     sizeLimitExceeded: "That extension hit a size limit.",
     commandFailed: "That extension command couldn't finish.",
-    templateMissing: "That extension template is missing.",
   },
   toolbar: {
     undo: "Undo",

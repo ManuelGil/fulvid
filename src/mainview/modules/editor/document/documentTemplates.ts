@@ -6,8 +6,8 @@
  * Exactly one built-in core template: a README-shaped Markdown document.
  * Mustache interpolates the title; the result is ordinary Markdown.
  *
- * Extension packs supply their own Markdown bodies via discovery; those use
- * {@link expandTemplateDateTokens} only - not this README Mustache path.
+ * Extension packs embed their own seed Markdown in entry.lua via
+ * `document.createUntitled` - not this README Mustache path.
  * "New Document" (blank) does not use this module.
  */
 import Mustache from "mustache";
@@ -26,8 +26,6 @@ export type DocumentTemplate = {
 
 /** Deterministic fallback when creation has no folder context. */
 export const DEFAULT_README_TITLE = "README";
-
-const DATE_TOKEN = "{date}";
 
 /**
  * Substantial, language-neutral README a person could keep as real documentation.
@@ -119,21 +117,6 @@ export function documentTemplateTitleFromParentPath(
     return normalizeDocumentTemplateTitle(immediate);
   }
   return normalizeDocumentTemplateTitle(workspaceRootName);
-}
-
-export function documentTemplateDate(now = new Date()): string {
-  const year = String(now.getFullYear());
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-/**
- * Expand host-owned `{date}` tokens in extension pack Markdown only.
- * Not a general expression language - never evaluates code.
- */
-export function expandTemplateDateTokens(body: string, now = new Date()): string {
-  return body.replaceAll(DATE_TOKEN, documentTemplateDate(now));
 }
 
 /**

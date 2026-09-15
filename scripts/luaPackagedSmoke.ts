@@ -218,10 +218,9 @@ async function main(): Promise<void> {
   const { LuaFactory } = await import("wasmoon");
   const { configureExtensionDiscovery, discoverExtensions, resetExtensionDiscoveryForTests } =
     await import("../src/bun/extensions/discoverExtensions.ts");
-  const { invokeLuaExtensionCommand, resetLuaFactoryForTests } =
+  const { invokeLuaExtensionCommand, resetLuaCommandStoreForTests } =
     await import("../src/bun/extensions/lua/luaExtensionRuntime.ts");
-  const { resetLuaCommandStoreForTests } =
-    await import("../src/bun/extensions/lua/luaCommandStore.ts");
+  const { resetLuaFactoryForTests } = await import("../src/bun/extensions/lua/luaEngine.ts");
   const { setLuaExecutionBudgetForTests } = await import("../src/bun/extensions/lua/luaLimits.ts");
 
   const factory = new LuaFactory(gluePath);

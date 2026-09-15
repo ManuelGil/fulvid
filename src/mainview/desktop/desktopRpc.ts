@@ -63,12 +63,33 @@ type ExtensionDiscoveryRequests = {
         startOffset: number;
         endOffset: number;
       };
+      document?: {
+        text: string;
+        documentId: string;
+        alternativeVersionId: number;
+        cursorLine: number;
+        cursorColumn: number;
+      };
     };
     response:
       | {
           ok: true;
           notifications: string[];
-          editor?: { replaceSelection?: string };
+          editor?: {
+            replaceSelection?: string;
+          };
+          decorations?: {
+            clear?: boolean;
+            set?: Array<{
+              startLine: number;
+              startColumn: number;
+              endLine: number;
+              endColumn: number;
+              style: string;
+            }>;
+          };
+          createUntitled?: string;
+          reveal?: { lineNumber: number; column: number };
         }
       | { ok: false; error: string };
   };

@@ -9,18 +9,18 @@ import {
   resetExtensionDiscoveryForTests,
 } from "../../src/bun/extensions/discoverExtensions.ts";
 import {
-  EXTENSION_PACK_LIMITS,
   validateExtensionManifest,
   namespacedExtensionCommandId,
 } from "../../src/mainview/extensions/extensionManifest.ts";
 import {
   configureExtensionHostActions,
+  discoveredExtensions,
   listExtensionCommands,
-  listLoadedExtensions,
   resetExtensionRegistryForTests,
   runExtensionCommand,
   setDiscoveredExtensions,
 } from "../../src/mainview/extensions/extensionRegistry.ts";
+import { invokeLuaExtensionCommand } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 
 const REPO_FIXTURES = join(import.meta.dir, "../../extensions");
 
@@ -46,20 +46,30 @@ async function writePack(
   }
 }
 
+const notifyLua = `
+commands.register({
+  id = "ping",
+  title = "Ping",
+  run = function()
+    ui.notify("ok")
+  end
+})
+`;
+
 afterEach(() => {
   resetExtensionDiscoveryForTests();
   resetExtensionRegistryForTests();
 });
 
 describe("extension manifest contract", () => {
-  test("accepts a valid api 1 manifest", () => {
+  test("accepts a valid api 1 lua manifest", () => {
     const result = validateExtensionManifest({
       id: "local.host-notify",
       name: "Notify",
       version: "1.0.0",
       api: 1,
-      capabilities: ["commands"],
-      commands: [{ id: "ping", title: "Ping", action: "notify", message: "hi" }],
+      capabilities: ["lua", "commands", "ui"],
+      entry: "entry.lua",
     });
     expect("manifest" in result).toBe(true);
   });
@@ -70,7 +80,8 @@ describe("extension manifest contract", () => {
       name: "Notify",
       version: "1.0.0",
       api: 2,
-      capabilities: ["commands"],
+      capabilities: ["lua", "commands", "ui"],
+      entry: "entry.lua",
     });
     expect(result).toEqual({ reason: "unsupported api version: 2" });
   });
@@ -92,28 +103,59 @@ describe("extension manifest contract", () => {
       name: "Bad",
       version: "1.0.0",
       api: 1,
-      capabilities: ["commands"],
+      capabilities: ["ui"],
     });
     expect(result).toEqual({ reason: "invalid extension id" });
   });
 
-  test("rejects an oversized declarative notify message", () => {
-    const result = validateExtensionManifest({
-      id: "local.host-notify",
-      name: "Notify",
-      version: "1.0.0",
-      api: 1,
-      capabilities: ["commands"],
-      commands: [
-        {
-          id: "ping",
-          title: "Ping",
-          action: "notify",
-          message: "x".repeat(501),
-        },
-      ],
-    });
-    expect(result).toEqual({ reason: "notify message exceeds budget" });
+  test("rejects declarative commands and templates keys", () => {
+    expect(
+      validateExtensionManifest({
+        id: "local.host-notify",
+        name: "Notify",
+        version: "1.0.0",
+        api: 1,
+        capabilities: ["lua", "commands", "ui"],
+        entry: "entry.lua",
+        commands: [{ id: "ping", title: "Ping", action: "notify", message: "hi" }],
+      }),
+    ).toEqual({ reason: "forbidden manifest key: commands" });
+
+    expect(
+      validateExtensionManifest({
+        id: "local.blank-note",
+        name: "Blank",
+        version: "1.0.0",
+        api: 1,
+        capabilities: ["lua", "commands", "ui", "document"],
+        entry: "entry.lua",
+        templates: [{ id: "t", name: "T", file: "t.md" }],
+      }),
+    ).toEqual({ reason: "forbidden manifest key: templates" });
+  });
+
+  test("rejects commands capability without lua", () => {
+    expect(
+      validateExtensionManifest({
+        id: "local.host-notify",
+        name: "Notify",
+        version: "1.0.0",
+        api: 1,
+        capabilities: ["commands", "ui"],
+      }),
+    ).toEqual({ reason: "commands capability requires the lua capability" });
+  });
+
+  test("rejects unknown templates capability", () => {
+    expect(
+      validateExtensionManifest({
+        id: "local.blank-note",
+        name: "Blank",
+        version: "1.0.0",
+        api: 1,
+        capabilities: ["templates", "commands"],
+      }),
+    ).toEqual({ reason: "unknown capability: templates" });
   });
 });
 
@@ -130,14 +172,19 @@ describe("extension discovery", () => {
     const userData = join(await tempExtensionsRoot("iso"), "userData");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
-    await writePack(extensions, "local.good", {
-      id: "local.good",
-      name: "Good",
-      version: "1.0.0",
-      api: 1,
-      capabilities: ["commands"],
-      commands: [{ id: "ping", title: "Ping", action: "notify", message: "ok" }],
-    });
+    await writePack(
+      extensions,
+      "local.good",
+      {
+        id: "local.good",
+        name: "Good",
+        version: "1.0.0",
+        api: 1,
+        capabilities: ["lua", "commands", "ui"],
+        entry: "entry.lua",
+      },
+      { "entry.lua": notifyLua },
+    );
     await writePack(extensions, "local.bad", {
       id: "local.bad",
       name: "Bad",
@@ -145,14 +192,19 @@ describe("extension discovery", () => {
       api: 1,
       capabilities: ["filesystem"],
     });
-    await writePack(extensions, "local.also-good", {
-      id: "local.also-good",
-      name: "Also",
-      version: "1.0.0",
-      api: 1,
-      capabilities: ["commands"],
-      commands: [{ id: "ping", title: "Ping", action: "notify", message: "also" }],
-    });
+    await writePack(
+      extensions,
+      "local.also-good",
+      {
+        id: "local.also-good",
+        name: "Also",
+        version: "1.0.0",
+        api: 1,
+        capabilities: ["lua", "commands", "ui"],
+        entry: "entry.lua",
+      },
+      { "entry.lua": notifyLua.replace('"ok"', '"also"') },
+    );
 
     configureExtensionDiscovery(userData);
     const result = await discoverExtensions();
@@ -164,22 +216,32 @@ describe("extension discovery", () => {
     const userData = join(await tempExtensionsRoot("dup"), "userData");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
-    await writePack(extensions, "local.first", {
-      id: "local.first",
-      name: "First",
-      version: "1.0.0",
-      api: 1,
-      capabilities: ["commands"],
-      commands: [{ id: "ping", title: "A", action: "notify", message: "a" }],
-    });
-    await writePack(extensions, "local.second", {
-      id: "local.first",
-      name: "Second",
-      version: "2.0.0",
-      api: 1,
-      capabilities: ["commands"],
-      commands: [{ id: "ping", title: "B", action: "notify", message: "b" }],
-    });
+    await writePack(
+      extensions,
+      "local.first",
+      {
+        id: "local.first",
+        name: "First",
+        version: "1.0.0",
+        api: 1,
+        capabilities: ["lua", "commands", "ui"],
+        entry: "entry.lua",
+      },
+      { "entry.lua": notifyLua },
+    );
+    await writePack(
+      extensions,
+      "local.second",
+      {
+        id: "local.first",
+        name: "Second",
+        version: "2.0.0",
+        api: 1,
+        capabilities: ["lua", "commands", "ui"],
+        entry: "entry.lua",
+      },
+      { "entry.lua": notifyLua },
+    );
 
     configureExtensionDiscovery(userData);
     const result = await discoverExtensions();
@@ -193,14 +255,19 @@ describe("extension discovery", () => {
     await mkdir(join(extensions, "local.missing"), { recursive: true });
     await mkdir(join(extensions, "local.malformed"), { recursive: true });
     await writeFile(join(extensions, "local.malformed", "manifest.json"), "{not-json");
-    await writePack(extensions, "local.ok", {
-      id: "local.ok",
-      name: "Ok",
-      version: "1.0.0",
-      api: 1,
-      capabilities: ["commands"],
-      commands: [{ id: "ping", title: "Ping", action: "notify", message: "ok" }],
-    });
+    await writePack(
+      extensions,
+      "local.ok",
+      {
+        id: "local.ok",
+        name: "Ok",
+        version: "1.0.0",
+        api: 1,
+        capabilities: ["lua", "commands", "ui"],
+        entry: "entry.lua",
+      },
+      { "entry.lua": notifyLua },
+    );
 
     configureExtensionDiscovery(userData);
     const result = await discoverExtensions();
@@ -211,115 +278,43 @@ describe("extension discovery", () => {
     ]);
   });
 
-  test("loads contained template Markdown and rejects traversal", async () => {
-    const userData = join(await tempExtensionsRoot("tpl"), "userData");
+  test("rejects entry path traversal outside the pack", async () => {
+    const userData = join(await tempExtensionsRoot("escape"), "userData");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
-    // A neighbor file that naive join(pack, "../secret.md") would read.
-    await writeFile(join(extensions, "secret.md"), "# ESCAPED\n");
-    await writePack(
-      extensions,
-      "local.safe",
-      {
-        id: "local.safe",
-        name: "Safe",
-        version: "1.0.0",
-        api: 1,
-        capabilities: ["templates", "commands"],
-        templates: [{ id: "sample", name: "Sample", file: "templates/sample.md" }],
-        commands: [
-          {
-            id: "createSample",
-            title: "Create",
-            action: "createUntitledFromTemplate",
-            template: "sample",
-          },
-        ],
-      },
-      { "templates/sample.md": "# Hello {date}\n" },
-    );
+    await writeFile(join(extensions, "secret.lua"), "print(1)\n");
     await writePack(extensions, "local.escape", {
       id: "local.escape",
       name: "Escape",
       version: "1.0.0",
       api: 1,
-      capabilities: ["templates", "commands"],
-      templates: [{ id: "sample", name: "Sample", file: "../secret.md" }],
-      commands: [
-        {
-          id: "createSample",
-          title: "Create",
-          action: "createUntitledFromTemplate",
-          template: "sample",
-        },
-      ],
+      capabilities: ["lua", "commands", "ui"],
+      entry: "../secret.lua",
     });
 
     configureExtensionDiscovery(userData);
     const result = await discoverExtensions();
-    expect(result.loaded.map((pack) => pack.id)).toEqual(["local.safe"]);
-    expect(result.loaded[0]?.templates[0]?.content).toContain("# Hello");
-    expect(result.loaded[0]?.templates[0]?.content).not.toContain("ESCAPED");
+    expect(result.loaded).toEqual([]);
     const escapeFailure = result.failed.find((failure) => failure.id === "local.escape");
     expect(escapeFailure).toBeDefined();
-    expect(escapeFailure?.reason).toMatch(/outside|invalid/i);
-  });
-
-  test("rejects a template that exceeds the pack budget", async () => {
-    const userData = join(await tempExtensionsRoot("tpl-budget"), "userData");
-    const extensions = join(userData, "extensions");
-    await mkdir(extensions, { recursive: true });
-    const oversized = `${"a".repeat(EXTENSION_PACK_LIMITS.maxTemplateBytes + 1)}\n`;
-    await writePack(
-      extensions,
-      "local.huge",
-      {
-        id: "local.huge",
-        name: "Huge",
-        version: "1.0.0",
-        api: 1,
-        capabilities: ["templates", "commands"],
-        templates: [{ id: "sample", name: "Sample", file: "templates/sample.md" }],
-        commands: [
-          {
-            id: "createSample",
-            title: "Create",
-            action: "createUntitledFromTemplate",
-            template: "sample",
-          },
-        ],
-      },
-      { "templates/sample.md": oversized },
-    );
-
-    configureExtensionDiscovery(userData);
-    const result = await discoverExtensions();
-    expect(result.loaded).toEqual([]);
-    expect(result.failed.some((failure) => failure.id === "local.huge")).toBe(true);
-    expect(result.failed.find((failure) => failure.id === "local.huge")?.reason).toMatch(
-      /exceeds budget/i,
-    );
+    expect(escapeFailure?.reason).toMatch(/entry|outside|relative/i);
   });
 });
 
-describe("declarative host actions", () => {
-  test("host-notify and blank-note examples register through host actions", async () => {
+describe("lua host actions", () => {
+  test("host-notify and blank-note examples register through Lua bridges", async () => {
     const userData = join(await tempExtensionsRoot("fix"), "userData");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
 
-    // Copy permanent fixtures into userData (production load path).
     for (const id of ["local.host-notify", "local.blank-note"] as const) {
       const sourceManifest = await Bun.file(join(REPO_FIXTURES, id, "manifest.json")).text();
       await mkdir(join(extensions, id), { recursive: true });
       await writeFile(join(extensions, id, "manifest.json"), sourceManifest);
-      if (id === "local.blank-note") {
-        await mkdir(join(extensions, id, "templates"), { recursive: true });
-        await writeFile(
-          join(extensions, id, "templates", "blank-note.md"),
-          await Bun.file(join(REPO_FIXTURES, id, "templates", "blank-note.md")).text(),
-        );
-      }
+      await writeFile(
+        join(extensions, id, "entry.lua"),
+        await Bun.file(join(REPO_FIXTURES, id, "entry.lua")).text(),
+      );
     }
 
     configureExtensionDiscovery(userData);
@@ -337,6 +332,7 @@ describe("declarative host actions", () => {
       createUntitled: (content) => {
         untitledBodies.push(content);
       },
+      invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
     });
 
     expect(
@@ -351,55 +347,11 @@ describe("declarative host actions", () => {
     ).toBe(true);
     expect(untitledBodies).toHaveLength(1);
     expect(untitledBodies[0]).toContain("Date:");
-    expect(untitledBodies[0]).not.toContain("{date}");
+    expect(untitledBodies[0]).toContain("YYYY-MM-DD");
+    expect(notifications.some((message) => /blank note/i.test(message))).toBe(true);
     expect(listExtensionCommands().every((command) => command.namespacedId.includes("."))).toBe(
       true,
     );
-    expect(listLoadedExtensions()).toHaveLength(2);
-  });
-
-  test("does not execute Lua, JavaScript, or MDX from declarative packs", async () => {
-    const userData = join(await tempExtensionsRoot("noexec"), "userData");
-    const extensions = join(userData, "extensions");
-    await mkdir(extensions, { recursive: true });
-    await writePack(
-      extensions,
-      "local.pack",
-      {
-        id: "local.pack",
-        name: "Pack",
-        version: "1.0.0",
-        api: 1,
-        capabilities: ["templates", "commands"],
-        templates: [{ id: "sample", name: "Sample", file: "templates/sample.md" }],
-        commands: [
-          {
-            id: "createSample",
-            title: "Create",
-            action: "createUntitledFromTemplate",
-            template: "sample",
-          },
-        ],
-      },
-      {
-        "templates/sample.md":
-          "# Body\n\n```lua\nprint(1)\n```\n\n<script>alert(1)</script>\n\nexport const x = 1;\n",
-      },
-    );
-
-    configureExtensionDiscovery(userData);
-    setDiscoveredExtensions(await discoverExtensions());
-    const bodies: string[] = [];
-    configureExtensionHostActions({
-      notify: () => undefined,
-      createUntitled: (content) => {
-        bodies.push(content);
-      },
-    });
-    await runExtensionCommand(namespacedExtensionCommandId("local.pack", "createSample"));
-    // Source text is preserved as Markdown; nothing is evaluated as code.
-    expect(bodies[0]).toContain("```lua");
-    expect(bodies[0]).toContain("<script>");
-    expect(bodies[0]).toContain("export const x");
+    expect(discoveredExtensions.value.loaded).toHaveLength(2);
   });
 });

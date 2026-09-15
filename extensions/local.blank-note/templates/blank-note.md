@@ -1,7 +1,0 @@
-# Note
-
-Date: {date}
-
-## Notes
-
--

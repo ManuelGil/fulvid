@@ -48,6 +48,10 @@ import {
   registerDocumentLanguage,
   registerFrontmatterDiagnostics,
 } from "./documentLanguage";
+import {
+  cssClassForExtensionDecoration,
+  type ExtensionDecorationRange,
+} from "../../../extensions/decorationCapability";
 
 installMonacoLucideIcons();
 
@@ -87,6 +91,11 @@ let backToTopButton: HTMLButtonElement | null = null;
 let backToTopWidget: monaco.editor.IOverlayWidget | null = null;
 let stopLayoutWatch: monaco.IDisposable | null = null;
 let stopAnnotationMouseWatch: monaco.IDisposable | null = null;
+/** Per-extension decoration collections (Extension API decorations capability). */
+const extensionDecorationCollections = new Map<
+  string,
+  monaco.editor.IEditorDecorationsCollection
+>();
 
 const BACK_TO_TOP_WIDGET_ID = "fulvid.backToTop";
 /** Show the control once the viewport has left the first screen of the document. */
@@ -508,6 +517,7 @@ watch(
   () => props.model,
   (model) => {
     if (editor && editor.getModel() !== model) {
+      clearAllExtensionDecorations();
       editor.setModel(model);
       languageRegistration?.dispose();
       languageRegistration = props.rootPath
@@ -855,6 +865,31 @@ function getExtensionApplyContext(): {
 }
 
 /**
+ * Full-document snapshot for document/decorations capabilities (host stamps included).
+ */
+function getExtensionDocumentContext(): {
+  text: string;
+  alternativeVersionId: number;
+  cursorLine: number;
+  cursorColumn: number;
+} | null {
+  if (!editor) {
+    return null;
+  }
+  const model = editor.getModel();
+  if (!model) {
+    return null;
+  }
+  const position = editor.getPosition() ?? { lineNumber: 1, column: 1 };
+  return {
+    text: model.getValue(),
+    alternativeVersionId: model.getAlternativeVersionId(),
+    cursorLine: position.lineNumber,
+    cursorColumn: position.column,
+  };
+}
+
+/**
  * Replace the primary selection (or insert at the cursor when empty).
  * Empty `text` clears the selection. Returns false when no editor/model.
  * Undoable Monaco edit - dirty state follows the model.
@@ -880,6 +915,53 @@ function replacePrimarySelection(text: string): boolean {
   editor.focus();
   queueCommandState();
   return true;
+}
+
+function setExtensionDecorations(
+  extensionId: string,
+  ranges: readonly ExtensionDecorationRange[],
+): boolean {
+  if (!editor) {
+    return false;
+  }
+  let collection = extensionDecorationCollections.get(extensionId);
+  if (!collection) {
+    collection = editor.createDecorationsCollection([]);
+    extensionDecorationCollections.set(extensionId, collection);
+  }
+  collection.set(
+    ranges.map((range) => ({
+      range: new monaco.Range(range.startLine, range.startColumn, range.endLine, range.endColumn),
+      options: {
+        className: cssClassForExtensionDecoration(range.style),
+        inlineClassName: cssClassForExtensionDecoration(range.style),
+        stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+      },
+    })),
+  );
+  return true;
+}
+
+function clearExtensionDecorations(extensionId: string): boolean {
+  if (!editor) {
+    return false;
+  }
+  const collection = extensionDecorationCollections.get(extensionId);
+  if (collection) {
+    collection.clear();
+  }
+  return true;
+}
+
+function clearAllExtensionDecorations(): void {
+  for (const collection of extensionDecorationCollections.values()) {
+    try {
+      collection.clear();
+    } catch {
+      // best-effort
+    }
+  }
+  extensionDecorationCollections.clear();
 }
 
 /**
@@ -924,7 +1006,10 @@ defineExpose({
   insertTextAtCursor,
   getSelectedText,
   getExtensionApplyContext,
+  getExtensionDocumentContext,
   replacePrimarySelection,
+  setExtensionDecorations,
+  clearExtensionDecorations,
   trimTrailingWhitespace,
   currentCursorPosition,
   findAnnotationAtLine,
@@ -937,6 +1022,7 @@ defineExpose({
 
 onBeforeUnmount(() => {
   hostRef.value?.removeEventListener("paste", onMarkdownPaste, true);
+  clearAllExtensionDecorations();
   stopThemeWatch?.();
   stopThemeWatch = null;
   stopEditorKeyWatch?.dispose();
@@ -1042,5 +1128,17 @@ onBeforeUnmount(() => {
   background: currentColor;
   content: "";
   opacity: 0.85;
+}
+
+.fulvid-ext-decoration-info {
+  background-color: color-mix(in srgb, #4a7fc4 16%, transparent);
+}
+
+.fulvid-ext-decoration-warn {
+  background-color: color-mix(in srgb, #c9a227 18%, transparent);
+}
+
+.fulvid-ext-decoration-error {
+  background-color: color-mix(in srgb, #c45c4a 18%, transparent);
 }
 </style>

@@ -23,6 +23,7 @@ import EmptyState from "../../shell/EmptyState.vue";
 import PageShell from "../../shell/PageShell.vue";
 import { patchSettings } from "../../modules/settings/settingsStore";
 import { registerEditorExtensionSeam } from "../../extensions/editorExtensionSeam";
+import type { ExtensionDecorationRange } from "../../extensions/decorationCapability";
 
 import {
   applyScannedNote,
@@ -144,7 +145,18 @@ type MonacoHostHandle = {
     startOffset: number;
     endOffset: number;
   } | null;
+  getExtensionDocumentContext: () => {
+    text: string;
+    alternativeVersionId: number;
+    cursorLine: number;
+    cursorColumn: number;
+  } | null;
   replacePrimarySelection: (text: string) => boolean;
+  setExtensionDecorations: (
+    extensionId: string,
+    ranges: readonly ExtensionDecorationRange[],
+  ) => boolean;
+  clearExtensionDecorations: (extensionId: string) => boolean;
   trimTrailingWhitespace: () => boolean;
   currentCursorPosition: () => { lineNumber: number; column: number };
   findAnnotationAtLine: (lineNumber: number) => {
@@ -1086,7 +1098,37 @@ onMounted(() => {
         endOffset: context.endOffset,
       };
     },
+    getDocumentContext: () => {
+      const host = monacoHostRef.value;
+      const buffer = activeBuffer.value;
+      if (!host || !buffer) {
+        return null;
+      }
+      const context = host.getExtensionDocumentContext();
+      if (!context) {
+        return null;
+      }
+      return {
+        text: context.text,
+        documentId: buffer.id,
+        alternativeVersionId: context.alternativeVersionId,
+        cursorLine: context.cursorLine,
+        cursorColumn: context.cursorColumn,
+      };
+    },
     replaceSelection: (text) => monacoHostRef.value?.replacePrimarySelection(text) ?? false,
+    reveal: (lineNumber, column) => {
+      const host = monacoHostRef.value;
+      if (!host) {
+        return false;
+      }
+      host.revealPosition(lineNumber, column);
+      return true;
+    },
+    setExtensionDecorations: (extensionId, ranges) =>
+      monacoHostRef.value?.setExtensionDecorations(extensionId, ranges) ?? false,
+    clearExtensionDecorations: (extensionId) =>
+      monacoHostRef.value?.clearExtensionDecorations(extensionId) ?? false,
     hasActiveEditor: () => Boolean(monacoHostRef.value && activeBuffer.value),
   });
   previewMedia = window.matchMedia("(max-width: 900px)");

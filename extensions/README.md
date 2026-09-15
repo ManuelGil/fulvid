@@ -19,16 +19,17 @@ Fulvid Extensions
 API: 1
 
 Capabilities:
-  commands
-  templates
-  ui
   lua
+  commands
+  ui
   editor
+  document
+  decorations
 ```
 
 Full contract: [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md).
 
-**Lua** is a supported extension runtime inside Extensions - not a separate product and not a general scripting environment.
+**Lua** is the supported extension runtime - not a separate product and not a general scripting environment.
 
 **Extensions are locally installed executable code.** Fulvid constrains capabilities (and isolates Wasm guest memory) but does **not** provide an OS-level sandbox.
 
@@ -36,18 +37,11 @@ Full contract: [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md).
 
 | Id | Pattern demonstrated |
 | --- | --- |
-| [`local.host-notify`](./local.host-notify/) | Declarative command -> host `notify` |
-| [`local.blank-note`](./local.blank-note/) | Declarative template -> untitled document |
-| [`local.sort-lines`](./local.sort-lines/) | Lua + editor: selection transform with reject-stale apply |
+| [`local.host-notify`](./local.host-notify/) | Lua `ui.notify` |
+| [`local.blank-note`](./local.blank-note/) | Lua `document.createUntitled` |
+| [`local.sort-lines`](./local.sort-lines/) | Lua `editor` selection transform with reject-stale apply |
 
 Each pack has a README covering purpose, why it is an extension, capabilities, data flow, what to copy / not copy, and its security boundary.
-
-## Declarative vs Lua
-
-| Kind | When to use |
-| --- | --- |
-| Declarative | Static commands/templates that call existing host actions |
-| Lua (`entry.lua`) | Bounded transformations when static declaration is not enough |
 
 ## Adding another permanent example
 

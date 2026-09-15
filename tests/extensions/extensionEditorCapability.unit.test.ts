@@ -6,9 +6,9 @@ import { tmpdir } from "node:os";
 import {
   invokeLuaExtensionCommand,
   loadLuaExtensionPack,
-  resetLuaFactoryForTests,
+  resetLuaCommandStoreForTests,
 } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
-import { resetLuaCommandStoreForTests } from "../../src/bun/extensions/lua/luaCommandStore.ts";
+import { resetLuaFactoryForTests } from "../../src/bun/extensions/lua/luaEngine.ts";
 import { LUA_EXTENSION_LIMITS } from "../../src/bun/extensions/lua/luaLimits.ts";
 import {
   assertEditorReplaceWithinLimit,
@@ -44,6 +44,25 @@ function editorSnap(
     endOffset: selection.length,
     ...overrides,
   };
+}
+
+/** Minimal seam stubs for editor-only tests (new document/decoration APIs unused). */
+function stubSeam(
+  partial: Partial<Parameters<typeof registerEditorExtensionSeam>[0]> & {
+    getApplyContext: () => EditorSelectionSnapshot | null;
+    replaceSelection?: (text: string) => boolean;
+    hasActiveEditor?: () => boolean;
+  },
+): void {
+  registerEditorExtensionSeam({
+    getApplyContext: partial.getApplyContext,
+    getDocumentContext: partial.getDocumentContext ?? (() => null),
+    replaceSelection: partial.replaceSelection ?? (() => true),
+    reveal: partial.reveal ?? (() => false),
+    setExtensionDecorations: partial.setExtensionDecorations ?? (() => false),
+    clearExtensionDecorations: partial.clearExtensionDecorations ?? (() => false),
+    hasActiveEditor: partial.hasActiveEditor ?? (() => true),
+  });
 }
 
 async function tempRoot(label: string): Promise<string> {
@@ -263,13 +282,12 @@ commands.register({
 
     const applied: string[] = [];
     const snap = editorSnap("world");
-    registerEditorExtensionSeam({
+    stubSeam({
       getApplyContext: () => snap,
       replaceSelection: (text) => {
         applied.push(text);
         return true;
       },
-      hasActiveEditor: () => true,
     });
 
     setDiscoveredExtensions({
@@ -285,10 +303,8 @@ commands.register({
               id: "wrapBold",
               namespacedId: "local.contract-lua-editor.wrapBold",
               title: "Lua Wrap Bold",
-              action: "lua",
             },
           ],
-          templates: [],
         },
       ],
       failed: [],
@@ -319,7 +335,7 @@ commands.register({
     await loadLuaExtensionPack(pack, validated.manifest);
 
     let calls = 0;
-    registerEditorExtensionSeam({
+    stubSeam({
       getApplyContext: () => {
         calls += 1;
         if (calls === 1) {
@@ -327,8 +343,6 @@ commands.register({
         }
         return editorSnap("world", { alternativeVersionId: 2 });
       },
-      replaceSelection: () => true,
-      hasActiveEditor: () => true,
     });
 
     setDiscoveredExtensions({
@@ -344,10 +358,8 @@ commands.register({
               id: "wrapBold",
               namespacedId: "local.contract-lua-editor.wrapBold",
               title: "Lua Wrap Bold",
-              action: "lua",
             },
           ],
-          templates: [],
         },
       ],
       failed: [],
@@ -375,7 +387,7 @@ commands.register({
     }
     await loadLuaExtensionPack(pack, validated.manifest);
 
-    registerEditorExtensionSeam({
+    stubSeam({
       getApplyContext: () => null,
       replaceSelection: () => false,
       hasActiveEditor: () => false,
@@ -393,10 +405,8 @@ commands.register({
               id: "wrapBold",
               namespacedId: "local.contract-lua-editor.wrapBold",
               title: "Lua Wrap Bold",
-              action: "lua",
             },
           ],
-          templates: [],
         },
       ],
       failed: [],
@@ -491,10 +501,8 @@ commands.register({
     await loadLuaExtensionPack(pack, validated.manifest);
 
     const oversized = "z".repeat(EDITOR_EXTENSION_LIMITS.maxSelectionChars.value + 1);
-    registerEditorExtensionSeam({
+    stubSeam({
       getApplyContext: () => editorSnap(oversized),
-      replaceSelection: () => true,
-      hasActiveEditor: () => true,
     });
     setDiscoveredExtensions({
       loaded: [
@@ -509,10 +517,8 @@ commands.register({
               id: "wrapBold",
               namespacedId: "local.contract-lua-editor.wrapBold",
               title: "Lua Wrap Bold",
-              action: "lua",
             },
           ],
-          templates: [],
         },
       ],
       failed: [],

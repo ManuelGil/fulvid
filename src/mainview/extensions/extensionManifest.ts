@@ -1,23 +1,26 @@
 /**
  * Extension manifest contract (Extension API v1).
  *
- * Declarative packs are data-only. Packs with the `lua` capability may declare
- * a relative `entry` source path loaded only by the Bun-host Lua/Wasm runtime.
- * Validation here never executes Lua and grants no filesystem/Monaco authority.
+ * Packs declare capabilities and a relative `entry` Lua source. Commands are
+ * registered from entry.lua at load time. Validation never executes Lua and
+ * grants no filesystem/Monaco authority.
  */
 
 export const EXTENSION_API_VERSION = 1;
 
 /**
- * Pack-wide resource budgets (declarative and Lua share notify/template caps).
- * Changing a value is a contract change — pin behavior in tests/extensions.
+ * Pack-wide resource budgets.
+ * Changing a value is a contract change - pin behavior in tests/extensions.
  */
 export const EXTENSION_PACK_LIMITS = {
   /** Maximum UTF-8 byte length of manifest.json. */
   maxManifestBytes: 64 * 1024,
-  /** Maximum UTF-8 byte length of one Markdown template body. */
+  /**
+   * Maximum UTF-16 code units for `document.createUntitled` bodies.
+   * Name retained for compatibility with existing limit wiring.
+   */
   maxTemplateBytes: 256 * 1024,
-  /** Maximum UTF-16 code units for notify messages (declarative and Lua). */
+  /** Maximum UTF-16 code units for notify messages. */
   maxNotifyMessageChars: 500,
 } as const;
 
@@ -27,20 +30,14 @@ export const EXTENSION_PACK_LIMITS = {
  */
 export const ALLOWED_EXTENSION_CAPABILITIES = [
   "commands",
-  "templates",
   "ui",
   "lua",
   "editor",
+  "document",
+  "decorations",
 ] as const;
 
 export type ExtensionCapability = (typeof ALLOWED_EXTENSION_CAPABILITIES)[number];
-
-export const ALLOWED_EXTENSION_ACTIONS = ["notify", "createUntitledFromTemplate"] as const;
-
-export type ExtensionHostAction = (typeof ALLOWED_EXTENSION_ACTIONS)[number];
-
-/** Includes host-only `lua` for commands registered from entry.lua (not in manifests). */
-export type ExtensionCommandAction = ExtensionHostAction | "lua";
 
 const FORBIDDEN_MANIFEST_KEYS = new Set([
   "main",
@@ -56,26 +53,12 @@ const FORBIDDEN_MANIFEST_KEYS = new Set([
   "network",
   "process",
   "monaco",
+  "commands",
+  "templates",
 ]);
 
 /** `local.<name>` ids - fixtures and user packs share this shape. */
 const EXTENSION_ID_PATTERN = /^local\.[a-z][a-z0-9-]*(\.[a-z0-9-]+)*$/;
-const COMMAND_ID_PATTERN = /^[a-z][a-zA-Z0-9]*$/;
-const TEMPLATE_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
-
-export type ExtensionManifestCommand = {
-  id: string;
-  title: string;
-  action: ExtensionHostAction;
-  message?: string;
-  template?: string;
-};
-
-export type ExtensionManifestTemplate = {
-  id: string;
-  name: string;
-  file: string;
-};
 
 export type ExtensionManifest = {
   id: string;
@@ -86,24 +69,13 @@ export type ExtensionManifest = {
   capabilities: ExtensionCapability[];
   /** Relative `.lua` source - required when capabilities include `lua`. */
   entry?: string;
-  commands?: ExtensionManifestCommand[];
-  templates?: ExtensionManifestTemplate[];
 };
 
-/** Host->renderer DTO after discovery (template bodies already loaded). */
+/** Host->renderer DTO after discovery (commands come from Lua registration). */
 export type DiscoveredExtensionCommand = {
   id: string;
   namespacedId: string;
   title: string;
-  action: ExtensionCommandAction;
-  message?: string;
-  template?: string;
-};
-
-export type DiscoveredExtensionTemplate = {
-  id: string;
-  name: string;
-  content: string;
 };
 
 export type DiscoveredExtension = {
@@ -114,7 +86,6 @@ export type DiscoveredExtension = {
   description?: string;
   capabilities: string[];
   commands: DiscoveredExtensionCommand[];
-  templates: DiscoveredExtensionTemplate[];
 };
 
 export type ExtensionLoadFailure = {
@@ -145,32 +116,12 @@ function isAllowedCapability(value: string): value is ExtensionCapability {
   return (ALLOWED_EXTENSION_CAPABILITIES as readonly string[]).includes(value);
 }
 
-function isAllowedAction(value: string): value is ExtensionHostAction {
-  return (ALLOWED_EXTENSION_ACTIONS as readonly string[]).includes(value);
-}
-
 export function isValidExtensionId(id: string): boolean {
   return EXTENSION_ID_PATTERN.test(id);
 }
 
 export function namespacedExtensionCommandId(extensionId: string, commandId: string): string {
   return `${extensionId}.${commandId}`;
-}
-
-export function parseNamespacedExtensionCommandId(
-  namespacedId: string,
-): { extensionId: string; commandId: string } | null {
-  const separator = namespacedId.lastIndexOf(".");
-  if (separator <= 0 || separator === namespacedId.length - 1) {
-    return null;
-  }
-  // extension ids contain dots (`local.host-notify`); command id is the final segment.
-  const commandId = namespacedId.slice(separator + 1);
-  const extensionId = namespacedId.slice(0, separator);
-  if (!isValidExtensionId(extensionId) || !COMMAND_ID_PATTERN.test(commandId)) {
-    return null;
-  }
-  return { extensionId, commandId };
 }
 
 /**
@@ -247,9 +198,6 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
     return { reason: "lua capability requires entry" };
   }
 
-  if (hasLua && value.commands !== undefined) {
-    return { reason: "lua packs register commands from entry.lua, not the manifest" };
-  }
   if (hasLua && !capabilitySet.has("commands")) {
     return { reason: "lua capability requires the commands capability" };
   }
@@ -259,107 +207,14 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
   if (capabilitySet.has("editor") && !hasLua) {
     return { reason: "editor capability requires the lua capability" };
   }
-
-  const templates: ExtensionManifestTemplate[] = [];
-  if (value.templates !== undefined) {
-    if (!capabilitySet.has("templates")) {
-      return { reason: "templates require the templates capability" };
-    }
-    if (!Array.isArray(value.templates)) {
-      return { reason: "templates must be an array" };
-    }
-    const templateIds = new Set<string>();
-    for (const entryTemplate of value.templates) {
-      if (!isRecord(entryTemplate)) {
-        return { reason: "template entry must be an object" };
-      }
-      if (typeof entryTemplate.id !== "string" || !TEMPLATE_ID_PATTERN.test(entryTemplate.id)) {
-        return { reason: "invalid template id" };
-      }
-      if (templateIds.has(entryTemplate.id)) {
-        return { reason: `duplicate template id: ${entryTemplate.id}` };
-      }
-      templateIds.add(entryTemplate.id);
-      if (typeof entryTemplate.name !== "string" || entryTemplate.name.trim().length === 0) {
-        return { reason: "invalid template name" };
-      }
-      if (typeof entryTemplate.file !== "string" || entryTemplate.file.trim().length === 0) {
-        return { reason: "invalid template file" };
-      }
-      templates.push({
-        id: entryTemplate.id,
-        name: entryTemplate.name,
-        file: entryTemplate.file,
-      });
-    }
+  if (capabilitySet.has("document") && !hasLua) {
+    return { reason: "document capability requires the lua capability" };
   }
-
-  const commands: ExtensionManifestCommand[] = [];
-  if (value.commands !== undefined) {
-    if (!capabilitySet.has("commands")) {
-      return { reason: "commands require the commands capability" };
-    }
-    if (!Array.isArray(value.commands)) {
-      return { reason: "commands must be an array" };
-    }
-    const commandIds = new Set<string>();
-    for (const entryCommand of value.commands) {
-      if (!isRecord(entryCommand)) {
-        return { reason: "command entry must be an object" };
-      }
-      for (const key of ["code", "script", "eval", "lua", "html", "svg", "component"] as const) {
-        if (key in entryCommand) {
-          return { reason: `forbidden command field: ${key}` };
-        }
-      }
-      if (typeof entryCommand.id !== "string" || !COMMAND_ID_PATTERN.test(entryCommand.id)) {
-        return { reason: "invalid command id" };
-      }
-      if (commandIds.has(entryCommand.id)) {
-        return { reason: `duplicate command id: ${entryCommand.id}` };
-      }
-      commandIds.add(entryCommand.id);
-      if (typeof entryCommand.title !== "string" || entryCommand.title.trim().length === 0) {
-        return { reason: "invalid command title" };
-      }
-      if (typeof entryCommand.action !== "string" || !isAllowedAction(entryCommand.action)) {
-        return { reason: `unknown host action: ${String(entryCommand.action)}` };
-      }
-
-      const command: ExtensionManifestCommand = {
-        id: entryCommand.id,
-        title: entryCommand.title,
-        action: entryCommand.action,
-      };
-
-      if (entryCommand.action === "notify") {
-        if (typeof entryCommand.message !== "string" || entryCommand.message.trim().length === 0) {
-          return { reason: "notify action requires message" };
-        }
-        if (entryCommand.message.length > EXTENSION_PACK_LIMITS.maxNotifyMessageChars) {
-          return { reason: "notify message exceeds budget" };
-        }
-        command.message = entryCommand.message;
-      }
-
-      if (entryCommand.action === "createUntitledFromTemplate") {
-        if (!capabilitySet.has("templates")) {
-          return { reason: "createUntitledFromTemplate requires the templates capability" };
-        }
-        if (
-          typeof entryCommand.template !== "string" ||
-          !TEMPLATE_ID_PATTERN.test(entryCommand.template)
-        ) {
-          return { reason: "createUntitledFromTemplate requires a template id" };
-        }
-        if (!templates.some((template) => template.id === entryCommand.template)) {
-          return { reason: `unknown template: ${entryCommand.template}` };
-        }
-        command.template = entryCommand.template;
-      }
-
-      commands.push(command);
-    }
+  if (capabilitySet.has("decorations") && !hasLua) {
+    return { reason: "decorations capability requires the lua capability" };
+  }
+  if (capabilitySet.has("commands") && !hasLua) {
+    return { reason: "commands capability requires the lua capability" };
   }
 
   const manifest: ExtensionManifest = {
@@ -374,12 +229,6 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
   }
   if (entry !== undefined) {
     manifest.entry = entry;
-  }
-  if (commands.length > 0) {
-    manifest.commands = commands;
-  }
-  if (templates.length > 0) {
-    manifest.templates = templates;
   }
 
   return { manifest };
