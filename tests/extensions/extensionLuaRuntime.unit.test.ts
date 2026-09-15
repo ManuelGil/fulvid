@@ -18,6 +18,7 @@ import {
 
 import {
   createHardenedLuaEngine,
+  describeLuaRuntimeFailure,
   luaGlobalType,
   reduceLuaGuestEnvironment,
   resetLuaFactoryForTests,
@@ -172,6 +173,24 @@ describe("lua guest environment", () => {
       engine.doString("local f=function() return 1 end; return string.dump(f)"),
     ).rejects.toBeDefined();
     engine.global.close();
+  });
+
+  test("describeLuaRuntimeFailure keeps only the first line of guest errors", () => {
+    expect(
+      describeLuaRuntimeFailure(
+        new Error('[string "x"]:1: boom\nstack traceback:\n\t[string "x"]:1: in main chunk'),
+      ),
+    ).toBe("lua:1: boom");
+    expect(
+      describeLuaRuntimeFailure(
+        new Error(
+          '[string "error("intentional e2e load failure")..."]:1: intentional e2e load failure',
+        ),
+      ),
+    ).toBe("lua:1: intentional e2e load failure");
+    expect(describeLuaRuntimeFailure(new Error("execution limit exceeded"))).toBe(
+      "execution limit exceeded",
+    );
   });
 });
 

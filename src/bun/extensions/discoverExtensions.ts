@@ -92,7 +92,7 @@ export async function discoverExtensions(): Promise<ExtensionDiscoveryResult> {
       seenIds.add(discovered.id);
       loaded.push(discovered);
     } catch (error) {
-      const reason =
+      const rawReason =
         error instanceof ExtensionPackError
           ? error.reason
           : error instanceof LuaExtensionLoadError
@@ -100,8 +100,11 @@ export async function discoverExtensions(): Promise<ExtensionDiscoveryResult> {
             : error instanceof Error
               ? error.message
               : "unknown extension load error";
-      failed.push({ id: directoryName, reason });
-      console.warn(`Fulvid extension "${directoryName}" failed: ${reason}`);
+      // Bound before cache/DTO/log so stacks never cross into renderer.
+      const reason = rawReason.split(/\r?\n/, 1)[0]?.trim() || rawReason;
+      const summary = reason.length > 300 ? `${reason.slice(0, 300)}…` : reason;
+      failed.push({ id: directoryName, reason: summary });
+      console.warn(`Fulvid extension "${directoryName}" failed: ${summary}`);
     }
   }
 

@@ -99,4 +99,26 @@ describe("application menu", () => {
       expect(presentedMenuAction(winQuit)).toBe("quit");
     }
   });
+
+  test("keeps Edit role item ids unique while paste roles share the paste command", () => {
+    const menus = presentApplicationMenu("linux", idleState, (key) => key);
+    const edit = menus.find((menu) => menu.id === "edit");
+    expect(edit).toBeDefined();
+    const ids = (edit?.items ?? [])
+      .filter((item) => item.type !== "separator")
+      .map((item) => item.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const paste = edit?.items.find((item) => item.type === "role" && item.role === "paste");
+    const pasteMatch = edit?.items.find(
+      (item) => item.type === "role" && item.role === "pasteAndMatchStyle",
+    );
+    expect(paste?.type).toBe("role");
+    expect(pasteMatch?.type).toBe("role");
+    if (paste?.type === "role" && pasteMatch?.type === "role") {
+      expect(paste.id).toBe("paste");
+      expect(pasteMatch.id).toBe("pasteAndMatchStyle");
+      expect(presentedMenuAction(paste)).toBe("paste");
+      expect(presentedMenuAction(pasteMatch)).toBe("paste");
+    }
+  });
 });

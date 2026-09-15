@@ -108,7 +108,13 @@ export function describeLuaRuntimeFailure(error: unknown): string {
   if (isLuaMemoryError(error)) {
     return "memory limit exceeded";
   }
-  return error instanceof Error ? error.message : "lua runtime failed";
+  // Bound guest failures: first line only — no traceback / source dump.
+  const raw = error instanceof Error ? error.message : "lua runtime failed";
+  const firstLine = raw.split(/\r?\n/, 1)[0]?.trim() || "lua runtime failed";
+  // wasmoon embeds the chunk text as [string "…"]:line: message — drop the source.
+  const withoutChunk = firstLine.replace(/^\[string "[\s\S]*"\]:(\d+):\s*/, "lua:$1: ");
+  const bounded = withoutChunk.trim() || "lua runtime failed";
+  return bounded.length > 300 ? `${bounded.slice(0, 300)}…` : bounded;
 }
 
 /** Create a reduced guest engine with real execution and memory budgets. */

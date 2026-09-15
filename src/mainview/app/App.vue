@@ -649,7 +649,8 @@ onMounted(() => {
     .then((result) => {
       setDiscoveredExtensions(result);
       for (const failure of result.failed) {
-        console.warn(`Fulvid extension "${failure.id}" failed: ${failure.reason}`);
+        // Toast only here — Bun already logs the bounded host diagnostic.
+        // Re-logging would mirror guest failure text into the webview console stream.
         notify(t("extensions.loadFailed", { id: failure.id }));
       }
     })
@@ -878,6 +879,8 @@ async function openQuickOpen(): Promise<void> {
   }
   const rootPath = workspace.value?.path;
   if (!rootPath) {
+    // Selection succeeded but Folder is gone — fail visibly, not silently.
+    notify(t("workspace.noWorkspace"));
     return;
   }
   try {

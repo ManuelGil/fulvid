@@ -33,6 +33,7 @@ import { LUA_EXTENSION_LIMITS } from "./luaLimits";
 
 export class LuaExtensionLoadError extends Error {
   constructor(readonly reason: string) {
+    // Keep Error.message identical to the bounded reason (no extra stack body).
     super(reason);
     this.name = "LuaExtensionLoadError";
   }

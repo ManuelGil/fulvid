@@ -1292,6 +1292,7 @@ onBeforeUnmount(() => {
               @save="saveEditorDocument"
               @save-as="saveAsEditorDocument"
               @outline="openOutlinePanel"
+              @quick-open="() => void executeCommand('openQuickOpen')"
               @escape="leaveEditor"
               @scroll="syncPreviewScroll"
               @command-state="onCommandState"

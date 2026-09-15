@@ -67,6 +67,7 @@ const emit = defineEmits<{
   save: [];
   saveAs: [];
   outline: [];
+  quickOpen: [];
   escape: [];
   scroll: [ratio: number];
   commandState: [state: EditorCommandState];
@@ -451,6 +452,9 @@ function mountEditor(): void {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyO, () =>
     emit("outline"),
   );
+  // Same ownership as Save: native menu accelerators do not reach the webview when
+  // Monaco has focus, and App.vue defers Ctrl/Cmd+P to the native menu on GTK.
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => emit("quickOpen"));
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => find());
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => replace());
   registerMarkdownActions();
