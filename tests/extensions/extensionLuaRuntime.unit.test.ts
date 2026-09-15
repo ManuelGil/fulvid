@@ -140,6 +140,24 @@ describe("lua extension manifest contract", () => {
       }),
     ).toEqual({ reason: "lua packs register commands from entry.lua, not the manifest" });
   });
+
+  test("rejects traversal and drive-letter entry paths at validation", () => {
+    const base = {
+      id: "local.spike-lua-notify",
+      name: "Spike",
+      version: "0.0.0",
+      api: 0,
+      capabilities: ["lua", "commands", "ui"],
+    } as const;
+    for (const entry of ["../outside.lua", "foo/../../x.lua", "./entry.lua", "C:/Windows/x.lua"]) {
+      expect(validateExtensionManifest({ ...base, entry })).toEqual({
+        reason: "entry must be a relative .lua source file",
+      });
+    }
+    expect(validateExtensionManifest({ ...base, entry: "subdir/entry.lua" })).toHaveProperty(
+      "manifest",
+    );
+  });
 });
 
 describe("lua guest environment", () => {

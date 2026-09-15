@@ -214,7 +214,19 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
       return { reason: "invalid entry path" };
     }
     const normalized = value.entry.replace(/\\/g, "/").trim();
-    if (!normalized.endsWith(".lua") || normalized.includes("\0") || normalized.startsWith("/")) {
+    if (
+      !normalized.endsWith(".lua") ||
+      normalized.includes("\0") ||
+      normalized.startsWith("/") ||
+      /^[A-Za-z]:/.test(normalized)
+    ) {
+      return { reason: "entry must be a relative .lua source file" };
+    }
+    const entrySegments = normalized.split("/").filter((segment) => segment.length > 0);
+    if (
+      entrySegments.length === 0 ||
+      entrySegments.some((segment) => segment === "." || segment === "..")
+    ) {
       return { reason: "entry must be a relative .lua source file" };
     }
     entry = normalized;
