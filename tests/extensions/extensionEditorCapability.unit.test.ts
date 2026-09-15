@@ -13,7 +13,9 @@ import { LUA_EXTENSION_LIMITS } from "../../src/bun/extensions/lua/luaLimits.ts"
 import {
   assertEditorReplaceWithinLimit,
   assertEditorSelectionWithinLimit,
+  editorSnapshotIsCurrent,
   EDITOR_EXTENSION_LIMITS,
+  type EditorSelectionSnapshot,
 } from "../../src/mainview/extensions/editorCapability.ts";
 import {
   registerEditorExtensionSeam,
@@ -28,6 +30,21 @@ import {
 import { validateExtensionManifest } from "../../src/mainview/extensions/extensionManifest.ts";
 
 const EDITOR_FIXTURE = join(import.meta.dir, "fixtures/spike-lua-editor");
+const SORT_LINES_EXAMPLE = join(import.meta.dir, "../../extensions/local.sort-lines");
+
+function editorSnap(
+  selection: string,
+  overrides: Partial<EditorSelectionSnapshot> = {},
+): EditorSelectionSnapshot {
+  return {
+    selection,
+    documentId: "untitled:1",
+    alternativeVersionId: 1,
+    startOffset: 0,
+    endOffset: selection.length,
+    ...overrides,
+  };
+}
 
 async function tempRoot(label: string): Promise<string> {
   const root = join(tmpdir(), `fulvid-editor-${label}-${crypto.randomUUID()}`);
@@ -66,7 +83,7 @@ describe("editor capability contract", () => {
         id: "local.spike-lua-editor",
         name: "Editor",
         version: "0.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["lua", "commands", "ui", "editor"],
         entry: "entry.lua",
       }),
@@ -77,7 +94,7 @@ describe("editor capability contract", () => {
         id: "local.no-lua-editor",
         name: "Bad",
         version: "0.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["editor", "commands"],
       }),
     ).toEqual({ reason: "editor capability requires the lua capability" });
@@ -93,8 +110,6 @@ describe("editor capability contract", () => {
     expect(LUA_EXTENSION_LIMITS.maxEditorSelectionChars.status).toBe("implemented");
   });
 
-  // Absolute 256 KiB contract: existing relative (limit+1) checks do not catch
-  // mutations of the authoritative constant itself.
   test("pins selection and replace boundary at 256 KiB", () => {
     const limit = 256 * 1024;
     const justUnder = "x".repeat(limit - 1);
@@ -109,6 +124,19 @@ describe("editor capability contract", () => {
     expect(assertEditorReplaceWithinLimit(overLimit)).toBe(
       "editor.replaceSelection exceeds size limit",
     );
+  });
+
+  test("detects stale snapshot identity", () => {
+    const snap = editorSnap("hello");
+    expect(editorSnapshotIsCurrent(snap, snap)).toBe(true);
+    expect(editorSnapshotIsCurrent(snap, editorSnap("hello", { alternativeVersionId: 2 }))).toBe(
+      false,
+    );
+    expect(editorSnapshotIsCurrent(snap, editorSnap("hello", { documentId: "file:/x" }))).toBe(
+      false,
+    );
+    expect(editorSnapshotIsCurrent(snap, editorSnap("hello", { startOffset: 1 }))).toBe(false);
+    expect(editorSnapshotIsCurrent(snap, null)).toBe(false);
   });
 });
 
@@ -127,7 +155,7 @@ describe("editor snapshot/apply through Lua", () => {
 
     const result = await invokeLuaExtensionCommand({
       namespacedId: "local.spike-lua-editor.wrapBold",
-      editor: { selection: "hello" },
+      editor: editorSnap("hello"),
     });
     expect(result).toEqual({
       ok: true,
@@ -145,7 +173,7 @@ describe("editor snapshot/apply through Lua", () => {
         id: "local.spike-lua-noed",
         name: "NoEd",
         version: "0.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["lua", "commands", "ui"],
         entry: "entry.lua",
       },
@@ -171,7 +199,7 @@ commands.register({
     await loadLuaExtensionPack(pack, validated.manifest);
     const result = await invokeLuaExtensionCommand({
       namespacedId: "local.spike-lua-noed.ping",
-      editor: { selection: "secret" },
+      editor: editorSnap("secret"),
     });
     expect(result).toEqual({ ok: false, error: "editor capability not granted" });
 
@@ -188,7 +216,7 @@ commands.register({
         id: "local.spike-lua-bigrep",
         name: "Big",
         version: "0.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["lua", "commands", "ui", "editor"],
         entry: "entry.lua",
       },
@@ -213,7 +241,7 @@ commands.register({
     await loadLuaExtensionPack(pack, validated.manifest);
     const result = await invokeLuaExtensionCommand({
       namespacedId: "local.spike-lua-bigrep.boom",
-      editor: { selection: "x" },
+      editor: editorSnap("x"),
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -234,8 +262,9 @@ commands.register({
     await loadLuaExtensionPack(pack, validated.manifest);
 
     const applied: string[] = [];
+    const snap = editorSnap("world");
     registerEditorExtensionSeam({
-      getSelection: () => "world",
+      getApplyContext: () => snap,
       replaceSelection: (text) => {
         applied.push(text);
         return true;
@@ -249,7 +278,7 @@ commands.register({
           id: "local.spike-lua-editor",
           name: "Editor",
           version: "0.0.0",
-          api: 0,
+          api: 1,
           capabilities: ["lua", "commands", "ui", "editor"],
           commands: [
             {
@@ -277,8 +306,8 @@ commands.register({
     expect(notifications).toEqual(["wrapped"]);
   });
 
-  test("replace without active editor fails closed", async () => {
-    const root = await tempRoot("no-monaco");
+  test("rejects stale editor apply when document or selection stamps change", async () => {
+    const root = await tempRoot("stale");
     const pack = join(root, "local.spike-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
     const validated = validateExtensionManifest(
@@ -289,18 +318,26 @@ commands.register({
     }
     await loadLuaExtensionPack(pack, validated.manifest);
 
+    let calls = 0;
     registerEditorExtensionSeam({
-      getSelection: () => "x",
-      replaceSelection: () => false,
-      hasActiveEditor: () => false,
+      getApplyContext: () => {
+        calls += 1;
+        if (calls === 1) {
+          return editorSnap("world", { alternativeVersionId: 1 });
+        }
+        return editorSnap("world", { alternativeVersionId: 2 });
+      },
+      replaceSelection: () => true,
+      hasActiveEditor: () => true,
     });
+
     setDiscoveredExtensions({
       loaded: [
         {
           id: "local.spike-lua-editor",
           name: "Editor",
           version: "0.0.0",
-          api: 0,
+          api: 1,
           capabilities: ["lua", "commands", "ui", "editor"],
           commands: [
             {
@@ -322,7 +359,56 @@ commands.register({
     });
 
     await expect(runExtensionCommand("local.spike-lua-editor.wrapBold")).rejects.toThrow(
-      /no active editor/,
+      /document or selection changed/i,
+    );
+  });
+
+  test("replace without active editor fails closed", async () => {
+    const root = await tempRoot("no-monaco");
+    const pack = join(root, "local.spike-lua-editor");
+    await cp(EDITOR_FIXTURE, pack, { recursive: true });
+    const validated = validateExtensionManifest(
+      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
+    );
+    if (!("manifest" in validated)) {
+      throw new Error(validated.reason);
+    }
+    await loadLuaExtensionPack(pack, validated.manifest);
+
+    registerEditorExtensionSeam({
+      getApplyContext: () => null,
+      replaceSelection: () => false,
+      hasActiveEditor: () => false,
+    });
+    setDiscoveredExtensions({
+      loaded: [
+        {
+          id: "local.spike-lua-editor",
+          name: "Editor",
+          version: "0.0.0",
+          api: 1,
+          capabilities: ["lua", "commands", "ui", "editor"],
+          commands: [
+            {
+              id: "wrapBold",
+              namespacedId: "local.spike-lua-editor.wrapBold",
+              title: "Lua Wrap Bold",
+              action: "lua",
+            },
+          ],
+          templates: [],
+        },
+      ],
+      failed: [],
+    });
+    configureExtensionHostActions({
+      notify: () => undefined,
+      createUntitled: () => undefined,
+      invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
+    });
+
+    await expect(runExtensionCommand("local.spike-lua-editor.wrapBold")).rejects.toThrow(
+      /Open a document in the editor first/i,
     );
   });
 
@@ -339,7 +425,7 @@ commands.register({
     await loadLuaExtensionPack(pack, validated.manifest);
     const result = await invokeLuaExtensionCommand({
       namespacedId: "local.spike-lua-editor.wrapBold",
-      editor: { selection: "" },
+      editor: editorSnap(""),
     });
     expect(result).toEqual({ ok: true, notifications: ["no selection"] });
   });
@@ -353,7 +439,7 @@ commands.register({
         id: "local.spike-lua-plain",
         name: "Plain",
         version: "0.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["lua", "commands", "ui", "editor"],
         entry: "entry.lua",
       },
@@ -387,7 +473,7 @@ commands.register({
     await loadLuaExtensionPack(pack, validated.manifest);
     const result = await invokeLuaExtensionCommand({
       namespacedId: "local.spike-lua-plain.probe",
-      editor: { selection: "plain-data" },
+      editor: editorSnap("plain-data"),
     });
     expect(result).toEqual({ ok: true, notifications: ["plain-data"] });
   });
@@ -406,7 +492,7 @@ commands.register({
 
     const oversized = "z".repeat(EDITOR_EXTENSION_LIMITS.maxSelectionChars.value + 1);
     registerEditorExtensionSeam({
-      getSelection: () => oversized,
+      getApplyContext: () => editorSnap(oversized),
       replaceSelection: () => true,
       hasActiveEditor: () => true,
     });
@@ -416,7 +502,7 @@ commands.register({
           id: "local.spike-lua-editor",
           name: "Editor",
           version: "0.0.0",
-          api: 0,
+          api: 1,
           capabilities: ["lua", "commands", "ui", "editor"],
           commands: [
             {
@@ -438,7 +524,7 @@ commands.register({
     });
 
     await expect(runExtensionCommand("local.spike-lua-editor.wrapBold")).rejects.toThrow(
-      /selection exceeds size limit/,
+      /size limit/i,
     );
   });
 
@@ -451,7 +537,7 @@ commands.register({
         id: "local.spike-lua-baded",
         name: "Bad",
         version: "0.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["lua", "commands", "ui", "editor"],
         entry: "entry.lua",
       },
@@ -484,7 +570,7 @@ commands.register({
 
     const failed = await invokeLuaExtensionCommand({
       namespacedId: "local.spike-lua-baded.boom",
-      editor: { selection: "x" },
+      editor: editorSnap("x"),
     });
     expect(failed.ok).toBe(false);
     if (!failed.ok) {
@@ -494,12 +580,35 @@ commands.register({
     expect(
       await invokeLuaExtensionCommand({
         namespacedId: "local.spike-lua-editor.wrapBold",
-        editor: { selection: "ok" },
+        editor: editorSnap("ok"),
       }),
     ).toEqual({
       ok: true,
       notifications: ["wrapped"],
       editor: { replaceSelection: "**ok**" },
+    });
+  });
+
+  test("sort-lines production example sorts selected lines", async () => {
+    const root = await tempRoot("sort");
+    const pack = join(root, "local.sort-lines");
+    await cp(SORT_LINES_EXAMPLE, pack, { recursive: true });
+    const validated = validateExtensionManifest(
+      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
+    );
+    if (!("manifest" in validated)) {
+      throw new Error(validated.reason);
+    }
+    await loadLuaExtensionPack(pack, validated.manifest);
+
+    const result = await invokeLuaExtensionCommand({
+      namespacedId: "local.sort-lines.sortLines",
+      editor: editorSnap("c\na\nb"),
+    });
+    expect(result).toEqual({
+      ok: true,
+      notifications: ["Sorted 3 lines."],
+      editor: { replaceSelection: "a\nb\nc" },
     });
   });
 });

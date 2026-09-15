@@ -1,10 +1,13 @@
 # Extension Engine
 
-Architectural and security contract for Fulvid’s local Extension Engine.
+Architectural and security contract for Fulvid’s **Extensions** product (Extension API v1).
 
-Ownership summary: [ARCHITECTURE.md](./ARCHITECTURE.md). Product vocabulary: [CONCEPTS.md](./CONCEPTS.md). Standing security review: [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md). Fixtures: [`extensions/README.md`](../extensions/README.md).
+Ownership summary: [ARCHITECTURE.md](./ARCHITECTURE.md). Product vocabulary: [CONCEPTS.md](./CONCEPTS.md). Standing security review: [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md). Fixtures / examples: [`extensions/README.md`](../extensions/README.md).
 
-This document protects the architecture against future drift. It is not a roadmap and does not add capabilities.
+**Production promotion gates:** [EXTENSION-PRODUCT-CONTRACT.md](./EXTENSION-PRODUCT-CONTRACT.md).
+
+Lua is a **supported extension runtime** inside Extensions — not a second product and not a general scripting environment.
+
 
 ## Architectural contract
 
@@ -53,15 +56,15 @@ The current Engine is **not**:
 
 ## Current capability surface
 
-Load path: `userData/extensions/<id>/` at startup (`api: 0`). Repository fixtures under [`extensions/`](../extensions/) are documentation-as-data, not the load path.
+Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api": 1`). Repository packs under [`extensions/`](../extensions/) are production examples to copy into that path — not the load path itself.
 
 ### Declarative
 
 | Capability / surface | Authority owner | Permitted operation | Explicitly absent | Limits | Failure |
 | --- | --- | --- | --- | --- | --- |
-| `commands` (declarative) | Extension registry → existing host action | Register namespaced command ids that invoke declared host actions | Arbitrary handlers, Monaco, filesystem | Closed action set; closed icon vocabulary | Invalid pack fails in isolation |
-| templates + `createUntitledFromTemplate` | Document / untitled creation owner | Seed an untitled buffer from a contained Markdown template | Template as executable code; path traversal | Template must stay inside the pack | Isolated pack failure |
-| `notify` | UI notify owner | Show a host notification | Arbitrary UI injection | Notify length budgets where applicable | Rejected / no-op per owner |
+| `commands` (declarative) | Extension registry → existing host action | Register namespaced command ids that invoke declared host actions | Arbitrary handlers, Monaco, filesystem | Closed action set; closed icon vocabulary | Invalid pack fails in isolation; user sees notify |
+| templates + `createUntitledFromTemplate` | Document / untitled creation owner | Seed an untitled buffer from a contained Markdown template | Template as executable code; path traversal | Template must stay inside the pack | Isolated pack failure; missing template notify |
+| `notify` / `ui` | UI notify owner | Show a host notification | Arbitrary UI injection | `maxNotifyMessageChars` for Lua `ui.notify` | Rejected / localized failure |
 
 Declarative packs do not execute Lua, JavaScript, or MDX.
 
@@ -71,7 +74,7 @@ Declarative packs do not execute Lua, JavaScript, or MDX.
 | --- | --- | --- | --- | --- | --- |
 | `lua` + `commands` | Lua host runtime → registry | `commands.register` then host invoke of `run` | Declarative command tables on the same pack; generic bridges | `LUA_EXTENSION_LIMITS` (source, commands, execution, memory) | Load/invoke fails closed; neighbors continue |
 | `ui` | UI notify owner | `ui.notify(message)` | Arbitrary DOM/HTML/SVG | `maxNotifyMessageChars` | Oversized notify rejected |
-| `editor` (**EXPERIMENTAL**) | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation | `maxEditorSelectionChars` | Rejected / fail closed; see Editor section |
+| `editor` (**PRODUCTION**) | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation; identity stamps in Lua | `maxEditorSelectionChars` | Rejected / fail closed / stale rejected; see Editor section |
 
 Guest APIs are only the surfaces above. There is no generic `host.call`.
 
@@ -96,25 +99,39 @@ Lua package/module loading
 
 Absence is intentional containment, not an unfinished backlog item. A future addition requires a new explicit security and design decision, documentation, and contract tests — together.
 
-## Editor (EXPERIMENTAL)
+## Editor (PRODUCTION)
 
-**Editor capability is EXPERIMENTAL.** It is tested; it is **not** a stable public `api: 0` promise.
+**Editor capability is PRODUCTION** under Extension API v1.
 
 Protocol:
 
 ```text
-snapshot → Lua → apply
+snapshot (text + host-only identity stamps)
+    ↓
+Lua (text only)
+    ↓
+validate stamps still current
+    ↓
+Monaco owner/seam apply
 ```
 
-- Selection is a **bounded text snapshot** (primary selection text only).
-- Lua does **not** receive a live Monaco object, model, range, or document id.
-- Replacement is queued and applied through the existing Monaco owner/seam (`MonacoHost` / editor extension seam) after Lua returns.
-- Apply uses the **live** primary selection or cursor of the active editor at apply time.
-- The documented size boundary (`LUA_EXTENSION_LIMITS.maxEditorSelectionChars` / `EDITOR_EXTENSION_LIMITS`) is **contractual**.
-- The capability does **not** grant arbitrary document or editor authority.
-- **Live-apply TOCTOU** (user changes selection or document between snapshot and apply) remains a known accepted limitation.
+**Stale-operation strategy: B — reject stale.**
 
-Contract detail and comments: `src/mainview/extensions/editorCapability.ts`.
+Host-only snapshot stamps (never exposed to Lua):
+
+- active `documentId`
+- Monaco `alternativeVersionId`
+- primary selection `startOffset` / `endOffset`
+
+- Selection text is a **bounded snapshot** (`editor.getSelection()`).
+- Lua does **not** receive a live Monaco object, model, range, or document id.
+- Replacement is queued and applied through the existing Monaco owner/seam after Lua returns **only if** stamps still match; otherwise the command fails with a localized stale error and no mutation.
+- Undo / dirty follow the Monaco model (same as other `executeEdits`).
+- The size boundary (`LUA_EXTENSION_LIMITS.maxEditorSelectionChars` / `EDITOR_EXTENSION_LIMITS`) is **contractual** (256 KiB).
+- The capability does **not** grant arbitrary document or editor authority.
+
+Contract detail: `src/mainview/extensions/editorCapability.ts`.
+Permanent stale test: `rejects stale editor apply when document or selection stamps change`.
 
 ## Security and resource budgets
 
@@ -260,18 +277,25 @@ Large fuzzing or red-team corpora need not be stored in the repository. The perm
 ## Security review status
 
 ```text
-Extension Engine:
-READY WITH EXPLICIT LIMITATIONS
+Extension System:
+PRODUCTION (Extension API v1)
+
+Lua runtime:
+SUPPORTED IMPLEMENTATION DETAIL (wasmoon / Wasm)
+
+Editor:
+PRODUCTION
 ```
 
-Accepted limitations:
+Honest trust model:
 
 ```text
 Capability isolation ≠ OS sandbox
-Editor live-apply TOCTOU
 ```
 
-Platform packaging verification for the Lua runtime is recorded in [compatibility.md](./compatibility.md). That matrix is not a claim of complete cross-platform adversarial security coverage.
+Extensions are locally installed executable code. Fulvid constrains capabilities; it does not provide an OS-level sandbox.
+
+Platform packaging verification for the Lua runtime: [compatibility.md](./compatibility.md). That matrix is not a claim of complete cross-platform adversarial security coverage.
 
 ## Terminology
 

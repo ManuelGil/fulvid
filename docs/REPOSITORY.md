@@ -2,7 +2,7 @@
 
 Where Fulvid code and tests live.
 
-Ownership: [ARCHITECTURE.md](./ARCHITECTURE.md). Vocabulary: [CONCEPTS.md](./CONCEPTS.md). Extension Engine contract: [EXTENSIONS.md](./EXTENSIONS.md). Annotations: [ANNOTATIONS.md](./ANNOTATIONS.md). Graph: [GRAPH.md](./GRAPH.md).
+Ownership: [ARCHITECTURE.md](./ARCHITECTURE.md). Vocabulary: [CONCEPTS.md](./CONCEPTS.md). Extension Engine contract: [EXTENSIONS.md](./EXTENSIONS.md). Production promotion gates: [EXTENSION-PRODUCT-CONTRACT.md](./EXTENSION-PRODUCT-CONTRACT.md). Annotations: [ANNOTATIONS.md](./ANNOTATIONS.md). Graph: [GRAPH.md](./GRAPH.md).
 
 ```text
 README.md
@@ -29,7 +29,7 @@ scripts/                 validate, doctor, icons, smoke, compatibility / lua pac
 packaging/linux/         Manual Linux release and desktop/metainfo stubs
 packaging/windows/       Windows packaging (Actions)
 packaging/macos/         macOS packaging (Actions)
-docs/                    Includes EXTENSIONS.md (Extension Engine contract)
+docs/                    Includes EXTENSIONS.md + EXTENSION-PRODUCT-CONTRACT.md
 .github/workflows/       validate, release, compatibility-*, dependency-security
 ```
 

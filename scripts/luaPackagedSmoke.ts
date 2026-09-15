@@ -260,7 +260,7 @@ async function main(): Promise<void> {
       id: "local.spike-lua-bad",
       name: "Bad",
       version: "0.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["lua", "commands", "ui"],
       entry: "entry.lua",
     }),

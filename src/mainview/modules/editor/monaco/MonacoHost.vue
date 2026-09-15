@@ -827,6 +827,34 @@ function getSelectedText(): string {
 }
 
 /**
+ * Host-only editor apply context for Extension API v1 (stamps + selection text).
+ * Not exposed to Lua guests.
+ */
+function getExtensionApplyContext(): {
+  selection: string;
+  alternativeVersionId: number;
+  startOffset: number;
+  endOffset: number;
+} | null {
+  if (!editor) {
+    return null;
+  }
+  const model = editor.getModel();
+  const selection = editor.getSelection();
+  if (!model || !selection) {
+    return null;
+  }
+  const startOffset = model.getOffsetAt(selection.getStartPosition());
+  const endOffset = model.getOffsetAt(selection.getEndPosition());
+  return {
+    selection: selection.isEmpty() ? "" : model.getValueInRange(selection),
+    alternativeVersionId: model.getAlternativeVersionId(),
+    startOffset,
+    endOffset,
+  };
+}
+
+/**
  * Replace the primary selection (or insert at the cursor when empty).
  * Empty `text` clears the selection. Returns false when no editor/model.
  * Undoable Monaco edit — dirty state follows the model.
@@ -895,6 +923,7 @@ defineExpose({
   runMarkdownAction,
   insertTextAtCursor,
   getSelectedText,
+  getExtensionApplyContext,
   replacePrimarySelection,
   trimTrailingWhitespace,
   currentCursorPosition,

@@ -2,7 +2,7 @@
   "id": "local.spike-lua-editor",
   "name": "Spike Lua Editor",
   "version": "0.0.0-spike",
-  "api": 0,
+  "api": 1,
   "description": "EXPERIMENTAL disposable fixture — selection transform only. Not a permanent architectural fixture.",
   "capabilities": ["lua", "commands", "ui", "editor"],
   "entry": "entry.lua"

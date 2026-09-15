@@ -19,6 +19,18 @@ export default {
     },
     commandError: "Couldn't complete that action.",
   },
+  extensions: {
+    loadFailed: 'Couldn\'t load extension "{id}".',
+    discoveryUnavailable: "Couldn't load extensions.",
+    hostUnavailable: "Extensions aren't available right now.",
+    noActiveEditor: "Open a document in the editor first.",
+    editorStale: "The document or selection changed. Try the command again.",
+    executionTimeout: "That extension took too long and was stopped.",
+    memoryExceeded: "That extension used too much memory and was stopped.",
+    sizeLimitExceeded: "That extension hit a size limit.",
+    commandFailed: "That extension command couldn't finish.",
+    templateMissing: "That extension template is missing.",
+  },
   toolbar: {
     undo: "Undo",
     redo: "Redo",

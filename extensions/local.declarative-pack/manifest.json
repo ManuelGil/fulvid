@@ -1,23 +1,23 @@
 {
   "id": "local.declarative-pack",
-  "name": "Capability: declarative template",
-  "version": "0.1.0",
-  "api": 0,
-  "description": "Permanent fixture: declarative template + command composition. Intentionally product-neutral body. Shows how a local pack can seed an untitled buffer via createUntitledFromTemplate without growing the core template catalog.",
+  "name": "Blank note template",
+  "version": "1.0.0",
+  "api": 1,
+  "description": "Creates an untitled blank note with a dated heading via createUntitledFromTemplate.",
   "capabilities": ["templates", "commands"],
   "templates": [
     {
-      "id": "sample",
-      "name": "Declarative sample",
-      "file": "templates/sample.md"
+      "id": "blank-note",
+      "name": "Blank note",
+      "file": "templates/blank-note.md"
     }
   ],
   "commands": [
     {
-      "id": "createSample",
-      "title": "Extension fixture: create from template",
+      "id": "createBlankNote",
+      "title": "Extensions: New blank note",
       "action": "createUntitledFromTemplate",
-      "template": "sample"
+      "template": "blank-note"
     }
   ]
 }

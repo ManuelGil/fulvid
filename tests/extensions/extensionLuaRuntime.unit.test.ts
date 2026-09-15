@@ -67,7 +67,7 @@ function luaManifest(id: string) {
     id,
     name: id,
     version: "0.0.0",
-    api: 0,
+    api: 1,
     capabilities: ["lua", "commands", "ui"] as const,
     entry: "entry.lua",
   };
@@ -97,7 +97,7 @@ describe("lua extension manifest contract", () => {
       id: "local.spike-lua-notify",
       name: "Spike",
       version: "0.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["lua", "commands", "ui"],
       entry: "entry.lua",
     });
@@ -110,7 +110,7 @@ describe("lua extension manifest contract", () => {
         id: "local.spike-lua-notify",
         name: "Spike",
         version: "0.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["lua", "commands", "ui"],
       }),
     ).toEqual({ reason: "lua capability requires entry" });
@@ -120,7 +120,7 @@ describe("lua extension manifest contract", () => {
         id: "local.spike-lua-notify",
         name: "Spike",
         version: "0.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["commands", "ui"],
         entry: "entry.lua",
       }),
@@ -133,7 +133,7 @@ describe("lua extension manifest contract", () => {
         id: "local.spike-lua-notify",
         name: "Spike",
         version: "0.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["lua", "commands", "ui"],
         entry: "entry.lua",
         commands: [{ id: "ping", title: "Ping", action: "notify", message: "x" }],
@@ -146,7 +146,7 @@ describe("lua extension manifest contract", () => {
       id: "local.spike-lua-notify",
       name: "Spike",
       version: "0.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["lua", "commands", "ui"],
     } as const;
     for (const entry of ["../outside.lua", "foo/../../x.lua", "./entry.lua", "C:/Windows/x.lua"]) {

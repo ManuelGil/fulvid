@@ -1,19 +1,22 @@
 /**
- * Experimental editor capability contract (not a stable `api: 0` promise).
+ * Production editor capability contract (Extension API v1).
  *
  * Explicit guest surface (requires capability `editor` + `lua`):
  *   - editor.getSelection() → string (frozen primary-selection text snapshot)
  *   - editor.replaceSelection(text) → queues one replace; applied after Lua returns
  *
  * Protocol:
- *   renderer snapshots selection text → Bun/Lua (data only) → MonacoHost apply
+ *   renderer snapshots selection text + host-only identity stamps
+ *     → Bun/Lua (text data only)
+ *     → validate stamps still current
+ *     → MonacoHost apply
  *
- * Apply semantics (why this remains experimental):
- *   Snapshot carries text only (no range / document id / model version).
- *   Apply uses the live primary selection (or cursor) in the active Monaco editor
- *   at apply time. If the user changes selection or document between snapshot and
- *   apply, the replacement targets that live range with the queued text.
- *   No editor events, subscriptions, or mid-invoke Monaco RPC.
+ * Stale-operation semantics (strategy B — reject stale):
+ *   Snapshot carries selected text plus host-only document id, Monaco
+ *   alternativeVersionId, and selection offsets. Lua never sees identity stamps.
+ *   Apply verifies the active document and selection stamps still match; otherwise
+ *   the operation is rejected. Apply never retargets a different document or an
+ *   inactive buffer.
  *
  * Owner chain:
  *   Lua → Bun bridge → renderer seam → MonacoHost.getSelectedText /
@@ -31,14 +34,31 @@ export const EDITOR_EXTENSION_LIMITS = {
   maxReplaceChars: LUA_EXTENSION_LIMITS.maxEditorSelectionChars,
 } as const;
 
+/**
+ * Host-side snapshot for editor invoke/apply.
+ * Only `selection` is exposed to the Lua guest.
+ */
 export type EditorSelectionSnapshot = {
   selection: string;
+  /** Active document id at snapshot (`untitled:N` or `file:…`). */
+  documentId: string;
+  /** Monaco `ITextModel.getAlternativeVersionId()` at snapshot. */
+  alternativeVersionId: number;
+  /** Inclusive UTF-16 start offset of the primary selection. */
+  startOffset: number;
+  /** Exclusive UTF-16 end offset of the primary selection. */
+  endOffset: number;
 };
 
 export type EditorMutationRequest = {
   /** Last replaceSelection wins when Lua calls it more than once. */
   replaceSelection?: string;
 };
+
+export type EditorSnapshotIdentity = Pick<
+  EditorSelectionSnapshot,
+  "documentId" | "alternativeVersionId" | "startOffset" | "endOffset"
+>;
 
 export function assertEditorSelectionWithinLimit(selection: string): string | null {
   if (selection.length > EDITOR_EXTENSION_LIMITS.maxSelectionChars.value) {
@@ -55,4 +75,20 @@ export function assertEditorReplaceWithinLimit(text: unknown): string | null {
     return "editor.replaceSelection exceeds size limit";
   }
   return null;
+}
+
+/** True when the live editor still matches the host-only snapshot stamps. */
+export function editorSnapshotIsCurrent(
+  snapshot: EditorSnapshotIdentity,
+  live: EditorSnapshotIdentity | null,
+): boolean {
+  if (!live) {
+    return false;
+  }
+  return (
+    live.documentId === snapshot.documentId &&
+    live.alternativeVersionId === snapshot.alternativeVersionId &&
+    live.startOffset === snapshot.startOffset &&
+    live.endOffset === snapshot.endOffset
+  );
 }

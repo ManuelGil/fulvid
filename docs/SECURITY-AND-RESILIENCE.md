@@ -60,23 +60,28 @@ Folder scans, Preview, Export, Search, and Graph are derived from files and open
 
 Graph shows resolved links around Focus. It is not a store and not a second copy of the documents. [GRAPH.md](./GRAPH.md).
 
-### Extension Engine
+### Extensions
 
-Local packs compose through declared capabilities into **existing owners**. The Extension Engine orchestrates; it does not own filesystem, document, editor, window, search, graph, or renderer authority.
+Local packs compose through declared capabilities into **existing owners**. The Extension System orchestrates; it does not own filesystem, document, editor, window, search, graph, or renderer authority.
 
 ```text
-Extension Engine:
-READY WITH EXPLICIT LIMITATIONS
+Extension System:
+PRODUCTION (Extension API v1)
+
+Lua runtime:
+SUPPORTED
+
+Editor:
+PRODUCTION (reject-stale apply)
 ```
 
-Accepted limitations:
+Honest limitation:
 
 ```text
 Capability isolation ≠ OS sandbox
-Editor live-apply TOCTOU
 ```
 
-Authoritative contract (capability surface, absent-by-design, budgets, runtime replacement/removal, contract tests vs temporary attack corpora, Lua provenance): [EXTENSIONS.md](./EXTENSIONS.md).
+Authoritative contract: [EXTENSIONS.md](./EXTENSIONS.md). Promotion gates / acceptance: [EXTENSION-PRODUCT-CONTRACT.md](./EXTENSION-PRODUCT-CONTRACT.md).
 
 ### Error containment
 

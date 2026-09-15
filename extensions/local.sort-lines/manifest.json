@@ -1,0 +1,9 @@
+{
+  "id": "local.sort-lines",
+  "name": "Sort selected lines",
+  "version": "1.0.0",
+  "api": 1,
+  "description": "Sorts the selected lines alphabetically through the editor capability (text snapshot → Lua → Monaco apply).",
+  "capabilities": ["lua", "commands", "ui", "editor"],
+  "entry": "entry.lua"
+}

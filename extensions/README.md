@@ -1,56 +1,52 @@
-# Extensions (repository fixtures)
+# Extensions
 
-This directory holds a **minimal set of long-lived fixtures** for Fulvid’s declarative extension boundary.
+Local-first Fulvid **Extensions** — declarative and Lua packs that contribute commands and document workflows through existing Fulvid owners.
 
-Authoritative Extension Engine contract (capabilities, absent-by-design, budgets, runtime replacement, removal, contract tests): [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md).
+Authoritative contracts:
 
-It is **not**:
+- Product / promotion: [`docs/EXTENSION-PRODUCT-CONTRACT.md`](../docs/EXTENSION-PRODUCT-CONTRACT.md)
+- Architecture & security: [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md)
 
-- a marketplace or plugin catalog;
-- official Fulvid product features;
-- the runtime load path (that is `userData/extensions`);
-- a permanent Lua product surface;
-- a place for temporary product-gap workarounds.
+## Install model
 
-It **is**:
+Extensions load from:
 
-- documentation-as-data for `extension → capability → owner`;
-- durable examples of **declarative** packs;
-- samples you can copy into `userData/extensions` to exercise discovery.
+```text
+userData/extensions/<id>/
+```
 
-> These fixtures demonstrate composition and limits of extensibility. They are **not** recommended core features and must not be treated as a roadmap of product templates.
+This repository’s `extensions/` packs are **production examples** you can copy into that directory. There is no marketplace.
 
-## Permanent fixtures (keep small)
+Restart Fulvid after copying (discovery is startup-only).
 
-| Id | Teaches |
+## First-release examples
+
+| Id | Workflow |
 | --- | --- |
-| `local.capability-notify` | Declared command → host `notify` only (no Monaco, no FS) |
-| `local.declarative-pack` | Declared template + `createUntitledFromTemplate` (product-neutral body) |
+| `local.capability-notify` | Command → host `notify` |
+| `local.declarative-pack` | Template → untitled blank note (`{date}` expanded) |
+| `local.sort-lines` | Lua + editor: sort selected lines A→Z |
 
-Do not add product-shaped packs (bug report, meeting, ADR, etc.) here. Those age into “missing core features.” Prefer disposable experiments outside the permanent set, or user-local packs under userData.
+## Product boundary
 
-## Status
+```text
+Fulvid
+  └── Extensions
+       ├── declarative extensions
+       └── Lua extensions → constrained capabilities
+```
 
-| Layer | Status |
-| --- | --- |
-| Fixtures (JSON + Markdown) | Present — copy into userData to load |
-| Discovery (`userData/extensions`, `api: 0`) | **Implemented** (declarative + optional `lua` capability) |
-| Host actions | `notify`, `createUntitledFromTemplate`; Lua packs use host-only `lua` invoke |
-| Lua / wasmoon 1.16.0 | **Present** in `src/bun/extensions/lua/` — host-only Wasm, embedded PUC Lua **5.4.5**, budgets, reduced guest environment, source-only entry, failure isolation. Capability `editor` is **EXPERIMENTAL**. No filesystem capability. No `host.call`. Capability isolation ≠ OS sandbox. Details: [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md). Packaged `glue.wasm` → `bun/glue.wasm`; see `docs/compatibility.md`. Disposable fixtures under `tests/extensions/fixtures/`. |
+Lua is a **supported extension runtime**, not a separate product and not a general scripting environment.
 
-## UI extension boundary
+**Extensions are locally installed executable code.** Fulvid constrains their capabilities but does not provide an OS-level sandbox.
 
-Path: `extension → declared capability / command → existing owner → presentation`. An extension is never an owner. The Extension Engine does not become the owner of filesystem, document, editor, window, search, graph, or renderer authority.
+## Extension API v1
 
-| Kind | Meaning today |
-| --- | --- |
-| **Current** | Host discovers `userData/extensions`, validates `api: 0` manifests, registers declarative commands/templates, invokes existing owners. Optional `lua` + experimental `editor` per [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md). Failures are isolated per pack. Namespaced ids: `<extensionId>.<commandId>` |
-| **Future seam** | Additional capabilities only via an explicit security/design decision — not a routine API widening |
-| **Forbidden** | Monaco internals, filesystem/grants, BrowserWindow, process, network, Vue internals, arbitrary HTML/SVG/DOM, MDX execution, Focus / Writing Focus / Graph policy, generic `host.call`, bytecode entry, undeclared executable surfaces (declarative packs must not ship executable `main` / JS entry; Lua `entry.lua` only when capability `lua` is declared) |
+Manifests require `"api": 1`.
 
-Never: `extension → Vue/Monaco/filesystem`. Do not invent a second owner to “make an extension work.”
+Production capabilities: `commands`, `templates`, `ui`, `lua`, `editor`.
 
-Contract tests: `tests/extensions/` (see [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md#tests-as-security-contracts)).
+Editor (`getSelection` / `replaceSelection`) uses snapshot → Lua (text only) → reject-stale apply through Monaco. See [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md).
 
 ## Layout
 
@@ -59,18 +55,9 @@ extensions/
   README.md
   local.capability-notify/manifest.json
   local.declarative-pack/manifest.json
-  local.declarative-pack/templates/sample.md
+  local.declarative-pack/templates/blank-note.md
+  local.sort-lines/manifest.json
+  local.sort-lines/entry.lua
 ```
 
-Ids use the `local.*` prefix so they never look like a public registry. The load path is `Utils.paths.userData/extensions/<id>/`.
-
-## Relation to `examples/`
-
-| Path | Meaning |
-| --- | --- |
-| `examples/demo-workspace/` | Demo **notes** for Open folder / screenshots |
-| `extensions/` | **Extension-boundary fixtures** (manifests), not a notes folder |
-
-## Local artifacts
-
-Only generated state is gitignored (`extensions/**/.cache/`, `extensions/**/dist/`). Manifests and templates stay tracked.
+Disposable runtime experiments (not the production set): `tests/extensions/fixtures/`.

@@ -19,6 +19,18 @@ export default {
     },
     commandError: "No se pudo completar esa acción.",
   },
+  extensions: {
+    loadFailed: 'No se pudo cargar la extensión "{id}".',
+    discoveryUnavailable: "No se pudieron cargar las extensiones.",
+    hostUnavailable: "Las extensiones no están disponibles ahora.",
+    noActiveEditor: "Abre un documento en el editor primero.",
+    editorStale: "El documento o la selección cambió. Vuelve a ejecutar el comando.",
+    executionTimeout: "Esa extensión tardó demasiado y se detuvo.",
+    memoryExceeded: "Esa extensión usó demasiada memoria y se detuvo.",
+    sizeLimitExceeded: "Esa extensión alcanzó un límite de tamaño.",
+    commandFailed: "Ese comando de extensión no pudo completarse.",
+    templateMissing: "Falta la plantilla de esa extensión.",
+  },
   toolbar: {
     undo: "Deshacer",
     redo: "Rehacer",

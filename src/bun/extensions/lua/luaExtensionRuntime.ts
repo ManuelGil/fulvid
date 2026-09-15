@@ -277,7 +277,13 @@ export async function invokeLuaExtensionCommand(
     },
     editor: allowEditor
       ? {
-          snapshot: editorSnapshot ?? { selection: "" },
+          snapshot: editorSnapshot ?? {
+            selection: "",
+            documentId: "",
+            alternativeVersionId: -1,
+            startOffset: 0,
+            endOffset: 0,
+          },
           mutations,
         }
       : undefined,

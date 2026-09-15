@@ -2,7 +2,7 @@
   "id": "local.spike-lua-notify",
   "name": "Spike Lua Notify",
   "version": "0.0.0-spike",
-  "api": 0,
+  "api": 1,
   "description": "EXPERIMENTAL disposable fixture — not a permanent architectural fixture. Copy into userData/extensions only for local runtime experiments.",
   "capabilities": ["lua", "commands", "ui"],
   "entry": "entry.lua"

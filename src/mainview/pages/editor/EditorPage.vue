@@ -138,6 +138,12 @@ type MonacoHostHandle = {
   runMarkdownAction: (action: MarkdownFormatAction) => void;
   insertTextAtCursor: (text: string) => void;
   getSelectedText: () => string;
+  getExtensionApplyContext: () => {
+    selection: string;
+    alternativeVersionId: number;
+    startOffset: number;
+    endOffset: number;
+  } | null;
   replacePrimarySelection: (text: string) => boolean;
   trimTrailingWhitespace: () => boolean;
   currentCursorPosition: () => { lineNumber: number; column: number };
@@ -1062,7 +1068,24 @@ function onPreviewMediaChange(event: MediaQueryListEvent): void {
 
 onMounted(() => {
   registerEditorExtensionSeam({
-    getSelection: () => monacoHostRef.value?.getSelectedText() ?? "",
+    getApplyContext: () => {
+      const host = monacoHostRef.value;
+      const buffer = activeBuffer.value;
+      if (!host || !buffer) {
+        return null;
+      }
+      const context = host.getExtensionApplyContext();
+      if (!context) {
+        return null;
+      }
+      return {
+        selection: context.selection,
+        documentId: buffer.id,
+        alternativeVersionId: context.alternativeVersionId,
+        startOffset: context.startOffset,
+        endOffset: context.endOffset,
+      };
+    },
     replaceSelection: (text) => monacoHostRef.value?.replacePrimarySelection(text) ?? false,
     hasActiveEditor: () => Boolean(monacoHostRef.value && activeBuffer.value),
   });

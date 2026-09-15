@@ -1,15 +1,15 @@
 /**
- * Extension manifest contract (api: 0).
+ * Extension manifest contract (Extension API v1).
  *
  * Declarative packs are data-only. Packs with the `lua` capability may declare
  * a relative `entry` source path loaded only by the Bun-host Lua/Wasm runtime.
  * Validation here never executes Lua and grants no filesystem/Monaco authority.
  */
 
-export const EXTENSION_API_VERSION = 0;
+export const EXTENSION_API_VERSION = 1;
 
 /**
- * Closed capability surface for api: 0.
+ * Closed capability surface for Extension API v1.
  * Declaring a capability grants no resource. `lua` selects the host Wasm runtime.
  */
 export const ALLOWED_EXTENSION_CAPABILITIES = [
@@ -161,7 +161,7 @@ export function parseNamespacedExtensionCommandId(
 }
 
 /**
- * Validate a parsed JSON value as an api:0 manifest.
+ * Validate a parsed JSON value as an Extension API v1 manifest.
  * Returns a reason string on failure — never throws.
  */
 export function validateExtensionManifest(value: unknown): ManifestValidationResult {

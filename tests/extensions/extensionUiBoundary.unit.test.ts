@@ -55,7 +55,7 @@ describe("extension UI boundary", () => {
       .filter((entry) => entry.isDirectory() && entry.name.startsWith("local."))
       .map((entry) => entry.name)
       .sort();
-    expect(dirs).toEqual(["local.capability-notify", "local.declarative-pack"]);
+    expect(dirs).toEqual(["local.capability-notify", "local.declarative-pack", "local.sort-lines"]);
 
     for (const id of dirs) {
       const manifest = await readManifest(id);

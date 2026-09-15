@@ -4,17 +4,24 @@ import { join } from "node:path";
 
 const EXTENSIONS_ROOT = join(import.meta.dir, "../../extensions");
 
-/** Permanent fixture set — keep small; do not recover deleted product-shaped packs. */
-const PERMANENT_FIXTURE_IDS = ["local.capability-notify", "local.declarative-pack"] as const;
+/**
+ * Production example packs under extensions/ (copy into userData/extensions).
+ * Keep the set small; each pack demonstrates a durable first-release workflow.
+ */
+const PRODUCTION_EXAMPLE_IDS = [
+  "local.capability-notify",
+  "local.declarative-pack",
+  "local.sort-lines",
+] as const;
 
-const ALLOWED_CAPABILITIES = new Set(["commands", "ui", "templates"]);
+const DECLARATIVE_EXAMPLE_IDS = ["local.capability-notify", "local.declarative-pack"] as const;
+
+const ALLOWED_CAPABILITIES = new Set(["commands", "ui", "templates", "lua", "editor"]);
 const ALLOWED_ACTIONS = new Set(["notify", "createUntitledFromTemplate"]);
 const FORBIDDEN_MANIFEST_KEYS = new Set([
   "main",
-  "entry",
   "script",
   "scripts",
-  "lua",
   "wasm",
   "module",
   "loader",
@@ -33,6 +40,7 @@ type FixtureManifest = {
   api: number;
   description: string;
   capabilities: string[];
+  entry?: string;
   commands?: Array<{ id: string; title: string; action: string; [key: string]: unknown }>;
   templates?: Array<{ id: string; name: string; file: string }>;
 };
@@ -61,20 +69,18 @@ async function collectFiles(root: string): Promise<string[]> {
   return out.sort();
 }
 
-// Intent: fixtures stay declarative architecture samples, never a plugin runtime.
-// Growth boundary: add cases only when a new permanent fixture or capability contract lands.
 describe("extension fixtures", () => {
-  test("permanent set is exactly the two architectural fixtures", async () => {
-    expect(await listFixtureDirs()).toEqual([...PERMANENT_FIXTURE_IDS]);
+  test("production example set is exactly the three first-release packs", async () => {
+    expect(await listFixtureDirs()).toEqual([...PRODUCTION_EXAMPLE_IDS]);
   });
 
-  test("manifests declare only known capabilities and inert host actions", async () => {
-    for (const id of PERMANENT_FIXTURE_IDS) {
+  test("manifests declare only known capabilities and Extension API v1", async () => {
+    for (const id of PRODUCTION_EXAMPLE_IDS) {
       const raw = await readFile(join(EXTENSIONS_ROOT, id, "manifest.json"), "utf8");
       const manifest = JSON.parse(raw) as FixtureManifest;
 
       expect(manifest.id).toBe(id);
-      expect(manifest.api).toBe(0);
+      expect(manifest.api).toBe(1);
       expect(Array.isArray(manifest.capabilities)).toBe(true);
       for (const capability of manifest.capabilities) {
         expect(ALLOWED_CAPABILITIES.has(capability)).toBe(true);
@@ -120,18 +126,47 @@ describe("extension fixtures", () => {
 
     expect(manifest.capabilities.sort()).toEqual(["commands", "templates"]);
     expect(manifest.commands?.[0]?.action).toBe("createUntitledFromTemplate");
-    expect(manifest.templates?.[0]?.file).toBe("templates/sample.md");
+    expect(manifest.templates?.[0]?.file).toBe("templates/blank-note.md");
 
     const files = await collectFiles(root);
-    expect(files).toEqual(["manifest.json", "templates/sample.md"]);
+    expect(files).toEqual(["manifest.json", "templates/blank-note.md"]);
 
     for (const relative of files) {
       expect(relative).not.toMatch(/\.(js|ts|mjs|cjs|lua|wasm|py)$/i);
     }
 
-    const template = await readFile(join(root, "templates/sample.md"), "utf8");
+    const template = await readFile(join(root, "templates/blank-note.md"), "utf8");
     expect(template.startsWith("#")).toBe(true);
     expect(template).not.toMatch(/<\s*script/i);
-    expect((await stat(join(root, "templates/sample.md"))).isFile()).toBe(true);
+    expect((await stat(join(root, "templates/blank-note.md"))).isFile()).toBe(true);
+  });
+
+  test("sort-lines is a source-only Lua editor example", async () => {
+    const root = join(EXTENSIONS_ROOT, "local.sort-lines");
+    const manifest = JSON.parse(
+      await readFile(join(root, "manifest.json"), "utf8"),
+    ) as FixtureManifest;
+
+    expect(manifest.capabilities.sort()).toEqual(["commands", "editor", "lua", "ui"]);
+    expect(manifest.entry).toBe("entry.lua");
+    expect(manifest.commands).toBeUndefined();
+
+    const files = await collectFiles(root);
+    expect(files).toEqual(["entry.lua", "manifest.json"]);
+
+    const source = await readFile(join(root, "entry.lua"), "utf8");
+    expect(source.startsWith("\u001bLua")).toBe(false);
+    expect(source).toContain("editor.getSelection");
+    expect(source).toContain("editor.replaceSelection");
+    expect(source).toContain("table.sort");
+  });
+
+  test("declarative examples stay data-only", async () => {
+    for (const id of DECLARATIVE_EXAMPLE_IDS) {
+      const files = await collectFiles(join(EXTENSIONS_ROOT, id));
+      for (const relative of files) {
+        expect(relative).not.toMatch(/\.(js|ts|mjs|cjs|lua|wasm)$/i);
+      }
+    }
   });
 });

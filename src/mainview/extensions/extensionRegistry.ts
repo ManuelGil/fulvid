@@ -8,9 +8,13 @@
 import { ref, type Ref } from "vue";
 
 import { expandTemplateDateTokens } from "../modules/editor/document/documentTemplates";
+import { LocalizedError } from "../modules/workspace/filesystem/workspaceErrors";
+import { i18n } from "../i18n";
 import {
   assertEditorReplaceWithinLimit,
   assertEditorSelectionWithinLimit,
+  editorSnapshotIsCurrent,
+  type EditorSelectionSnapshot,
 } from "./editorCapability";
 import { editorExtensionSeam } from "./editorExtensionSeam";
 import type {
@@ -30,7 +34,7 @@ export type ExtensionLuaInvokeResult =
 
 export type ExtensionLuaInvokeRequest = {
   namespacedId: string;
-  editor?: { selection: string };
+  editor?: EditorSelectionSnapshot;
 };
 
 export type ExtensionHostActions = {
@@ -80,6 +84,28 @@ export function findExtensionCommand(
   return null;
 }
 
+function extensionLocalizedError(key: string): LocalizedError {
+  return new LocalizedError(i18n.global.t(key));
+}
+
+/**
+ * Map known Lua/runtime failure strings to user-facing copy without leaking
+ * Wasm/Wasmoon internals as primary UX.
+ */
+export function describeExtensionInvokeFailure(error: string): LocalizedError {
+  const lower = error.toLowerCase();
+  if (lower.includes("timeout") || lower.includes("interrupted") || lower.includes("execution")) {
+    return extensionLocalizedError("extensions.executionTimeout");
+  }
+  if (lower.includes("not enough memory") || lower.includes("memory")) {
+    return extensionLocalizedError("extensions.memoryExceeded");
+  }
+  if (lower.includes("exceeds size limit")) {
+    return extensionLocalizedError("extensions.sizeLimitExceeded");
+  }
+  return extensionLocalizedError("extensions.commandFailed");
+}
+
 /**
  * Run a namespaced extension command through host-owned actions only.
  * @returns true when a registered extension command handled the id
@@ -90,43 +116,52 @@ export async function runExtensionCommand(namespacedId: string): Promise<boolean
     return false;
   }
   if (!hostActions) {
-    throw new Error("Extension host actions are not configured");
+    throw extensionLocalizedError("extensions.hostUnavailable");
   }
 
   const { extension, command } = match;
   if (command.action === "lua") {
     if (!hostActions.invokeLuaCommand) {
-      throw new Error("Lua extension invoker is not configured");
+      throw extensionLocalizedError("extensions.hostUnavailable");
     }
 
     const request: ExtensionLuaInvokeRequest = { namespacedId };
     const wantsEditor = extension.capabilities.includes("editor");
+    let editorSnapshot: EditorSelectionSnapshot | undefined;
     if (wantsEditor) {
       const seam = editorExtensionSeam();
-      const selection = seam?.getSelection() ?? "";
-      const selectionError = assertEditorSelectionWithinLimit(selection);
-      if (selectionError) {
-        throw new Error(selectionError);
+      const context = seam?.getApplyContext() ?? null;
+      if (!context) {
+        throw extensionLocalizedError("extensions.noActiveEditor");
       }
-      request.editor = { selection };
+      const selectionError = assertEditorSelectionWithinLimit(context.selection);
+      if (selectionError) {
+        throw extensionLocalizedError("extensions.sizeLimitExceeded");
+      }
+      editorSnapshot = context;
+      request.editor = context;
     }
 
     const result = await hostActions.invokeLuaCommand(request);
     if (!result.ok) {
-      throw new Error(result.error);
+      throw describeExtensionInvokeFailure(result.error);
     }
 
     if (result.editor?.replaceSelection !== undefined) {
-      if (!wantsEditor) {
-        throw new Error("editor mutation without editor capability");
+      if (!wantsEditor || !editorSnapshot) {
+        throw extensionLocalizedError("extensions.commandFailed");
       }
       const replaceError = assertEditorReplaceWithinLimit(result.editor.replaceSelection);
       if (replaceError) {
-        throw new Error(replaceError);
+        throw extensionLocalizedError("extensions.sizeLimitExceeded");
       }
       const seam = editorExtensionSeam();
+      const live = seam?.getApplyContext() ?? null;
+      if (!editorSnapshotIsCurrent(editorSnapshot, live)) {
+        throw extensionLocalizedError("extensions.editorStale");
+      }
       if (!seam?.hasActiveEditor() || !seam.replaceSelection(result.editor.replaceSelection)) {
-        throw new Error("no active editor");
+        throw extensionLocalizedError("extensions.noActiveEditor");
       }
     }
 
@@ -144,7 +179,7 @@ export async function runExtensionCommand(namespacedId: string): Promise<boolean
   if (command.action === "createUntitledFromTemplate") {
     const template = extension.templates.find((entry) => entry.id === command.template);
     if (!template) {
-      throw new Error(`Extension template missing: ${command.template ?? ""}`);
+      throw extensionLocalizedError("extensions.templateMissing");
     }
     await hostActions.createUntitled(expandTemplateDateTokens(template.content));
     return true;

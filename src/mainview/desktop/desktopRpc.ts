@@ -56,7 +56,13 @@ type ExtensionDiscoveryRequests = {
   invokeExtensionLuaCommand: {
     params: {
       namespacedId: string;
-      editor?: { selection: string };
+      editor?: {
+        selection: string;
+        documentId: string;
+        alternativeVersionId: number;
+        startOffset: number;
+        endOffset: number;
+      };
     };
     response:
       | {

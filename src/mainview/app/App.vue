@@ -650,10 +650,12 @@ onMounted(() => {
       setDiscoveredExtensions(result);
       for (const failure of result.failed) {
         console.warn(`Fulvid extension "${failure.id}" failed: ${failure.reason}`);
+        notify(t("extensions.loadFailed", { id: failure.id }));
       }
     })
     .catch((error: unknown) => {
       console.warn("Fulvid extension discovery unavailable:", error);
+      notify(t("extensions.discoveryUnavailable"));
     });
   void resolveApplicationMenuSupport().then(() => {
     void syncNativeApplicationMenu(presentedApplicationMenus.value);

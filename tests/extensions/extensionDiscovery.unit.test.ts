@@ -56,7 +56,7 @@ describe("extension manifest contract", () => {
       id: "local.capability-notify",
       name: "Notify",
       version: "1.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["commands"],
       commands: [{ id: "ping", title: "Ping", action: "notify", message: "hi" }],
     });
@@ -68,10 +68,10 @@ describe("extension manifest contract", () => {
       id: "local.capability-notify",
       name: "Notify",
       version: "1.0.0",
-      api: 1,
+      api: 2,
       capabilities: ["commands"],
     });
-    expect(result).toEqual({ reason: "unsupported api version: 1" });
+    expect(result).toEqual({ reason: "unsupported api version: 2" });
   });
 
   test("rejects an unknown capability", () => {
@@ -79,7 +79,7 @@ describe("extension manifest contract", () => {
       id: "local.capability-notify",
       name: "Notify",
       version: "1.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["monaco"],
     });
     expect(result).toEqual({ reason: "unknown capability: monaco" });
@@ -90,7 +90,7 @@ describe("extension manifest contract", () => {
       id: "../escape",
       name: "Bad",
       version: "1.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["commands"],
     });
     expect(result).toEqual({ reason: "invalid extension id" });
@@ -114,7 +114,7 @@ describe("extension discovery", () => {
       id: "local.good",
       name: "Good",
       version: "1.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["commands"],
       commands: [{ id: "ping", title: "Ping", action: "notify", message: "ok" }],
     });
@@ -122,14 +122,14 @@ describe("extension discovery", () => {
       id: "local.bad",
       name: "Bad",
       version: "1.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["filesystem"],
     });
     await writePack(extensions, "local.also-good", {
       id: "local.also-good",
       name: "Also",
       version: "1.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["commands"],
       commands: [{ id: "ping", title: "Ping", action: "notify", message: "also" }],
     });
@@ -148,7 +148,7 @@ describe("extension discovery", () => {
       id: "local.first",
       name: "First",
       version: "1.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["commands"],
       commands: [{ id: "ping", title: "A", action: "notify", message: "a" }],
     });
@@ -156,7 +156,7 @@ describe("extension discovery", () => {
       id: "local.first",
       name: "Second",
       version: "2.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["commands"],
       commands: [{ id: "ping", title: "B", action: "notify", message: "b" }],
     });
@@ -177,7 +177,7 @@ describe("extension discovery", () => {
       id: "local.ok",
       name: "Ok",
       version: "1.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["commands"],
       commands: [{ id: "ping", title: "Ping", action: "notify", message: "ok" }],
     });
@@ -204,7 +204,7 @@ describe("extension discovery", () => {
         id: "local.safe",
         name: "Safe",
         version: "1.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["templates", "commands"],
         templates: [{ id: "sample", name: "Sample", file: "templates/sample.md" }],
         commands: [
@@ -222,7 +222,7 @@ describe("extension discovery", () => {
       id: "local.escape",
       name: "Escape",
       version: "1.0.0",
-      api: 0,
+      api: 1,
       capabilities: ["templates", "commands"],
       templates: [{ id: "sample", name: "Sample", file: "../secret.md" }],
       commands: [
@@ -260,8 +260,8 @@ describe("declarative host actions", () => {
       if (id === "local.declarative-pack") {
         await mkdir(join(extensions, id, "templates"), { recursive: true });
         await writeFile(
-          join(extensions, id, "templates", "sample.md"),
-          await Bun.file(join(REPO_FIXTURES, id, "templates", "sample.md")).text(),
+          join(extensions, id, "templates", "blank-note.md"),
+          await Bun.file(join(REPO_FIXTURES, id, "templates", "blank-note.md")).text(),
         );
       }
     }
@@ -286,15 +286,15 @@ describe("declarative host actions", () => {
     expect(
       await runExtensionCommand(namespacedExtensionCommandId("local.capability-notify", "ping")),
     ).toBe(true);
-    expect(notifications[0]).toContain("local.capability-notify");
+    expect(notifications[0]).toContain("host notify");
 
     expect(
       await runExtensionCommand(
-        namespacedExtensionCommandId("local.declarative-pack", "createSample"),
+        namespacedExtensionCommandId("local.declarative-pack", "createBlankNote"),
       ),
     ).toBe(true);
     expect(untitledBodies).toHaveLength(1);
-    expect(untitledBodies[0]).toContain("# Declarative sample");
+    expect(untitledBodies[0]).toContain("Date:");
     expect(untitledBodies[0]).not.toContain("{date}");
     expect(listExtensionCommands().every((command) => command.namespacedId.includes("."))).toBe(
       true,
@@ -313,7 +313,7 @@ describe("declarative host actions", () => {
         id: "local.pack",
         name: "Pack",
         version: "1.0.0",
-        api: 0,
+        api: 1,
         capabilities: ["templates", "commands"],
         templates: [{ id: "sample", name: "Sample", file: "templates/sample.md" }],
         commands: [
