@@ -1,5 +1,5 @@
 /**
- * Renderer seam for Phase 3 Lua editor capabilities.
+ * Renderer seam for experimental Lua editor capabilities.
  *
  * Monaco remains the owner of live text. This module only registers callbacks
  * that EditorPage wires to MonacoHost — never a second buffer.

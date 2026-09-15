@@ -9,7 +9,7 @@ import {
   resetLuaFactoryForTests,
 } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 import { resetLuaCommandStoreForTests } from "../../src/bun/extensions/lua/luaCommandStore.ts";
-import { LUA_SPIKE_LIMITS } from "../../src/bun/extensions/lua/luaLimits.ts";
+import { LUA_EXTENSION_LIMITS } from "../../src/bun/extensions/lua/luaLimits.ts";
 import {
   assertEditorReplaceWithinLimit,
   assertEditorSelectionWithinLimit,
@@ -90,7 +90,7 @@ describe("editor capability contract", () => {
       "editor.replaceSelection exceeds size limit",
     );
     expect(assertEditorReplaceWithinLimit(1)).toBe("editor.replaceSelection requires a string");
-    expect(LUA_SPIKE_LIMITS.maxEditorSelectionChars.status).toBe("implemented");
+    expect(LUA_EXTENSION_LIMITS.maxEditorSelectionChars.status).toBe("implemented");
   });
 });
 
@@ -180,7 +180,7 @@ commands.register({
   id = "boom",
   title = "Boom",
   run = function()
-    editor.replaceSelection(string.rep("y", ${LUA_SPIKE_LIMITS.maxEditorSelectionChars.value + 1}))
+    editor.replaceSelection(string.rep("y", ${LUA_EXTENSION_LIMITS.maxEditorSelectionChars.value + 1}))
   end
 })
 `,

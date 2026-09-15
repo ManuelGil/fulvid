@@ -1,5 +1,5 @@
 /**
- * Reduce a wasmoon Lua 5.4 engine to the Fulvid spike guest surface.
+ * Reduce a wasmoon Lua 5.4 engine to the Fulvid extension guest surface.
  *
  * Wasm isolates guest memory from the host heap layout; this is NOT an OS
  * sandbox. Installed extensions remain a local trust decision.
@@ -7,7 +7,7 @@
 import type { LuaEngine } from "wasmoon";
 
 /** Globals removed after standard libs open — no filesystem/process/module loading. */
-export const LUA_SPIKE_REMOVED_GLOBALS = [
+export const LUA_GUEST_REMOVED_GLOBALS = [
   "io",
   "os",
   "package",

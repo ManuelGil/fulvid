@@ -3,7 +3,7 @@
   "name": "Spike Lua Editor",
   "version": "0.0.0-spike",
   "api": 0,
-  "description": "EXPERIMENTAL Phase 3 disposable fixture — selection transform only. Not a permanent architectural fixture.",
+  "description": "EXPERIMENTAL disposable fixture — selection transform only. Not a permanent architectural fixture.",
   "capabilities": ["lua", "commands", "ui", "editor"],
   "entry": "entry.lua"
 }

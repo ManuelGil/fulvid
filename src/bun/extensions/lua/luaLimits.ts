@@ -1,12 +1,12 @@
 /**
- * Resource limits for the Lua/Wasm extension runtime (Phase 2.5 hardening).
+ * Resource limits for the Lua/Wasm extension runtime.
  *
  * Labels are honest: `implemented` means Fulvid enforces the cap with an
  * observable failure. Wasm memory isolation and wasmoon thread hooks are
  * capability/resource controls — not an OS sandbox.
  */
 
-export const LUA_SPIKE_LIMITS = {
+export const LUA_EXTENSION_LIMITS = {
   /** Maximum UTF-8 byte length of entry.lua source. */
   maxSourceBytes: { value: 64 * 1024, status: "implemented" as const },
   /** Maximum commands one extension may register. */
@@ -43,7 +43,7 @@ export function setLuaExecutionBudgetForTests(ms: number | null): void {
 }
 
 export function luaExecutionBudgetMs(): number {
-  return executionMsOverride ?? LUA_SPIKE_LIMITS.maxExecutionMs.value;
+  return executionMsOverride ?? LUA_EXTENSION_LIMITS.maxExecutionMs.value;
 }
 
 /** Test-only override for Wasm memory ceiling (null restores the default). */
@@ -54,5 +54,5 @@ export function setLuaMemoryBudgetForTests(bytes: number | null): void {
 }
 
 export function luaMemoryBudgetBytes(): number {
-  return memoryBytesOverride ?? LUA_SPIKE_LIMITS.maxWasmMemoryBytes.value;
+  return memoryBytesOverride ?? LUA_EXTENSION_LIMITS.maxWasmMemoryBytes.value;
 }

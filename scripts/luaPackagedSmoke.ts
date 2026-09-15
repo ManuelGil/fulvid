@@ -1,5 +1,5 @@
 /**
- * Packaged Electrobun gate for the Lua/Wasm extension runtime.
+ * Packaged Electrobun smoke for the Lua/Wasm extension runtime.
  *
  * After a canary/stable Electrobun package under build/, this smoke:
  *   1. Locates bun/glue.wasm (expanded tree or Resources/*.tar.zst)

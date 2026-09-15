@@ -1,9 +1,19 @@
 /**
- * Phase 3 editor capability contract (experimental, selection transform only).
+ * Experimental editor capability contract (not a stable `api: 0` promise).
  *
  * Explicit guest surface (requires capability `editor` + `lua`):
- *   - editor.getSelection() → string (frozen primary-selection snapshot)
- *   - editor.replaceSelection(text) → queues one replace; applied after return
+ *   - editor.getSelection() → string (frozen primary-selection text snapshot)
+ *   - editor.replaceSelection(text) → queues one replace; applied after Lua returns
+ *
+ * Protocol:
+ *   renderer snapshots selection text → Bun/Lua (data only) → MonacoHost apply
+ *
+ * Apply semantics (why this remains experimental):
+ *   Snapshot carries text only (no range / document id / model version).
+ *   Apply uses the live primary selection (or cursor) in the active Monaco editor
+ *   at apply time. If the user changes selection or document between snapshot and
+ *   apply, the replacement targets that live range with the queued text.
+ *   No editor events, subscriptions, or mid-invoke Monaco RPC.
  *
  * Owner chain:
  *   Lua → Bun bridge → renderer seam → MonacoHost.getSelectedText /
@@ -14,11 +24,11 @@
  *
  * Capability isolation ≠ OS sandbox.
  */
-import { LUA_SPIKE_LIMITS } from "../../bun/extensions/lua/luaLimits";
+import { LUA_EXTENSION_LIMITS } from "../../bun/extensions/lua/luaLimits";
 
 export const EDITOR_EXTENSION_LIMITS = {
-  maxSelectionChars: LUA_SPIKE_LIMITS.maxEditorSelectionChars,
-  maxReplaceChars: LUA_SPIKE_LIMITS.maxEditorSelectionChars,
+  maxSelectionChars: LUA_EXTENSION_LIMITS.maxEditorSelectionChars,
+  maxReplaceChars: LUA_EXTENSION_LIMITS.maxEditorSelectionChars,
 } as const;
 
 export type EditorSelectionSnapshot = {

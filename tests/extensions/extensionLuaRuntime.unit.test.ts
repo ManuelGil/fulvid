@@ -30,14 +30,14 @@ import {
   luaGlobalType,
 } from "../../src/bun/extensions/lua/luaGuestEnvironment.ts";
 import {
-  LUA_SPIKE_LIMITS,
+  LUA_EXTENSION_LIMITS,
   setLuaExecutionBudgetForTests,
   setLuaMemoryBudgetForTests,
 } from "../../src/bun/extensions/lua/luaLimits.ts";
 import { LuaFactory } from "wasmoon";
 import { validateExtensionManifest } from "../../src/mainview/extensions/extensionManifest.ts";
 
-const SPIKE_FIXTURE = join(import.meta.dir, "fixtures/spike-lua-notify");
+const NOTIFY_FIXTURE = join(import.meta.dir, "fixtures/spike-lua-notify");
 
 async function tempExtensionsRoot(label: string): Promise<string> {
   const root = join(tmpdir(), `fulvid-lua-${label}-${crypto.randomUUID()}`);
@@ -91,7 +91,7 @@ afterEach(() => {
   resetLuaFactoryForTests();
 });
 
-describe("lua spike manifest contract", () => {
+describe("lua extension manifest contract", () => {
   test("accepts a lua pack with entry and required capabilities", () => {
     const result = validateExtensionManifest({
       id: "local.spike-lua-notify",
@@ -142,7 +142,7 @@ describe("lua spike manifest contract", () => {
   });
 });
 
-describe("lua spike guest environment", () => {
+describe("lua guest environment", () => {
   test("dangerous stdlib globals are absent after reduction", async () => {
     const factory = new LuaFactory(resolveWasmoonGlueWasmPath());
     const engine = await factory.createEngine({
@@ -162,11 +162,11 @@ describe("lua spike guest environment", () => {
   });
 });
 
-describe("lua spike registration and invocation", () => {
-  test("spike fixture loads, registers namespaced command, and notifies", async () => {
+describe("lua registration and invocation", () => {
+  test("notify fixture loads, registers namespaced command, and notifies", async () => {
     const root = await tempExtensionsRoot("ok");
     const pack = join(root, "local.spike-lua-notify");
-    await cp(SPIKE_FIXTURE, pack, { recursive: true });
+    await cp(NOTIFY_FIXTURE, pack, { recursive: true });
 
     const registered = await loadPack(pack);
     expect(registered).toHaveLength(1);
@@ -198,7 +198,7 @@ error("boom after register")
     await writePack(extensions, "local.spike-lua-bad", luaManifest("local.spike-lua-bad"), {
       "entry.lua": "error('fail')",
     });
-    await cp(SPIKE_FIXTURE, join(extensions, "local.spike-lua-notify"), { recursive: true });
+    await cp(NOTIFY_FIXTURE, join(extensions, "local.spike-lua-notify"), { recursive: true });
 
     configureExtensionDiscovery(userData);
     const result = await discoverExtensions();
@@ -228,7 +228,7 @@ commands.register({ id = "ping", title = "B", run = function() end })
 
   test("ui.notify rejects oversized messages", async () => {
     const root = await tempExtensionsRoot("notify");
-    const oversized = "x".repeat(LUA_SPIKE_LIMITS.maxNotifyMessageChars.value + 1);
+    const oversized = "x".repeat(LUA_EXTENSION_LIMITS.maxNotifyMessageChars.value + 1);
     const pack = await writePack(root, "local.spike-lua-big", luaManifest("local.spike-lua-big"), {
       "entry.lua": `
 commands.register({
@@ -270,7 +270,7 @@ commands.register({
   });
 });
 
-describe("lua Phase 2.5 execution and memory hardening", () => {
+describe("lua execution and memory budgets", () => {
   test("resolves wasmoon glue.wasm from the package", () => {
     const path = resolveWasmoonGlueWasmPath();
     expect(existsSync(path)).toBe(true);
@@ -278,13 +278,13 @@ describe("lua Phase 2.5 execution and memory hardening", () => {
   });
 
   test("documents enforced resource limits", () => {
-    expect(LUA_SPIKE_LIMITS.maxSourceBytes.status).toBe("implemented");
-    expect(LUA_SPIKE_LIMITS.maxCommandsPerExtension.status).toBe("implemented");
-    expect(LUA_SPIKE_LIMITS.maxNotifyMessageChars.status).toBe("implemented");
-    expect(LUA_SPIKE_LIMITS.maxWasmMemoryBytes.status).toBe("implemented");
-    expect(LUA_SPIKE_LIMITS.maxExecutionMs.status).toBe("implemented");
-    expect(LUA_SPIKE_LIMITS.maxWasmMemoryBytes.value).toBeGreaterThan(0);
-    expect(LUA_SPIKE_LIMITS.maxExecutionMs.value).toBeGreaterThan(0);
+    expect(LUA_EXTENSION_LIMITS.maxSourceBytes.status).toBe("implemented");
+    expect(LUA_EXTENSION_LIMITS.maxCommandsPerExtension.status).toBe("implemented");
+    expect(LUA_EXTENSION_LIMITS.maxNotifyMessageChars.status).toBe("implemented");
+    expect(LUA_EXTENSION_LIMITS.maxWasmMemoryBytes.status).toBe("implemented");
+    expect(LUA_EXTENSION_LIMITS.maxExecutionMs.status).toBe("implemented");
+    expect(LUA_EXTENSION_LIMITS.maxWasmMemoryBytes.value).toBeGreaterThan(0);
+    expect(LUA_EXTENSION_LIMITS.maxExecutionMs.value).toBeGreaterThan(0);
   });
 
   test("interrupts infinite loop during load and leaves no partial registrations", async () => {

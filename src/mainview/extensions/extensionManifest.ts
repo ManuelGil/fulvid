@@ -2,7 +2,7 @@
  * Extension manifest contract (api: 0).
  *
  * Declarative packs are data-only. Packs with the `lua` capability may declare
- * a relative `entry` source path loaded only by the Bun host runtime spike.
+ * a relative `entry` source path loaded only by the Bun-host Lua/Wasm runtime.
  * Validation here never executes Lua and grants no filesystem/Monaco authority.
  */
 
@@ -10,7 +10,7 @@ export const EXTENSION_API_VERSION = 0;
 
 /**
  * Closed capability surface for api: 0.
- * Declaring a capability grants no resource. `lua` selects the host Wasm spike.
+ * Declaring a capability grants no resource. `lua` selects the host Wasm runtime.
  */
 export const ALLOWED_EXTENSION_CAPABILITIES = [
   "commands",

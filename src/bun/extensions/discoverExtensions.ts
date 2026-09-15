@@ -3,7 +3,7 @@
  *
  * Source of truth is the filesystem. Invalid packs fail in isolation.
  * Declarative packs stay data-only. Packs with the `lua` capability may load
- * entry.lua through the Bun-host wasmoon spike (not the renderer).
+ * entry.lua through the Bun-host wasmoon runtime (not the renderer).
  */
 import { mkdirSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";

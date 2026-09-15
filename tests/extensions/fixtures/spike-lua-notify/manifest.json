@@ -3,7 +3,7 @@
   "name": "Spike Lua Notify",
   "version": "0.0.0-spike",
   "api": 0,
-  "description": "EXPERIMENTAL Phase 2 spike fixture — not a permanent architectural fixture. Copy into userData/extensions only for local runtime experiments.",
+  "description": "EXPERIMENTAL disposable fixture — not a permanent architectural fixture. Copy into userData/extensions only for local runtime experiments.",
   "capabilities": ["lua", "commands", "ui"],
   "entry": "entry.lua"
 }

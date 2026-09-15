@@ -34,7 +34,7 @@ Do not add product-shaped packs (bug report, meeting, ADR, etc.) here. Those age
 | Fixtures (JSON + Markdown) | Present — copy into userData to load |
 | Discovery (`userData/extensions`, `api: 0`) | **Implemented** (declarative + optional `lua` capability) |
 | Host actions | `notify`, `createUntitledFromTemplate`; Lua packs use host-only `lua` invoke |
-| Lua / wasmoon 1.16.0 | **Experimental** in `src/bun/extensions/lua/` — host-only Wasm Lua 5.4 with Phase 2.5 budgets. Capability `editor` (`getSelection` / `replaceSelection`, snapshot/apply via Monaco) is **experimental** — not a stable public promise and not a permanent fixture. No filesystem capability. Capability isolation ≠ OS sandbox. Packaged `glue.wasm` → `bun/glue.wasm`; gate: `bun run smoke:lua-packaged` (see `docs/compatibility.md`). Disposable fixtures under `tests/extensions/fixtures/`. |
+| Lua / wasmoon 1.16.0 | **Present** in `src/bun/extensions/lua/` — host-only Wasm Lua 5.4 with execution and memory budgets, reduced guest environment, source-only entry, failure isolation. Capability `editor` (`getSelection` / `replaceSelection`, snapshot text → Lua → live Monaco apply) is **EXPERIMENTAL** — not a stable public `api: 0` promise and not a permanent fixture. No filesystem capability. No `host.call`. Capability isolation ≠ OS sandbox. Packaged `glue.wasm` → `bun/glue.wasm`; verified on Linux/Windows/macOS (see `docs/compatibility.md`). Disposable fixtures under `tests/extensions/fixtures/`. |
 
 ## UI extension boundary
 

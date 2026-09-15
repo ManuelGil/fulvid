@@ -1,12 +1,12 @@
 /**
- * Phase 2.5 + Phase 3: load entry.lua in an isolated wasmoon engine and register
- * commands through an explicit capability bridge.
+ * Load entry.lua in an isolated wasmoon engine and register commands through an
+ * explicit capability bridge (never a generic host.call).
  *
  * Guest APIs: commands.register (load), ui.notify (invoke), and when the pack
  * declares `editor`: editor.getSelection / editor.replaceSelection (snapshot/apply).
  *
- * Runtime lives only in the Bun host. Hardening: thread/function timeouts and
- * Wasm `setMemoryMax` (capability/resource limits — NOT an OS sandbox).
+ * Runtime lives only in the Bun host. Defensive budgets: thread/function timeouts
+ * and Wasm `setMemoryMax` (capability/resource limits — NOT an OS sandbox).
  */
 import { readFile, stat } from "node:fs/promises";
 
@@ -43,7 +43,7 @@ import {
   resetLuaFactoryForTests,
   runLuaSourceWithBudget,
 } from "./luaEngine";
-import { LUA_SPIKE_LIMITS } from "./luaLimits";
+import { LUA_EXTENSION_LIMITS } from "./luaLimits";
 
 export { resetLuaFactoryForTests };
 export { resolveWasmoonGlueWasmPath } from "./luaEngine";
@@ -108,7 +108,7 @@ function installCapabilityBridge(
       if (seenIds.has(id)) {
         throw new Error(`duplicate command id: ${id}`);
       }
-      if (pendingLuaCommandCount() >= LUA_SPIKE_LIMITS.maxCommandsPerExtension.value) {
+      if (pendingLuaCommandCount() >= LUA_EXTENSION_LIMITS.maxCommandsPerExtension.value) {
         throw new Error("command registration limit exceeded");
       }
       seenIds.add(id);
@@ -131,7 +131,7 @@ function installCapabilityBridge(
       if (typeof message !== "string") {
         throw new Error("ui.notify requires a string");
       }
-      if (message.length > LUA_SPIKE_LIMITS.maxNotifyMessageChars.value) {
+      if (message.length > LUA_EXTENSION_LIMITS.maxNotifyMessageChars.value) {
         throw new Error("ui.notify message exceeds size limit");
       }
       options.onNotify(message);
@@ -148,7 +148,7 @@ function installCapabilityBridge(
         if (typeof text !== "string") {
           throw new Error("editor.replaceSelection requires a string");
         }
-        if (text.length > LUA_SPIKE_LIMITS.maxEditorSelectionChars.value) {
+        if (text.length > LUA_EXTENSION_LIMITS.maxEditorSelectionChars.value) {
           throw new Error("editor.replaceSelection exceeds size limit");
         }
         mutations.replaceSelection = text;
@@ -201,12 +201,12 @@ export async function loadLuaExtensionPack(
   if (!entryStat.isFile()) {
     throw new LuaExtensionLoadError(`entry is not a file: ${manifest.entry}`);
   }
-  if (entryStat.size > LUA_SPIKE_LIMITS.maxSourceBytes.value) {
+  if (entryStat.size > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
     throw new LuaExtensionLoadError("entry.lua exceeds size limit");
   }
 
   const source = await readFile(entryPath, "utf8");
-  if (Buffer.byteLength(source, "utf8") > LUA_SPIKE_LIMITS.maxSourceBytes.value) {
+  if (Buffer.byteLength(source, "utf8") > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
     throw new LuaExtensionLoadError("entry.lua exceeds size limit");
   }
   // Reject Lua binary chunk signatures (bytecode).
@@ -262,7 +262,7 @@ export async function invokeLuaExtensionCommand(
   }
   if (
     editorSnapshot &&
-    editorSnapshot.selection.length > LUA_SPIKE_LIMITS.maxEditorSelectionChars.value
+    editorSnapshot.selection.length > LUA_EXTENSION_LIMITS.maxEditorSelectionChars.value
   ) {
     return { ok: false, error: "editor selection exceeds size limit" };
   }

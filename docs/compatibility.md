@@ -82,11 +82,11 @@ No Apple signing secrets on these jobs.
 | Windows x64 | Tested | **Verified** (Compatibility Windows CI — Server 2022/2025) |
 | macOS arm64 | Tested | **Verified** (Compatibility macOS CI — 15/26 Apple Silicon) |
 
-Evidence tip (experimental `160729f`): [Windows run 34909418780](https://github.com/ManuelGil/fulvid/actions/runs/34909418780), [macOS run 34909421392](https://github.com/ManuelGil/fulvid/actions/runs/34909421392). Cross-platform packaged Lua gate: **CLOSED**.
+Evidence (Compatibility CI): [Windows run 34909418780](https://github.com/ManuelGil/fulvid/actions/runs/34909418780), [macOS run 34909421392](https://github.com/ManuelGil/fulvid/actions/runs/34909421392). Packaged Lua runtime is verified on the three supported desktop architectures above.
 
 The Lua smoke checks packaged `bun/glue.wasm`, Wasm init, discovery + `ui.notify`, invalid-pack isolation, and lightweight interrupt/memory probes against the packaged module. It does not launch the UI and does not replace `smoke:compatibility`.
 
-Editor APIs (`editor.getSelection` / `editor.replaceSelection`) remain **experimental** — capability isolation ≠ OS sandbox; not a stable public `api: 0` promise beyond the documented experimental surface.
+Editor APIs (`editor.getSelection` / `editor.replaceSelection`) are **EXPERIMENTAL**. Snapshot is selection text only; apply targets the live primary selection of the active Monaco editor. Lifecycle and apply TOCTOU are not frozen as a stable public `api: 0` promise. Capability isolation ≠ OS sandbox.
 
 ## What the smoke covers
 
@@ -101,7 +101,7 @@ It is not UI automation. It does not click the GTK file dialog.
 
 `bun run validate` stays the contributor gate (format, lint, types, tests, web build). Compatibility CI packages the desktop app. Run `bun run smoke` locally when you change lifecycle or Graph and have a display.
 
-Lua packaged gate (after packaging on the current OS): `bun run smoke:lua-packaged` checks that Electrobun copied `bun/glue.wasm`, that Wasm initializes from those bytes, that discovery + `ui.notify` + invalid-pack isolation work against a temp `userData/extensions`, and that interrupt/memory budgets still fire against the packaged module. It does not replace launch smoke and is not UI automation. See the Lua packaged matrix above.
+Lua packaged smoke (after packaging on the current OS): `bun run smoke:lua-packaged` checks that Electrobun copied `bun/glue.wasm`, that Wasm initializes from those bytes, that discovery + `ui.notify` + invalid-pack isolation work against a temp `userData/extensions`, and that interrupt/memory budgets still fire against the packaged module. It does not replace launch smoke and is not UI automation. See the Lua packaged matrix above.
 
 ## Not this CI
 
