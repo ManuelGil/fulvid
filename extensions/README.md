@@ -10,7 +10,7 @@ Copy a pack into:
 userData/extensions/<id>/
 ```
 
-Then restart Fulvid (discovery is startup-only). There is no marketplace.
+Or use Settings → Extensions → Install from Folder…. Then reload the inventory or restart Fulvid. There is no marketplace.
 
 ## Canonical contract
 
@@ -37,9 +37,9 @@ Full contract: [`docs/EXTENSIONS.md`](../docs/EXTENSIONS.md).
 
 | Id | Pattern demonstrated |
 | --- | --- |
-| [`local.host-notify`](./local.host-notify/) | Lua `ui.notify` |
-| [`local.blank-note`](./local.blank-note/) | Lua `document.createUntitled` |
-| [`local.sort-lines`](./local.sort-lines/) | Lua `editor` selection transform with reject-stale apply |
+| [`fulvid.host-notify`](./fulvid.host-notify/) | Lua `ui.notify` |
+| [`fulvid.blank-note`](./fulvid.blank-note/) | Lua `document.createUntitled` |
+| [`fulvid.sort-lines`](./fulvid.sort-lines/) | Lua `editor` selection transform with reject-stale apply |
 
 Each pack has a README covering purpose, why it is an extension, capabilities, data flow, what to copy / not copy, and its security boundary.
 
@@ -60,7 +60,9 @@ Do not add empty scaffolds, diagnostic pings, or test-only fixtures here. Contra
 ```text
 extensions/
   README.md
-  local.host-notify/
-  local.blank-note/
-  local.sort-lines/
+  fulvid.host-notify/
+  fulvid.blank-note/
+  fulvid.sort-lines/
 ```
+
+Identity is `publisher.name` (`fulvid.*` here). Official product packs (`imgildev.*`) live in the sibling `fulvid-extensions` repository. Do not use the reserved publisher `local`.

@@ -29,9 +29,12 @@ import type { ExtensionDecorationRange } from "../../src/mainview/extensions/dec
 
 const TODO_PACK = join(
   import.meta.dir,
-  "../../../fulvid-extensions/extensions/local.todo-decorator",
+  "../../../fulvid-extensions/extensions/imgildev.todo-decorator",
 );
-const MDX_PACK = join(import.meta.dir, "../../../fulvid-extensions/extensions/local.mdx-comments");
+const MDX_PACK = join(
+  import.meta.dir,
+  "../../../fulvid-extensions/extensions/imgildev.mdx-comments",
+);
 
 afterEach(() => {
   resetExtensionDiscoveryForTests();
@@ -44,8 +47,8 @@ afterEach(() => {
 async function installOfficial(userData: string): Promise<void> {
   const root = join(userData, "extensions");
   await mkdir(root, { recursive: true });
-  await cp(TODO_PACK, join(root, "local.todo-decorator"), { recursive: true });
-  await cp(MDX_PACK, join(root, "local.mdx-comments"), { recursive: true });
+  await cp(TODO_PACK, join(root, "imgildev.todo-decorator"), { recursive: true });
+  await cp(MDX_PACK, join(root, "imgildev.mdx-comments"), { recursive: true });
 }
 
 describe("always-on document activation proof", () => {
@@ -58,8 +61,8 @@ describe("always-on document activation proof", () => {
 
     const activations = listDocumentActivationCommands();
     expect(activations.map((a) => a.namespacedId).sort()).toEqual([
-      "local.mdx-comments.mdxCommentsRefresh",
-      "local.todo-decorator.todoRefresh",
+      "imgildev.mdx-comments.mdxCommentsRefresh",
+      "imgildev.todo-decorator.todoRefresh",
     ]);
 
     const todoText = [
@@ -108,7 +111,7 @@ describe("always-on document activation proof", () => {
         ),
     });
 
-    const handled = await runExtensionCommand("local.todo-decorator.todoRefresh", {
+    const handled = await runExtensionCommand("imgildev.todo-decorator.todoRefresh", {
       silent: true,
     });
     expect(handled).toBe(true);
@@ -149,7 +152,7 @@ describe("always-on document activation proof", () => {
       hasActiveEditor: () => true,
     });
 
-    const mdxHandled = await runExtensionCommand("local.mdx-comments.mdxCommentsRefresh", {
+    const mdxHandled = await runExtensionCommand("imgildev.mdx-comments.mdxCommentsRefresh", {
       silent: true,
     });
     expect(mdxHandled).toBe(true);
@@ -200,22 +203,22 @@ describe("always-on document activation proof", () => {
         ),
     });
 
-    await runExtensionCommand("local.todo-decorator.todoRefresh", { silent: true });
+    await runExtensionCommand("imgildev.todo-decorator.todoRefresh", { silent: true });
     expect(applied.length).toBe(1);
 
     text = "TODO: one\nFIXME: two\nBUG: three\n";
     version = 2;
-    await runExtensionCommand("local.todo-decorator.todoRefresh", { silent: true });
+    await runExtensionCommand("imgildev.todo-decorator.todoRefresh", { silent: true });
     expect(applied.length).toBeGreaterThanOrEqual(3);
 
     text = "plain control document\n";
     version = 3;
-    await runExtensionCommand("local.todo-decorator.todoRefresh", { silent: true });
+    await runExtensionCommand("imgildev.todo-decorator.todoRefresh", { silent: true });
     expect(applied.length).toBe(0);
 
     text = "TODO: one\nFIXME: two\nBUG: three\n";
     version = 4;
-    await runExtensionCommand("local.todo-decorator.todoRefresh", { silent: true });
+    await runExtensionCommand("imgildev.todo-decorator.todoRefresh", { silent: true });
     expect(applied.length).toBeGreaterThanOrEqual(3);
   });
 });

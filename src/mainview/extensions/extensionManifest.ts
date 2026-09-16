@@ -1,13 +1,15 @@
 /**
  * Extension manifest contract (Extension API v1).
  *
- * Packs declare capabilities and a relative `entry` Lua source. Commands are
- * registered from entry.lua at load time. Validation never executes Lua and
- * grants no filesystem/Monaco authority.
+ * Canonical identity is `publisher.name` (e.g. `imgildev.todo-decorator`).
+ * Installation source (official / third-party / local-dev) is separate from identity.
+ *
+ * Packs declare capabilities and a relative `entry` Lua source. Validation never
+ * executes Lua and grants no filesystem/Monaco authority.
  *
  * Optional presentation metadata (`activation`, `actions`, `documentAction`)
  * places approved actions into existing Fulvid menus and marks document-oriented
- * packs for host-driven always-on refresh - not a plugin framework.
+ * packs for host-driven always-on refresh — not a plugin framework.
  */
 
 export const EXTENSION_API_VERSION = 1;
@@ -36,9 +38,18 @@ export type ExtensionActionPlacement = {
   title?: string;
 };
 
+/** Human-facing author metadata (not an account). */
+export type ExtensionAuthor =
+  | string
+  | {
+      name: string;
+      email?: string;
+      url?: string;
+    };
+
 /**
  * Pack-wide resource budgets.
- * Changing a value is a contract change - pin behavior in tests/extensions.
+ * Changing a value is a contract change — pin behavior in tests/extensions.
  */
 export const EXTENSION_PACK_LIMITS = {
   /** Maximum UTF-8 byte length of manifest.json. */
@@ -50,6 +61,12 @@ export const EXTENSION_PACK_LIMITS = {
   maxTemplateBytes: 256 * 1024,
   /** Maximum UTF-16 code units for notify messages. */
   maxNotifyMessageChars: 500,
+  maxDisplayNameChars: 80,
+  maxDescriptionChars: 500,
+  maxKeywords: 8,
+  maxKeywordChars: 32,
+  maxLicenseChars: 64,
+  maxUrlChars: 500,
 } as const;
 
 /**
@@ -63,7 +80,7 @@ export const ALLOWED_EXTENSION_CAPABILITIES = [
   "editor",
   "document",
   "decorations",
-  /** Generic `template.render(source, vars)` - no product-domain variables. */
+  /** Generic `template.render(source, vars)` — no product-domain variables. */
   "templates",
 ] as const;
 
@@ -87,18 +104,37 @@ const FORBIDDEN_MANIFEST_KEYS = new Set([
   "templates",
 ]);
 
-/** `local.<name>` ids - fixtures and user packs share this shape. */
-const EXTENSION_ID_PATTERN = /^local\.[a-z][a-z0-9-]*(\.[a-z0-9-]+)*$/;
+/** Publisher slug: `imgildev`, `acme`, `fulvid`, `test`. Not `local` (legacy). */
+const PUBLISHER_PATTERN = /^[a-z][a-z0-9-]*$/;
+const RESERVED_PUBLISHERS = new Set(["local"]);
+/** Machine package name within a publisher: `todo-decorator`. */
+const PACKAGE_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+/** Canonical id = publisher.name */
+const EXTENSION_ID_PATTERN = /^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$/;
+/** Semver-compatible package version. */
+const VERSION_PATTERN = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
+const HTTP_URL_PATTERN = /^https:\/\/[^\s]+$/i;
+const MAILTO_OR_URL_PATTERN = /^(https:\/\/[^\s]+|mailto:[^\s]+)$/i;
 
 export type ExtensionManifest = {
+  /** Canonical identity: `${publisher}.${name}`. */
   id: string;
+  publisher: string;
+  /** Machine-oriented package name (not the display title). */
   name: string;
+  /** Human-readable product name shown in Settings / menus context. */
+  displayName: string;
   version: string;
   api: number;
-  description?: string;
-  author?: string;
+  description: string;
+  author?: ExtensionAuthor;
+  license?: string;
+  homepage?: string;
+  repository?: string;
+  bugs?: string;
+  keywords?: string[];
   capabilities: ExtensionCapability[];
-  /** Relative `.lua` source - required when capabilities include `lua`. */
+  /** Relative `.lua` source — required when capabilities include `lua`. */
   entry?: string;
   /** Defaults to `command` when omitted. */
   activation?: ExtensionActivation;
@@ -126,11 +162,18 @@ export type ExtensionLoadState = "loaded" | "blocked" | "failed" | "allowed";
 
 export type DiscoveredExtension = {
   id: string;
+  publisher: string;
   name: string;
+  displayName: string;
   version: string;
   api: number;
-  description?: string;
+  description: string;
   author?: string;
+  license?: string;
+  homepage?: string;
+  repository?: string;
+  bugs?: string;
+  keywords?: string[];
   capabilities: string[];
   commands: DiscoveredExtensionCommand[];
   /** Absolute pack directory under userData/extensions (host-owned path). */
@@ -156,6 +199,17 @@ export type ExtensionDiscoveryResult = {
   /** Absolute userData/extensions root. */
   extensionsRoot: string | null;
 };
+
+/** Host install outcome (folder picker lives on the Bun side). */
+export type ExtensionInstallResult =
+  | { status: "cancelled" }
+  | { status: "ok"; id: string; discovery: ExtensionDiscoveryResult }
+  | { status: "error"; reason: string; discovery: ExtensionDiscoveryResult };
+
+/** Host uninstall outcome. */
+export type ExtensionUninstallResult =
+  | { status: "ok"; discovery: ExtensionDiscoveryResult }
+  | { status: "error"; reason: string; discovery: ExtensionDiscoveryResult };
 
 export type ManifestValidationFailure = {
   reason: string;
@@ -185,17 +239,90 @@ function isAllowedActivation(value: string): value is ExtensionActivation {
 
 const ACTION_ID_PATTERN = /^[a-z][a-zA-Z0-9]*$/;
 
+/** Canonical identity: `publisher.name`. */
+export function extensionIdFromPublisherName(publisher: string, name: string): string {
+  return `${publisher}.${name}`;
+}
+
+export function isValidPublisher(publisher: string): boolean {
+  return PUBLISHER_PATTERN.test(publisher) && !RESERVED_PUBLISHERS.has(publisher);
+}
+
+export function isValidPackageName(name: string): boolean {
+  return PACKAGE_NAME_PATTERN.test(name);
+}
+
 export function isValidExtensionId(id: string): boolean {
-  return EXTENSION_ID_PATTERN.test(id);
+  if (!EXTENSION_ID_PATTERN.test(id)) {
+    return false;
+  }
+  const publisher = id.slice(0, id.indexOf("."));
+  return isValidPublisher(publisher);
 }
 
 export function namespacedExtensionCommandId(extensionId: string, commandId: string): string {
   return `${extensionId}.${commandId}`;
 }
 
+/** Display string for Settings; objects use `.name`. */
+export function formatExtensionAuthor(author: ExtensionAuthor): string {
+  return typeof author === "string" ? author : author.name;
+}
+
+function parseHttpUrl(
+  value: unknown,
+  field: string,
+): { ok: true; url: string } | { ok: false; reason: string } {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return { ok: false, reason: `invalid ${field}` };
+  }
+  const url = value.trim();
+  if (url.length > EXTENSION_PACK_LIMITS.maxUrlChars || !HTTP_URL_PATTERN.test(url)) {
+    return { ok: false, reason: `invalid ${field}` };
+  }
+  return { ok: true, url };
+}
+
+function parseAuthor(
+  value: unknown,
+): { ok: true; author: ExtensionAuthor } | { ok: false; reason: string } {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.length === 0 || trimmed.length > 200) {
+      return { ok: false, reason: "invalid author" };
+    }
+    return { ok: true, author: trimmed };
+  }
+  if (!isRecord(value) || typeof value.name !== "string" || value.name.trim().length === 0) {
+    return { ok: false, reason: "invalid author" };
+  }
+  if (value.name.length > 200) {
+    return { ok: false, reason: "author exceeds size limit" };
+  }
+  const author: { name: string; email?: string; url?: string } = { name: value.name.trim() };
+  if (value.email !== undefined) {
+    if (
+      typeof value.email !== "string" ||
+      value.email.trim().length === 0 ||
+      value.email.length > 200
+    ) {
+      return { ok: false, reason: "invalid author email" };
+    }
+    author.email = value.email.trim();
+  }
+  if (value.url !== undefined) {
+    const parsed = parseHttpUrl(value.url, "author url");
+    if (!parsed.ok) {
+      return parsed;
+    }
+    author.url = parsed.url;
+  }
+  return { ok: true, author };
+}
+
 /**
  * Validate a parsed JSON value as an Extension API v1 manifest.
- * Returns a reason string on failure - never throws.
+ * Returns a reason string on failure — never throws.
  */
 export function validateExtensionManifest(value: unknown): ManifestValidationResult {
   if (!isRecord(value)) {
@@ -208,13 +335,40 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
     }
   }
 
-  if (typeof value.id !== "string" || !isValidExtensionId(value.id)) {
-    return { reason: "invalid extension id" };
+  if (typeof value.publisher !== "string" || !PUBLISHER_PATTERN.test(value.publisher)) {
+    return { reason: "invalid publisher" };
   }
-  if (typeof value.name !== "string" || value.name.trim().length === 0) {
+  if (RESERVED_PUBLISHERS.has(value.publisher)) {
+    return { reason: "reserved publisher" };
+  }
+  if (typeof value.name !== "string" || !isValidPackageName(value.name)) {
     return { reason: "invalid extension name" };
   }
-  if (typeof value.version !== "string" || value.version.trim().length === 0) {
+  const derivedId = extensionIdFromPublisherName(value.publisher, value.name);
+  if (value.id !== undefined) {
+    if (typeof value.id !== "string" || value.id !== derivedId) {
+      return { reason: "id must equal publisher.name" };
+    }
+  }
+  if (!isValidExtensionId(derivedId)) {
+    return { reason: "invalid extension id" };
+  }
+
+  if (typeof value.displayName !== "string" || value.displayName.trim().length === 0) {
+    return { reason: "invalid displayName" };
+  }
+  if (value.displayName.length > EXTENSION_PACK_LIMITS.maxDisplayNameChars) {
+    return { reason: "displayName exceeds size limit" };
+  }
+
+  if (typeof value.description !== "string" || value.description.trim().length === 0) {
+    return { reason: "invalid description" };
+  }
+  if (value.description.length > EXTENSION_PACK_LIMITS.maxDescriptionChars) {
+    return { reason: "description exceeds size limit" };
+  }
+
+  if (typeof value.version !== "string" || !VERSION_PATTERN.test(value.version.trim())) {
     return { reason: "invalid extension version" };
   }
   if (typeof value.api !== "number" || !Number.isInteger(value.api)) {
@@ -368,28 +522,133 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
     }
   }
 
+  let author: ExtensionAuthor | undefined;
   if (value.author !== undefined) {
-    if (typeof value.author !== "string" || value.author.trim().length === 0) {
-      return { reason: "invalid author" };
+    const parsed = parseAuthor(value.author);
+    if (!parsed.ok) {
+      return parsed;
     }
-    if (value.author.length > 200) {
-      return { reason: "author exceeds size limit" };
+    author = parsed.author;
+  }
+
+  let license: string | undefined;
+  if (value.license !== undefined) {
+    if (
+      typeof value.license !== "string" ||
+      value.license.trim().length === 0 ||
+      value.license.length > EXTENSION_PACK_LIMITS.maxLicenseChars
+    ) {
+      return { reason: "invalid license" };
+    }
+    license = value.license.trim();
+  }
+
+  let homepage: string | undefined;
+  if (value.homepage !== undefined) {
+    const parsed = parseHttpUrl(value.homepage, "homepage");
+    if (!parsed.ok) {
+      return parsed;
+    }
+    homepage = parsed.url;
+  }
+
+  let repository: string | undefined;
+  if (value.repository !== undefined) {
+    if (typeof value.repository === "string") {
+      const parsed = parseHttpUrl(value.repository, "repository");
+      if (!parsed.ok) {
+        return parsed;
+      }
+      repository = parsed.url;
+    } else if (isRecord(value.repository)) {
+      const parsed = parseHttpUrl(value.repository.url, "repository");
+      if (!parsed.ok) {
+        return parsed;
+      }
+      repository = parsed.url;
+    } else {
+      return { reason: "invalid repository" };
+    }
+  }
+
+  let bugs: string | undefined;
+  if (value.bugs !== undefined) {
+    if (typeof value.bugs === "string") {
+      const trimmed = value.bugs.trim();
+      if (
+        trimmed.length === 0 ||
+        trimmed.length > EXTENSION_PACK_LIMITS.maxUrlChars ||
+        !MAILTO_OR_URL_PATTERN.test(trimmed)
+      ) {
+        return { reason: "invalid bugs" };
+      }
+      bugs = trimmed;
+    } else if (isRecord(value.bugs)) {
+      const parsed = parseHttpUrl(value.bugs.url, "bugs");
+      if (!parsed.ok) {
+        return { reason: "invalid bugs" };
+      }
+      bugs = parsed.url;
+    } else {
+      return { reason: "invalid bugs" };
+    }
+  }
+
+  let keywords: string[] | undefined;
+  if (value.keywords !== undefined) {
+    if (!Array.isArray(value.keywords)) {
+      return { reason: "invalid keywords" };
+    }
+    if (value.keywords.length > EXTENSION_PACK_LIMITS.maxKeywords) {
+      return { reason: "too many keywords" };
+    }
+    keywords = [];
+    const seen = new Set<string>();
+    for (const entry of value.keywords) {
+      if (
+        typeof entry !== "string" ||
+        entry.trim().length === 0 ||
+        entry.length > EXTENSION_PACK_LIMITS.maxKeywordChars
+      ) {
+        return { reason: "invalid keyword" };
+      }
+      const keyword = entry.trim().toLowerCase();
+      if (seen.has(keyword)) {
+        continue;
+      }
+      seen.add(keyword);
+      keywords.push(keyword);
     }
   }
 
   const manifest: ExtensionManifest = {
-    id: value.id,
+    id: derivedId,
+    publisher: value.publisher,
     name: value.name,
-    version: value.version,
+    displayName: value.displayName.trim(),
+    version: value.version.trim(),
     api: value.api,
+    description: value.description.trim(),
     capabilities,
     activation,
   };
-  if (typeof value.description === "string") {
-    manifest.description = value.description;
+  if (author !== undefined) {
+    manifest.author = author;
   }
-  if (typeof value.author === "string") {
-    manifest.author = value.author.trim();
+  if (license !== undefined) {
+    manifest.license = license;
+  }
+  if (homepage !== undefined) {
+    manifest.homepage = homepage;
+  }
+  if (repository !== undefined) {
+    manifest.repository = repository;
+  }
+  if (bugs !== undefined) {
+    manifest.bugs = bugs;
+  }
+  if (keywords !== undefined) {
+    manifest.keywords = keywords;
   }
   if (entry !== undefined) {
     manifest.entry = entry;
@@ -402,4 +661,25 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
   }
 
   return { manifest };
+}
+
+/**
+ * One-time rewrite of pre-`publisher.name` identities persisted in allowances.
+ * Unknown legacy ids are dropped (they fail the new validator anyway).
+ */
+export const LEGACY_EXTENSION_ID_MIGRATION: Readonly<Record<string, string>> = {
+  "local.todo-decorator": "imgildev.todo-decorator",
+  "local.mdx-comments": "imgildev.mdx-comments",
+  "local.adr-templates": "imgildev.adr-templates",
+  "local.blank-note": "fulvid.blank-note",
+  "local.host-notify": "fulvid.host-notify",
+  "local.sort-lines": "fulvid.sort-lines",
+};
+
+export function migrateLegacyExtensionId(id: string): string | null {
+  if (isValidExtensionId(id)) {
+    return id;
+  }
+  const mapped = LEGACY_EXTENSION_ID_MIGRATION[id];
+  return mapped && isValidExtensionId(mapped) ? mapped : null;
 }

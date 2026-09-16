@@ -6,7 +6,11 @@
 import type { RPCSchema } from "electrobun";
 
 import type { FilesystemRPC } from "../modules/workspace/filesystem/filesystemRpc";
-import type { ExtensionDiscoveryResult } from "../extensions/extensionManifest";
+import type {
+  ExtensionDiscoveryResult,
+  ExtensionInstallResult,
+  ExtensionUninstallResult,
+} from "../extensions/extensionManifest";
 import type { ResolvedExternalOpen } from "./externalOpen";
 
 export type DesktopPlatform = "darwin" | "win32" | "linux" | "other";
@@ -52,6 +56,18 @@ type ExtensionDiscoveryRequests = {
   listDiscoveredExtensions: {
     params: Record<string, never>;
     response: ExtensionDiscoveryResult;
+  };
+  rediscoverExtensions: {
+    params: Record<string, never>;
+    response: ExtensionDiscoveryResult;
+  };
+  installExtensionPack: {
+    params: Record<string, never>;
+    response: ExtensionInstallResult;
+  };
+  uninstallExtensionPack: {
+    params: { id: string };
+    response: ExtensionUninstallResult;
   };
   allowBlockedExtension: {
     params: { id: string };

@@ -1083,6 +1083,9 @@ const unregisterCommands = [
   registerCommandHandler("openSettings", () => {
     void router.push({ name: APP_ROUTE_NAMES.settings });
   }),
+  registerCommandHandler("openExtensions", () => {
+    void router.push({ name: APP_ROUTE_NAMES.settings, query: { section: "extensions" } });
+  }),
   registerCommandHandler("openEditor", () => {
     void router.push({ name: APP_ROUTE_NAMES.editor });
   }),

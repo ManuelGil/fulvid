@@ -27,11 +27,11 @@ const MONACO_HOST = join(
 );
 const TODO_INIT = join(
   import.meta.dir,
-  "../../../fulvid-extensions/extensions/local.todo-decorator/init.lua",
+  "../../../fulvid-extensions/extensions/imgildev.todo-decorator/init.lua",
 );
 const MDX_INIT = join(
   import.meta.dir,
-  "../../../fulvid-extensions/extensions/local.mdx-comments/init.lua",
+  "../../../fulvid-extensions/extensions/imgildev.mdx-comments/init.lua",
 );
 
 describe("extension-owned decoration appearance", () => {

@@ -476,9 +476,9 @@ READY FOR PRODUCTION
 
 ### First-release workflows
 
-1. Command -> notify (`local.host-notify`)
-2. Template -> untitled blank note (`local.blank-note`)
-3. Selection transform -> sort lines (`local.sort-lines`)
+1. Command -> notify (`fulvid.host-notify`)
+2. Template -> untitled blank note (`fulvid.blank-note`)
+3. Selection transform -> sort lines (`fulvid.sort-lines`)
 
 ### Remaining honesty (not blockers)
 

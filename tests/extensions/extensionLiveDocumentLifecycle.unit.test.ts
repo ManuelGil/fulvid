@@ -32,12 +32,15 @@ import { LocalizedError } from "../../src/mainview/modules/workspace/filesystem/
 
 const TODO_PACK = join(
   import.meta.dir,
-  "../../../fulvid-extensions/extensions/local.todo-decorator",
+  "../../../fulvid-extensions/extensions/imgildev.todo-decorator",
 );
-const MDX_PACK = join(import.meta.dir, "../../../fulvid-extensions/extensions/local.mdx-comments");
+const MDX_PACK = join(
+  import.meta.dir,
+  "../../../fulvid-extensions/extensions/imgildev.mdx-comments",
+);
 
-const TODO_REFRESH = "local.todo-decorator.todoRefresh";
-const MDX_REFRESH = "local.mdx-comments.mdxCommentsRefresh";
+const TODO_REFRESH = "imgildev.todo-decorator.todoRefresh";
+const MDX_REFRESH = "imgildev.mdx-comments.mdxCommentsRefresh";
 
 afterEach(() => {
   resetExtensionDiscoveryForTests();
@@ -51,8 +54,8 @@ async function loadBothPacks(): Promise<void> {
   const userData = join(tmpdir(), `fulvid-live-doc-${crypto.randomUUID()}`);
   const root = join(userData, "extensions");
   await mkdir(root, { recursive: true });
-  await cp(TODO_PACK, join(root, "local.todo-decorator"), { recursive: true });
-  await cp(MDX_PACK, join(root, "local.mdx-comments"), { recursive: true });
+  await cp(TODO_PACK, join(root, "imgildev.todo-decorator"), { recursive: true });
+  await cp(MDX_PACK, join(root, "imgildev.mdx-comments"), { recursive: true });
   configureExtensionDiscovery(userData);
   setDiscoveredExtensions(await discoverExtensions());
 }
@@ -150,11 +153,11 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     installLiveSeam(state);
 
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toEqual([]);
+    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
 
     bump(state, "# Note\nTODO: one\n");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    let applied = rangesOf(state, "local.todo-decorator");
+    let applied = rangesOf(state, "imgildev.todo-decorator");
     expect(applied).toHaveLength(1);
     expect(applied[0]).toMatchObject({
       startLine: 2,
@@ -166,7 +169,7 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     // Change marker type in place (TODO -> FIXME): appearance and range update.
     bump(state, "# Note\nFIXME: one\n");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    applied = rangesOf(state, "local.todo-decorator");
+    applied = rangesOf(state, "imgildev.todo-decorator");
     expect(applied).toHaveLength(1);
     expect(applied[0]).toMatchObject({
       startLine: 2,
@@ -176,7 +179,7 @@ describe("live Monaco document ↔ extension lifecycle", () => {
 
     bump(state, "# Note\nFIXME: one\nBUG: two\n");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    applied = rangesOf(state, "local.todo-decorator");
+    applied = rangesOf(state, "imgildev.todo-decorator");
     expect(applied).toHaveLength(2);
     expect(new Set(applied.map((r) => r.appearance?.backgroundColor))).toEqual(
       new Set(["#ff7b72"]),
@@ -184,7 +187,7 @@ describe("live Monaco document ↔ extension lifecycle", () => {
 
     bump(state, "");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toEqual([]);
+    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
   });
 
   test("TODO: insert-above shifts marker line; fence wrap drops decoration", async () => {
@@ -198,19 +201,19 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     installLiveSeam(state);
 
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")[0]?.startLine).toBe(1);
+    expect(rangesOf(state, "imgildev.todo-decorator")[0]?.startLine).toBe(1);
 
     bump(state, "preface\n\nTODO: stay\n");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")[0]?.startLine).toBe(3);
+    expect(rangesOf(state, "imgildev.todo-decorator")[0]?.startLine).toBe(3);
 
     bump(state, "preface\n\n```\nTODO: stay\n```\n");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toEqual([]);
+    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
 
     bump(state, "preface\n\nTODO: stay\n");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")[0]?.startLine).toBe(3);
+    expect(rangesOf(state, "imgildev.todo-decorator")[0]?.startLine).toBe(3);
   });
 
   test("TODO: undo/redo and whole-document replace reconcile decorations", async () => {
@@ -224,28 +227,30 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     installLiveSeam(state);
 
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toHaveLength(1);
+    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(1);
 
     const beforeEdit = state.text;
     bump(state, "TODO: a\nFIXME: b\n");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toHaveLength(2);
+    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(2);
 
     // Undo -> prior Monaco text/version.
     bump(state, beforeEdit);
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toHaveLength(1);
-    expect(rangesOf(state, "local.todo-decorator")[0]?.appearance?.backgroundColor).toBe("#d29922");
+    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(1);
+    expect(rangesOf(state, "imgildev.todo-decorator")[0]?.appearance?.backgroundColor).toBe(
+      "#d29922",
+    );
 
     // Redo.
     bump(state, "TODO: a\nFIXME: b\n");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toHaveLength(2);
+    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(2);
 
     // Replace entire document.
     bump(state, "replaced without markers\n");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toEqual([]);
+    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
   });
 
   test("MDX: insert, edit tag, removal, multi-comment, and empty document", async () => {
@@ -259,11 +264,11 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     installLiveSeam(state);
 
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.mdx-comments")).toEqual([]);
+    expect(rangesOf(state, "imgildev.mdx-comments")).toEqual([]);
 
     bump(state, "# MDX\n{/* ! critical */}\n");
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    let applied = rangesOf(state, "local.mdx-comments");
+    let applied = rangesOf(state, "imgildev.mdx-comments");
     expect(applied).toHaveLength(1);
     expect(applied[0]).toMatchObject({
       startLine: 2,
@@ -274,13 +279,13 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     // Edit tag semantics in place (! -> ?).
     bump(state, "# MDX\n{/* ? question */}\n");
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    applied = rangesOf(state, "local.mdx-comments");
+    applied = rangesOf(state, "imgildev.mdx-comments");
     expect(applied).toHaveLength(1);
     expect(applied[0]?.appearance?.backgroundColor).toBe("#4a7fc4");
 
     bump(state, "# MDX\n{/* ? question */}\n{/* TODO: tagged */}\n");
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    applied = rangesOf(state, "local.mdx-comments");
+    applied = rangesOf(state, "imgildev.mdx-comments");
     expect(applied).toHaveLength(2);
     expect(new Set(applied.map((r) => r.appearance?.backgroundColor))).toEqual(
       new Set(["#4a7fc4", "#d29922"]),
@@ -289,11 +294,11 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     // Untagged comment is ignored; tagged removed -> clear.
     bump(state, "# MDX\n{/* plain ignored */}\n");
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.mdx-comments")).toEqual([]);
+    expect(rangesOf(state, "imgildev.mdx-comments")).toEqual([]);
 
     bump(state, "");
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.mdx-comments")).toEqual([]);
+    expect(rangesOf(state, "imgildev.mdx-comments")).toEqual([]);
   });
 
   test("MDX: insert-above shifts comment range; undo/redo and replace reconcile", async () => {
@@ -307,28 +312,28 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     installLiveSeam(state);
 
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.mdx-comments")[0]?.startLine).toBe(1);
+    expect(rangesOf(state, "imgildev.mdx-comments")[0]?.startLine).toBe(1);
 
     bump(state, "intro\n\n{/* ! a */}\n");
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.mdx-comments")[0]?.startLine).toBe(3);
+    expect(rangesOf(state, "imgildev.mdx-comments")[0]?.startLine).toBe(3);
 
     const withTwo = "intro\n\n{/* ! a */}\n{/* TODO: b */}\n";
     bump(state, withTwo);
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.mdx-comments")).toHaveLength(2);
+    expect(rangesOf(state, "imgildev.mdx-comments")).toHaveLength(2);
 
     bump(state, "intro\n\n{/* ! a */}\n");
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.mdx-comments")).toHaveLength(1);
+    expect(rangesOf(state, "imgildev.mdx-comments")).toHaveLength(1);
 
     bump(state, withTwo);
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.mdx-comments")).toHaveLength(2);
+    expect(rangesOf(state, "imgildev.mdx-comments")).toHaveLength(2);
 
     bump(state, "cleared body only\n");
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.mdx-comments")).toEqual([]);
+    expect(rangesOf(state, "imgildev.mdx-comments")).toEqual([]);
   });
 
   test("document switch isolates decorations; packs do not leak across identities", async () => {
@@ -343,8 +348,8 @@ describe("live Monaco document ↔ extension lifecycle", () => {
 
     await runExtensionCommand(TODO_REFRESH, { silent: true });
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toHaveLength(1);
-    expect(rangesOf(state, "local.mdx-comments")).toHaveLength(1);
+    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(1);
+    expect(rangesOf(state, "imgildev.mdx-comments")).toHaveLength(1);
 
     // Host clears editor collections on model switch; reprocess for new identity.
     state.byExtension.clear();
@@ -353,9 +358,11 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     state.text = "FIXME: beta\n";
     await runExtensionCommand(TODO_REFRESH, { silent: true });
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toHaveLength(1);
-    expect(rangesOf(state, "local.todo-decorator")[0]?.appearance?.backgroundColor).toBe("#ff7b72");
-    expect(rangesOf(state, "local.mdx-comments")).toEqual([]);
+    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(1);
+    expect(rangesOf(state, "imgildev.todo-decorator")[0]?.appearance?.backgroundColor).toBe(
+      "#ff7b72",
+    );
+    expect(rangesOf(state, "imgildev.mdx-comments")).toEqual([]);
 
     state.byExtension.clear();
     state.documentId = "doc-c";
@@ -363,10 +370,12 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     state.text = "{/* ? only-mdx */}\n";
     await runExtensionCommand(TODO_REFRESH, { silent: true });
     await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "local.todo-decorator")).toEqual([]);
-    expect(rangesOf(state, "local.mdx-comments")).toHaveLength(1);
-    expect(rangesOf(state, "local.mdx-comments")[0]?.appearance?.backgroundColor).toBe("#4a7fc4");
-    expect(rangesOf(state, "local.mdx-comments")[0]?.style).toBeUndefined();
+    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
+    expect(rangesOf(state, "imgildev.mdx-comments")).toHaveLength(1);
+    expect(rangesOf(state, "imgildev.mdx-comments")[0]?.appearance?.backgroundColor).toBe(
+      "#4a7fc4",
+    );
+    expect(rangesOf(state, "imgildev.mdx-comments")[0]?.style).toBeUndefined();
   });
 
   test("stale live version rejects decoration apply without mutating the model", async () => {
@@ -468,7 +477,7 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     for (const command of commands) {
       await runExtensionCommand(command.namespacedId, { silent: true });
     }
-    expect((appliedByExt.get("local.todo-decorator") ?? []).length).toBeGreaterThan(0);
-    expect((appliedByExt.get("local.mdx-comments") ?? []).length).toBeGreaterThan(0);
+    expect((appliedByExt.get("imgildev.todo-decorator") ?? []).length).toBeGreaterThan(0);
+    expect((appliedByExt.get("imgildev.mdx-comments") ?? []).length).toBeGreaterThan(0);
   });
 });

@@ -64,6 +64,7 @@ export type CommandId =
   | "previousTab"
   | "toggleStatusbar"
   | "openSettings"
+  | "openExtensions"
   | "openKeyboardShortcuts"
   | "openAbout"
   | "quit"

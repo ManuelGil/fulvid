@@ -25,6 +25,7 @@ import {
   ALLOWED_EXTENSION_CAPABILITIES,
   validateExtensionManifest,
 } from "../../src/mainview/extensions/extensionManifest.ts";
+import { luaManifest } from "./manifestTestHelpers.ts";
 
 async function tempRoot(label: string): Promise<string> {
   const root = join(tmpdir(), `fulvid-ext-api-${label}-${crypto.randomUUID()}`);
@@ -72,13 +73,13 @@ describe("host document/decorations contracts", () => {
     expect(ALLOWED_EXTENSION_CAPABILITIES).toContain("document");
     expect(ALLOWED_EXTENSION_CAPABILITIES).toContain("decorations");
     expect(
-      validateExtensionManifest({
-        id: "local.no-lua-doc",
-        name: "Bad",
-        version: "0.0.0",
-        api: 1,
-        capabilities: ["document", "commands"],
-      }),
+      validateExtensionManifest(
+        luaManifest("test.no-lua-doc", ["document", "commands"], {
+          version: "0.0.0",
+          displayName: "Bad",
+          entry: undefined,
+        }),
+      ),
     ).toEqual({ reason: "document capability requires the lua capability" });
   });
 
@@ -110,15 +111,11 @@ describe("host document/decorations contracts", () => {
     const root = await tempRoot("host");
     const pack = await writePack(
       root,
-      "local.contract-host",
-      {
-        id: "local.contract-host",
-        name: "Host",
+      "test.contract-host",
+      luaManifest("test.contract-host", ["lua", "commands", "ui", "document", "decorations"], {
         version: "0.0.0",
-        api: 1,
-        capabilities: ["lua", "commands", "ui", "document", "decorations"],
-        entry: "entry.lua",
-      },
+        displayName: "Host",
+      }),
       {
         "entry.lua": `
 commands.register({
@@ -146,7 +143,7 @@ commands.register({
     }
     await loadLuaExtensionPack(pack, validated.manifest);
     const result = await invokeLuaExtensionCommand({
-      namespacedId: "local.contract-host.run",
+      namespacedId: "test.contract-host.run",
       document: docSnap("body", { cursorLine: 2, cursorColumn: 3 }),
     });
     expect(result).toEqual({

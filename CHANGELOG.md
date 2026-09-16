@@ -17,6 +17,8 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Changed
 
+- **Extension management**: Settings → Extensions supports install from folder, uninstall with confirmation, and reload inventory. File → Extensions opens that section. Install validates then copies atomically into `userData/extensions/<id>/`; uninstall unloads, deletes only that pack, and clears its allowance. No marketplace or package manager.
+- **Extension identity**: canonical pack id is `publisher.name` (e.g. `imgildev.todo-decorator`, `fulvid.host-notify`). Publisher `local` is reserved; persisted allowances migrate former `local.*` ids once. Compact package metadata (`displayName`, `description`, `author`, `license`, optional URLs/keywords) is validated on the manifest — not a marketplace.
 - **Extensions host surface**: removed declarative host actions (`notify`, `createUntitledFromTemplate`). Packs use `entry.lua` / `init.lua`. Seed Markdown and rich template context are pack-owned; Fulvid only interpolates when `templates` is granted.
 - **Extensions documentation**: host docs describe only the generic extension contract. Pack-specific product vocabulary is not part of Fulvid.
 - **Extension host internals**: flatter command/engine maps, guest reduction folded into the Lua engine module, thinner registry orchestration.

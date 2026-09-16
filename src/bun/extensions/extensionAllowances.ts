@@ -7,7 +7,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { isValidExtensionId } from "../../mainview/extensions/extensionManifest";
+import {
+  isValidExtensionId,
+  migrateLegacyExtensionId,
+} from "../../mainview/extensions/extensionManifest";
 
 const MAX_ALLOWED = 64;
 const STORAGE_NAME = "extension-allowances.json";
@@ -38,10 +41,14 @@ function sanitize(value: unknown): string[] {
   }
   const ids: string[] = [];
   for (const entry of value) {
-    if (typeof entry !== "string" || !isValidExtensionId(entry) || ids.includes(entry)) {
+    if (typeof entry !== "string") {
       continue;
     }
-    ids.push(entry);
+    const migrated = migrateLegacyExtensionId(entry);
+    if (!migrated || ids.includes(migrated)) {
+      continue;
+    }
+    ids.push(migrated);
     if (ids.length >= MAX_ALLOWED) {
       break;
     }
@@ -59,7 +66,13 @@ function loadAllowedIds(): string[] {
     return cachedIds;
   }
   try {
-    cachedIds = sanitize(JSON.parse(readFileSync(path, "utf8")));
+    const raw = JSON.parse(readFileSync(path, "utf8"));
+    const migrated = sanitize(raw);
+    cachedIds = migrated;
+    // Persist one-time rewrite when stored ids used pre-publisher.identity shapes.
+    if (Array.isArray(raw) && JSON.stringify(raw) !== JSON.stringify(migrated)) {
+      persist(migrated);
+    }
   } catch {
     cachedIds = [];
   }
@@ -101,6 +114,33 @@ export function allowBlockedExtension(id: string): boolean {
   }
   persist([...current, id]);
   return true;
+}
+
+/**
+ * Remove an id from the consent list. Returns false when the id is invalid or
+ * persistence cannot be confirmed after a change.
+ */
+export function revokeBlockedExtensionAllowance(id: string): boolean {
+  if (!isValidExtensionId(id)) {
+    return false;
+  }
+  const current = loadAllowedIds();
+  if (!current.includes(id)) {
+    return true;
+  }
+  const next = current.filter((entry) => entry !== id);
+  const path = storagePath();
+  if (!path) {
+    return false;
+  }
+  try {
+    writeFileSync(path, `${JSON.stringify(next)}\n`, "utf8");
+    cachedIds = next;
+    return true;
+  } catch (error) {
+    console.warn("Could not revoke extension allowance:", error);
+    return false;
+  }
 }
 
 export function resetExtensionAllowancesForTests(): void {

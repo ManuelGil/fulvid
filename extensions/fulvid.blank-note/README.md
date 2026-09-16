@@ -18,7 +18,7 @@ Document seed text is extension product behavior. Fulvid only bridges `document.
 ## How it works
 
 ```text
-Extensions menu -> local.blank-note.createBlankNote
+Extensions menu -> fulvid.blank-note.createBlankNote
     ↓
 Lua run()
     ↓

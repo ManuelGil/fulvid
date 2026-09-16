@@ -1,9 +1,0 @@
-{
-  "id": "local.contract-lua-editor",
-  "name": "local.contract-lua-editor",
-  "version": "0.0.0-spike",
-  "api": 1,
-  "description": "Test-only Lua editor fixture for contract/security suites. Not a product example.",
-  "capabilities": ["lua", "commands", "ui", "editor"],
-  "entry": "entry.lua"
-}

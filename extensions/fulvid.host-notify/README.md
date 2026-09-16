@@ -17,7 +17,7 @@ It is the smallest complete Lua command workflow. Authors reuse it when they nee
 ## How it works
 
 ```text
-Extensions menu -> local.host-notify.sayReady
+Extensions menu -> fulvid.host-notify.sayReady
     ↓
 Lua run()
     ↓

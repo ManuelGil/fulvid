@@ -14,6 +14,7 @@ import {
   validateExtensionManifest,
   type DiscoveredExtensionCommand,
 } from "../../src/mainview/extensions/extensionManifest.ts";
+import { luaManifest } from "./manifestTestHelpers.ts";
 import { integrateExtensionActionsIntoMenus } from "../../src/mainview/shell/applicationMenu/applicationMenuModel.ts";
 import {
   listDocumentActivationCommands,
@@ -57,12 +58,13 @@ afterEach(() => {
 describe("manifest menu placement and activation", () => {
   test("accepts closed menu targets and document activation", () => {
     const result = validateExtensionManifest({
-      id: "local.todo-decorator",
-      name: "TODO",
-      version: "1.0.0",
-      api: 1,
-      capabilities: ["lua", "commands", "ui", "document", "decorations"],
-      entry: "entry.lua",
+      ...luaManifest("imgildev.todo-decorator", [
+        "lua",
+        "commands",
+        "ui",
+        "document",
+        "decorations",
+      ]),
       activation: "document",
       documentAction: "todoRefresh",
       actions: [
@@ -79,12 +81,7 @@ describe("manifest menu placement and activation", () => {
 
   test("rejects invalid menu targets fail closed", () => {
     const result = validateExtensionManifest({
-      id: "local.bad-menu",
-      name: "Bad",
-      version: "1.0.0",
-      api: 1,
-      capabilities: ["lua", "commands", "ui"],
-      entry: "entry.lua",
+      ...luaManifest("test.bad-menu"),
       actions: [{ id: "ping", menu: "extensions" }],
     });
     expect(result).toEqual({ reason: "invalid menu target: extensions" });
@@ -92,12 +89,7 @@ describe("manifest menu placement and activation", () => {
 
   test("rejects document activation without documentAction", () => {
     const result = validateExtensionManifest({
-      id: "local.bad-doc",
-      name: "Bad",
-      version: "1.0.0",
-      api: 1,
-      capabilities: ["lua", "commands", "ui", "document", "decorations"],
-      entry: "entry.lua",
+      ...luaManifest("test.bad-doc", ["lua", "commands", "ui", "document", "decorations"]),
       activation: "document",
     });
     expect(result).toEqual({ reason: "document activation requires documentAction" });
@@ -124,13 +116,13 @@ describe("organic menu integration", () => {
       ],
       [
         {
-          namespacedId: "local.adr-templates.newAdr",
+          namespacedId: "imgildev.adr-templates.newAdr",
           title: "New ADR",
           menu: "file.new",
           order: 20,
         },
         {
-          namespacedId: "local.blank-note.createBlankNote",
+          namespacedId: "fulvid.blank-note.createBlankNote",
           title: "New Blank Note",
           menu: "file.new",
           order: 10,
@@ -155,36 +147,26 @@ describe("preload quarantine and consent", () => {
     const userData = await tempRoot("preload");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
-    await writePack(extensions, "local.ok", {
-      id: "local.ok",
-      name: "OK",
-      version: "1.0.0",
-      api: 1,
-      capabilities: ["lua", "commands", "ui"],
-      entry: "entry.lua",
+    await writePack(extensions, "test.ok", {
+      ...luaManifest("test.ok"),
       activation: "command",
       actions: [{ id: "ping", menu: "help", title: "Ping" }],
     });
     await writePack(
       extensions,
-      "local.bad",
+      "test.bad",
       {
-        id: "local.bad",
-        name: "Bad",
-        version: "1.0.0",
-        api: 1,
-        capabilities: ["lua", "commands", "ui"],
-        entry: "entry.lua",
+        ...luaManifest("test.bad"),
       },
       `error("intentional preload failure")`,
     );
 
     configureExtensionDiscovery(userData);
     const result = await discoverExtensions();
-    expect(result.loaded.map((pack) => pack.id)).toEqual(["local.ok"]);
+    expect(result.loaded.map((pack) => pack.id)).toEqual(["test.ok"]);
     expect(result.loaded[0]?.state).toBe("loaded");
-    expect(result.failed.some((entry) => entry.id === "local.bad")).toBe(true);
-    const bad = result.installed.find((pack) => pack.id === "local.bad");
+    expect(result.failed.some((entry) => entry.id === "test.bad")).toBe(true);
+    const bad = result.installed.find((pack) => pack.id === "test.bad");
     expect(bad?.state).toBe("failed");
     expect(bad?.commands).toEqual([]);
   });
@@ -193,23 +175,20 @@ describe("preload quarantine and consent", () => {
     const userData = await tempRoot("blocked");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
-    await writePack(extensions, "local.blocked", {
-      id: "local.blocked",
-      name: "Blocked",
-      version: "1.0.0",
-      api: 1,
-      capabilities: ["lua", "commands", "ui", "filesystem"],
-      entry: "entry.lua",
-    });
+    await writePack(
+      extensions,
+      "test.blocked",
+      luaManifest("test.blocked", ["lua", "commands", "ui", "filesystem"]),
+    );
 
     configureExtensionDiscovery(userData);
     const first = await discoverExtensions();
-    const blocked = first.installed.find((pack) => pack.id === "local.blocked");
+    const blocked = first.installed.find((pack) => pack.id === "test.blocked");
     expect(blocked?.state).toBe("blocked");
     expect(first.loaded).toEqual([]);
 
-    const afterConsent = await loadAllowedBlockedExtension("local.blocked");
-    const still = afterConsent.installed.find((pack) => pack.id === "local.blocked");
+    const afterConsent = await loadAllowedBlockedExtension("test.blocked");
+    const still = afterConsent.installed.find((pack) => pack.id === "test.blocked");
     // Invalid capability remains blocked after explicit retry.
     expect(still?.state).toBe("blocked");
     expect(afterConsent.loaded).toEqual([]);
@@ -219,26 +198,29 @@ describe("preload quarantine and consent", () => {
     setDiscoveredExtensions({
       loaded: [
         {
-          id: "local.todo-decorator",
+          id: "imgildev.todo-decorator",
+          publisher: "imgildev",
           name: "TODO",
+          displayName: "TODO",
           version: "1.0.0",
           api: 1,
+          description: "Test TODO decorator",
           capabilities: ["lua", "commands", "ui", "document", "decorations"],
           commands: [
             {
               id: "todoRefresh",
-              namespacedId: "local.todo-decorator.todoRefresh",
+              namespacedId: "imgildev.todo-decorator.todoRefresh",
               title: "Refresh",
               documentAction: true,
             },
             {
               id: "todoNext",
-              namespacedId: "local.todo-decorator.todoNext",
+              namespacedId: "imgildev.todo-decorator.todoNext",
               title: "Next TODO",
               menu: "navigate",
             },
           ] satisfies DiscoveredExtensionCommand[],
-          location: "/tmp/local.todo-decorator",
+          location: "/tmp/imgildev.todo-decorator",
           state: "loaded",
           activation: "document",
           documentAction: "todoRefresh",
@@ -250,12 +232,12 @@ describe("preload quarantine and consent", () => {
     });
     expect(listDocumentActivationCommands()).toEqual([
       {
-        extensionId: "local.todo-decorator",
-        namespacedId: "local.todo-decorator.todoRefresh",
+        extensionId: "imgildev.todo-decorator",
+        namespacedId: "imgildev.todo-decorator.todoRefresh",
       },
     ]);
     expect(listExtensionMenuCommands().map((command) => command.namespacedId)).toEqual([
-      "local.todo-decorator.todoNext",
+      "imgildev.todo-decorator.todoNext",
     ]);
   });
 });

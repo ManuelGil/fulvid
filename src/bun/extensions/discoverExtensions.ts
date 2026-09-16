@@ -4,26 +4,34 @@
  * Startup preload: validate -> classify -> load only safe packs. Blocked/failed
  * packs stay unloaded until explicit user consent. Source of truth is the
  * filesystem. Invalid packs fail in isolation.
+ *
+ * Install/uninstall are host-owned mutations of that same inventory — no parallel
+ * package manager.
  */
 import { mkdirSync } from "node:fs";
-import { readdir, readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { copyFile, lstat, mkdir, readdir, readFile, realpath, rename, rm } from "node:fs/promises";
+import { basename, join, relative, resolve, sep } from "node:path";
 
 import {
   EXTENSION_PACK_LIMITS,
+  formatExtensionAuthor,
+  isValidExtensionId,
   namespacedExtensionCommandId,
   validateExtensionManifest,
   type DiscoveredExtension,
   type DiscoveredExtensionCommand,
   type ExtensionDiscoveryResult,
+  type ExtensionInstallResult,
   type ExtensionLoadFailure,
   type ExtensionLoadState,
   type ExtensionManifest,
+  type ExtensionUninstallResult,
 } from "../../mainview/extensions/extensionManifest";
 import {
   allowBlockedExtension,
   configureExtensionAllowances,
   isBlockedExtensionAllowed,
+  revokeBlockedExtensionAllowance,
 } from "./extensionAllowances";
 import {
   LuaExtensionLoadError,
@@ -36,11 +44,32 @@ export type {
   DiscoveredExtension,
   DiscoveredExtensionCommand,
   ExtensionDiscoveryResult,
+  ExtensionInstallResult,
   ExtensionLoadFailure,
+  ExtensionUninstallResult,
 };
+
+const STAGING_PREFIX = "_fulvid-staging-";
+const MAX_PACK_FILES = 256;
+const MAX_PACK_TOTAL_BYTES = 2 * 1024 * 1024;
 
 let extensionsRootPath: string | null = null;
 let cachedDiscovery: ExtensionDiscoveryResult | null = null;
+let lifecycleGate: Promise<void> = Promise.resolve();
+
+async function withLifecycleLock<T>(operation: () => Promise<T>): Promise<T> {
+  const previous = lifecycleGate;
+  let release!: () => void;
+  lifecycleGate = new Promise((resolveGate) => {
+    release = resolveGate;
+  });
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+  }
+}
 
 /** Configure `userData/extensions` (creates the directory if missing). */
 export function configureExtensionDiscovery(userDataPath: string): void {
@@ -79,11 +108,38 @@ function emptyResult(): ExtensionDiscoveryResult {
   };
 }
 
+function isStagingDirectoryName(name: string): boolean {
+  return name.startsWith(".") || name.startsWith(STAGING_PREFIX);
+}
+
+async function cleanupStaleStaging(root: string): Promise<void> {
+  let entries: Array<{ name: string; isDirectory: () => boolean }>;
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith(STAGING_PREFIX)) {
+      continue;
+    }
+    try {
+      await rm(join(root, entry.name), { recursive: true, force: true });
+    } catch (error) {
+      console.warn(`Could not remove staging directory ${entry.name}:`, error);
+    }
+  }
+}
+
 /**
  * Enumerate immediate child directories, validate manifests, preload safe Lua packs.
  * Continues after individual failures.
  */
 export async function discoverExtensions(): Promise<ExtensionDiscoveryResult> {
+  return withLifecycleLock(async () => discoverExtensionsUnlocked());
+}
+
+async function discoverExtensionsUnlocked(): Promise<ExtensionDiscoveryResult> {
   // Fresh discovery replaces prior Lua sessions - do not keep stale callbacks.
   resetLuaCommandStoreForTests();
 
@@ -93,6 +149,8 @@ export async function discoverExtensions(): Promise<ExtensionDiscoveryResult> {
     cachedDiscovery = empty;
     return empty;
   }
+
+  await cleanupStaleStaging(root);
 
   const loaded: DiscoveredExtension[] = [];
   const failed: ExtensionLoadFailure[] = [];
@@ -115,7 +173,7 @@ export async function discoverExtensions(): Promise<ExtensionDiscoveryResult> {
   }
 
   const directories = entries
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && !isStagingDirectoryName(entry.name))
     .map((entry) => entry.name)
     .sort();
 
@@ -156,20 +214,19 @@ export async function discoverExtensions(): Promise<ExtensionDiscoveryResult> {
 
 /**
  * Explicit consent path: record allowance and attempt to load one blocked/failed pack.
- * Does not reload the whole discovery set's Lua store for neighbors.
  */
 export async function loadAllowedBlockedExtension(
   extensionId: string,
 ): Promise<ExtensionDiscoveryResult> {
-  if (!allowBlockedExtension(extensionId)) {
-    return getDiscoveredExtensions();
-  }
-  const root = extensionsRootPath;
-  if (!root) {
-    return getDiscoveredExtensions();
-  }
-  // Re-run full discovery so Lua store stays consistent with neighbors.
-  return discoverExtensions();
+  return withLifecycleLock(async () => {
+    if (!allowBlockedExtension(extensionId)) {
+      return getDiscoveredExtensions();
+    }
+    if (!extensionsRootPath) {
+      return getDiscoveredExtensions();
+    }
+    return discoverExtensionsUnlocked();
+  });
 }
 
 class ExtensionPackError extends Error {
@@ -179,11 +236,19 @@ class ExtensionPackError extends Error {
   }
 }
 
+function pathInsideRoot(candidate: string, root: string): boolean {
+  const relativePath = relative(root, candidate);
+  return relativePath === "" || (!relativePath.startsWith(`..${sep}`) && relativePath !== "..");
+}
+
 async function readManifest(packRoot: string): Promise<ExtensionManifest> {
   const manifestPath = join(packRoot, "manifest.json");
   let raw: string;
   try {
-    const manifestStat = await stat(manifestPath);
+    const manifestStat = await lstat(manifestPath);
+    if (manifestStat.isSymbolicLink()) {
+      throw new ExtensionPackError("manifest must not be a symlink");
+    }
     if (!manifestStat.isFile()) {
       throw new ExtensionPackError("missing manifest.json");
     }
@@ -221,8 +286,14 @@ async function preflightEntry(packRoot: string, manifest: ExtensionManifest): Pr
     return;
   }
   const entryPath = join(packRoot, ...manifest.entry.split("/"));
+  if (!pathInsideRoot(entryPath, packRoot)) {
+    throw new ExtensionPackError("entry must stay inside the pack");
+  }
   try {
-    const entryStat = await stat(entryPath);
+    const entryStat = await lstat(entryPath);
+    if (entryStat.isSymbolicLink()) {
+      throw new ExtensionPackError("entry must not be a symlink");
+    }
     if (!entryStat.isFile()) {
       throw new ExtensionPackError("entry is not a file");
     }
@@ -237,6 +308,221 @@ async function preflightEntry(packRoot: string, manifest: ExtensionManifest): Pr
   }
 }
 
+async function copyPackNoFollow(
+  sourceRoot: string,
+  destRoot: string,
+  counters: { files: number; bytes: number },
+): Promise<void> {
+  const sourceStat = await lstat(sourceRoot);
+  if (sourceStat.isSymbolicLink()) {
+    throw new ExtensionPackError("extension pack must not be a symlink");
+  }
+  if (!sourceStat.isDirectory()) {
+    throw new ExtensionPackError("extension pack must be a directory");
+  }
+  await mkdir(destRoot, { recursive: true });
+  const entries = await readdir(sourceRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    const from = join(sourceRoot, entry.name);
+    const to = join(destRoot, entry.name);
+    if (entry.isSymbolicLink()) {
+      throw new ExtensionPackError("extension pack must not contain symlinks");
+    }
+    if (entry.isDirectory()) {
+      await copyPackNoFollow(from, to, counters);
+      continue;
+    }
+    if (!entry.isFile()) {
+      throw new ExtensionPackError("unsupported pack entry type");
+    }
+    counters.files += 1;
+    if (counters.files > MAX_PACK_FILES) {
+      throw new ExtensionPackError("extension pack has too many files");
+    }
+    const fileStat = await lstat(from);
+    counters.bytes += fileStat.size;
+    if (counters.bytes > MAX_PACK_TOTAL_BYTES) {
+      throw new ExtensionPackError("extension pack exceeds size budget");
+    }
+    await copyFile(from, to);
+  }
+}
+
+/**
+ * Validate a candidate pack directory and install it under userData/extensions/<id>.
+ * Picker ownership stays in the Bun RPC handler — this accepts only a host-owned path.
+ */
+export async function installExtensionFromDirectory(
+  sourceDirectory: string,
+): Promise<ExtensionInstallResult> {
+  return withLifecycleLock(async () => {
+    const discovery = () => getDiscoveredExtensions();
+    const root = extensionsRootPath;
+    if (!root) {
+      return {
+        status: "error",
+        reason: "extensions directory unavailable",
+        discovery: discovery(),
+      };
+    }
+
+    let sourceReal: string;
+    try {
+      const sourceStat = await lstat(sourceDirectory);
+      if (sourceStat.isSymbolicLink()) {
+        return {
+          status: "error",
+          reason: "extension pack must not be a symlink",
+          discovery: discovery(),
+        };
+      }
+      if (!sourceStat.isDirectory()) {
+        return {
+          status: "error",
+          reason: "extension pack must be a directory",
+          discovery: discovery(),
+        };
+      }
+      sourceReal = await realpath(sourceDirectory);
+    } catch {
+      return { status: "error", reason: "extension pack unreadable", discovery: discovery() };
+    }
+
+    const rootReal = await realpath(root).catch(() => root);
+    if (sourceReal === rootReal || pathInsideRoot(sourceReal, rootReal)) {
+      return {
+        status: "error",
+        reason: "cannot install from the extensions directory",
+        discovery: discovery(),
+      };
+    }
+
+    let manifest: ExtensionManifest;
+    try {
+      manifest = await readManifest(sourceReal);
+      await preflightEntry(sourceReal, manifest);
+    } catch (error) {
+      const reason =
+        error instanceof ExtensionPackError
+          ? error.reason
+          : error instanceof Error
+            ? error.message
+            : "invalid extension pack";
+      return { status: "error", reason: boundReason(reason), discovery: discovery() };
+    }
+
+    const destination = join(root, manifest.id);
+    try {
+      await lstat(destination);
+      return {
+        status: "error",
+        reason: `extension "${manifest.id}" is already installed`,
+        discovery: discovery(),
+      };
+    } catch {
+      // Destination must not exist.
+    }
+
+    const staging = join(root, `${STAGING_PREFIX}${manifest.id}-${crypto.randomUUID()}`);
+    try {
+      await copyPackNoFollow(sourceReal, staging, { files: 0, bytes: 0 });
+      const stagedManifest = await readManifest(staging);
+      if (stagedManifest.id !== manifest.id) {
+        throw new ExtensionPackError("staged manifest identity drifted");
+      }
+      await preflightEntry(staging, stagedManifest);
+      await rename(staging, destination);
+    } catch (error) {
+      await rm(staging, { recursive: true, force: true }).catch(() => undefined);
+      await rm(destination, { recursive: true, force: true }).catch(() => undefined);
+      const reason =
+        error instanceof ExtensionPackError
+          ? error.reason
+          : error instanceof Error
+            ? error.message
+            : "extension install failed";
+      return {
+        status: "error",
+        reason: boundReason(reason),
+        discovery: await discoverExtensionsUnlocked(),
+      };
+    }
+
+    const result = await discoverExtensionsUnlocked();
+    return { status: "ok", id: manifest.id, discovery: result };
+  });
+}
+
+/** Remove one installed pack directory and revoke its allowance, then rediscover. */
+export async function uninstallExtensionPack(
+  extensionId: string,
+): Promise<ExtensionUninstallResult> {
+  return withLifecycleLock(async () => {
+    const discovery = () => getDiscoveredExtensions();
+    if (!isValidExtensionId(extensionId)) {
+      return { status: "error", reason: "invalid extension id", discovery: discovery() };
+    }
+    const root = extensionsRootPath;
+    if (!root) {
+      return {
+        status: "error",
+        reason: "extensions directory unavailable",
+        discovery: discovery(),
+      };
+    }
+
+    const packPath = join(root, extensionId);
+    if (basename(packPath) !== extensionId || !pathInsideRoot(resolve(packPath), resolve(root))) {
+      return { status: "error", reason: "invalid extension path", discovery: discovery() };
+    }
+
+    try {
+      const packStat = await lstat(packPath);
+      if (packStat.isSymbolicLink() || !packStat.isDirectory()) {
+        return { status: "error", reason: "extension pack missing", discovery: discovery() };
+      }
+    } catch {
+      return { status: "error", reason: "extension pack missing", discovery: discovery() };
+    }
+
+    unloadLuaExtensionPack(extensionId);
+
+    try {
+      await rm(packPath, { recursive: true, force: false });
+    } catch (error) {
+      const reason = boundReason(
+        error instanceof Error ? error.message : "could not delete extension pack",
+      );
+      return {
+        status: "error",
+        reason,
+        discovery: await discoverExtensionsUnlocked(),
+      };
+    }
+
+    try {
+      await lstat(packPath);
+      return {
+        status: "error",
+        reason: "extension files still present after delete",
+        discovery: await discoverExtensionsUnlocked(),
+      };
+    } catch {
+      // Expected: path is gone.
+    }
+
+    if (!revokeBlockedExtensionAllowance(extensionId)) {
+      return {
+        status: "error",
+        reason: "extension removed but allowance could not be cleared",
+        discovery: await discoverExtensionsUnlocked(),
+      };
+    }
+
+    return { status: "ok", discovery: await discoverExtensionsUnlocked() };
+  });
+}
+
 function baseDiscovered(
   manifest: ExtensionManifest,
   packRoot: string,
@@ -245,20 +531,35 @@ function baseDiscovered(
 ): DiscoveredExtension {
   const discovered: DiscoveredExtension = {
     id: manifest.id,
+    publisher: manifest.publisher,
     name: manifest.name,
+    displayName: manifest.displayName,
     version: manifest.version,
     api: manifest.api,
+    description: manifest.description,
     capabilities: [...manifest.capabilities],
     commands: [],
     location: packRoot,
     state,
     activation: manifest.activation ?? "command",
   };
-  if (manifest.description !== undefined) {
-    discovered.description = manifest.description;
-  }
   if (manifest.author !== undefined) {
-    discovered.author = manifest.author;
+    discovered.author = formatExtensionAuthor(manifest.author);
+  }
+  if (manifest.license !== undefined) {
+    discovered.license = manifest.license;
+  }
+  if (manifest.homepage !== undefined) {
+    discovered.homepage = manifest.homepage;
+  }
+  if (manifest.repository !== undefined) {
+    discovered.repository = manifest.repository;
+  }
+  if (manifest.bugs !== undefined) {
+    discovered.bugs = manifest.bugs;
+  }
+  if (manifest.keywords !== undefined) {
+    discovered.keywords = [...manifest.keywords];
   }
   if (manifest.documentAction !== undefined) {
     discovered.documentAction = manifest.documentAction;
@@ -318,11 +619,15 @@ async function preloadExtensionPack(
           ? error.message
           : "unknown extension load error",
     );
+    const dot = directoryName.indexOf(".");
     return {
       id: directoryName,
-      name: directoryName,
-      version: "",
+      publisher: dot > 0 ? directoryName.slice(0, dot) : "unknown",
+      name: dot > 0 ? directoryName.slice(dot + 1) : directoryName,
+      displayName: directoryName,
+      version: "0.0.0",
       api: 0,
+      description: "",
       capabilities: [],
       commands: [],
       location: packRoot,
@@ -333,16 +638,12 @@ async function preloadExtensionPack(
   }
 
   const allowed = isBlockedExtensionAllowed(manifest.id);
-  // Safe packs preload automatically. Consent only gates retry of previously
-  // failed loads when the allowlist already contains the id - first discovery
-  // still attempts every preflight-safe pack.
   try {
     let commands: DiscoveredExtensionCommand[] = [];
     if (manifest.capabilities.includes("lua")) {
       const luaCommands = await loadLuaExtensionPack(packRoot, manifest);
       try {
         commands = attachCommandPlacements(manifest, luaCommands);
-        // Fail closed: documentAction / action ids must match registered commands.
         if (manifest.documentAction) {
           const found = commands.some((command) => command.id === manifest.documentAction);
           if (!found) {
@@ -367,9 +668,6 @@ async function preloadExtensionPack(
       commands,
     };
   } catch (error) {
-    // Roll back any partial Lua registrations for this pack via full store reset
-    // only at discovery start; a mid-loop failure must not leave this pack's
-    // commands executable. loadLuaExtensionPack already isolates on throw.
     const reason = boundReason(
       error instanceof ExtensionPackError
         ? error.reason
@@ -393,7 +691,6 @@ export function resolveInstalledExtensionPath(extensionId: string): string | nul
   if (!current) {
     return null;
   }
-  // Containment: location must stay under the configured root.
   if (current.location !== join(root, extensionId)) {
     return null;
   }
@@ -404,8 +701,8 @@ export function resolveInstalledExtensionPath(extensionId: string): string | nul
 export function resetExtensionDiscoveryForTests(): void {
   extensionsRootPath = null;
   cachedDiscovery = null;
+  lifecycleGate = Promise.resolve();
   resetLuaCommandStoreForTests();
 }
 
-// Re-export for typed callers that build namespaced ids in tests.
 export { namespacedExtensionCommandId };

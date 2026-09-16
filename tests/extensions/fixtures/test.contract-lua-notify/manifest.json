@@ -1,0 +1,11 @@
+{
+  "publisher": "test",
+  "name": "contract-lua-notify",
+  "id": "test.contract-lua-notify",
+  "displayName": "Contract Lua Notify",
+  "version": "0.0.0-spike",
+  "api": 1,
+  "description": "Test-only Lua notify fixture for contract suites. Not a product pack.",
+  "capabilities": ["lua", "commands", "ui"],
+  "entry": "entry.lua"
+}

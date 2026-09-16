@@ -177,6 +177,7 @@ function selectCategory(category: SettingsCategory): void {
 }
 
 const installedExtensions = computed(() => discoveredExtensions.value.installed);
+const extensionsBusy = ref(false);
 
 function extensionStateLabel(state: string): string {
   if (state === "loaded") {
@@ -192,6 +193,17 @@ function extensionStateLabel(state: string): string {
     return t("settings.extensionStateFailed");
   }
   return state;
+}
+
+function extensionMetaLine(pack: (typeof installedExtensions.value)[number]): string {
+  const parts = [pack.id, pack.version];
+  if (pack.author) {
+    parts.push(pack.author);
+  }
+  if (pack.license) {
+    parts.push(pack.license);
+  }
+  return parts.join(" · ");
 }
 
 async function openExtensionFolder(extensionId: string): Promise<void> {
@@ -212,7 +224,7 @@ async function reviewBlockedExtension(extensionId: string): Promise<void> {
   }
   const confirmed = await confirmDialog(
     t("settings.extensionAllowMessage", {
-      name: pack.name,
+      name: pack.displayName,
       id: pack.id,
       reason: pack.reason ?? t("settings.extensionUnknownReason"),
     }),
@@ -225,6 +237,7 @@ async function reviewBlockedExtension(extensionId: string): Promise<void> {
   if (!confirmed) {
     return;
   }
+  extensionsBusy.value = true;
   try {
     const result = await desktopRequest().allowBlockedExtension({ id: extensionId });
     setDiscoveredExtensions(result);
@@ -241,6 +254,84 @@ async function reviewBlockedExtension(extensionId: string): Promise<void> {
     }
   } catch {
     notify(t("settings.extensionAllowFailed"));
+  } finally {
+    extensionsBusy.value = false;
+  }
+}
+
+async function installExtensionPack(): Promise<void> {
+  if (extensionsBusy.value) {
+    return;
+  }
+  extensionsBusy.value = true;
+  try {
+    const result = await desktopRequest().installExtensionPack({});
+    if (result.status === "cancelled") {
+      return;
+    }
+    setDiscoveredExtensions(result.discovery);
+    if (result.status === "ok") {
+      notify(t("settings.extensionInstallSucceeded", { id: result.id }));
+      return;
+    }
+    notify(t("settings.extensionInstallFailed", { reason: result.reason }));
+  } catch {
+    notify(t("settings.extensionInstallFailed", { reason: t("settings.extensionUnknownReason") }));
+  } finally {
+    extensionsBusy.value = false;
+  }
+}
+
+async function uninstallExtensionPack(extensionId: string): Promise<void> {
+  const pack = installedExtensions.value.find((entry) => entry.id === extensionId);
+  if (!pack || extensionsBusy.value) {
+    return;
+  }
+  const confirmed = await confirmDialog(
+    t("settings.extensionUninstallMessage", {
+      name: pack.displayName,
+      id: pack.id,
+    }),
+    {
+      title: t("settings.extensionUninstallTitle"),
+      confirmLabel: t("settings.extensionUninstallConfirm"),
+      initialFocus: "cancel",
+    },
+  );
+  if (!confirmed) {
+    return;
+  }
+  extensionsBusy.value = true;
+  try {
+    const result = await desktopRequest().uninstallExtensionPack({ id: extensionId });
+    setDiscoveredExtensions(result.discovery);
+    if (result.status === "ok") {
+      notify(t("settings.extensionUninstallSucceeded", { id: extensionId }));
+      return;
+    }
+    notify(t("settings.extensionUninstallFailed", { reason: result.reason }));
+  } catch {
+    notify(
+      t("settings.extensionUninstallFailed", { reason: t("settings.extensionUnknownReason") }),
+    );
+  } finally {
+    extensionsBusy.value = false;
+  }
+}
+
+async function rediscoverExtensions(): Promise<void> {
+  if (extensionsBusy.value) {
+    return;
+  }
+  extensionsBusy.value = true;
+  try {
+    const result = await desktopRequest().rediscoverExtensions({});
+    setDiscoveredExtensions(result);
+    notify(t("settings.extensionRediscoverSucceeded"));
+  } catch {
+    notify(t("settings.extensionRediscoverFailed"));
+  } finally {
+    extensionsBusy.value = false;
   }
 }
 
@@ -1771,6 +1862,24 @@ async function onResetSettings(): Promise<void> {
             <p class="settings-option__hint" data-settings-id="extensions.intro">
               {{ t("settings.extensionsHint") }}
             </p>
+            <div class="settings-extension-toolbar" data-settings-id="extensions.toolbar">
+              <button
+                type="button"
+                class="settings-reset__button"
+                :disabled="extensionsBusy"
+                @click="installExtensionPack"
+              >
+                {{ t("settings.extensionInstall") }}
+              </button>
+              <button
+                type="button"
+                class="settings-reset__button"
+                :disabled="extensionsBusy"
+                @click="rediscoverExtensions"
+              >
+                {{ t("settings.extensionRediscover") }}
+              </button>
+            </div>
             <p
               v-if="installedExtensions.length === 0"
               class="settings-option__hint"
@@ -1784,57 +1893,44 @@ async function onResetSettings(): Promise<void> {
                 :key="pack.id"
                 class="settings-extension-card"
                 :data-settings-id="`extensions.pack.${pack.id}`"
+                :data-state="pack.state"
               >
                 <div class="settings-extension-card__header">
-                  <h3 class="settings-extension-card__name">{{ pack.name }}</h3>
+                  <div class="settings-extension-card__titles">
+                    <h3 class="settings-extension-card__name">{{ pack.displayName }}</h3>
+                    <p class="settings-extension-card__identity">
+                      <code>{{ pack.id }}</code>
+                      <span aria-hidden="true"> · </span>
+                      <span>{{ pack.publisher }}</span>
+                      <span aria-hidden="true"> · </span>
+                      <span>{{ pack.version }}</span>
+                    </p>
+                  </div>
                   <span class="settings-extension-card__state" :data-state="pack.state">
                     {{ extensionStateLabel(pack.state) }}
                   </span>
                 </div>
-                <dl class="settings-extension-card__meta">
-                  <div>
-                    <dt>{{ t("settings.extensionId") }}</dt>
-                    <dd>
-                      <code>{{ pack.id }}</code>
-                    </dd>
-                  </div>
-                  <div v-if="pack.version">
-                    <dt>{{ t("settings.extensionVersion") }}</dt>
-                    <dd>{{ pack.version }}</dd>
-                  </div>
-                  <div v-if="pack.author">
-                    <dt>{{ t("settings.extensionAuthor") }}</dt>
-                    <dd>{{ pack.author }}</dd>
-                  </div>
-                  <div v-if="pack.description">
-                    <dt>{{ t("settings.extensionDescription") }}</dt>
-                    <dd>{{ pack.description }}</dd>
-                  </div>
-                  <div>
-                    <dt>{{ t("settings.extensionCapabilities") }}</dt>
-                    <dd>
-                      {{
-                        pack.capabilities.length > 0
-                          ? pack.capabilities.join(", ")
-                          : t("settings.extensionCapabilitiesNone")
-                      }}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{{ t("settings.extensionLocation") }}</dt>
-                    <dd>
-                      <code>{{ pack.location }}</code>
-                    </dd>
-                  </div>
-                  <div v-if="pack.reason">
-                    <dt>{{ t("settings.extensionReason") }}</dt>
-                    <dd>{{ pack.reason }}</dd>
-                  </div>
-                </dl>
+                <p v-if="pack.description" class="settings-extension-card__description">
+                  {{ pack.description }}
+                </p>
+                <p class="settings-extension-card__meta-line">
+                  {{ extensionMetaLine(pack) }}
+                </p>
+                <p class="settings-extension-card__capabilities">
+                  {{
+                    pack.capabilities.length > 0
+                      ? pack.capabilities.join(", ")
+                      : t("settings.extensionCapabilitiesNone")
+                  }}
+                </p>
+                <p v-if="pack.reason" class="settings-extension-card__reason">
+                  {{ pack.reason }}
+                </p>
                 <div class="settings-extension-card__actions">
                   <button
                     type="button"
                     class="settings-reset__button"
+                    :disabled="extensionsBusy"
                     @click="openExtensionFolder(pack.id)"
                   >
                     {{ t("settings.extensionOpenFolder") }}
@@ -1843,9 +1939,18 @@ async function onResetSettings(): Promise<void> {
                     v-if="pack.state === 'blocked' || pack.state === 'failed'"
                     type="button"
                     class="settings-reset__button"
+                    :disabled="extensionsBusy"
                     @click="reviewBlockedExtension(pack.id)"
                   >
                     {{ t("settings.extensionReviewBlocked") }}
+                  </button>
+                  <button
+                    type="button"
+                    class="settings-reset__button settings-reset__button--danger"
+                    :disabled="extensionsBusy"
+                    @click="uninstallExtensionPack(pack.id)"
+                  >
+                    {{ t("settings.extensionUninstall") }}
                   </button>
                 </div>
               </li>
@@ -2652,6 +2757,13 @@ async function onResetSettings(): Promise<void> {
   @include object-metric-item;
 }
 
+.settings-extension-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-tight;
+  margin-block: $space-compact $space-group;
+}
+
 .settings-extension-list {
   list-style: none;
   margin: 0;
@@ -2671,10 +2783,15 @@ async function onResetSettings(): Promise<void> {
 .settings-extension-card__header {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: $space-tight;
   margin-bottom: $space-compact;
+}
+
+.settings-extension-card__titles {
+  min-width: 0;
+  flex: 1;
 }
 
 .settings-extension-card__name {
@@ -2683,9 +2800,35 @@ async function onResetSettings(): Promise<void> {
   font-weight: 600;
 }
 
-.settings-extension-card__state {
+.settings-extension-card__identity {
+  margin: $space-tight 0 0;
+  font-size: $font-label;
+  color: $text-muted;
+  word-break: break-word;
+}
+
+.settings-extension-card__description,
+.settings-extension-card__meta-line,
+.settings-extension-card__capabilities,
+.settings-extension-card__reason {
+  margin: 0 0 $space-compact;
   font-size: $font-label;
   color: $text-secondary;
+}
+
+.settings-extension-card__reason {
+  color: $error-text;
+}
+
+.settings-extension-card__state {
+  font-size: $font-label;
+  font-weight: 600;
+  color: $text-secondary;
+}
+
+.settings-extension-card__state[data-state="loaded"],
+.settings-extension-card__state[data-state="allowed"] {
+  color: $success-text;
 }
 
 .settings-extension-card__state[data-state="blocked"],
@@ -2693,32 +2836,14 @@ async function onResetSettings(): Promise<void> {
   color: $error-text;
 }
 
-.settings-extension-card__meta {
-  display: grid;
-  gap: $space-tight;
-  margin: 0 0 $space-group;
-}
-
-.settings-extension-card__meta div {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.settings-extension-card__meta dt {
-  margin: 0;
-  font-size: $font-label;
-  color: $text-secondary;
-}
-
-.settings-extension-card__meta dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
 .settings-extension-card__actions {
   display: flex;
   flex-wrap: wrap;
   gap: $space-tight;
+}
+
+.settings-reset__button--danger {
+  color: $error-text;
 }
 
 .settings-shortcuts {

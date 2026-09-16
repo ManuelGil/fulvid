@@ -64,9 +64,98 @@ The Extension System is **not**:
 
 ## Current capability surface
 
-Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api": 1`). Repository packs under [`extensions/`](../extensions/) are production examples to copy into that path - not the load path itself.
+Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api": 1`). Repository packs under [`extensions/`](../extensions/) are production examples to copy into that path - not the load path itself. Official product packs (TODO / MDX / ADR) live in the sibling [`fulvid-extensions`](../../fulvid-extensions/) repository and use the same contract.
 
-All packs that contribute commands use Lua (`entry.lua`). There is no declarative host-action path.
+**Install / uninstall:** Settings → Extensions (also File → Extensions) can install from a local folder or remove an installed pack. The host validates the candidate before an atomic copy into `userData/extensions/<id>/`, and uninstall unloads that pack, deletes only its directory, and clears its allowance. Manual folder copy still works; rediscovery (Reload inventory or restart) converges to the filesystem. There is no marketplace, archive format, or network installer.
+
+All packs that contribute commands use Lua (`entry.lua` / `init.lua`). There is no declarative host-action path.
+
+## Identity and compact manifest
+
+Canonical pack identity is **`publisher.name`** (VS Code-style). Installation source (official copy, third-party, local development) is **not** part of the id.
+
+```text
+imgildev.todo-decorator     # official product pack (publisher imgildev)
+fulvid.host-notify          # Fulvid reference pack
+acme.example-extension      # any third-party publisher
+```
+
+- Folder name under `userData/extensions/` **must equal** `manifest.id`.
+- `id` is derived as `${publisher}.${name}`. If `id` is present in JSON, it must match; omitting it is fine — validation always normalizes to the derived id.
+- Publisher `local` is **reserved** (legacy). Old `local.*` allowances are rewritten once via `LEGACY_EXTENSION_ID_MIGRATION`; `local.*` is not a valid canonical identity.
+- Fulvid does **not** hard-code `imgildev` (or any publisher) in the engine. Publisher metadata is pack-owned.
+
+### Compact manifest fields
+
+| Field | Required | Role |
+| --- | --- | --- |
+| `publisher` | yes | Slug (`imgildev`, `fulvid`, `acme`) |
+| `name` | yes | Machine package name (`todo-decorator`) |
+| `id` | optional | Must equal `publisher.name` when present |
+| `displayName` | yes | Human product title |
+| `description` | yes | What the pack does (not how) |
+| `version` | yes | Semver-compatible package version |
+| `api` | yes | Extension API version (`1`) |
+| `capabilities` | yes | Closed capability list |
+| `entry` | when `lua` | Relative `.lua` source |
+| `activation` / `documentAction` / `actions` | optional | Host menu / always-on document contract |
+| `author` / `license` / `homepage` / `repository` / `bugs` / `keywords` | optional | Human package metadata (not runtime deps; no network at load) |
+
+**Not** in the Fulvid contract: marketplace fields, `engines`, `contributes`, categories taxonomy, remote icons, publisher accounts, or dependency resolution.
+
+### Official example (`imgildev.todo-decorator`)
+
+```json
+{
+  "publisher": "imgildev",
+  "name": "todo-decorator",
+  "id": "imgildev.todo-decorator",
+  "displayName": "TODO Decorator",
+  "version": "1.0.0",
+  "api": 1,
+  "description": "Decorates TODO, FIXME, BUG, and HACK markers in Markdown and MDX documents.",
+  "author": {
+    "name": "Manuel Gil",
+    "email": "support@imgil.dev",
+    "url": "https://imgil.dev/"
+  },
+  "license": "MIT",
+  "homepage": "https://imgil.dev/",
+  "bugs": "mailto:support@imgil.dev",
+  "keywords": ["todo", "markdown", "mdx", "decorations"],
+  "capabilities": ["lua", "commands", "ui", "document", "decorations"],
+  "entry": "init.lua",
+  "activation": "document",
+  "documentAction": "todoRefresh",
+  "actions": [
+    { "id": "todoNext", "menu": "navigate", "order": 200, "title": "Next TODO" },
+    { "id": "todoPrevious", "menu": "navigate", "order": 210, "title": "Previous TODO" }
+  ]
+}
+```
+
+Commands are namespaced as `publisher.name.commandId` (e.g. `imgildev.todo-decorator.todoNext`).
+
+### Third-party example (`acme.example-extension`)
+
+```json
+{
+  "publisher": "acme",
+  "name": "example-extension",
+  "id": "acme.example-extension",
+  "displayName": "Example Extension",
+  "version": "0.1.0",
+  "api": 1,
+  "description": "Posts a host notification when invoked.",
+  "license": "MIT",
+  "capabilities": ["lua", "commands", "ui"],
+  "entry": "entry.lua",
+  "activation": "command",
+  "actions": [
+    { "id": "ping", "menu": "help", "order": 100, "title": "Ping" }
+  ]
+}
+```
 
 | Capability / surface | Authority owner | Permitted operation | Explicitly absent | Limits | Failure |
 | --- | --- | --- | --- | --- | --- |

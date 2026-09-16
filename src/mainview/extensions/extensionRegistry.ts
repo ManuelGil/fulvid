@@ -79,6 +79,16 @@ export function configureExtensionHostActions(actions: ExtensionHostActions): vo
 }
 
 export function setDiscoveredExtensions(result: ExtensionDiscoveryResult): void {
+  const previousLoaded = new Set(
+    discoveredExtensions.value.loaded.map((extension) => extension.id),
+  );
+  const nextLoaded = new Set((result.loaded ?? []).map((extension) => extension.id));
+  const seam = editorExtensionSeam();
+  for (const extensionId of previousLoaded) {
+    if (!nextLoaded.has(extensionId)) {
+      seam?.clearExtensionDecorations(extensionId);
+    }
+  }
   discoveredExtensions.value = {
     loaded: result.loaded ?? [],
     failed: result.failed ?? [],

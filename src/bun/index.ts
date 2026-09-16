@@ -18,13 +18,26 @@ import {
   configureExtensionDiscovery,
   discoverExtensions,
   getDiscoveredExtensions,
+  installExtensionFromDirectory,
   loadAllowedBlockedExtension,
   resolveInstalledExtensionPath,
+  uninstallExtensionPack,
 } from "./extensions/discoverExtensions";
 import { invokeLuaExtensionCommand } from "./extensions/lua/luaExtensionRuntime";
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
 import { canPersistWindowFrame, toggleNativeFullScreen } from "./windowFullScreen";
 import { setNativeWindowTitle } from "./windowTitle";
+
+async function pickExtensionSourceDirectory(): Promise<string | null> {
+  const chosenPaths = await Utils.openFileDialog({
+    startingFolder: Utils.paths.home,
+    allowedFileTypes: "*",
+    canChooseFiles: false,
+    canChooseDirectory: true,
+    allowsMultipleSelection: false,
+  });
+  return chosenPaths[0] ?? null;
+}
 
 // Folder approvals are host state: which folders a person picked in a dialog.
 // Configuring the store here keeps the approval rules free of the runtime.
@@ -62,6 +75,24 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
       ...filesystemRpcHandlers,
       takePendingExternalOpens: () => takePendingExternalOpens(),
       listDiscoveredExtensions: () => getDiscoveredExtensions(),
+      rediscoverExtensions: async () => discoverExtensions(),
+      installExtensionPack: async () => {
+        const selectedPath = await pickExtensionSourceDirectory();
+        if (!selectedPath) {
+          return { status: "cancelled" as const };
+        }
+        return installExtensionFromDirectory(selectedPath);
+      },
+      uninstallExtensionPack: async ({ id }) => {
+        if (typeof id !== "string" || id.length === 0 || id.length > 256) {
+          return {
+            status: "error" as const,
+            reason: "invalid extension id",
+            discovery: getDiscoveredExtensions(),
+          };
+        }
+        return uninstallExtensionPack(id);
+      },
       allowBlockedExtension: async ({ id }) => {
         if (typeof id !== "string" || id.length === 0 || id.length > 256) {
           return getDiscoveredExtensions();

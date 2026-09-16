@@ -17,7 +17,7 @@ const RENDER_MODULE = join(
 );
 const ADR_INIT = join(
   import.meta.dir,
-  "../../../fulvid-extensions/extensions/local.adr-templates/init.lua",
+  "../../../fulvid-extensions/extensions/imgildev.adr-templates/init.lua",
 );
 
 describe("extension template.render", () => {

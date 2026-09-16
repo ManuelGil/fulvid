@@ -250,21 +250,24 @@ async function main(): Promise<void> {
   const userData = await mkdtemp(join(tmpdir(), "fulvid-lua-packaged-"));
   const extensions = join(userData, "extensions");
   await mkdir(extensions, { recursive: true });
-  const fixture = join(root, "tests/extensions/fixtures/contract-lua-notify");
-  await cp(fixture, join(extensions, "local.contract-lua-notify"), { recursive: true });
-  await mkdir(join(extensions, "local.contract-lua-bad"), { recursive: true });
+  const fixture = join(root, "tests/extensions/fixtures/test.contract-lua-notify");
+  await cp(fixture, join(extensions, "test.contract-lua-notify"), { recursive: true });
+  await mkdir(join(extensions, "test.contract-lua-bad"), { recursive: true });
   await writeFile(
-    join(extensions, "local.contract-lua-bad", "manifest.json"),
+    join(extensions, "test.contract-lua-bad", "manifest.json"),
     JSON.stringify({
-      id: "local.contract-lua-bad",
-      name: "Bad",
+      publisher: "test",
+      name: "contract-lua-bad",
+      id: "test.contract-lua-bad",
+      displayName: "Bad",
+      description: "Packaged smoke isolation fixture",
       version: "0.0.0",
       api: 1,
       capabilities: ["lua", "commands", "ui"],
       entry: "entry.lua",
     }),
   );
-  await writeFile(join(extensions, "local.contract-lua-bad", "entry.lua"), "error('packaged-bad')");
+  await writeFile(join(extensions, "test.contract-lua-bad", "entry.lua"), "error('packaged-bad')");
 
   setLuaExecutionBudgetForTests(null);
   resetLuaFactoryForTests();
@@ -272,14 +275,14 @@ async function main(): Promise<void> {
   resetExtensionDiscoveryForTests();
   configureExtensionDiscovery(userData);
   const discovery = await discoverExtensions();
-  if (!discovery.loaded.some((pack) => pack.id === "local.contract-lua-notify")) {
+  if (!discovery.loaded.some((pack) => pack.id === "test.contract-lua-notify")) {
     throw new Error("valid Lua fixture failed to load in packaged smoke");
   }
-  if (!discovery.failed.some((failure) => failure.id === "local.contract-lua-bad")) {
+  if (!discovery.failed.some((failure) => failure.id === "test.contract-lua-bad")) {
     throw new Error("invalid Lua pack was not isolated in packaged smoke");
   }
 
-  const invoke = await invokeLuaExtensionCommand("local.contract-lua-notify.ping");
+  const invoke = await invokeLuaExtensionCommand("test.contract-lua-notify.ping");
   if (!invoke.ok || invoke.notifications[0] !== "pong") {
     throw new Error(`Lua ui.notify failed in packaged smoke: ${JSON.stringify(invoke)}`);
   }

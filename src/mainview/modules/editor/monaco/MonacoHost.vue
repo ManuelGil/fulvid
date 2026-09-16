@@ -975,6 +975,7 @@ function clearExtensionDecorations(extensionId: string): boolean {
   const collection = extensionDecorationCollections.get(extensionId);
   if (collection) {
     collection.clear();
+    extensionDecorationCollections.delete(extensionId);
   }
   return true;
 }

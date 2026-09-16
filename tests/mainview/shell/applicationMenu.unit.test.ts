@@ -100,6 +100,20 @@ describe("application menu", () => {
     }
   });
 
+  test("exposes Extensions under File without a top-level Extensions menu", () => {
+    const menus = presentApplicationMenu("linux", idleState, (key) => key);
+    expect(menus.some((menu) => menu.id === "extensions")).toBe(false);
+    const file = menus.find((menu) => menu.id === "file");
+    const openExtensions = file?.items.find(
+      (item) => item.type === "command" && item.id === "openExtensions",
+    );
+    expect(openExtensions?.type).toBe("command");
+    if (openExtensions?.type === "command") {
+      expect(presentedMenuAction(openExtensions)).toBe("openExtensions");
+      expect(openExtensions.label).toBe("menu.extensions");
+    }
+  });
+
   test("keeps Edit role item ids unique while paste roles share the paste command", () => {
     const menus = presentApplicationMenu("linux", idleState, (key) => key);
     const edit = menus.find((menu) => menu.id === "edit");

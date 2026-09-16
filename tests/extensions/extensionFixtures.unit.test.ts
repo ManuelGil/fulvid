@@ -9,9 +9,9 @@ const EXTENSIONS_ROOT = join(import.meta.dir, "../../extensions");
  * Keep the set small; each pack demonstrates a durable first-release workflow.
  */
 const PRODUCTION_EXAMPLE_IDS = [
-  "local.blank-note",
-  "local.host-notify",
-  "local.sort-lines",
+  "fulvid.blank-note",
+  "fulvid.host-notify",
+  "fulvid.sort-lines",
 ] as const;
 
 const ALLOWED_CAPABILITIES = new Set([
@@ -53,7 +53,7 @@ type FixtureManifest = {
 async function listFixtureDirs(): Promise<string[]> {
   const entries = await readdir(EXTENSIONS_ROOT, { withFileTypes: true });
   return entries
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith("local."))
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith("fulvid."))
     .map((entry) => entry.name)
     .sort();
 }
@@ -105,7 +105,7 @@ describe("extension fixtures", () => {
 
   test("host-notify reaches only notify and never filesystem or Monaco", async () => {
     const manifest = JSON.parse(
-      await readFile(join(EXTENSIONS_ROOT, "local.host-notify", "manifest.json"), "utf8"),
+      await readFile(join(EXTENSIONS_ROOT, "fulvid.host-notify", "manifest.json"), "utf8"),
     ) as FixtureManifest;
 
     expect(manifest.capabilities.sort()).toEqual(["commands", "lua", "ui"]);
@@ -113,17 +113,17 @@ describe("extension fixtures", () => {
     expect(manifest.capabilities).not.toContain("monaco");
     expect(Object.keys(manifest)).not.toContain("monaco");
 
-    const files = await collectFiles(join(EXTENSIONS_ROOT, "local.host-notify"));
+    const files = await collectFiles(join(EXTENSIONS_ROOT, "fulvid.host-notify"));
     expect(files.sort()).toEqual(["README.md", "entry.lua", "manifest.json"]);
 
-    const source = await readFile(join(EXTENSIONS_ROOT, "local.host-notify", "entry.lua"), "utf8");
+    const source = await readFile(join(EXTENSIONS_ROOT, "fulvid.host-notify", "entry.lua"), "utf8");
     expect(source).toContain("ui.notify");
     expect(source).not.toContain("editor.");
     expect(source).not.toContain("document.");
   });
 
   test("blank-note seeds Markdown through document.createUntitled", async () => {
-    const root = join(EXTENSIONS_ROOT, "local.blank-note");
+    const root = join(EXTENSIONS_ROOT, "fulvid.blank-note");
     const manifest = JSON.parse(
       await readFile(join(root, "manifest.json"), "utf8"),
     ) as FixtureManifest;
@@ -141,7 +141,7 @@ describe("extension fixtures", () => {
   });
 
   test("sort-lines is a source-only Lua editor example", async () => {
-    const root = join(EXTENSIONS_ROOT, "local.sort-lines");
+    const root = join(EXTENSIONS_ROOT, "fulvid.sort-lines");
     const manifest = JSON.parse(
       await readFile(join(root, "manifest.json"), "utf8"),
     ) as FixtureManifest;

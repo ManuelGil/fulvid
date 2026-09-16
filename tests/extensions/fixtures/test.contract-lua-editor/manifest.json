@@ -1,0 +1,11 @@
+{
+  "publisher": "test",
+  "name": "contract-lua-editor",
+  "id": "test.contract-lua-editor",
+  "displayName": "Contract Lua Editor",
+  "version": "0.0.0-spike",
+  "api": 1,
+  "description": "Test-only Lua editor fixture for contract suites. Not a product pack.",
+  "capabilities": ["lua", "commands", "ui", "editor"],
+  "entry": "entry.lua"
+}

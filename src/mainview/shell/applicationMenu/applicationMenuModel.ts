@@ -367,6 +367,12 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
     { type: "separator", id: "file-separator-folder" },
     {
       type: "command",
+      id: "openExtensions",
+      label: "menu.extensions",
+      availability: "always",
+    },
+    {
+      type: "command",
       id: "openSettings",
       label: "nav.settings",
       availability: "always",
