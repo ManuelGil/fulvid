@@ -9,7 +9,6 @@ import {
   cssClassForExtensionDecoration,
   ensureExtensionAppearanceStyles,
   EXTENSION_DECORATION_OVERVIEW_HEX,
-  monacoDecorationOptionsForExtensionStyle,
   monacoDecorationOptionsForRange,
   parseDecorationAppearance,
   parseDecorationColor,
@@ -98,7 +97,13 @@ describe("extension-owned decoration appearance", () => {
     }
 
     for (const style of ["info", "warn", "error"] as const) {
-      const options = monacoDecorationOptionsForExtensionStyle(style);
+      const options = monacoDecorationOptionsForRange({
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 4,
+        style,
+      });
       expect(options.inlineClassName).toBe(cssClassForExtensionDecoration(style));
       expect(options.overviewRulerColor).toBe(EXTENSION_DECORATION_OVERVIEW_HEX[style]);
     }

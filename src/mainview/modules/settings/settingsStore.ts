@@ -73,7 +73,7 @@ export interface EditorSettings {
    */
   showDocumentAnnotations: boolean;
   readingStatistics: ReadingStatisticsMode;
-  /** Focus-mode only. Ignored when writing focus is off. */
+  /** Writing Focus only. Ignored when Writing Focus is off. */
   typewriterScrolling: boolean;
   /**
    * Where to present the active document location (same projection everywhere).

@@ -11,7 +11,6 @@ import {
   EXTENSION_PACK_LIMITS,
   formatExtensionAuthor,
   isValidExtensionId,
-  namespacedExtensionCommandId,
   validateExtensionManifest,
   type DiscoveredExtension,
   type DiscoveredExtensionCommand,
@@ -31,9 +30,10 @@ import {
 import {
   LuaExtensionLoadError,
   loadLuaExtensionPack,
-  resetLuaCommandStoreForTests,
+  resetLuaCommandStore,
   unloadLuaExtensionPack,
 } from "./lua/luaExtensionRuntime";
+import { LUA_EXTENSION_LIMITS } from "./lua/luaLimits";
 
 export type {
   DiscoveredExtension,
@@ -85,10 +85,6 @@ export function getDiscoveredExtensions(): ExtensionDiscoveryResult {
   );
 }
 
-export function getExtensionsRootPath(): string | null {
-  return extensionsRootPath;
-}
-
 function boundReason(raw: string): string {
   const reason = raw.split(/\r?\n/, 1)[0]?.trim() || raw;
   return reason.length > 300 ? `${reason.slice(0, 300)}...` : reason;
@@ -136,7 +132,7 @@ export async function discoverExtensions(): Promise<ExtensionDiscoveryResult> {
 
 async function discoverExtensionsUnlocked(): Promise<ExtensionDiscoveryResult> {
   // Fresh discovery replaces prior Lua sessions - do not keep stale callbacks.
-  resetLuaCommandStoreForTests();
+  resetLuaCommandStore();
 
   const root = extensionsRootPath;
   if (!root) {
@@ -292,7 +288,7 @@ async function preflightEntry(packRoot: string, manifest: ExtensionManifest): Pr
     if (!entryStat.isFile()) {
       throw new ExtensionPackError("entry is not a file");
     }
-    if (entryStat.size > 64 * 1024) {
+    if (entryStat.size > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
       throw new ExtensionPackError("entry exceeds budget");
     }
   } catch (error) {
@@ -697,7 +693,5 @@ export function resetExtensionDiscoveryForTests(): void {
   extensionsRootPath = null;
   cachedDiscovery = null;
   lifecycleGate = Promise.resolve();
-  resetLuaCommandStoreForTests();
+  resetLuaCommandStore();
 }
-
-export { namespacedExtensionCommandId };

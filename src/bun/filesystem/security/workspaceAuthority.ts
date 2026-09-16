@@ -149,8 +149,11 @@ export function grantedPath(grantToken: string): string {
  * people and travel as they are. Anything else - a raw `ENOENT` carrying an
  * absolute path, a stack from a dependency - becomes a stable message, so the
  * UI never renders host internals. The original stays in the host log.
+ *
+ * Name is deliberate: this wraps RPC errors. It is not filesystem path
+ * containment (`containedPath` / `assertCanonicallyContained`).
  */
-export function contained<Params, Result>(
+export function containHostError<Params, Result>(
   operation: string,
   handler: (params: Params) => Promise<Result>,
 ): (params: Params) => Promise<Result> {

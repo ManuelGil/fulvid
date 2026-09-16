@@ -56,8 +56,8 @@ export class DocumentConflictError extends Error {
  * `assertCanonicallyContained`, so a symlink inside the folder cannot move the
  * target outside the root after normalization.
  */
-export function assertWithinWorkspace(rootPath: string, targetPath: string): string {
-  return containedPath(rootPath, targetPath);
+export function assertWithinWorkspace(rootPath: string, relativePath: string): string {
+  return containedPath(rootPath, relativePath);
 }
 
 function assertStandaloneDocumentPath(targetPath: string): string {

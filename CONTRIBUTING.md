@@ -18,7 +18,7 @@ Keep pull requests focused.
 ## Practical rules
 
 - UI selection goes through `selectDocument`. `activateDocument` is session-internal. Surfaces open a document through `openOrActivate`. Do not wire editor buffers to Focus changes.
-- Folder I/O uses `assertWithinWorkspace`. Standalone Open and Save As use host dialogs and grants. No generic absolute-path read/write RPC.
+- Folder I/O uses `assertWithinWorkspace` (lexical) plus `assertCanonicallyContained` (symlink/realpath). Standalone Open and Save As use host dialogs and grants. No generic absolute-path read/write RPC.
 - Preview and Export HTML share `renderMarkdownPreview`. Do not add a second Markdown renderer.
 - Dispose canvas, workers, and observers with their owner ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#resources)).
 - Presentation tokens: [`src/mainview/styles/`](src/mainview/styles/). Chrome icons: [`AppIcon.vue`](src/mainview/shell/AppIcon.vue). Quick Actions rules (groups, overflow tiers, a11y): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#quick-actions-toolbar). Do not fork Monaco or edit `node_modules` for icons; widget Codicons are remapped in `monacoLucideIcons.ts`. Launcher icon: [`assets/README.md`](assets/README.md).

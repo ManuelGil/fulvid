@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import {
   invokeLuaExtensionCommand,
   loadLuaExtensionPack,
-  resetLuaCommandStoreForTests,
+  resetLuaCommandStore,
 } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 import { resetLuaFactoryForTests } from "../../src/bun/extensions/lua/luaEngine.ts";
 import { LUA_EXTENSION_LIMITS } from "../../src/bun/extensions/lua/luaLimits.ts";
@@ -136,7 +136,7 @@ function registerEditorFixture(): void {
 afterEach(() => {
   resetEditorExtensionSeamForTests();
   resetExtensionRegistryForTests();
-  resetLuaCommandStoreForTests();
+  resetLuaCommandStore();
   resetLuaFactoryForTests();
 });
 

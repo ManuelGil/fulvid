@@ -11,7 +11,7 @@ import {
   findLuaCommand,
   invokeLuaExtensionCommand,
   loadLuaExtensionPack,
-  resetLuaCommandStoreForTests,
+  resetLuaCommandStore,
 } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 import {
   createHardenedLuaEngine,
@@ -70,7 +70,7 @@ async function loadPack(pack: string) {
 afterEach(() => {
   resetExtensionRegistryForTests();
   resetEditorExtensionSeamForTests();
-  resetLuaCommandStoreForTests();
+  resetLuaCommandStore();
   resetLuaFactoryForTests();
 });
 
@@ -204,13 +204,13 @@ commands.register({ id = "b", title = "B", run = function() ui.notify("b") end }
     });
     let rejectedLoads = 0;
     for (let attempt = 0; attempt < 5 && rejectedLoads === 0; attempt += 1) {
-      resetLuaCommandStoreForTests();
+      resetLuaCommandStore();
       resetLuaFactoryForTests();
       const loadOutcomes = await Promise.allSettled([loadPack(a), loadPack(b)]);
       rejectedLoads = loadOutcomes.filter((entry) => entry.status === "rejected").length;
     }
     expect(rejectedLoads).toBeGreaterThanOrEqual(1);
-    resetLuaCommandStoreForTests();
+    resetLuaCommandStore();
     resetLuaFactoryForTests();
     await loadPack(a);
     expect(await invokeLuaExtensionCommand("test.adv-loada.a")).toEqual({

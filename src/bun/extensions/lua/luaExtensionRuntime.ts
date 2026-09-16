@@ -118,8 +118,8 @@ export function unloadLuaExtensionPack(extensionId: string): void {
   dropExtension(extensionId);
 }
 
-/** Test helper: drop all Lua engines and registrations. */
-export function resetLuaCommandStoreForTests(): void {
+/** Drop all Lua engines and registrations (rediscovery and test seams). */
+export function resetLuaCommandStore(): void {
   for (const record of engines.values()) {
     closeEngine(record.engine);
   }

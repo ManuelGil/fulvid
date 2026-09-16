@@ -13,7 +13,7 @@ import {
   findLuaCommand,
   invokeLuaExtensionCommand,
   loadLuaExtensionPack,
-  resetLuaCommandStoreForTests,
+  resetLuaCommandStore,
 } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 
 import {
@@ -67,7 +67,7 @@ afterEach(() => {
   setLuaExecutionBudgetForTests(null);
   setLuaMemoryBudgetForTests(null);
   resetExtensionDiscoveryForTests();
-  resetLuaCommandStoreForTests();
+  resetLuaCommandStore();
   resetLuaFactoryForTests();
 });
 
@@ -269,7 +269,7 @@ commands.register({ id = "b", title = "B", run = function() ui.notify("b") end }
     });
 
     resetExtensionDiscoveryForTests();
-    resetLuaCommandStoreForTests();
+    resetLuaCommandStore();
     resetLuaFactoryForTests();
     setLuaMemoryBudgetForTests(256 * 1024);
     setLuaExecutionBudgetForTests(5_000);

@@ -802,7 +802,6 @@ export default {
   },
   facts: {
     documents: "Documentos",
-    references: "Referencias",
     words: "Palabras",
     tags: "Etiquetas",
     summary: "Resumen",
@@ -810,10 +809,6 @@ export default {
     outboundReferences: "Enlaces salientes",
     inboundReferences: "Enlaces entrantes",
     reachability: "Cercanos",
-    noReferences: "Sin enlaces",
-    incomplete: "{count} incompletos",
-    outbound: "{count} salientes",
-    inbound: "{count} entrantes",
   },
   context: {
     oneDocument: "1 documento",

@@ -46,7 +46,7 @@ Graph consumes Focus. It does not follow the editor tab. It does not decide Focu
 
 The Filesystem owner handles read, write, create, rename, and delete. The renderer reaches disk only through that RPC.
 
-Folder targets are `rootPath` + `relativePath`, checked by `assertWithinWorkspace`, written with temp+rename, with mtime conflict detection before the replace. Open File and Save As are main-process dialogs. There is no generic absolute-path RPC. A grant issued at dialog time is required for later standalone saves.
+Folder targets are `rootPath` + `relativePath`, checked first by lexical `assertWithinWorkspace` and then by `assertCanonicallyContained` (symlink/realpath), written with temp+rename, with mtime conflict detection before the replace. Open File and Save As are main-process dialogs. There is no generic absolute-path RPC. A grant issued at dialog time is required for later standalone saves.
 
 HTML Export is a separate dialog that writes `.html` only, using the Preview renderer. Containment and grants: [INVARIANTS.md](./INVARIANTS.md).
 

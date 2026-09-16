@@ -32,7 +32,7 @@ import {
   authorizeChosenWorkspaceRoot,
   authorizedDesktopPath,
   authorizedWorkspaceRoot,
-  contained,
+  containHostError,
   grantDocument,
   grantedPath,
   reauthorizeWorkspaceRoot,
@@ -66,7 +66,7 @@ async function pickNativePath(options: {
 }
 
 export const filesystemRpcHandlers = {
-  openWorkspace: contained("openWorkspace", async (params: unknown) => {
+  openWorkspace: containHostError("openWorkspace", async (params: unknown) => {
     const requestedPath = optionalString(params, "path", "");
     if (requestedPath) {
       return reauthorizeWorkspaceRoot(requestedPath);
@@ -78,7 +78,7 @@ export const filesystemRpcHandlers = {
     });
     return selectedPath ? authorizeChosenWorkspaceRoot(selectedPath) : null;
   }),
-  pickAndOpenDocument: contained("pickAndOpenDocument", async () => {
+  pickAndOpenDocument: containHostError("pickAndOpenDocument", async () => {
     const selectedPath = await pickNativePath({
       allowedFileTypes: "*.md,*.markdown,*.mdx",
       canChooseFiles: true,
@@ -93,7 +93,7 @@ export const filesystemRpcHandlers = {
       grantToken: grantDocument(snapshot.absolutePath),
     };
   }),
-  pickAndSaveDocument: contained("pickAndSaveDocument", async (params: unknown) => {
+  pickAndSaveDocument: containHostError("pickAndSaveDocument", async (params: unknown) => {
     const basename = requireBasename(params);
     const content = requireDocumentContent(params);
     const defaultExtension = requireDefaultExtension(params);
@@ -122,7 +122,7 @@ export const filesystemRpcHandlers = {
       grantToken: grantDocument(result.absolutePath),
     };
   }),
-  pickAndSaveHtmlExport: contained("pickAndSaveHtmlExport", async (params: unknown) => {
+  pickAndSaveHtmlExport: containHostError("pickAndSaveHtmlExport", async (params: unknown) => {
     const basename = requireBasename(params);
     const content = requireDocumentContent(params);
     const overwrite = optionalBoolean(params, "overwrite", false);
@@ -141,7 +141,7 @@ export const filesystemRpcHandlers = {
     }
     return { status: "saved" as const, absolutePath: result.absolutePath };
   }),
-  writeGrantedDocument: contained("writeGrantedDocument", async (params: unknown) => {
+  writeGrantedDocument: containHostError("writeGrantedDocument", async (params: unknown) => {
     const grantToken = requireGrantToken(params);
     const result = await writeGrantedDocument(
       grantedPath(grantToken),
@@ -150,7 +150,7 @@ export const filesystemRpcHandlers = {
     );
     return { ...result, grantToken };
   }),
-  grantDetachedWorkspaceDocument: contained(
+  grantDetachedWorkspaceDocument: containHostError(
     "grantDetachedWorkspaceDocument",
     async (params: unknown) => {
       const rootPath = await authorizedWorkspaceRoot(requireString(params, "rootPath"));
@@ -161,7 +161,7 @@ export const filesystemRpcHandlers = {
       return { ...result, grantToken: grantDocument(result.absolutePath) };
     },
   ),
-  scanWorkspace: contained("scanWorkspace", async (params: unknown) => {
+  scanWorkspace: containHostError("scanWorkspace", async (params: unknown) => {
     const rootPath = await authorizedWorkspaceRoot(requireString(params, "path"));
     const scan = await scanWorkspaceOnDisk(rootPath, {
       includeHidden: optionalBoolean(params, "includeHidden", false),
@@ -174,28 +174,28 @@ export const filesystemRpcHandlers = {
       skipped: scan.skipped,
     };
   }),
-  listDirectory: contained("listDirectory", async (params: unknown) =>
+  listDirectory: containHostError("listDirectory", async (params: unknown) =>
     listWorkspaceEntries(
       await authorizedWorkspaceRoot(requireString(params, "rootPath")),
       optionalString(params, "relativePath", ""),
       { includeHidden: optionalBoolean(params, "includeHidden", false) },
     ),
   ),
-  revealInExplorer: contained("revealInExplorer", async (params: unknown) => {
+  revealInExplorer: containHostError("revealInExplorer", async (params: unknown) => {
     Utils.showItemInFolder(await authorizedDesktopPath(requireString(params, "path")));
     return true;
   }),
-  copyPath: contained("copyPath", async (params: unknown) => {
+  copyPath: containHostError("copyPath", async (params: unknown) => {
     Utils.clipboardWriteText(await authorizedDesktopPath(requireString(params, "path")));
     return true;
   }),
-  readDocument: contained("readDocument", async (params: unknown) =>
+  readDocument: containHostError("readDocument", async (params: unknown) =>
     readDocumentOnDisk(
       await authorizedWorkspaceRoot(requireString(params, "rootPath")),
       requireString(params, "relativePath"),
     ),
   ),
-  writeDocument: contained("writeDocument", async (params: unknown) =>
+  writeDocument: containHostError("writeDocument", async (params: unknown) =>
     writeDocumentOnDisk(
       await authorizedWorkspaceRoot(requireString(params, "rootPath")),
       requireString(params, "relativePath"),
@@ -204,7 +204,7 @@ export const filesystemRpcHandlers = {
       requireLinkMode(params),
     ),
   ),
-  createDocument: contained("createDocument", async (params: unknown) =>
+  createDocument: containHostError("createDocument", async (params: unknown) =>
     createDocumentOnDisk(
       await authorizedWorkspaceRoot(requireString(params, "rootPath")),
       requireString(params, "relativePath"),
@@ -212,7 +212,7 @@ export const filesystemRpcHandlers = {
       requireLinkMode(params),
     ),
   ),
-  renameDocument: contained("renameDocument", async (params: unknown) =>
+  renameDocument: containHostError("renameDocument", async (params: unknown) =>
     renameDocumentOnDisk(
       await authorizedWorkspaceRoot(requireString(params, "rootPath")),
       requireString(params, "relativePath"),
@@ -221,7 +221,7 @@ export const filesystemRpcHandlers = {
       requireLinkMode(params),
     ),
   ),
-  deleteDocument: contained("deleteDocument", async (params: unknown) =>
+  deleteDocument: containHostError("deleteDocument", async (params: unknown) =>
     deleteDocumentOnDisk(
       await authorizedWorkspaceRoot(requireString(params, "rootPath")),
       requireString(params, "relativePath"),

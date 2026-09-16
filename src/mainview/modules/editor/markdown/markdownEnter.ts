@@ -30,10 +30,6 @@ export type MarkdownEnterAction =
 const FENCE_LINE_RE = /^\s{0,3}(`{3,}|~{3,})/;
 const OPENING_FENCE_RE = /^(\s{0,3})(`{3,}|~{3,})\s*[A-Za-z0-9_+#/-]*\s*$/;
 const LIST_RE = /^(\s*)([-+*]|\d+[.)])([ \t]+)(?:(\[[ xX]\])([ \t]+))?(.*)$/;
-
-export function isMarkdownListLine(line: string): boolean {
-  return LIST_RE.test(line);
-}
 const QUOTE_RE = /^(\s*)(>+)([ \t]*)(.*)$/;
 const TABLE_SEPARATOR_CELL = /^\s*:?-{3,}:?\s*$/;
 

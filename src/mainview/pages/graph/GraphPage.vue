@@ -33,7 +33,9 @@ import { unresolvedDocumentLinks } from "../../modules/document/links/linkSemant
 import { graphActiveTarget } from "../../modules/graph/active-document/graphActiveDocument";
 import { workspace } from "../../app/workspaceState";
 import { isTypingTarget } from "../../app/isTypingTarget";
+import { notify } from "../../app/notify";
 import { APP_ROUTE_NAMES } from "../../app/router";
+import { notifyFilesystemError } from "../../modules/workspace/filesystem/workspaceScanner";
 
 type GraphDepth = (typeof GRAPH_DEPTH_STEPS)[number];
 
@@ -192,9 +194,8 @@ watch(
 );
 
 function bufferForGraphNode(nodePath: string) {
-  return (
-    openBuffers.value.find((buffer) => buffer.id === nodePath || buffer.path === nodePath) ?? null
-  );
+  // Graph nodes are folder-relative paths; buffer ids are file:/untitled: identities.
+  return openBuffers.value.find((buffer) => buffer.path === nodePath) ?? null;
 }
 
 function openGraphDocument(path: string, explain = false): void {
@@ -222,8 +223,9 @@ function openGraphDocument(path: string, explain = false): void {
         }
       });
     })
-    .catch(() => {
-      // The document context panel remains usable if opening fails.
+    .catch((error) => {
+      // Same visible failure path as Search / Quick Open / Inspector - not a silent no-op.
+      notifyFilesystemError(error, "workspace.openDocumentError", notify);
     });
 }
 

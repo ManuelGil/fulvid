@@ -791,7 +791,6 @@ export default {
   },
   facts: {
     documents: "Documents",
-    references: "References",
     words: "Words",
     tags: "Tags",
     summary: "Summary",
@@ -799,10 +798,6 @@ export default {
     outboundReferences: "Outgoing links",
     inboundReferences: "Incoming links",
     reachability: "Nearby",
-    noReferences: "No links",
-    incomplete: "{count} incomplete",
-    outbound: "{count} outgoing",
-    inbound: "{count} incoming",
   },
   context: {
     oneDocument: "1 document",

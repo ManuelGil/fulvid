@@ -7,7 +7,7 @@ import {
   authorizeChosenWorkspaceRoot,
   authorizedDesktopPath,
   authorizedWorkspaceRoot,
-  contained,
+  containHostError,
   grantDocument,
   grantedPath,
   reauthorizeWorkspaceRoot,
@@ -83,7 +83,7 @@ describe("workspace authority", () => {
     expect(grantedPath(overflow)).toBe(join(root, "overflow.md"));
     expect(grantedPath(tokens[1]!)).toBe(join(root, "n1.md"));
 
-    const handler = contained("readDocument", async () => {
+    const handler = containHostError("readDocument", async () => {
       throw Object.assign(new Error("ENOENT: no such file or directory, open '/home/me/secret'"), {
         code: "ENOENT",
         errno: -2,
