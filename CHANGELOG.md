@@ -9,25 +9,12 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-15
+
 ### Added
 
-- **Extensions (API v1)**: local Lua packs under `userData/extensions/` add commands through existing owners (notify, untitled, Monaco selection/document/decorations). Source-only Lua/Wasm on the Bun host; no marketplace, network, filesystem, or live Monaco authority. Packs: sibling [`fulvid-extensions`](../fulvid-extensions/). Guide: [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
-- **Extension API expansion**: Lua packs may use least-privilege `document` (`getText` / `getCursor` / `reveal` / `createUntitled`), `decorations` (set/clear with host styles or validated `appearance`), selection replace under `editor`, and generic `template.render` under `templates`. Snapshot/apply stays Bun-runtime -> renderer-apply through existing owners. No `fulvid.date` or command `prompts` - product template semantics (ADR sections, defaults, naming) live in packs.
-- **Generic `templates` capability**: `template.render(source, variables)` substitutes escaped `{{name}}` only (bounded strings). No sections/partials/lambdas, no host variable factories, no ADR/domain knowledge.
-- **Extension author contract**: [docs/EXTENSION-AUTHOR-CONTRACT.md](docs/EXTENSION-AUTHOR-CONTRACT.md) documents the public Lua + live-document lifecycle.
-
-### Changed
-
-- **Extension management**: Settings -> Extensions supports install from folder, uninstall with confirmation, and reload inventory. File -> Extensions opens that section. Install validates then copies atomically into `userData/extensions/<id>/`; uninstall unloads, deletes only that pack, and clears its allowance. No marketplace or package manager.
-- **Extension identity**: canonical pack id is `publisher.name` (e.g. `imgildev.todo-decorator`, `acme.example-extension`). Publisher `local` is reserved; persisted allowances migrate former `local.*` ids once. Compact package metadata (`displayName`, `description`, `author`, `license`, optional URLs/keywords) is validated on the manifest - not a marketplace.
-- **Extensions host surface**: removed declarative host actions (`notify`, `createUntitledFromTemplate`). Packs use `entry.lua` / `init.lua`. Seed Markdown and rich template context are pack-owned; Fulvid only interpolates when `templates` is granted.
-- **Extensions documentation**: host docs describe only the generic extension contract. Pack-specific product vocabulary is not part of Fulvid.
-- **Extension host internals**: flatter command/engine maps, guest reduction folded into the Lua engine module, thinner registry orchestration.
-- **Extension packages**: Fulvid ships no packs under `extensions/`. Curated product packs (`imgildev.adr-templates`, `imgildev.todo-decorator`, `imgildev.mdx-comments`) live only in sibling `fulvid-extensions`. Trivial `fulvid.*` API demos were removed - host tests cover host APIs.
-- **`clock.isoDate()`**: available to every Lua pack (no longer gated on `templates`), still UTC calendar day only.
-- **Extension authoring DX**: author contract covers install/reload/remove, action/command matching, capability-nil failures, and honest editing limits; manifest validation reasons include expected shapes. Fresh-author example [`acme.heading-nav`](../fulvid-extensions/tests/extensions/acme.heading-nav/) (under `tests/extensions/`, not the production catalog).
-- **fulvid-extensions layout**: production packs stay under `extensions/imgildev.*`; ACME reference/litmus packs live under `tests/extensions/acme.*` so they are not mistaken for shipping product.
-- **Docs and copy**: removed finished extension audit write-ups; shortened Settings extension strings; product contract collapsed to a short record.
+- **Extensions (API v1)**: Settings -> Extensions (also File -> Extensions) installs, uninstalls, and reloads local Lua packs under `userData/extensions/`. Packs can contribute commands and, when declared, use notify, editor selection, document read/reveal/untitled, decorations, and bounded `template.render`. Source-only Lua/Wasm on the Bun host; no marketplace, network, or filesystem access. Pack id is `publisher.name` (`local` reserved). Blocked packs can be reviewed and allowed. Fulvid ships no packs in-tree; product packs live in sibling [`fulvid-extensions`](../fulvid-extensions/). Guide: [docs/EXTENSIONS.md](docs/EXTENSIONS.md). Author contract: [docs/EXTENSION-AUTHOR-CONTRACT.md](docs/EXTENSION-AUTHOR-CONTRACT.md).
+- **Quit with unsaved changes**: Quit asks for confirmation when Confirm before closing is on and dirty tabs remain (menu Quit stays a command so the guard cannot be bypassed).
 
 ## [0.8.0] - 2026-09-14
 
@@ -138,7 +125,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.9.0
 [0.8.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.8.0
 [0.7.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.7.0
 [0.6.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.6.0
