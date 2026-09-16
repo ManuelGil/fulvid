@@ -16,7 +16,7 @@ afterEach(() => {
 // Intent: an external request is intent, never privilege. Extra fields cannot
 // widen grants; malformed shapes refuse with a controlled code and queue nothing.
 describe("external open contract", () => {
-  test("accepts only the contract shape and refuses malformed input without queuing", async () => {
+  test("accepts only the contract shape, refuses malformed input, and bounds the pending queue", async () => {
     const parsed = parseExternalOpenRequest({
       kind: "file",
       path: "/notes/a.md",
@@ -55,9 +55,7 @@ describe("external open contract", () => {
 
     expect(() => enqueueExternalOpenRequest({ kind: "execute", path: "/bin/sh" })).toThrow();
     await expect(takePendingExternalOpens()).resolves.toEqual([]);
-  });
 
-  test("the pending queue is bounded, drains once, and never double-delivers", async () => {
     for (let index = 0; index < MAX_PENDING_EXTERNAL_OPENS + 20; index += 1) {
       enqueueExternalOpenRequest({ kind: "file", path: `/a${index}.md`, source: "shell" });
     }

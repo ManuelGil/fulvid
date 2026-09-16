@@ -88,6 +88,51 @@ async function writePack(
   return pack;
 }
 
+async function loadValidatedPack(pack: string) {
+  const validated = validateExtensionManifest(
+    JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
+  );
+  if (!("manifest" in validated)) {
+    throw new Error(validated.reason);
+  }
+  await loadLuaExtensionPack(pack, validated.manifest);
+}
+
+function registerEditorFixture(): void {
+  setDiscoveredExtensions({
+    loaded: [
+      {
+        id: "test.contract-lua-editor",
+        publisher: "test",
+        name: "Editor",
+        displayName: "Editor",
+        version: "0.0.0",
+        api: 1,
+        description: "Test editor extension",
+        capabilities: ["lua", "commands", "ui", "editor"],
+        location: "/tmp/test-extension",
+        state: "loaded" as const,
+        activation: "command" as const,
+        commands: [
+          {
+            id: "wrapBold",
+            namespacedId: "test.contract-lua-editor.wrapBold",
+            title: "Lua Wrap Bold",
+          },
+        ],
+      },
+    ],
+    failed: [],
+    installed: [],
+    extensionsRoot: null,
+  });
+  configureExtensionHostActions({
+    notify: () => undefined,
+    createUntitled: () => undefined,
+    invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
+  });
+}
+
 afterEach(() => {
   resetEditorExtensionSeamForTests();
   resetExtensionRegistryForTests();
@@ -96,10 +141,10 @@ afterEach(() => {
 });
 
 describe("editor capability contract", () => {
-  test("pins selection and replace boundary at 256 KiB", () => {
+  test("pins 256 KiB limits and detects stale snapshot identity", () => {
     const limit = 256 * 1024;
     expect(EDITOR_EXTENSION_LIMITS.maxSelectionChars.value).toBe(limit);
-    expect(LUA_EXTENSION_LIMITS.maxEditorSelectionChars.status).toBe("implemented");
+    expect(LUA_EXTENSION_LIMITS.maxEditorSelectionChars.value).toBe(limit);
     expect(assertEditorReplaceWithinLimit(1)).toBe("editor.replaceSelection requires a string");
     expect(assertEditorSelectionWithinLimit("x".repeat(limit))).toBeNull();
     expect(assertEditorReplaceWithinLimit("x".repeat(limit))).toBeNull();
@@ -109,9 +154,7 @@ describe("editor capability contract", () => {
     expect(assertEditorReplaceWithinLimit("x".repeat(limit + 1))).toBe(
       "editor.replaceSelection exceeds size limit",
     );
-  });
 
-  test("detects stale snapshot identity", () => {
     const snap = editorSnap("hello");
     expect(editorSnapshotIsCurrent(snap, snap)).toBe(true);
     expect(editorSnapshotIsCurrent(snap, editorSnap("hello", { alternativeVersionId: 2 }))).toBe(
@@ -126,119 +169,32 @@ describe("editor capability contract", () => {
 });
 
 describe("editor snapshot/apply through Lua", () => {
-  test("wraps selection via replaceSelection and notifies", async () => {
-    const root = await tempRoot("wrap");
+  test("wraps selection, empty selection notifies, and getSelection is a plain string", async () => {
+    const root = await tempRoot("happy");
     const pack = join(root, "test.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
-    const validated = validateExtensionManifest(
-      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-    );
-    if (!("manifest" in validated)) {
-      throw new Error(validated.reason);
-    }
-    await loadLuaExtensionPack(pack, validated.manifest);
+    await loadValidatedPack(pack);
 
-    const result = await invokeLuaExtensionCommand({
-      namespacedId: "test.contract-lua-editor.wrapBold",
-      editor: editorSnap("hello"),
-    });
-    expect(result).toEqual({
+    expect(
+      await invokeLuaExtensionCommand({
+        namespacedId: "test.contract-lua-editor.wrapBold",
+        editor: editorSnap("hello"),
+      }),
+    ).toEqual({
       ok: true,
       notifications: ["wrapped"],
       editor: { replaceSelection: "**hello**" },
     });
-  });
 
-  test("editor global is nil without editor capability", async () => {
-    const root = await tempRoot("no-editor");
-    const pack = await writePack(
-      root,
-      "test.contract-lua-noed",
-      luaManifest("test.contract-lua-noed", ["lua", "commands", "ui"], {
-        version: "0.0.0",
-        displayName: "NoEd",
+    expect(
+      await invokeLuaExtensionCommand({
+        namespacedId: "test.contract-lua-editor.wrapBold",
+        editor: editorSnap(""),
       }),
-      {
-        "entry.lua": `
-commands.register({
-  id = "ping",
-  title = "Ping",
-  run = function()
-    if editor ~= nil then error("editor leaked") end
-    ui.notify("ok")
-  end
-})
-`,
-      },
-    );
-    const validated = validateExtensionManifest(
-      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-    );
-    if (!("manifest" in validated)) {
-      throw new Error(validated.reason);
-    }
-    await loadLuaExtensionPack(pack, validated.manifest);
-    const result = await invokeLuaExtensionCommand({
-      namespacedId: "test.contract-lua-noed.ping",
-      editor: editorSnap("secret"),
-    });
-    expect(result).toEqual({ ok: false, error: "editor capability not granted" });
-
-    const allowed = await invokeLuaExtensionCommand("test.contract-lua-noed.ping");
-    expect(allowed).toEqual({ ok: true, notifications: ["ok"] });
-  });
-
-  test("rejects oversized replaceSelection from Lua", async () => {
-    const root = await tempRoot("big-replace");
-    const pack = await writePack(
-      root,
-      "test.contract-lua-bigrep",
-      luaManifest("test.contract-lua-bigrep", ["lua", "commands", "ui", "editor"], {
-        version: "0.0.0",
-        displayName: "Big",
-      }),
-      {
-        "entry.lua": `
-commands.register({
-  id = "boom",
-  title = "Boom",
-  run = function()
-    editor.replaceSelection(string.rep("y", ${LUA_EXTENSION_LIMITS.maxEditorSelectionChars.value + 1}))
-  end
-})
-`,
-      },
-    );
-    const validated = validateExtensionManifest(
-      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-    );
-    if (!("manifest" in validated)) {
-      throw new Error(validated.reason);
-    }
-    await loadLuaExtensionPack(pack, validated.manifest);
-    const result = await invokeLuaExtensionCommand({
-      namespacedId: "test.contract-lua-bigrep.boom",
-      editor: editorSnap("x"),
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toMatch(/exceeds size limit/);
-    }
-  });
-
-  test("registry applies replace through the Monaco seam owner", async () => {
-    const root = await tempRoot("seam");
-    const pack = join(root, "test.contract-lua-editor");
-    await cp(EDITOR_FIXTURE, pack, { recursive: true });
-    const validated = validateExtensionManifest(
-      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-    );
-    if (!("manifest" in validated)) {
-      throw new Error(validated.reason);
-    }
-    await loadLuaExtensionPack(pack, validated.manifest);
+    ).toEqual({ ok: true, notifications: ["no selection"] });
 
     const applied: string[] = [];
+    const notifications: string[] = [];
     const snap = editorSnap("world");
     stubSeam({
       getApplyContext: () => snap,
@@ -247,184 +203,17 @@ commands.register({
         return true;
       },
     });
-
-    setDiscoveredExtensions({
-      loaded: [
-        {
-          id: "test.contract-lua-editor",
-          publisher: "test",
-          name: "Editor",
-          displayName: "Editor",
-          version: "0.0.0",
-          api: 1,
-          description: "Test editor extension",
-          capabilities: ["lua", "commands", "ui", "editor"],
-          location: "/tmp/test-extension",
-          state: "loaded" as const,
-          activation: "command" as const,
-          commands: [
-            {
-              id: "wrapBold",
-              namespacedId: "test.contract-lua-editor.wrapBold",
-              title: "Lua Wrap Bold",
-            },
-          ],
-        },
-      ],
-      failed: [],
-      installed: [],
-      extensionsRoot: null,
-    });
-
-    const notifications: string[] = [];
+    registerEditorFixture();
     configureExtensionHostActions({
       notify: (message) => notifications.push(message),
       createUntitled: () => undefined,
       invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
     });
-
     expect(await runExtensionCommand("test.contract-lua-editor.wrapBold")).toBe(true);
     expect(applied).toEqual(["**world**"]);
     expect(notifications).toEqual(["wrapped"]);
-  });
 
-  test("rejects stale editor apply when document or selection stamps change", async () => {
-    const root = await tempRoot("stale");
-    const pack = join(root, "test.contract-lua-editor");
-    await cp(EDITOR_FIXTURE, pack, { recursive: true });
-    const validated = validateExtensionManifest(
-      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-    );
-    if (!("manifest" in validated)) {
-      throw new Error(validated.reason);
-    }
-    await loadLuaExtensionPack(pack, validated.manifest);
-
-    let calls = 0;
-    stubSeam({
-      getApplyContext: () => {
-        calls += 1;
-        if (calls === 1) {
-          return editorSnap("world", { alternativeVersionId: 1 });
-        }
-        return editorSnap("world", { alternativeVersionId: 2 });
-      },
-    });
-
-    setDiscoveredExtensions({
-      loaded: [
-        {
-          id: "test.contract-lua-editor",
-          publisher: "test",
-          name: "Editor",
-          displayName: "Editor",
-          version: "0.0.0",
-          api: 1,
-          description: "Test editor extension",
-          capabilities: ["lua", "commands", "ui", "editor"],
-          location: "/tmp/test-extension",
-          state: "loaded" as const,
-          activation: "command" as const,
-          commands: [
-            {
-              id: "wrapBold",
-              namespacedId: "test.contract-lua-editor.wrapBold",
-              title: "Lua Wrap Bold",
-            },
-          ],
-        },
-      ],
-      failed: [],
-      installed: [],
-      extensionsRoot: null,
-    });
-    configureExtensionHostActions({
-      notify: () => undefined,
-      createUntitled: () => undefined,
-      invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
-    });
-
-    await expect(runExtensionCommand("test.contract-lua-editor.wrapBold")).rejects.toThrow(
-      /document or selection changed/i,
-    );
-  });
-
-  test("replace without active editor fails closed", async () => {
-    const root = await tempRoot("no-monaco");
-    const pack = join(root, "test.contract-lua-editor");
-    await cp(EDITOR_FIXTURE, pack, { recursive: true });
-    const validated = validateExtensionManifest(
-      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-    );
-    if (!("manifest" in validated)) {
-      throw new Error(validated.reason);
-    }
-    await loadLuaExtensionPack(pack, validated.manifest);
-
-    stubSeam({
-      getApplyContext: () => null,
-      replaceSelection: () => false,
-      hasActiveEditor: () => false,
-    });
-    setDiscoveredExtensions({
-      loaded: [
-        {
-          id: "test.contract-lua-editor",
-          publisher: "test",
-          name: "Editor",
-          displayName: "Editor",
-          version: "0.0.0",
-          api: 1,
-          description: "Test editor extension",
-          capabilities: ["lua", "commands", "ui", "editor"],
-          location: "/tmp/test-extension",
-          state: "loaded" as const,
-          activation: "command" as const,
-          commands: [
-            {
-              id: "wrapBold",
-              namespacedId: "test.contract-lua-editor.wrapBold",
-              title: "Lua Wrap Bold",
-            },
-          ],
-        },
-      ],
-      failed: [],
-      installed: [],
-      extensionsRoot: null,
-    });
-    configureExtensionHostActions({
-      notify: () => undefined,
-      createUntitled: () => undefined,
-      invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
-    });
-
-    await expect(runExtensionCommand("test.contract-lua-editor.wrapBold")).rejects.toThrow(
-      /Open a document in the editor first/i,
-    );
-  });
-
-  test("empty selection notifies without mutating", async () => {
-    const root = await tempRoot("empty");
-    const pack = join(root, "test.contract-lua-editor");
-    await cp(EDITOR_FIXTURE, pack, { recursive: true });
-    const validated = validateExtensionManifest(
-      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-    );
-    if (!("manifest" in validated)) {
-      throw new Error(validated.reason);
-    }
-    await loadLuaExtensionPack(pack, validated.manifest);
-    const result = await invokeLuaExtensionCommand({
-      namespacedId: "test.contract-lua-editor.wrapBold",
-      editor: editorSnap(""),
-    });
-    expect(result).toEqual({ ok: true, notifications: ["no selection"] });
-  });
-
-  test("getSelection returns a plain string with no Monaco/host surface", async () => {
-    const root = await tempRoot("plain");
-    const pack = await writePack(
+    const plain = await writePack(
       root,
       "test.contract-lua-plain",
       luaManifest("test.contract-lua-plain", ["lua", "commands", "ui", "editor"], {
@@ -452,71 +241,115 @@ commands.register({
 `,
       },
     );
-    const validated = validateExtensionManifest(
-      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-    );
-    if (!("manifest" in validated)) {
-      throw new Error(validated.reason);
-    }
-    await loadLuaExtensionPack(pack, validated.manifest);
-    const result = await invokeLuaExtensionCommand({
-      namespacedId: "test.contract-lua-plain.probe",
-      editor: editorSnap("plain-data"),
-    });
-    expect(result).toEqual({ ok: true, notifications: ["plain-data"] });
+    await loadValidatedPack(plain);
+    expect(
+      await invokeLuaExtensionCommand({
+        namespacedId: "test.contract-lua-plain.probe",
+        editor: editorSnap("plain-data"),
+      }),
+    ).toEqual({ ok: true, notifications: ["plain-data"] });
   });
 
-  test("registry rejects oversized selection snapshots before invoke", async () => {
-    const root = await tempRoot("big-sel");
+  test("stale apply, no editor, oversized, and capability denial fail closed", async () => {
+    const root = await tempRoot("fail");
     const pack = join(root, "test.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
-    const validated = validateExtensionManifest(
-      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
+    await loadValidatedPack(pack);
+
+    let calls = 0;
+    stubSeam({
+      getApplyContext: () => {
+        calls += 1;
+        if (calls === 1) {
+          return editorSnap("world", { alternativeVersionId: 1 });
+        }
+        return editorSnap("world", { alternativeVersionId: 2 });
+      },
+    });
+    registerEditorFixture();
+    await expect(runExtensionCommand("test.contract-lua-editor.wrapBold")).rejects.toThrow(
+      /document or selection changed/i,
     );
-    if (!("manifest" in validated)) {
-      throw new Error(validated.reason);
-    }
-    await loadLuaExtensionPack(pack, validated.manifest);
+
+    stubSeam({
+      getApplyContext: () => null,
+      replaceSelection: () => false,
+      hasActiveEditor: () => false,
+    });
+    registerEditorFixture();
+    await expect(runExtensionCommand("test.contract-lua-editor.wrapBold")).rejects.toThrow(
+      /Open a document in the editor first/i,
+    );
 
     const oversized = "z".repeat(EDITOR_EXTENSION_LIMITS.maxSelectionChars.value + 1);
     stubSeam({
       getApplyContext: () => editorSnap(oversized),
     });
-    setDiscoveredExtensions({
-      loaded: [
-        {
-          id: "test.contract-lua-editor",
-          publisher: "test",
-          name: "Editor",
-          displayName: "Editor",
-          version: "0.0.0",
-          api: 1,
-          description: "Test editor extension",
-          capabilities: ["lua", "commands", "ui", "editor"],
-          location: "/tmp/test-extension",
-          state: "loaded" as const,
-          activation: "command" as const,
-          commands: [
-            {
-              id: "wrapBold",
-              namespacedId: "test.contract-lua-editor.wrapBold",
-              title: "Lua Wrap Bold",
-            },
-          ],
-        },
-      ],
-      failed: [],
-      installed: [],
-      extensionsRoot: null,
-    });
-    configureExtensionHostActions({
-      notify: () => undefined,
-      createUntitled: () => undefined,
-      invokeLuaCommand: (request) => invokeLuaExtensionCommand(request),
-    });
-
+    registerEditorFixture();
     await expect(runExtensionCommand("test.contract-lua-editor.wrapBold")).rejects.toThrow(
       /too large|size limit/i,
     );
+
+    const big = await writePack(
+      root,
+      "test.contract-lua-bigrep",
+      luaManifest("test.contract-lua-bigrep", ["lua", "commands", "ui", "editor"], {
+        version: "0.0.0",
+        displayName: "Big",
+      }),
+      {
+        "entry.lua": `
+commands.register({
+  id = "boom",
+  title = "Boom",
+  run = function()
+    editor.replaceSelection(string.rep("y", ${LUA_EXTENSION_LIMITS.maxEditorSelectionChars.value + 1}))
+  end
+})
+`,
+      },
+    );
+    await loadValidatedPack(big);
+    const bigResult = await invokeLuaExtensionCommand({
+      namespacedId: "test.contract-lua-bigrep.boom",
+      editor: editorSnap("x"),
+    });
+    expect(bigResult.ok).toBe(false);
+    if (!bigResult.ok) {
+      expect(bigResult.error).toMatch(/exceeds size limit/);
+    }
+
+    // Capability denial covered in adversarial; keep nil-without-cap smoke for editor surface.
+    const noed = await writePack(
+      root,
+      "test.contract-lua-noed",
+      luaManifest("test.contract-lua-noed", ["lua", "commands", "ui"], {
+        version: "0.0.0",
+        displayName: "NoEd",
+      }),
+      {
+        "entry.lua": `
+commands.register({
+  id = "ping",
+  title = "Ping",
+  run = function()
+    if editor ~= nil then error("editor leaked") end
+    ui.notify("ok")
+  end
+})
+`,
+      },
+    );
+    await loadValidatedPack(noed);
+    expect(
+      await invokeLuaExtensionCommand({
+        namespacedId: "test.contract-lua-noed.ping",
+        editor: editorSnap("secret"),
+      }),
+    ).toEqual({ ok: false, error: "editor capability not granted" });
+    expect(await invokeLuaExtensionCommand("test.contract-lua-noed.ping")).toEqual({
+      ok: true,
+      notifications: ["ok"],
+    });
   });
 });

@@ -98,6 +98,20 @@ Write a unit test when the property is deterministic, lives in one module, and i
 
 Use integration when the behavior crosses modules, the filesystem, document lifecycle, or the RPC trust boundary. `documentLifecycle.smoke.test.ts` is the reference for a real editing loop. Graph canvas behavior is smoke or manual.
 
+### Cross-platform contract
+
+Fulvid supports Linux, Windows, and macOS. Tests protect the product contract, not accidental properties of the machine that wrote them.
+
+| Do | Do not |
+| --- | --- |
+| Use `os.tmpdir()` and `tests/support/platform.linkDirectory` | Hardcode `/tmp`, `/home/...`, or Unix-only `symlink` for directory escape cases |
+| Assert containment / refuse-don't-fix for Windows-looking paths (`C:\\…`, `C:foo`, `..\\`) even on Linux CI | Assume `/` is the only separator, or that drive letters are "absolute" via Node `isAbsolute` alone |
+| Treat `Ctrl` (Windows/Linux) and `Cmd` (macOS) as distinct modifiers; Full Screen is `F11` vs `Ctrl+Cmd+F` | Equate Ctrl with Cmd in shortcut or binding tests |
+| Keep EOL/encoding asserts model-owned (LF/CRLF explicit) | Assume OS default EOL, locale, or timezone |
+| Skip or inject faults when POSIX `chmod` denial is unavailable (`posixModeBitsDenyAccess`) | Pretend Windows applies Unix mode bits |
+
+`bun run validate` runs the same unit + integration suite on Linux, Windows, and macOS (`validate.yml`). Compatibility workflows package and smoke per OS; they do not replay the full containment suite as a red team. DialogHost keyboard focus trapping, native menus, and fullscreen hit-testing still need a display - they are not proven by unit tests alone.
+
 Put a bug regression at the level where it happens. If TypeScript already makes a state impossible, do not assert that in a unit test.
 
 Before a pull request, run `bun run validate`. When changing lifecycle, Graph, or packaging, also run `bun run smoke` on a machine with a display.

@@ -85,7 +85,12 @@ function requireSafeBasename(value: string): string {
   if (typeof value !== "string") {
     throw new WorkspaceBoundaryError("unsafeName");
   }
-  const basenameValue = value.trim();
+  // Refuse padded names rather than trim: Windows strips trailing dots/spaces and
+  // would retarget the write to a different path.
+  if (value !== value.trim()) {
+    throw new WorkspaceBoundaryError("unsafeName");
+  }
+  const basenameValue = value;
   if (
     !basenameValue ||
     basenameValue.length > 255 ||
@@ -96,7 +101,6 @@ function requireSafeBasename(value: string): string {
     basenameValue.includes("\0") ||
     basenameValue.includes("..") ||
     hasControlCharacters(basenameValue) ||
-    // Windows trims these silently, which would retarget the write.
     /[.\s]$/.test(basenameValue) ||
     /^[A-Za-z]:/.test(basenameValue) ||
     isAbsolute(basenameValue)

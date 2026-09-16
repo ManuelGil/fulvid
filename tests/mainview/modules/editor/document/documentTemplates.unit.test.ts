@@ -11,7 +11,7 @@ import { renderMarkdownPreview } from "../../../../../src/mainview/modules/edito
 // Intent: one built-in README seed - title rules and inert interpolation.
 // Growth boundary: do not add per-section body assertions.
 describe("document templates", () => {
-  test("README seed interpolates title with README fallback and stays substantial Markdown", () => {
+  test("README seed interpolates titles and keeps hostile names inert through Preview", () => {
     const blank = "";
     const withTitle = renderDocumentTemplate("readme", { title: "Docs" });
     const emptyTitle = renderDocumentTemplate("readme", { title: "   " });
@@ -31,9 +31,7 @@ describe("document templates", () => {
     expect(documentTemplateTitleFromParentPath("Projects/Fulvid", "Workspace")).toBe("Fulvid");
     expect(documentTemplateTitleFromParentPath("", "Workspace")).toBe("Workspace");
     expect(documentTemplateTitleFromParentPath("", null)).toBe(DEFAULT_README_TITLE);
-  });
 
-  test("hostile folder names stay inert through Mustache and Preview", () => {
     const hostile = `<script>alert(1)</script>`;
     const markdown = renderDocumentTemplate("readme", { title: hostile });
     expect(markdown).not.toContain("<script>");

@@ -46,9 +46,8 @@ function applyPlan(
 }
 
 // Intent: rename keeps resolvable inbound DocumentLinks continuous.
-// Growth boundary: one case per independent rewrite rule, not per syntax quirk.
 describe("document path rename", () => {
-  test("rewrites markdown references with relative paths, fragments, and unrelated links untouched", () => {
+  test("rewrites markdown and wikilink references, preferring live buffers", () => {
     expect(
       planDocumentPathRename({
         oldPath: "a.md",
@@ -92,9 +91,7 @@ describe("document path rename", () => {
       ].join("\n"),
     );
     expect(next.get("docs/design.md")).toBe("# Architecture\n");
-  });
 
-  test("rewrites wikilink path and stem targets while preserving labels and fragments", () => {
     const pathTarget = note("docs/architecture.md", "# Architecture\n\n## Overview\n");
     const pathSource = note(
       "notes/guide.md",
@@ -133,30 +130,28 @@ describe("document path rename", () => {
         stemPlan,
       ).get("guide.md"),
     ).toBe("See [[./design.md]].\n");
-  });
 
-  test("prefers live buffer content over stale scanned note text", () => {
-    const target = note("a.md", "# A\n");
+    const liveTarget = note("a.md", "# A\n");
     const scanned = note("b.md", "old\n");
     const live = "See [A](./a.md).\n";
-    const plan = planDocumentPathRename({
+    const livePlan = planDocumentPathRename({
       oldPath: "a.md",
       newPath: "alpha.md",
-      notes: [target, scanned],
+      notes: [liveTarget, scanned],
       linkMode: "markdown",
       contentByPath: new Map([
-        ["a.md", target.content!],
+        ["a.md", liveTarget.content!],
         ["b.md", live],
       ]),
     });
-    expect(plan.edits).toHaveLength(1);
-    expect(plan.edits[0]?.previous).toBe("./a.md");
-    expect(applyTextEdits(live, plan.edits)).toBe("See [A](./alpha.md).\n");
+    expect(livePlan.edits).toHaveLength(1);
+    expect(livePlan.edits[0]?.previous).toBe("./a.md");
+    expect(applyTextEdits(live, livePlan.edits)).toBe("See [A](./alpha.md).\n");
 
     // Prefix insertion shifts offsets - planned previous no longer sits at start/end.
     const drifted = `x${live}`;
-    expect(drifted.slice(plan.edits[0]!.start, plan.edits[0]!.end)).not.toBe(
-      plan.edits[0]!.previous,
+    expect(drifted.slice(livePlan.edits[0]!.start, livePlan.edits[0]!.end)).not.toBe(
+      livePlan.edits[0]!.previous,
     );
   });
 });

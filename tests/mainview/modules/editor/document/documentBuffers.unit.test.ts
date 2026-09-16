@@ -191,10 +191,10 @@ afterEach(() => {
   patchSettings({ editor: { ...settings.value.editor, defaultEol: "lf" } });
 });
 
-// Intent: protect model identity, disposal, virtual documents, and dirty-version semantics.
-// Growth boundary: add cases only for new lifecycle transitions or races.
+// Intent: protect model identity, disposal, virtual documents, Focus pairing,
+// dirty-version semantics, and cross-platform EOL.
 describe("document buffers", () => {
-  test("reuses open models and disposes them during rapid open/close", async () => {
+  test("reuses models, pairs Focus via selectDocument, and tracks dirty virtual tabs", async () => {
     const first = await openDocument("/workspace", "one.md");
     const sameFirst = await openDocument("/workspace", "one.md");
     const second = await openDocument("/workspace", "two.md");
@@ -212,11 +212,8 @@ describe("document buffers", () => {
     expect(closeDocument("/workspace", "two.md", true)).toBe(true);
     expect((second.model as unknown as FakeModel).disposed).toBe(true);
     expect(openBuffers.value).toHaveLength(0);
-  });
 
-  test("activates a virtual document without Focus", () => {
     const untitled = createUntitledDocument();
-
     expect(untitled.id.startsWith("untitled:")).toBe(true);
     expect((untitled.model as unknown as FakeModel).language).toBe("mdx");
     expect(untitled.rootPath).toBeNull();
@@ -227,50 +224,43 @@ describe("document buffers", () => {
     expect(fromTemplate.model.getValue()).toBe("# Note\n\n");
     expect(isDocumentDirty(fromTemplate)).toBe(true);
     expect(fromTemplate.kind).toBe("virtual");
-  });
 
-  // Intent: selectDocument is the only UI seam that pairs session activeId with Focus.
-  test("selectDocument pairs folder Focus and clears it for virtual tabs", async () => {
     bindFocusToWorkspace("/workspace");
-
-    const first = await openDocument("/workspace", "one.md");
-    expect(activeId.value).toBe(first.id);
+    const folderFirst = await openDocument("/workspace", "one.md");
+    expect(activeId.value).toBe(folderFirst.id);
     expect(currentFocus.value).toEqual({ path: "one.md", workspacePath: "/workspace" });
 
-    const second = await openDocument("/workspace", "two.md");
+    const folderSecond = await openDocument("/workspace", "two.md");
     expect(currentFocus.value).toEqual({ path: "two.md", workspacePath: "/workspace" });
 
-    const untitled = createUntitledDocument();
-    expect(activeId.value).toBe(untitled.id);
+    const virtual = createUntitledDocument();
+    expect(activeId.value).toBe(virtual.id);
     expect(currentFocus.value).toBeNull();
 
-    expect(selectDocument(first.id)).toBe(true);
-    expect(activeId.value).toBe(first.id);
+    expect(selectDocument(folderFirst.id)).toBe(true);
+    expect(activeId.value).toBe(folderFirst.id);
     expect(currentFocus.value).toEqual({ path: "one.md", workspacePath: "/workspace" });
 
-    expect(selectDocument(second.id)).toBe(true);
+    expect(selectDocument(folderSecond.id)).toBe(true);
     expect(currentFocus.value).toEqual({ path: "two.md", workspacePath: "/workspace" });
-  });
 
-  test("dirty state tracks failed saves and versions that were never written", async () => {
-    const buffer = await openDocument("/workspace", "one.md");
-    buffer.model.setValue("# edited");
-    expect(isDocumentDirty(buffer)).toBe(true);
+    folderSecond.model.setValue("# edited");
+    expect(isDocumentDirty(folderSecond)).toBe(true);
 
     writeHook = () => {
       throw new Error("fulvid.fs:operationFailed");
     };
-    await expect(saveDocument(buffer)).rejects.toThrow("operationFailed");
-    expect(isDocumentDirty(buffer)).toBe(true);
-    expect(buffer.model.getValue()).toBe("# edited");
+    await expect(saveDocument(folderSecond)).rejects.toThrow("operationFailed");
+    expect(isDocumentDirty(folderSecond)).toBe(true);
+    expect(folderSecond.model.getValue()).toBe("# edited");
 
     writeHook = () => {
-      buffer.model.setValue("# second");
+      folderSecond.model.setValue("# second");
     };
-    buffer.model.setValue("# first");
-    await saveDocument(buffer);
-    expect(isDocumentDirty(buffer)).toBe(true);
-    expect(buffer.model.getValue()).toBe("# second");
+    folderSecond.model.setValue("# first");
+    await saveDocument(folderSecond);
+    expect(isDocumentDirty(folderSecond)).toBe(true);
+    expect(folderSecond.model.getValue()).toBe("# second");
   });
 
   test("document EOL follows the model, not the operating system, and writes only on save", async () => {

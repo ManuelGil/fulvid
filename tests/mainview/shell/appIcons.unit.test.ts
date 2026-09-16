@@ -9,14 +9,12 @@ import {
 
 /** Closed icon vocabulary - not extension-surface coverage. */
 describe("application icons", () => {
-  test("rejects arbitrary application icon identifiers", () => {
+  test("keeps command icons inside a closed vocabulary and rejects arbitrary ids", () => {
     expect(resolveAppIconName("focus")).toBe("focus");
     expect(resolveAppIconName("missing-icon")).toBeNull();
     expect(resolveAppIconName("<svg/onload=1>")).toBeNull();
     expect(resolveAppIconName("javascript:alert(1)")).toBeNull();
-  });
 
-  test("keeps command icons inside the closed AppIcon vocabulary", () => {
     for (const icon of COMMAND_ICONS) {
       expect(isCommandIcon(icon)).toBe(true);
       expect(resolveAppIconName(icon)).toBe(icon);

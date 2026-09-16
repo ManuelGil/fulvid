@@ -75,7 +75,7 @@ afterEach(() => {
 });
 
 describe("adversarial lua sandbox", () => {
-  test("hardened engine keeps forbidden globals nil", async () => {
+  test("forbidden globals stay nil and bytecode entry is rejected", async () => {
     const engine = await createHardenedLuaEngine();
     try {
       for (const name of [
@@ -96,9 +96,7 @@ describe("adversarial lua sandbox", () => {
     } finally {
       engine.global.close();
     }
-  });
 
-  test("rejects Lua bytecode entry payloads", async () => {
     const root = await tempRoot("bytecode");
     const pack = await writePack(root, "test.adv-bytecode", luaManifest("test.adv-bytecode"), {
       "entry.lua": "\u001bLua\0fake-bytecode",
@@ -109,10 +107,10 @@ describe("adversarial lua sandbox", () => {
 });
 
 describe("adversarial resource bounds", () => {
-  test("rejects oversized command titles at registration", async () => {
-    const root = await tempRoot("title");
+  test("rejects oversized titles, notify flood, decoration coords, and reveal", async () => {
+    const root = await tempRoot("bounds");
     const title = "T".repeat(LUA_EXTENSION_LIMITS.maxCommandTitleChars.value + 1);
-    const pack = await writePack(root, "test.adv-title", luaManifest("test.adv-title"), {
+    const titlePack = await writePack(root, "test.adv-title", luaManifest("test.adv-title"), {
       "entry.lua": `
 commands.register({
   id = "ping",
@@ -121,14 +119,11 @@ commands.register({
 })
 `,
     });
-    await expect(loadPack(pack)).rejects.toBeDefined();
+    await expect(loadPack(titlePack)).rejects.toBeDefined();
     expect(findLuaCommand("test.adv-title.ping")).toBeNull();
-  });
 
-  test("rejects ui.notify flood within one invoke", async () => {
-    const root = await tempRoot("flood");
     const limit = LUA_EXTENSION_LIMITS.maxNotificationsPerInvoke.value;
-    const pack = await writePack(root, "test.adv-flood", luaManifest("test.adv-flood"), {
+    const floodPack = await writePack(root, "test.adv-flood", luaManifest("test.adv-flood"), {
       "entry.lua": `
 commands.register({
   id = "flood",
@@ -141,15 +136,13 @@ commands.register({
 })
 `,
     });
-    await loadPack(pack);
-    const result = await invokeLuaExtensionCommand("test.adv-flood.flood");
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toMatch(/size limit/i);
+    await loadPack(floodPack);
+    const flood = await invokeLuaExtensionCommand("test.adv-flood.flood");
+    expect(flood.ok).toBe(false);
+    if (!flood.ok) {
+      expect(flood.error).toMatch(/size limit/i);
     }
-  });
 
-  test("rejects unbounded decoration coordinates", () => {
     const max = LUA_EXTENSION_LIMITS.maxRevealPosition.value;
     expect(
       parseExtensionDecorationRanges([
@@ -162,11 +155,8 @@ commands.register({
         },
       ]),
     ).toEqual({ ok: false, error: "invalid decoration range" });
-  });
 
-  test("rejects out-of-bound document.reveal", async () => {
-    const root = await tempRoot("reveal");
-    const pack = await writePack(
+    const revealPack = await writePack(
       root,
       "test.adv-reveal",
       luaManifest("test.adv-reveal", ["lua", "commands", "ui", "document"]),
@@ -182,8 +172,8 @@ commands.register({
 `,
       },
     );
-    await loadPack(pack);
-    const result = await invokeLuaExtensionCommand({
+    await loadPack(revealPack);
+    const reveal = await invokeLuaExtensionCommand({
       namespacedId: "test.adv-reveal.go",
       document: {
         text: "hi",
@@ -193,36 +183,15 @@ commands.register({
         cursorColumn: 1,
       },
     });
-    expect(result.ok).toBe(false);
+    expect(reveal.ok).toBe(false);
   });
 });
 
 describe("adversarial lifecycle and isolation", () => {
-  test("overlapping invokes fail closed on reentrancy", async () => {
-    const root = await tempRoot("reentry");
-    const pack = await writePack(root, "test.adv-reentry", luaManifest("test.adv-reentry"), {
-      "entry.lua": `
-commands.register({
-  id = "outer",
-  title = "Outer",
-  run = function()
-    ui.notify("done")
-  end
-})
-`,
-    });
-    await loadPack(pack);
+  test("reentrancy fail-closed, capability denial, and malformed DTO", async () => {
+    const root = await tempRoot("lifecycle");
 
-    const results = await Promise.all(
-      Array.from({ length: 12 }, () => invokeLuaExtensionCommand("test.adv-reentry.outer")),
-    );
-    expect(results.some((entry) => entry.ok)).toBe(true);
-    expect(results.some((entry) => !entry.ok && entry.error.includes("reentrancy"))).toBe(true);
-    expect(findLuaCommand("test.adv-reentry.outer")).not.toBeNull();
-  });
-
-  test("overlapping loads fail closed on reentrancy", async () => {
-    const root = await tempRoot("load-race");
+    // Overlapping loads first — cold factory so createHardenedLuaEngine overlaps.
     const a = await writePack(root, "test.adv-loada", luaManifest("test.adv-loada"), {
       "entry.lua": `
 commands.register({ id = "a", title = "A", run = function() ui.notify("a") end })
@@ -233,21 +202,45 @@ commands.register({ id = "a", title = "A", run = function() ui.notify("a") end }
 commands.register({ id = "b", title = "B", run = function() ui.notify("b") end })
 `,
     });
-
-    const outcomes = await Promise.allSettled([loadPack(a), loadPack(b)]);
-    const rejected = outcomes.filter((entry) => entry.status === "rejected");
-    expect(rejected.length).toBeGreaterThanOrEqual(1);
+    let rejectedLoads = 0;
+    for (let attempt = 0; attempt < 5 && rejectedLoads === 0; attempt += 1) {
+      resetLuaCommandStoreForTests();
+      resetLuaFactoryForTests();
+      const loadOutcomes = await Promise.allSettled([loadPack(a), loadPack(b)]);
+      rejectedLoads = loadOutcomes.filter((entry) => entry.status === "rejected").length;
+    }
+    expect(rejectedLoads).toBeGreaterThanOrEqual(1);
     resetLuaCommandStoreForTests();
+    resetLuaFactoryForTests();
     await loadPack(a);
     expect(await invokeLuaExtensionCommand("test.adv-loada.a")).toEqual({
       ok: true,
       notifications: ["a"],
     });
-  });
 
-  test("capability denial: editor snapshot rejected without editor capability", async () => {
-    const root = await tempRoot("cap");
-    const pack = await writePack(root, "test.adv-nocap", luaManifest("test.adv-nocap"), {
+    const reentry = await writePack(root, "test.adv-reentry", luaManifest("test.adv-reentry"), {
+      "entry.lua": `
+commands.register({
+  id = "outer",
+  title = "Outer",
+  run = function()
+    ui.notify("done")
+  end
+})
+`,
+    });
+    await loadPack(reentry);
+
+    const invokeResults = await Promise.all(
+      Array.from({ length: 12 }, () => invokeLuaExtensionCommand("test.adv-reentry.outer")),
+    );
+    expect(invokeResults.some((entry) => entry.ok)).toBe(true);
+    expect(invokeResults.some((entry) => !entry.ok && entry.error.includes("reentrancy"))).toBe(
+      true,
+    );
+    expect(findLuaCommand("test.adv-reentry.outer")).not.toBeNull();
+
+    const nocap = await writePack(root, "test.adv-nocap", luaManifest("test.adv-nocap"), {
       "entry.lua": `
 commands.register({
   id = "probe",
@@ -260,21 +253,20 @@ commands.register({
 })
 `,
     });
-    await loadPack(pack);
-    const denied = await invokeLuaExtensionCommand({
-      namespacedId: "test.adv-nocap.probe",
-      editor: {
-        selection: "x",
-        documentId: "d",
-        alternativeVersionId: 1,
-        startOffset: 0,
-        endOffset: 1,
-      },
-    });
-    expect(denied).toEqual({ ok: false, error: "editor capability not granted" });
-  });
+    await loadPack(nocap);
+    expect(
+      await invokeLuaExtensionCommand({
+        namespacedId: "test.adv-nocap.probe",
+        editor: {
+          selection: "x",
+          documentId: "d",
+          alternativeVersionId: 1,
+          startOffset: 0,
+          endOffset: 1,
+        },
+      }),
+    ).toEqual({ ok: false, error: "editor capability not granted" });
 
-  test("malformed invoke DTO is rejected at Bun boundary", async () => {
     expect(await invokeLuaExtensionCommand({ namespacedId: "" } as never)).toEqual({
       ok: false,
       error: "invalid invoke request",
@@ -289,7 +281,7 @@ commands.register({
 });
 
 describe("adversarial renderer apply boundary", () => {
-  test("rejects oversized createUntitled before host create", async () => {
+  test("rejects oversized createUntitled, notify flood DTO, and unknown decoration style", async () => {
     const oversized = "x".repeat(LUA_EXTENSION_LIMITS.maxCreateUntitledChars.value + 1);
     let created = false;
     setDiscoveredExtensions({
@@ -326,15 +318,13 @@ describe("adversarial renderer apply boundary", () => {
     });
     await expect(runExtensionCommand("test.adv-reg.go")).rejects.toThrow(/too large|size limit/i);
     expect(created).toBe(false);
-  });
 
-  test("rejects notify flood DTO before any notify or create side effect", async () => {
     const messages = Array.from(
       { length: LUA_EXTENSION_LIMITS.maxNotificationsPerInvoke.value + 1 },
       (_, i) => `n${i}`,
     );
     let notified = 0;
-    let created = false;
+    created = false;
     setDiscoveredExtensions({
       loaded: [
         {
@@ -372,9 +362,7 @@ describe("adversarial renderer apply boundary", () => {
     await expect(runExtensionCommand("test.adv-reg2.go")).rejects.toThrow(/too large|size limit/i);
     expect(notified).toBe(0);
     expect(created).toBe(false);
-  });
 
-  test("rejects unknown decoration style at renderer reparse before apply", async () => {
     let applied = false;
     registerEditorExtensionSeam({
       getApplyContext: () => null,

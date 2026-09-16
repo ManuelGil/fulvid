@@ -8,7 +8,7 @@ import {
 import { luaManifest } from "./manifestTestHelpers.ts";
 
 describe("publisher.name extension identity contract", () => {
-  test("accepts official, reference, and third-party publisher manifests", () => {
+  test("accepts publisher.name identities; namespaces commands; migrates known local ids", () => {
     expect(
       validateExtensionManifest(
         luaManifest("imgildev.todo-decorator", ["lua", "commands", "ui", "document"], {
@@ -42,9 +42,19 @@ describe("publisher.name extension identity contract", () => {
         name: "example-extension",
       },
     });
+
+    expect(namespacedExtensionCommandId("imgildev.todo-decorator", "todoNext")).toBe(
+      "imgildev.todo-decorator.todoNext",
+    );
+
+    expect(migrateLegacyExtensionId("local.todo-decorator")).toBe("imgildev.todo-decorator");
+    expect(migrateLegacyExtensionId("local.blank-note")).toBe("fulvid.blank-note");
+    expect(migrateLegacyExtensionId("local.host-notify")).toBe("fulvid.host-notify");
+    expect(migrateLegacyExtensionId("local.unknown")).toBeNull();
+    expect(migrateLegacyExtensionId("acme.example-extension")).toBe("acme.example-extension");
   });
 
-  test("rejects reserved local publisher and identity mismatches", () => {
+  test("rejects reserved local, mismatches, unknown caps, and invalid presentation", () => {
     expect(
       validateExtensionManifest({
         ...luaManifest("imgildev.todo-decorator"),
@@ -72,9 +82,7 @@ describe("publisher.name extension identity contract", () => {
     ).toEqual({
       reason: 'id must equal publisher.name (expected "acme.example-extension")',
     });
-  });
 
-  test("rejects unsupported api, unknown capability, and lua-gated surfaces", () => {
     expect(
       validateExtensionManifest({
         ...luaManifest("acme.notify-demo"),
@@ -148,9 +156,7 @@ describe("publisher.name extension identity contract", () => {
         }),
       ),
     ).toEqual({ reason: "document capability requires the lua capability" });
-  });
 
-  test("rejects invalid version, empty presentation text, and oversized keywords", () => {
     expect(
       validateExtensionManifest({
         ...luaManifest("acme.example-extension"),
@@ -187,19 +193,5 @@ describe("publisher.name extension identity contract", () => {
         keywords: ["x".repeat(33)],
       }),
     ).toEqual({ reason: "invalid keyword" });
-  });
-
-  test("migrates known local identities and rejects unknown local ids", () => {
-    expect(migrateLegacyExtensionId("local.todo-decorator")).toBe("imgildev.todo-decorator");
-    expect(migrateLegacyExtensionId("local.blank-note")).toBe("fulvid.blank-note");
-    expect(migrateLegacyExtensionId("local.host-notify")).toBe("fulvid.host-notify");
-    expect(migrateLegacyExtensionId("local.unknown")).toBeNull();
-    expect(migrateLegacyExtensionId("acme.example-extension")).toBe("acme.example-extension");
-  });
-
-  test("namespaces commands with the canonical extension id", () => {
-    expect(namespacedExtensionCommandId("imgildev.todo-decorator", "todoNext")).toBe(
-      "imgildev.todo-decorator.todoNext",
-    );
   });
 });

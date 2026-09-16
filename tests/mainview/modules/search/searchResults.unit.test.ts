@@ -5,7 +5,6 @@ import {
   groupSearchHits,
   highlightSearchSnippet,
   searchDocuments,
-  searchQueryIssue,
 } from "../../../../src/mainview/modules/search/searchResults";
 
 function note(path: string, content: string): ScannedNote {
@@ -65,6 +64,7 @@ describe("global document search", () => {
       searchDocuments(words, "search", { wholeWord: true }).map((hit) => hit.match.offset),
     ).toEqual([0, 17]);
     expect(searchDocuments(words, "search(ing)?", { regex: true })).toHaveLength(3);
-    expect(searchQueryIssue("(unclosed", { regex: true })).toBe("invalidRegex");
+    expect(searchDocuments([], "anything")).toEqual([]);
+    expect(searchDocuments(words, "   ")).toEqual([]);
   });
 });

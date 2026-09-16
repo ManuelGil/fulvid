@@ -72,26 +72,25 @@ const architectureDoc = [
 const guideDoc = ["# Guide", "", "Read [Architecture](architecture.md#architecture)."].join("\n");
 
 // Intent: Find References and semantic Rename follow DocumentLink + heading IDs, not text search.
-// Growth boundary: add a case only for a new supported entity or a new refuse-to-edit rule.
 describe("heading references", () => {
-  test("finds heading and fragment references without inventing prose or workspace matches", () => {
+  test("finds references and renames open documents without inventing prose matches", () => {
     const heading = semanticEntityAt(
       architectureDoc,
       offsetOf(architectureDoc, "Architecture"),
       "markdown",
     );
     expect(heading?.kind).toBe("heading");
-    const references = collectHeadingReferences(
+    const localReferences = collectHeadingReferences(
       heading!.heading,
       "architecture.md",
       [{ path: "architecture.md", content: architectureDoc }],
       [note("architecture.md", architectureDoc)],
       "markdown",
     );
-    expect(references.filter((reference) => reference.kind === "heading")).toHaveLength(1);
-    expect(references.filter((reference) => reference.kind === "fragment")).toHaveLength(2);
+    expect(localReferences.filter((reference) => reference.kind === "heading")).toHaveLength(1);
+    expect(localReferences.filter((reference) => reference.kind === "fragment")).toHaveLength(2);
     expect(
-      references.some((reference) =>
+      localReferences.some((reference) =>
         architectureDoc.slice(reference.range.start, reference.range.end).includes("simple"),
       ),
     ).toBe(false);
@@ -106,18 +105,9 @@ describe("heading references", () => {
       "wikilink",
     );
     expect(virtual.every((reference) => reference.documentPath === null)).toBe(true);
-  });
-});
 
-describe("heading rename", () => {
-  test("renames open documents, updates fragments, and refuses unsafe rewrites", () => {
-    const entity = semanticEntityAt(
-      architectureDoc,
-      offsetOf(architectureDoc, "Architecture"),
-      "markdown",
-    );
     const references = collectHeadingReferences(
-      entity!.heading,
+      heading!.heading,
       "architecture.md",
       [
         { path: "architecture.md", content: architectureDoc },
@@ -127,7 +117,7 @@ describe("heading rename", () => {
       "markdown",
     );
     const plan = planHeadingRename(
-      entity!.heading,
+      heading!.heading,
       "architecture.md",
       architectureDoc,
       "System Architecture",
@@ -147,7 +137,7 @@ describe("heading rename", () => {
     expect(next.get("guide.md")).toContain("[Architecture](architecture.md#system-architecture)");
 
     const openOnly = planHeadingRename(
-      entity!.heading,
+      heading!.heading,
       "architecture.md",
       architectureDoc,
       "System Architecture",
@@ -157,7 +147,7 @@ describe("heading rename", () => {
     expect(openOnly?.edits.some((edit) => edit.documentPath === "guide.md")).toBe(false);
     expect(
       planHeadingRename(
-        entity!.heading,
+        heading!.heading,
         "architecture.md",
         architectureDoc,
         "",

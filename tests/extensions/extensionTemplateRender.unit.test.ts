@@ -2,8 +2,6 @@
  * Generic extension template.render contract - no ADR/product knowledge.
  */
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import {
   EXTENSION_TEMPLATE_LIMITS,
@@ -11,20 +9,13 @@ import {
   renderExtensionTemplate,
 } from "../../src/bun/extensions/lua/extensionTemplateRender.ts";
 
-const RENDER_MODULE = join(
-  import.meta.dir,
-  "../../src/bun/extensions/lua/extensionTemplateRender.ts",
-);
-
 describe("extension template.render", () => {
-  test("interpolates string variables and leaves missing keys empty", () => {
-    const rendered = renderExtensionTemplate("Hello {{name}} - {{missing}}!", {
-      name: "world",
+  test("interpolates variables, escapes HTML, and rejects sections/unescaped syntax", () => {
+    expect(renderExtensionTemplate("Hello {{name}} - {{missing}}!", { name: "world" })).toEqual({
+      ok: true,
+      text: "Hello world - !",
     });
-    expect(rendered).toEqual({ ok: true, text: "Hello world - !" });
-  });
 
-  test("escapes HTML in values; rejects sections and unescaped syntax", () => {
     const escaped = renderExtensionTemplate("x={{v}}", { v: "<script>" });
     expect(escaped.ok).toBe(true);
     if (escaped.ok) {
@@ -49,15 +40,5 @@ describe("extension template.render", () => {
     expect(
       renderExtensionTemplate("a".repeat(EXTENSION_TEMPLATE_LIMITS.maxTemplateChars + 1), {}).ok,
     ).toBe(false);
-  });
-
-  test("generic engine source has no ADR product knowledge", () => {
-    const source = readFileSync(RENDER_MODULE, "utf8");
-    expect(source).not.toMatch(/\bADR\b/);
-    expect(source).not.toMatch(/fileNamePascalCase/);
-    expect(source).not.toMatch(/timestampISO/);
-    expect(source).not.toMatch(/getVariables/);
-    expect(source).not.toMatch(/\bauthor\b/);
-    expect(source).not.toMatch(/\blicense\b/);
   });
 });

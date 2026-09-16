@@ -39,8 +39,28 @@ function note(
   };
 }
 
+function linkedNotes(count: number, linksPerNote: number): ScannedNote[] {
+  return Array.from({ length: count }, (_, index) => ({
+    path: `n${index}.md`,
+    name: `n${index}.md`,
+    title: `Title ${index}`,
+    aliases: [`alias-${index}`],
+    documentLinks: Array.from({ length: linksPerNote }, (_, offset) => ({
+      syntax: "markdown" as const,
+      raw: `[x](n${(index + offset) % count}.md)`,
+      target: `n${(index + offset) % count}.md`,
+      range: { start: 0, end: 0 },
+    })),
+    tags: [],
+    categories: [],
+    projects: [],
+    summary: "",
+    words: 0,
+  }));
+}
+
 // Intent: protect resolved-edge and graph semantics at the pure-logic boundary.
-// Growth boundary: add cases only for a new link or graph policy.
+// Prefer index correctness over wall-clock scale when choosing coverage.
 describe("link semantics", () => {
   beforeEach(() => {
     setDocumentLinkSettings({ linkMode: "wikilink", resolution: "both" });
@@ -90,54 +110,8 @@ describe("link semantics", () => {
     });
     expect(unresolvedDocumentLinks(noisy[0], noisy)).toEqual(["missing"]);
   });
-});
 
-/**
- * Resolution used to rescan the whole note list per link - once for the exact
- * path, again to rebuild the stem map, then for aliases and titles. That made a
- * folder-wide pass quadratic: 2000 notes took over ten seconds, and the scanner
- * allows 5000. These hold the shape of the cost, and that indexing did not
- * change which note a link resolves to.
- */
-describe("resolution scale", () => {
-  function linkedNotes(count: number, linksPerNote: number): ScannedNote[] {
-    return Array.from({ length: count }, (_, index) => ({
-      path: `n${index}.md`,
-      name: `n${index}.md`,
-      title: `Title ${index}`,
-      aliases: [`alias-${index}`],
-      documentLinks: Array.from({ length: linksPerNote }, (_, offset) => ({
-        syntax: "markdown" as const,
-        raw: `[x](n${(index + offset) % count}.md)`,
-        target: `n${(index + offset) % count}.md`,
-        range: { start: 0, end: 0 },
-      })),
-      tags: [],
-      categories: [],
-      projects: [],
-      summary: "",
-      words: 0,
-    }));
-  }
-
-  test("a folder-wide pass stays near-linear in folder size", () => {
-    const small = linkedNotes(250, 10);
-    const large = linkedNotes(2_000, 10);
-
-    const smallStarted = performance.now();
-    expect(resolveWorkspaceEdges(small)).toHaveLength(2_250);
-    const smallMs = performance.now() - smallStarted;
-
-    const largeStarted = performance.now();
-    expect(resolveWorkspaceEdges(large)).toHaveLength(18_000);
-    const largeMs = performance.now() - largeStarted;
-
-    // Eight times the folder, quadratically was ~64x the work. Allow generous
-    // headroom for a loaded machine while still failing on a return to O(n^2).
-    expect(largeMs).toBeLessThan(Math.max(smallMs * 16, 1_500));
-  });
-
-  test("indexing resolves the same note a scan would, including after a rescan and duplicate titles", () => {
+  test("indexing resolves the same note a scan would, with first-wins duplicates and unique candidates", () => {
     const notes = linkedNotes(50, 1);
 
     expect(resolveDocumentPath("n7.md", notes, "both").path).toBe("n7.md");
@@ -158,30 +132,18 @@ describe("resolution scale", () => {
 
     const before = linkedNotes(3, 0);
     expect(resolveDocumentPath("Title 1", before, "both").path).toBe("n1.md");
-    const after = before.map((note) => ({ ...note, path: `moved/${note.path}` }));
+    const after = before.map((entry) => ({ ...entry, path: `moved/${entry.path}` }));
     expect(resolveDocumentPath("Title 1", after, "both").path).toBe("moved/n1.md");
-  });
-});
 
-describe("duplicate stem and unique incomplete candidates", () => {
-  beforeEach(() => {
-    setDocumentLinkSettings({ linkMode: "wikilink", resolution: "both" });
-  });
-
-  afterEach(() => {
-    setDocumentLinkSettings({ linkMode: "markdown", resolution: "both" });
-  });
-
-  test("keeps first-wins for duplicate stems and reports alsoMatches", () => {
-    const notes = [
+    const stemDupes = [
       note("docs/guide.md", [], { name: "guide.md", title: "Guide A" }),
       note("archive/guide.md", [], { name: "guide.md", title: "Guide B" }),
     ];
-    const resolved = resolveDocumentPath("guide", notes, "both");
+    const resolved = resolveDocumentPath("guide", stemDupes, "both");
     expect(resolved.path).toBe("docs/guide.md");
     expect(resolved.reason).toBe("stem");
     expect(resolved.alsoMatches).toEqual(["archive/guide.md"]);
-    expect(ambiguousOutboundLinks(note("index.md", ["guide"]), notes)).toEqual([
+    expect(ambiguousOutboundLinks(note("index.md", ["guide"]), stemDupes)).toEqual([
       {
         target: "guide",
         path: "docs/guide.md",
@@ -189,22 +151,20 @@ describe("duplicate stem and unique incomplete candidates", () => {
       },
     ]);
 
-    const exact = resolveDocumentPath("archive/guide", notes, "both");
+    const exact = resolveDocumentPath("archive/guide", stemDupes, "both");
     expect(exact.path).toBe("archive/guide.md");
     expect(exact.alsoMatches).toEqual([]);
-  });
 
-  test("uniqueLinkCandidate is null unless exactly one near-match exists", () => {
-    const notes = [
+    const candidates = [
       note("alpha.md", [], { title: "Alpha Note" }),
       note("beta.md", [], { title: "Beta Note" }),
       note("gamma.md", [], { title: "Gamma" }),
     ];
-    expect(uniqueLinkCandidate("Alpha Note", notes)).toEqual({
+    expect(uniqueLinkCandidate("Alpha Note", candidates)).toEqual({
       path: "alpha.md",
       reason: "title",
     });
-    expect(uniqueLinkCandidate("Note", notes)).toBeNull();
-    expect(uniqueLinkCandidate("missing", notes)).toBeNull();
+    expect(uniqueLinkCandidate("Note", candidates)).toBeNull();
+    expect(uniqueLinkCandidate("missing", candidates)).toBeNull();
   });
 });

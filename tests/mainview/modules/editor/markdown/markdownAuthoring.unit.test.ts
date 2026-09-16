@@ -13,7 +13,7 @@ import {
 
 // Intent: deterministic Markdown/wikilink strings for insert-link and TOC.
 describe("markdown authoring", () => {
-  test("formats document and heading links for both linkModes and sanitizes labels", () => {
+  test("formats links, selection bodies, and TOC for both linkModes", () => {
     expect(
       formatDocumentLink({
         label: "Docs",
@@ -69,9 +69,7 @@ describe("markdown authoring", () => {
 
     expect(relativeDocumentLinkPath("docs/a.md", "docs/b.md")).toBe("./b.md");
     expect(relativeDocumentLinkPath("docs/a.md", "readme.md")).toBe("../readme.md");
-  });
 
-  test("builds a new document body from selection with formatDocumentLink backlink", () => {
     expect(
       buildDocumentFromSelection({
         selection: "Extracted paragraph.",
@@ -101,9 +99,7 @@ describe("markdown authoring", () => {
         linkMode: "markdown",
       }),
     ).not.toMatch(/#L\d|#\d+:\d+/);
-  });
 
-  test("TOC nests by heading depth with existing anchors for both linkModes", () => {
     const structure = parseMarkdownStructure(`# Title
 
 ## Overview

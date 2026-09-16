@@ -23,10 +23,9 @@ async function makeWorkspace(): Promise<string> {
 // Both separators are accepted; traversal, absolute, and drive-letter forms are
 // refused rather than "fixed". Symlinks that leave the folder fail canonically.
 describe("folder path containment", () => {
-  test("accepts either separator and refuses traversal, absolutes, and controls", async () => {
+  test("accepts either separator and refuses traversal, absolutes, drive forms, and controls", async () => {
     const root = await makeWorkspace();
     try {
-      // Documents and Explorer speak POSIX; Windows hosts may supply `\`.
       expect(normalizeWorkspaceRelativePath("notes\\file.md")).toBe("notes/file.md");
       expect(containedPath(root, "notes/file.md")).toBe(join(root, "notes/file.md"));
       expect(containedPath(root, "notes\\nested\\file.md")).toBe(
@@ -34,21 +33,27 @@ describe("folder path containment", () => {
       );
       expect(containedPath(root, "")).toBe(root);
 
-      // Lexical escapes must fail before any host I/O.
       expect(() => containedPath(root, "../../../etc/passwd.md")).toThrow(OUTSIDE);
       expect(() => containedPath(root, "..\\..\\outside.md")).toThrow(OUTSIDE);
       expect(() => containedPath(root, "notes/../secret.md")).toThrow(OUTSIDE);
       expect(() => containedPath(root, "/etc/passwd.md")).toThrow(OUTSIDE);
       expect(() => containedPath(root, "C:\\Windows\\note.md")).toThrow(OUTSIDE);
       expect(() => containedPath(root, "c:/Windows/note.md")).toThrow(OUTSIDE);
+      // Drive-relative forms (no slash) are not POSIX-absolute; still refused.
+      expect(() => containedPath(root, "C:foo")).toThrow(OUTSIDE);
+      expect(() => containedPath(root, "C:note.md")).toThrow(OUTSIDE);
       expect(() => containedPath(root, "notes/\0x.md")).toThrow(INVALID);
       expect(() => containedPath(root, "notes/\n.md")).toThrow(INVALID);
+      expect(() => containedPath(root, `${"a".repeat(256)}.md`)).toThrow(INVALID);
+      expect(() =>
+        containedPath(root, Array.from({ length: 33 }, (_, i) => `d${i}`).join("/") + ".md"),
+      ).toThrow(INVALID);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
   });
 
-  test("refuses a target reached through a symlinked directory", async () => {
+  test("canonical containment refuses escape links and allows in-folder links and missing creates", async () => {
     const base = await makeWorkspace();
     const root = join(base, "folder");
     const outside = join(base, "outside");
@@ -59,31 +64,21 @@ describe("folder path containment", () => {
     await linkDirectory(outside, join(root, "link"));
 
     try {
-      // Lexically under the root; canonically outside - must refuse.
       expect(containedPath(root, "link/secret.md")).toBe(join(root, "link/secret.md"));
       await expect(assertCanonicallyContained(root, "link/secret.md")).rejects.toThrow(OUTSIDE);
       await expect(assertCanonicallyContained(root, "link")).rejects.toThrow(OUTSIDE);
-    } finally {
-      await rm(base, { recursive: true, force: true });
-    }
-  });
 
-  test("allows in-folder symlinks and missing create targets", async () => {
-    const root = await makeWorkspace();
-    await mkdir(join(root, "notes"));
-    await writeFile(join(root, "notes/real.md"), "real\n");
-    await linkDirectory(join(root, "notes"), join(root, "alias"));
-
-    try {
+      await mkdir(join(root, "notes"));
+      await writeFile(join(root, "notes/real.md"), "real\n");
+      await linkDirectory(join(root, "notes"), join(root, "alias"));
       await expect(assertCanonicallyContained(root, "alias/real.md")).resolves.toBe(
         join(await canonicalRoot(root), "notes/real.md"),
       );
-      // Create/rename destinations do not exist yet and must still stay inside.
       await expect(assertCanonicallyContained(root, "new/deep/note.md")).resolves.toBe(
         join(await canonicalRoot(root), "new/deep/note.md"),
       );
     } finally {
-      await rm(root, { recursive: true, force: true });
+      await rm(base, { recursive: true, force: true });
     }
   });
 });

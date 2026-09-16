@@ -47,9 +47,9 @@ afterEach(() => {
   resetExtensionAllowancesForTests();
 });
 
-describe("manifest menu placement and activation", () => {
-  test("accepts closed menu targets and document activation", () => {
-    const result = validateExtensionManifest({
+describe("manifest menu placement and organic integration", () => {
+  test("accepts closed menu targets; rejects invalid menus and missing documentAction; File->New only", () => {
+    const accepted = validateExtensionManifest({
       ...luaManifest("imgildev.todo-decorator", [
         "lua",
         "commands",
@@ -64,37 +64,31 @@ describe("manifest menu placement and activation", () => {
         { id: "todoPrevious", menu: "navigate", order: 2 },
       ],
     });
-    expect("manifest" in result).toBe(true);
-    if ("manifest" in result) {
-      expect(result.manifest.activation).toBe("document");
-      expect(result.manifest.documentAction).toBe("todoRefresh");
+    expect("manifest" in accepted).toBe(true);
+    if ("manifest" in accepted) {
+      expect(accepted.manifest.activation).toBe("document");
+      expect(accepted.manifest.documentAction).toBe("todoRefresh");
     }
-  });
 
-  test("rejects invalid menu targets fail closed", () => {
-    const result = validateExtensionManifest({
-      ...luaManifest("test.bad-menu"),
-      actions: [{ id: "ping", menu: "extensions" }],
-    });
-    expect(result).toEqual({
+    expect(
+      validateExtensionManifest({
+        ...luaManifest("test.bad-menu"),
+        actions: [{ id: "ping", menu: "extensions" }],
+      }),
+    ).toEqual({
       reason: "invalid menu target: extensions (allowed: file.new, edit, view, navigate, help)",
     });
-  });
 
-  test("rejects document activation without documentAction", () => {
-    const result = validateExtensionManifest({
-      ...luaManifest("test.bad-doc", ["lua", "commands", "ui", "document", "decorations"]),
-      activation: "document",
-    });
-    expect(result).toEqual({
+    expect(
+      validateExtensionManifest({
+        ...luaManifest("test.bad-doc", ["lua", "commands", "ui", "document", "decorations"]),
+        activation: "document",
+      }),
+    ).toEqual({
       reason:
         "document activation requires documentAction (Lua command id re-invoked on buffer changes)",
     });
-  });
-});
 
-describe("organic menu integration", () => {
-  test("places actions under File -> New and never invents Extensions menu", () => {
     const menus = integrateExtensionActionsIntoMenus(
       [
         {
@@ -137,10 +131,8 @@ describe("organic menu integration", () => {
       expect(labels).toEqual(["Untitled", "New Note", "New From Template"]);
     }
   });
-});
 
-describe("preload quarantine and consent", () => {
-  test("blocked preflight packs are not executable until consent retries discovery", async () => {
+  test("unknown capability stays blocked after explicit consent retry", async () => {
     const userData = await tempRoot("blocked");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });

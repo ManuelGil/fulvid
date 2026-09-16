@@ -54,7 +54,7 @@ function buffer(
 }
 
 // Intent: Graph consumes Focus for folder projection; the active tab is not
-// a second selection authority. Virtual documents may project alone.
+// a second selection authority. Undirected Graph membership ≠ directed Context reach.
 describe("graph active document", () => {
   beforeEach(() => {
     setDocumentLinkSettings({ linkMode: "markdown", resolution: "both" });
@@ -64,7 +64,7 @@ describe("graph active document", () => {
     setDocumentLinkSettings({ linkMode: "markdown", resolution: "both" });
   });
 
-  test("folder Graph follows Focus, not the active tab; virtual documents project alone", () => {
+  test("follows Focus not the active tab, and incoming-only neighbors stay out of Context reach", () => {
     expect(
       graphActiveTargetFromInputs(
         null,
@@ -89,16 +89,12 @@ describe("graph active document", () => {
         ?.focusPath,
     ).toBe("second.md");
     expect(graphActiveTargetFromInputs(null, editingFirst, "/tmp/workspace", notes)).toBeNull();
-  });
 
-  // Intent: undirected Graph membership ≠ directed Context reach (GRAPH.md).
-  // An incoming-only neighbor must appear on Graph and stay out of buildFocusGraph.
-  test("incoming-only neighbors appear on Graph but not in directed Context reach", () => {
-    const notes = [note("a.md", "A"), note("b.md", "B", [link("a.md")])];
-    const graph = projectReferenceGraph("a.md", notes, { depth: 1 });
+    const linked = [note("a.md", "A"), note("b.md", "B", [link("a.md")])];
+    const graph = projectReferenceGraph("a.md", linked, { depth: 1 });
     expect(graph.nodes.map((node) => node.id).sort()).toEqual(["a.md", "b.md"]);
     expect(graph.edges).toEqual([{ source: "b.md", target: "a.md" }]);
-    expect(buildFocusGraph("a.md", notes, 1)).toEqual({
+    expect(buildFocusGraph("a.md", linked, 1)).toEqual({
       focusPath: "a.md",
       nodes: [{ id: "a.md", label: "A" }],
       edges: [],

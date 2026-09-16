@@ -27,20 +27,16 @@ afterEach(async () => {
   );
 });
 
-// Intent: ensure persisted folder approval is durable and fail-closed on corruption.
-// Growth boundary: add cases only for storage-schema or trust-policy changes.
+// Intent: persisted folder approval is durable and fail-closed on corruption.
 describe("folder approvals", () => {
-  test("an approval survives into the next session", async () => {
+  test("an approval survives into the next session; a corrupt store grants nothing", async () => {
     const directory = await useStore();
     approveWorkspaceRoot("/home/me/notes");
-
     resetWorkspaceApprovals();
     configureWorkspaceApprovals(directory);
     expect(isApprovedWorkspaceRoot("/home/me/notes")).toBe(true);
     expect(isApprovedWorkspaceRoot("/home/me/other")).toBe(false);
-  });
 
-  test("a corrupt store grants nothing and still starts", async () => {
     for (const corrupt of [
       "not json at all",
       '{"roots":["/home/me/notes"]}',
@@ -48,12 +44,11 @@ describe("folder approvals", () => {
       '"/home/me/notes"',
       "[]",
     ]) {
-      const directory = await mkdtemp(join(tmpdir(), "fulvid-approvals-bad-"));
-      directories.push(directory);
-      await writeFile(join(directory, "approved-folders.json"), corrupt);
+      const bad = await mkdtemp(join(tmpdir(), "fulvid-approvals-bad-"));
+      directories.push(bad);
+      await writeFile(join(bad, "approved-folders.json"), corrupt);
       resetWorkspaceApprovals();
-      configureWorkspaceApprovals(directory);
-
+      configureWorkspaceApprovals(bad);
       expect(isApprovedWorkspaceRoot("/home/me/notes")).toBe(false);
     }
   });

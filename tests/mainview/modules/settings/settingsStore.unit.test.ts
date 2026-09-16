@@ -11,9 +11,8 @@ import {
 
 // Intent: persisted settings stay backward-compatible and fail-closed.
 // Unknown product concepts (Context root, templates) must not hydrate.
-// First-run appearance follows the OS (theme = system); explicit light/dark win.
 describe("settings migration", () => {
-  test("keeps valid fields, migrates legacy values, and rejects unsupported enums", () => {
+  test("migrates legacy values, rejects unsupported enums, and resets to defaults", () => {
     expect(defaultSettings().appearance.theme).toBe("system");
     expect(sanitizeSettings({}).appearance.theme).toBe("system");
 
@@ -56,11 +55,7 @@ describe("settings migration", () => {
     expect(sanitizeSettings({ appearance: { theme: "dark" } }).appearance.theme).toBe("dark");
     expect(appearanceDatasetFor(defaultSettings().appearance).theme).toBe("system");
     expect(sanitizeSettings({ editor: { defaultEol: "crlf" } }).editor.defaultEol).toBe("crlf");
-  });
-});
 
-describe("settings reset", () => {
-  test("restores every persisted field to the built-in defaults", () => {
     const beforeJson = JSON.stringify(settings.value);
     try {
       patchSettings({

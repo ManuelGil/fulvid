@@ -8,16 +8,14 @@ import {
 
 // Intent: trailing trim is spaces/tabs at line end only - not EOL, not indent.
 describe("trailing whitespace", () => {
-  test("detects spaces and tabs, including empty lines that are only whitespace", () => {
+  test("detects spans and preserves LF/CRLF when trimming", () => {
     expect(trailingWhitespaceOnLine("hello  ")).toEqual({ startColumn: 6, endColumn: 8 });
     expect(trailingWhitespaceOnLine("hello\t\t")).toEqual({ startColumn: 6, endColumn: 8 });
     expect(trailingWhitespaceOnLine("  ")).toEqual({ startColumn: 1, endColumn: 3 });
     expect(trailingWhitespaceOnLine("hello")).toBeNull();
     expect(trailingWhitespaceOnLine("")).toBeNull();
     expect(trailingWhitespaceOnLine("  hello")).toBeNull();
-  });
 
-  test("collects spans across a document and preserves LF/CRLF when trimming text", () => {
     const lines = ["a  ", "b", "   ", "c\t"];
     expect(
       collectTrailingWhitespaceSpans(lines.length, (lineNumber) => lines[lineNumber - 1]!),
