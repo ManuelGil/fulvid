@@ -28,9 +28,9 @@ Local find (`Ctrl/Cmd+F`) belongs to Monaco, not Search. Global Search is `Ctrl/
 
 Candidates are a **temporary projection** of `workspace.scannedNotes` (Folder scan owned by `workspaceState`; discovery by Filesystem scan). Identity fields: `title`, `name` (filename), `path` (folder-relative). See [`quickOpenCandidates.ts`](../src/mainview/modules/quickOpen/quickOpenCandidates.ts). DialogHost reads the live scan while open (refresh / close Folder update the list).
 
-Quick Open does not scan, index, or own document lifecycle. No Folder open → empty candidates. Partial / truncated scans expose whatever the scan already loaded; they do not invent a second walk.
+Quick Open does not scan, index, or own document lifecycle. No Folder open -> empty candidates. Partial / truncated scans expose whatever the scan already loaded; they do not invent a second walk.
 
-Activation uses the same seam as Explorer and Search: `openOrActivate({ kind: "workspace", rootPath, path })` → `selectDocument`. Candidate paths are not grants; read/open still goes through filesystem containment.
+Activation uses the same seam as Explorer and Search: `openOrActivate({ kind: "workspace", rootPath, path })` -> `selectDocument`. Candidate paths are not grants; read/open still goes through filesystem containment.
 
 Overlay/focus: DialogHost / `dialogs.ts` (`promptQuickOpen`) with Teleport, Escape, Tab trap, and `restoreUsableFocus`. `.dialog-host` already stays usable under Writing Focus. Do not add a second dialog or focus manager. Do not touch native Full Screen.
 
@@ -67,32 +67,54 @@ Owner: shell (`QuickActionsToolbar.vue` + `commands.ts`). Not the Markdown forma
 | Concern | Rule |
 | --- | --- |
 | Declaration | Every Quick Action sets `group`, `subgroup`, `tier`, `order`, `overflowOrder`, Lucide alias via `AppIcon`, and label key |
-| Groups | `file` → `edit` → `search` → `fulvid` (separators only: File \| Edit \| Search \| Fulvid \| More) |
-| Subgroups | Exact taxonomy: file `document`/`workspace`; edit `document`/`history`/`clipboard`; search `document`/`workspace`; fulvid `view`/`mode`/`panels`. Metadata only — no subgroup separators |
+| Groups | `file` -> `edit` -> `search` -> `fulvid` (separators only: File \| Edit \| Search \| Fulvid \| More) |
+| Subgroups | Exact taxonomy: file `document`/`workspace`; edit `document`/`history`/`clipboard`; search `document`/`workspace`; fulvid `view`/`mode`/`panels`. Metadata only - no subgroup separators |
 | Priority (`tier`) | `core` > `secondary` > `overflow` |
 | `order` | Presentation only: within a group, `subgroup` then `order` (toolbar and More). Independent of `overflowOrder` |
 | `overflowOrder` | Leave order only: within a tier, lower leaves first. Independent of `order`. Prefer unique values per tier; equal values fall back to command `id` |
-| Selection | `selectQuickActionsForVisibleCount` owns visibility via `tier` → `overflowOrder` (not array index) |
-| Annotation | Edit / `document` — contextual Add/Edit on the open document (`annotateDocument`). Not a Fulvid chrome action; Show/Hide stays View + Settings |
+| Selection | `selectQuickActionsForVisibleCount` owns visibility via `tier` -> `overflowOrder` (not array index) |
+| Annotation | Edit / `document` - contextual Add/Edit on the open document (`annotateDocument`). Not a Fulvid chrome action; Show/Hide stays View + Settings |
 | Fulvid surfaces | `view` (Preview), `mode` (Writing Focus), `panels` (Explorer). One visual Fulvid group; no subgroup separators |
 | Overflow stickiness | Preview > Annotation > Writing Focus > Explorer (remain visible longer). Preview / Annotation / Writing Focus stay ahead of clipboard. Explorer is overflow-tolerant (Folder / left nav remain). Writing Focus may enter More earlier (`Ctrl/Cmd+Shift+Enter`; Writing Focus keeps `.quick-actions`) |
-| Icons | Toolbar → `AppIcon` → Lucide only. Semantic aliases (`annotations` → Highlighter) |
+| Icons | Toolbar -> `AppIcon` -> Lucide only. Semantic aliases (`annotations` -> Highlighter) |
 | Geometry | Icon ~15px; hit target `--hit-min` (36px); group gap 1px; toolbar gap `$space-compact`; divider `$space-tight` |
 | Labels | `aria-label` is the localized action string (contextual for Preview, annotation Add/Edit, Writing Focus). `title` may append `(shortcut)` when a shortcut exists |
-| Toggles | `aria-pressed` only for Preview, Writing Focus, and Explorer — never for Add/Edit annotation |
-| More menu | Same metadata and `group → subgroup → order`. Disabled toolbar actions stay disabled in More |
+| Toggles | `aria-pressed` only for Preview, Writing Focus, and Explorer - never for Add/Edit annotation |
+| More menu | Same metadata and `group -> subgroup -> order`. Disabled toolbar actions stay disabled in More |
 
 Do not add a ToolbarManager, action plugin registry, or parallel Writing Focus/Full Screen toolbar. Writing Focus keeps `.quick-actions` usable; Full Screen does not change Quick Action ownership.
 
 The right sidebar shows one panel: Explorer, Search options (on `/search`), Document Context, or Outline. Search, Graph, and Settings are pages. Sidebars do not own `activeId`.
 
+### Extension UI boundary
+
+Presentation may become extension-capable later; **authority does not**. An extension is never an owner.
+
+The Extension System orchestrates declared capabilities; it does not become the owner of filesystem, document, editor, window, search, graph, or renderer authority.
+
+Path: `extension -> declared capability / command -> existing owner -> existing presentation`.
+
+| Category | Surfaces / rules |
+| --- | --- |
+| **Current** | Discovery loads `userData/extensions` at startup (**Extension API v1**). Invalid packs fail in isolation. Packs are not shipped inside Fulvid; install from sibling [`fulvid-extensions`](../../fulvid-extensions/) or any local folder. **Lua:** supported runtime via wasmoon (embedded PUC Lua 5.4.5 / Wasm) with `commands.register` / `ui.notify` / `editor` / `document` / `decorations` under `LUA_EXTENSION_LIMITS`. Snapshot + host-only identity stamps -> Lua text-only -> reject-stale apply through Monaco. Capability isolation ≠ OS sandbox. Full contract: [`EXTENSIONS.md`](./EXTENSIONS.md). |
+| **Additional capabilities** | Only via an explicit security/design decision - not a routine API widening |
+| **Core-controlled** | Focus, dirty state, document selection, Writing Focus policy, grants, filesystem, Graph, Preview inertness, native Full Screen, right-rail panel set, Statusbar indicators, tabs chrome |
+| **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, parallel IPC channels, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution, extension-owned dirty/selection state, generic `host.call` bridges, bytecode entry, undeclared executable surfaces |
+
+Do not add a second command bus. Do not let a button call filesystem or Monaco directly. Do not fix a UI problem by inventing a second owner of the same behavior.
+
+Discovery: `src/bun/extensions/`. Lua host runtime: `src/bun/extensions/lua/`. Registry / host dispatch: `src/mainview/extensions/`. Contract tests: `tests/extensions/`.
+
+Authoritative contract: [`EXTENSIONS.md`](./EXTENSIONS.md). Packs: sibling [`fulvid-extensions`](../../fulvid-extensions/).
+
+
 ## Document links
 
-[`documentLink.ts`](../src/mainview/modules/document/links/documentLink.ts) parses the active link mode (Markdown or Wikilink, not both). Path/stem/alias/title resolution lives in [`linkSemantics.ts`](../src/mainview/modules/document/links/linkSemantics.ts) (`resolveDocumentPath`). Duplicate matches stay **first-wins**; `alsoMatches` is scan-derived honesty for UI, not a second identity. An unresolved target with exactly one near-match may surface `uniqueLinkCandidate` for soft open. Scan, Monaco providers, Preview, Export, Graph, and Document Context reuse that pair — not a second resolver.
+[`documentLink.ts`](../src/mainview/modules/document/links/documentLink.ts) parses the active link mode (Markdown or Wikilink, not both). Path/stem/alias/title resolution lives in [`linkSemantics.ts`](../src/mainview/modules/document/links/linkSemantics.ts) (`resolveDocumentPath`). Duplicate matches stay **first-wins**; `alsoMatches` is scan-derived honesty for UI, not a second identity. An unresolved target with exactly one near-match may surface `uniqueLinkCandidate` for soft open. Scan, Monaco providers, Preview, Export, Graph, and Document Context reuse that pair - not a second resolver.
 
 Insert document link / TOC format strings in [`markdownAuthoring.ts`](../src/mainview/modules/editor/markdown/markdownAuthoring.ts) and insert them through Monaco; they reuse `linkMode` and `parseMarkdownStructure` and are not a second document model. Trim trailing whitespace is Monaco range edits (optional pre-write when Save confirms); not a formatter or sanitation subsystem.
 
-Explorer file rename plans inbound target rewrites in [`documentPathRename.ts`](../src/mainview/modules/document/links/documentPathRename.ts) from the same parse/resolve pair, then applies them through Monaco buffers or existing `writeDocument` — not a refactoring subsystem or link database.
+Explorer file rename plans inbound target rewrites in [`documentPathRename.ts`](../src/mainview/modules/document/links/documentPathRename.ts) from the same parse/resolve pair, then applies them through Monaco buffers or existing `writeDocument` - not a refactoring subsystem or link database.
 
 `linkMode` default is `"markdown"`. F2 rename applies text edits to open buffers. It does not rename files or change document identity.
 

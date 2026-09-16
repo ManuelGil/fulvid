@@ -6,6 +6,11 @@
 import type { RPCSchema } from "electrobun";
 
 import type { FilesystemRPC } from "../modules/workspace/filesystem/filesystemRpc";
+import type {
+  ExtensionDiscoveryResult,
+  ExtensionInstallResult,
+  ExtensionUninstallResult,
+} from "../extensions/extensionManifest";
 import type { ResolvedExternalOpen } from "./externalOpen";
 
 export type DesktopPlatform = "darwin" | "win32" | "linux" | "other";
@@ -47,6 +52,80 @@ type ExternalOpenRequests = {
   };
 };
 
+type ExtensionDiscoveryRequests = {
+  listDiscoveredExtensions: {
+    params: Record<string, never>;
+    response: ExtensionDiscoveryResult;
+  };
+  rediscoverExtensions: {
+    params: Record<string, never>;
+    response: ExtensionDiscoveryResult;
+  };
+  installExtensionPack: {
+    params: Record<string, never>;
+    response: ExtensionInstallResult;
+  };
+  uninstallExtensionPack: {
+    params: { id: string };
+    response: ExtensionUninstallResult;
+  };
+  allowBlockedExtension: {
+    params: { id: string };
+    response: ExtensionDiscoveryResult;
+  };
+  revealExtensionPack: {
+    params: { id: string };
+    response: boolean;
+  };
+  invokeExtensionLuaCommand: {
+    params: {
+      namespacedId: string;
+      editor?: {
+        selection: string;
+        documentId: string;
+        alternativeVersionId: number;
+        startOffset: number;
+        endOffset: number;
+      };
+      document?: {
+        text: string;
+        documentId: string;
+        alternativeVersionId: number;
+        cursorLine: number;
+        cursorColumn: number;
+      };
+    };
+    response:
+      | {
+          ok: true;
+          notifications: string[];
+          editor?: {
+            replaceSelection?: string;
+          };
+          decorations?: {
+            clear?: boolean;
+            set?: Array<{
+              startLine: number;
+              startColumn: number;
+              endLine: number;
+              endColumn: number;
+              style?: string;
+              appearance?: {
+                backgroundColor: string;
+                color?: string;
+                bold?: boolean;
+                overviewColor?: string;
+                glyph?: boolean;
+              };
+            }>;
+          };
+          createUntitled?: string;
+          reveal?: { lineNumber: number; column: number };
+        }
+      | { ok: false; error: string };
+  };
+};
+
 type ApplicationMenuRequests = {
   setApplicationMenu: {
     params: { items: SerializableMenuItem[] };
@@ -78,6 +157,7 @@ export type DesktopRPC = {
     requests: FilesystemRPC["bun"]["requests"] &
       ApplicationMenuRequests &
       ExternalOpenRequests &
+      ExtensionDiscoveryRequests &
       WindowRequests;
     messages: FilesystemRPC["bun"]["messages"];
   }>;

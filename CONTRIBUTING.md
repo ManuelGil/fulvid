@@ -24,8 +24,9 @@ Keep pull requests focused.
 - Presentation tokens: [`src/mainview/styles/`](src/mainview/styles/). Chrome icons: [`AppIcon.vue`](src/mainview/shell/AppIcon.vue). Quick Actions rules (groups, overflow tiers, a11y): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#quick-actions-toolbar). Do not fork Monaco or edit `node_modules` for icons; widget Codicons are remapped in `monacoLucideIcons.ts`. Launcher icon: [`assets/README.md`](assets/README.md).
 - UI wording: [docs/I18N.md](docs/I18N.md). Settings hints should say what changes, when it applies, and give a concrete example.
 - Releases: [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). Actions is the main path. The Linux Makefile is a local helper.
-- User-facing changes: add an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) in the same change. When a version is released, move those entries under that version and open a new `Unreleased` section. Do not reconstruct a version from git history at the last minute, log every commit, or rewrite a published version except to fix a factual error.
+- User-facing changes: add an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) in the same change. When a version is released, move those entries under that version, open a new empty `Unreleased` section, bump `package.json` / `electrobun.config.ts`, and add `docs/releases/vX.Y.Z.md`. Do not reconstruct a version from git history at the last minute, log every commit, or rewrite a published version except to fix a factual error.
 - Trust, filesystem, Preview, CSP, and packaging: [docs/SECURITY-AND-RESILIENCE.md](docs/SECURITY-AND-RESILIENCE.md). Update that document when a listed review trigger fires. Report vulnerabilities via [SECURITY.md](SECURITY.md).
+- Extensions (local packs under `userData/extensions`, API v1): [docs/EXTENSIONS.md](docs/EXTENSIONS.md). Packs live in sibling [`fulvid-extensions`](../fulvid-extensions/); Fulvid ships none. Extend through existing owners - do not give packs filesystem, network, process, or live Monaco authority. Contract tests: `tests/extensions/`.
 
 ## Desktop toolchain
 
@@ -105,6 +106,6 @@ Compatibility CI is three separate workflows (Linux, Windows, macOS). They packa
 
 ## Dependencies
 
-Bun 1.4.2 (host/CI) and `bun.lock` are authoritative for development scripts. Electrobun 2.0.1's Hutch toolchain still pins **Bun 1.4.0** for the packaged `mainProcess: "bun"` runtime — that app runtime is not the host Bun. Run `bun run deps:check` before dependency changes. `bun run deps:outdated` lists updates without applying them. Recheck nested `brace-expansion` when upgrading Bun or Vue tooling. `package.json` `overrides` pin transitive advisories; do not drop a pin without an advisory or a replacement.
+Bun 1.4.2 (host/CI) and `bun.lock` are authoritative for development scripts. Electrobun 2.0.1's Hutch toolchain still pins **Bun 1.4.0** for the packaged `mainProcess: "bun"` runtime - that app runtime is not the host Bun. Run `bun run deps:check` before dependency changes. `bun run deps:outdated` lists updates without applying them. Recheck nested `brace-expansion` when upgrading Bun or Vue tooling. `package.json` `overrides` pin transitive advisories; do not drop a pin without an advisory or a replacement.
 
 Monthly security automation is `.github/workflows/dependency-security.yml`. It is maintainer process, not packaging.

@@ -91,7 +91,8 @@ export type PresentedMenuItem =
   | { type: "separator"; id: string }
   | {
       type: "command";
-      id: CommandId;
+      /** Core `CommandId` or namespaced extension command id. */
+      id: string;
       label: string;
       shortcut?: string;
       accelerator?: string;
@@ -237,7 +238,15 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
       { type: "role", id: "hideOthers", role: "hideOthers", label: "menu.hideOthers" },
       { type: "role", id: "showAll", role: "showAll", label: "menu.showAll" },
       { type: "separator", id: "app-separator-2" },
-      { type: "role", id: "quit", role: "quit", label: "menu.quit", fallbackCommand: "quit" },
+      // Command (not OS role) so Quit goes through the renderer dirty guard.
+      {
+        type: "command",
+        id: "quit",
+        label: "menu.quit",
+        shortcut: "Ctrl/Cmd+Q",
+        accelerator: "q",
+        availability: "always",
+      },
     ],
   };
 
@@ -358,6 +367,12 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
     { type: "separator", id: "file-separator-folder" },
     {
       type: "command",
+      id: "openExtensions",
+      label: "menu.extensions",
+      availability: "always",
+    },
+    {
+      type: "command",
       id: "openSettings",
       label: "nav.settings",
       availability: "always",
@@ -367,7 +382,14 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
   if (platform !== "darwin") {
     fileItems.push(
       { type: "separator", id: "file-separator-3" },
-      { type: "role", id: "quit", role: "quit", label: "menu.quit", fallbackCommand: "quit" },
+      {
+        type: "command",
+        id: "quit",
+        label: "menu.quit",
+        shortcut: "Ctrl/Cmd+Q",
+        accelerator: "q",
+        availability: "always",
+      },
     );
   }
 
@@ -729,7 +751,7 @@ function presentItems(
   });
 }
 
-export function presentedMenuAction(item: PresentedMenuItem): CommandId | null {
+export function presentedMenuAction(item: PresentedMenuItem): string | null {
   if (item.type === "command") {
     return item.id;
   }
@@ -737,4 +759,126 @@ export function presentedMenuAction(item: PresentedMenuItem): CommandId | null {
     return item.fallbackCommand ?? null;
   }
   return null;
+}
+
+/**
+ * Place loaded extension actions into existing Fulvid menus.
+ * Presentation only - no Extensions top-level menu; invalid targets never appear.
+ */
+export function integrateExtensionActionsIntoMenus(
+  menus: readonly PresentedMenuBar[],
+  commands: readonly {
+    namespacedId: string;
+    title: string;
+    menu?: string;
+    order?: number;
+    documentAction?: boolean;
+  }[],
+): PresentedMenuBar[] {
+  const byTarget = new Map<string, PresentedMenuItem[]>();
+  const sortable = commands
+    .filter((command) => command.menu && !command.documentAction)
+    .slice()
+    .sort((a, b) => (a.order ?? 1000) - (b.order ?? 1000) || a.title.localeCompare(b.title));
+
+  for (const command of sortable) {
+    const target = command.menu;
+    if (!target) {
+      continue;
+    }
+    const list = byTarget.get(target) ?? [];
+    list.push({
+      type: "command",
+      id: command.namespacedId,
+      label: command.title,
+      enabled: true,
+    });
+    byTarget.set(target, list);
+  }
+
+  if (byTarget.size === 0) {
+    return [...menus];
+  }
+
+  return menus.map((menu) => {
+    if (menu.id === "file") {
+      const additions = byTarget.get("file.new");
+      if (!additions?.length) {
+        return menu;
+      }
+      return {
+        ...menu,
+        items: insertIntoSubmenu(menu.items, "new", additions),
+      };
+    }
+    if (menu.id === "edit") {
+      const additions = byTarget.get("edit");
+      if (!additions?.length) {
+        return menu;
+      }
+      return {
+        ...menu,
+        items: appendWithSeparator(menu.items, additions, "edit-extension-actions"),
+      };
+    }
+    if (menu.id === "view") {
+      const additions = byTarget.get("view");
+      if (!additions?.length) {
+        return menu;
+      }
+      return {
+        ...menu,
+        items: appendWithSeparator(menu.items, additions, "view-extension-actions"),
+      };
+    }
+    if (menu.id === "navigate") {
+      const additions = byTarget.get("navigate");
+      if (!additions?.length) {
+        return menu;
+      }
+      return {
+        ...menu,
+        items: appendWithSeparator(menu.items, additions, "navigate-extension-actions"),
+      };
+    }
+    if (menu.id === "help") {
+      const additions = byTarget.get("help");
+      if (!additions?.length) {
+        return menu;
+      }
+      return {
+        ...menu,
+        items: appendWithSeparator(menu.items, additions, "help-extension-actions"),
+      };
+    }
+    return menu;
+  });
+}
+
+function insertIntoSubmenu(
+  items: readonly PresentedMenuItem[],
+  submenuId: string,
+  additions: readonly PresentedMenuItem[],
+): PresentedMenuItem[] {
+  return items.map((item) => {
+    if (item.type !== "submenu" || item.id !== submenuId) {
+      return item;
+    }
+    return {
+      ...item,
+      items: [
+        ...item.items,
+        { type: "separator", id: `${submenuId}-extension-actions` },
+        ...additions,
+      ],
+    };
+  });
+}
+
+function appendWithSeparator(
+  items: readonly PresentedMenuItem[],
+  additions: readonly PresentedMenuItem[],
+  separatorId: string,
+): PresentedMenuItem[] {
+  return [...items, { type: "separator", id: separatorId }, ...additions];
 }

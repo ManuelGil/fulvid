@@ -55,6 +55,8 @@ Pin a short temporary note on a line with **document annotations**. Use Quick Ac
 
 Look at an Outline of headings, or at Document Context for references and facts taken from the focused folder document. Graph shows that document among the documents it actually links to. It is a map of resolved links, not a knowledge base and not a score of how "good" a note is.
 
+Install **local Extensions** when you want small add-ons - a menu command, a note template, or a bounded selection transform - without giving them the filesystem, network, or the live editor. Packs live under your user data folder as ordinary files you can inspect. Details: [docs/EXTENSIONS.md](docs/EXTENSIONS.md). Catalog: sibling [`fulvid-extensions`](../fulvid-extensions/).
+
 The chrome is English or Spanish. Document text, filenames, and link targets are never translated.
 
 ![MDX opened as source in Fulvid](assets/screenshots/editor-mdx.png)
@@ -134,7 +136,7 @@ The files remain portable. Take the folder to another machine, or open it in som
 2. Open a `.md` or `.mdx` file from Explorer, a tab, or a resolved link.
 3. Edit the source.
 4. Turn on Preview when you want to read the page shape. Turn it off when you want the text back.
-5. Optionally use Quick Actions **Add annotation** (or the glyph margin / Navigate → Annotate) for a temporary line note while you rewrite. Hide glyphs from View when you want a quieter margin.
+5. Optionally use Quick Actions **Add annotation** (or the glyph margin / Navigate -> Annotate) for a temporary line note while you rewrite. Hide glyphs from View when you want a quieter margin.
 6. Save. The file on disk is what you just wrote.
 7. Keep using the same files in git or another tool. Fulvid does not need to stay running for the files to remain valid.
 
@@ -174,7 +176,7 @@ GitHub Releases is the public download channel. There is not a published release
 
 When a release is published, download it from [GitHub Releases](https://github.com/ManuelGil/fulvid/releases) and pick the file for your platform. Until then, use the steps below.
 
-You need [Bun](https://bun.sh) **1.4.2** or newer on the host (what `bun run doctor` checks). Electrobun's and Vite's CLIs also need [Node](https://nodejs.org/) 18 or newer on `PATH` (`#!/usr/bin/env node`). The packaged app embeds Electrobun 2.0.1 with Hutch's Bun **1.4.0** runtime — that packaged Bun version is independent of the host Bun you use to develop.
+You need [Bun](https://bun.sh) **1.4.2** or newer on the host (what `bun run doctor` checks). Electrobun's and Vite's CLIs also need [Node](https://nodejs.org/) 18 or newer on `PATH` (`#!/usr/bin/env node`). The packaged app embeds Electrobun 2.0.1 with Hutch's Bun **1.4.0** runtime - that packaged Bun version is independent of the host Bun you use to develop.
 
 On Linux you also need the WebKitGTK stack Electrobun links, including Ayatana AppIndicator:
 
@@ -225,6 +227,7 @@ The README is the public introduction. These documents go deeper when you need t
 
 - [Concepts](docs/CONCEPTS.md) - product vocabulary
 - [Document annotations](docs/ANNOTATIONS.md) - session-local line notes in the editor
+- [Extensions](docs/EXTENSIONS.md) - local extension packs (API v1); catalog in [`fulvid-extensions`](../fulvid-extensions/)
 - [Architecture](docs/ARCHITECTURE.md) - who owns which behavior
 - [Contributing](CONTRIBUTING.md) - how to work in the repo
 - [Distribution](docs/DISTRIBUTION.md) - packaging and GitHub Releases

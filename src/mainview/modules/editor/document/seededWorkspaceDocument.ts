@@ -1,7 +1,7 @@
 /**
  * Create a seeded Markdown/MDX file inside the open folder and open it.
  *
- * Shared by Explorer and File → New from README when a folder is open.
+ * Shared by Explorer and File -> New from README when a folder is open.
  * Filename identity stays with the caller (prompt); this only writes and opens.
  */
 import { applyScannedNote } from "../../../app/workspaceState";

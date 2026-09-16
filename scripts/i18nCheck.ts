@@ -579,7 +579,7 @@ function printReport(report: I18nAuditReport): void {
     console.log(`Catalog type mismatches (${report.typeMismatches.length})`);
     printEntries(
       report.typeMismatches,
-      (entry) => `${entry.locale}: ${entry.key} (${entry.expected} → ${entry.actual})`,
+      (entry) => `${entry.locale}: ${entry.key} (${entry.expected} -> ${entry.actual})`,
     );
     console.log();
   }
@@ -588,7 +588,7 @@ function printReport(report: I18nAuditReport): void {
     printEntries(
       report.placeholderMismatches,
       (entry) =>
-        `${entry.locale}: ${entry.key} (${entry.expected.join(", ") || "none"} → ${
+        `${entry.locale}: ${entry.key} (${entry.expected.join(", ") || "none"} -> ${
           entry.actual.join(", ") || "none"
         })`,
     );

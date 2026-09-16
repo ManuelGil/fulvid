@@ -27,7 +27,8 @@ import { APP_ROUTE_NAMES } from "./router";
 import { notify } from "./notify";
 import ToastHost from "./ToastHost.vue";
 import DialogHost from "./DialogHost.vue";
-import { activeDialog, promptFilename, promptQuickOpen } from "./dialogs";
+import { activeDialog, confirmDialog, promptFilename, promptQuickOpen } from "./dialogs";
+import { confirmAndQuit } from "./applicationQuit";
 import {
   describeFilesystemError,
   notifyFilesystemError,
@@ -89,10 +90,17 @@ import {
   usesNativeApplicationMenu,
 } from "../shell/applicationMenu/applicationMenuClient";
 import {
+  integrateExtensionActionsIntoMenus,
   presentApplicationMenu,
   type ApplicationMenuState,
 } from "../shell/applicationMenu/applicationMenuModel";
 import { desktopRequest, onApplicationMenuClicked } from "../desktop/electrobunClient";
+import {
+  configureExtensionHostActions,
+  listExtensionMenuCommands,
+  runExtensionCommand,
+  setDiscoveredExtensions,
+} from "../extensions/extensionRegistry";
 import { editorCommandState } from "../modules/editor/editorCommandState";
 import {
   toggleWritingFocus,
@@ -626,11 +634,29 @@ function startContextualResize(event: PointerEvent): void {
 }
 
 const unregisterNativeMenu = onApplicationMenuClicked((action) => {
-  void runCommand(action as CommandId);
+  void runShellCommand(action);
 });
 
 onMounted(() => {
   syncDocumentAnnotationsVisibleFromPreference(settings.value.editor.showDocumentAnnotations);
+  configureExtensionHostActions({
+    notify: (message) => notify(message),
+    createUntitled: (content) => createNewDocument(content),
+    invokeLuaCommand: (request) => desktopRequest().invokeExtensionLuaCommand(request),
+  });
+  void desktopRequest()
+    .listDiscoveredExtensions({})
+    .then((result) => {
+      setDiscoveredExtensions(result);
+      // Startup toasts only for failed/blocked packs; Settings holds the inventory.
+      for (const failure of result.failed) {
+        notify(t("extensions.loadFailed", { id: failure.id }));
+      }
+    })
+    .catch((error: unknown) => {
+      console.warn("Fulvid extension discovery unavailable:", error);
+      notify(t("extensions.discoveryUnavailable"));
+    });
   void resolveApplicationMenuSupport().then(() => {
     void syncNativeApplicationMenu(presentedApplicationMenus.value);
   });
@@ -677,10 +703,10 @@ const routeAnnouncement = computed(() => {
 
 const focusModeAnnouncement = ref("");
 watch(writingFocusActive, (active) => {
-  focusModeAnnouncement.value = active ? t("actions.focusMode") : t("actions.exitFocusMode");
+  focusModeAnnouncement.value = active ? t("actions.writingFocusOn") : t("actions.writingFocusOff");
 });
 
-/** Restore left sidebar after Strong Writing Focus collapses it. */
+/** Restore left sidebar after Writing Focus collapses it. */
 const leftSidebarBeforeWritingFocus = ref<boolean | null>(null);
 
 watch(editorFocusChrome, (hiding) => {
@@ -689,7 +715,7 @@ watch(editorFocusChrome, (hiding) => {
       leftSidebarBeforeWritingFocus.value = leftSidebarOpen.value;
     }
     // Collapse to the existing compact rail; do not hide/inert the rail.
-    // Do not auto-focus the rail — leave keyboard focus on Monaco / Quick Actions.
+    // Do not auto-focus the rail - leave keyboard focus on Monaco / Quick Actions.
     if (leftSidebarOpen.value) {
       suppressSidebarAutoFocus = true;
       closeLeftSidebar();
@@ -842,7 +868,7 @@ function openGlobalSearch(): void {
  *
  * Candidates: live `workspace.scannedNotes` via DialogHost /
  * `quickOpenCandidatesFromNotes`. Overlay: `promptQuickOpen`.
- * Open: `openOrActivate` → `selectDocument`.
+ * Open: `openOrActivate` -> `selectDocument`.
  * Global Search stays `openGlobalSearch` (Ctrl/Cmd+Shift+F).
  */
 async function openQuickOpen(): Promise<void> {
@@ -852,6 +878,8 @@ async function openQuickOpen(): Promise<void> {
   }
   const rootPath = workspace.value?.path;
   if (!rootPath) {
+    // Selection succeeded but Folder is gone - fail visibly, not silently.
+    notify(t("workspace.noWorkspace"));
     return;
   }
   try {
@@ -995,10 +1023,13 @@ const applicationMenuState = computed<ApplicationMenuState>(() => {
 });
 
 const presentedApplicationMenus = computed(() =>
-  presentApplicationMenu(
-    applicationMenuSupport.value?.platform ?? "other",
-    applicationMenuState.value,
-    t,
+  integrateExtensionActionsIntoMenus(
+    presentApplicationMenu(
+      applicationMenuSupport.value?.platform ?? "other",
+      applicationMenuState.value,
+      t,
+    ),
+    listExtensionMenuCommands(),
   ),
 );
 
@@ -1052,6 +1083,9 @@ const unregisterCommands = [
   registerCommandHandler("openSettings", () => {
     void router.push({ name: APP_ROUTE_NAMES.settings });
   }),
+  registerCommandHandler("openExtensions", () => {
+    void router.push({ name: APP_ROUTE_NAMES.settings, query: { section: "extensions" } });
+  }),
   registerCommandHandler("openEditor", () => {
     void router.push({ name: APP_ROUTE_NAMES.editor });
   }),
@@ -1080,9 +1114,26 @@ const unregisterCommands = [
   }),
   registerCommandHandler("toggleFullscreen", toggleFullscreen),
   registerCommandHandler("quit", () => {
-    void quitApplication();
+    void requestApplicationQuit();
   }),
 ];
+
+async function requestApplicationQuit(): Promise<void> {
+  const dirtyCount = openBuffers.value.filter(isDocumentDirty).length;
+  await confirmAndQuit({
+    dirtyCount,
+    confirmCloseEnabled: settings.value.workspace.confirmClose,
+    confirm: () =>
+      confirmDialog(
+        dirtyCount === 1
+          ? t("workspace.quitUnsavedOne", {
+              name: openBuffers.value.find(isDocumentDirty)?.title ?? "",
+            })
+          : t("workspace.quitUnsaved", { count: dirtyCount }),
+      ),
+    quit: quitApplication,
+  });
+}
 
 const editorCommandIds = new Set<CommandId>([
   "save",
@@ -1117,6 +1168,17 @@ const editorCommandIds = new Set<CommandId>([
   "clearAnnotations",
   ...MARKDOWN_COMMANDS.map((command) => command.id),
 ]);
+
+async function runShellCommand(id: string): Promise<void> {
+  try {
+    if (await runExtensionCommand(id)) {
+      return;
+    }
+    await runCommand(id as CommandId);
+  } catch (error: unknown) {
+    notify(describeFilesystemError(error, "app.commandError"));
+  }
+}
 
 async function runCommand(id: CommandId): Promise<void> {
   try {
@@ -1171,12 +1233,13 @@ onBeforeUnmount(() => {
         class="app-shell__menu-row"
         data-application-menu="html-fallback"
       >
-        <ApplicationMenu :menus="presentedApplicationMenus" @command="runCommand" />
+        <ApplicationMenu :menus="presentedApplicationMenus" @command="runShellCommand" />
       </div>
+      <!-- Writing Focus must not hide/inert this row: Quick Actions stay a capability. -->
       <div class="app-shell__actions-row" :inert="overlayOpen">
         <QuickActionsToolbar
           :explorer-open="activeRightPanel === 'explorer'"
-          :run-command="runCommand"
+          :run-command="runShellCommand"
         />
       </div>
     </header>

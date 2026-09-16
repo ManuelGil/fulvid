@@ -3,7 +3,7 @@
  *
  * Not a structural-editing framework. Consumers insert the returned text via Monaco.
  * Link syntax follows the single settings `linkMode`. Anchors use `headingAnchor`
- * / `parseMarkdownStructure` elsewhere — this module does not re-parse headings.
+ * / `parseMarkdownStructure` elsewhere - this module does not re-parse headings.
  */
 import type { LinkSyntax } from "../../document/links/documentLink";
 import type { MarkdownHeading } from "./markdownStructure";
@@ -12,7 +12,7 @@ export type FormatDocumentLinkInput = {
   /** Visible label; sanitized for the active link syntax. */
   label: string;
   /**
-   * Document target path (folder-relative or `./…`). Empty when linking only
+   * Document target path (folder-relative or `./...`). Empty when linking only
    * to a heading in the current document (`#anchor` / `[[#anchor]]`).
    */
   target: string;
@@ -53,7 +53,7 @@ function sanitizeWikilinkLabel(label: string): string {
 
 /**
  * Build a single document/section link in the active `linkMode`.
- * Result is ordinary Markdown/wikilink source — no HTML.
+ * Result is ordinary Markdown/wikilink source - no HTML.
  */
 export function formatDocumentLink(input: FormatDocumentLinkInput): string {
   const anchor = input.anchor?.trim() || "";
@@ -107,7 +107,7 @@ export type TableOfContentsOptions = {
 
 /**
  * Deterministic TOC from already-parsed headings of the current document.
- * Same-document fragment links only. Empty headings → empty string.
+ * Same-document fragment links only. Empty headings -> empty string.
  */
 export function buildMarkdownTableOfContents(
   headings: readonly MarkdownHeading[],

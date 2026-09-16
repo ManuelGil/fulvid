@@ -27,7 +27,7 @@ const steps: Step[] = [
 ];
 
 function runStep(step: Step): void {
-  console.log(`\n→ ${step.name}\n`);
+  console.log(`\n-> ${step.name}\n`);
   execFileSync(step.command, step.args, { cwd: root, stdio: "inherit" });
 }
 

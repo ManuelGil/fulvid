@@ -22,7 +22,7 @@ function normalizeQuery(query: string): string {
 }
 
 /**
- * Lower rank is better. Prefix on title → name → path, then substring hits.
+ * Lower rank is better. Prefix on title -> name -> path, then substring hits.
  * `null` means no match.
  */
 function matchRank(candidate: QuickOpenCandidate, query: string): number | null {

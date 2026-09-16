@@ -12,6 +12,7 @@ export type SettingsSearchCategory =
   | "markdown"
   | "preview"
   | "workspace"
+  | "extensions"
   | "accessibility"
   | "keyboard";
 
@@ -39,6 +40,7 @@ export const SETTINGS_SEARCH_CATEGORY_LABEL: Readonly<Record<SettingsSearchCateg
   markdown: "settings.markdown",
   preview: "settings.preview",
   workspace: "settings.workspace",
+  extensions: "settings.extensions",
   accessibility: "settings.accessibility",
   keyboard: "settings.keyboard",
 };
@@ -268,6 +270,20 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     terms: ["startup", "reopen", "last folder"],
   },
   {
+    id: "extensions.section",
+    category: "extensions",
+    labelKey: "settings.extensions",
+    hintKey: "settings.extensionsHint",
+    terms: ["extension", "plugin", "pack", "blocked", "lua"],
+  },
+  {
+    id: "extensions.list",
+    category: "extensions",
+    labelKey: "settings.extensions",
+    hintKey: "settings.extensionsHint",
+    terms: ["installed extensions", "load state", "capabilities"],
+  },
+  {
     id: "accessibility.reducedMotion",
     category: "accessibility",
     labelKey: "settings.reducedMotion",
@@ -351,7 +367,7 @@ function normalizeSearchText(value: string): string {
 }
 
 /**
- * Rank: label prefix → label → category → hint → terms. Lower is better.
+ * Rank: label prefix -> label -> category -> hint -> terms. Lower is better.
  * Empty query yields no hits (Settings UI stays in its normal category view).
  */
 function matchRank(

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { installNativeContextMenuSuppression } from "../../../src/mainview/app/suppressNativeContextMenu.ts";
 
-// Intent: block the OS menu without stopPropagation — product listeners must still run.
+// Intent: block the OS menu without stopPropagation - product listeners must still run.
 describe("native context menu suppression", () => {
   test("cancels the default action without stopping other listeners", () => {
     const target = new EventTarget();

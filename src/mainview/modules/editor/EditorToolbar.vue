@@ -2,7 +2,8 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
-import AppIcon, { type IconName } from "../../shell/AppIcon.vue";
+import AppIcon from "../../shell/AppIcon.vue";
+import type { IconName } from "../../shell/appIcons";
 import { toAriaKeyshortcuts } from "../../shell/commands";
 import { MARKDOWN_COMMANDS, type MarkdownFormatAction } from "./markdown/markdownFormat";
 

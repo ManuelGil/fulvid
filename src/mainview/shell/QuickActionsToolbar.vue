@@ -17,14 +17,13 @@ import {
   quickActions,
   selectQuickActionsForVisibleCount,
   toAriaKeyshortcuts,
-  type CommandId,
   type QuickActionDefinition,
 } from "./commands";
 import { settings } from "../modules/settings/settingsStore";
 
 const props = defineProps<{
   explorerOpen: boolean;
-  runCommand: (id: CommandId) => void | Promise<void>;
+  runCommand: (id: string) => void | Promise<void>;
 }>();
 
 const { t } = useI18n();

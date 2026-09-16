@@ -1,11 +1,13 @@
 /**
  * Seed text for "New Document from README".
  *
- * Templates are not document types, stored notes, or a second lifecycle —
+ * Templates are not document types, stored notes, or a second lifecycle -
  * only the initial buffer/file body for that explicit creation path.
- * Exactly one built-in template: a README-shaped Markdown document.
+ * Exactly one built-in core template: a README-shaped Markdown document.
  * Mustache interpolates the title; the result is ordinary Markdown.
  *
+ * Extension packs embed their own seed Markdown in entry.lua via
+ * `document.createUntitled` - not this README Mustache path.
  * "New Document" (blank) does not use this module.
  */
 import Mustache from "mustache";
@@ -91,7 +93,7 @@ export const DOCUMENT_TEMPLATES: readonly DocumentTemplate[] = [
   },
 ];
 
-/** Collapse whitespace; empty → fallback. Does not invent product metadata. */
+/** Collapse whitespace; empty -> fallback. Does not invent product metadata. */
 export function normalizeDocumentTemplateTitle(raw: string | undefined | null): string {
   if (raw == null) {
     return DEFAULT_README_TITLE;
@@ -118,7 +120,7 @@ export function documentTemplateTitleFromParentPath(
 }
 
 /**
- * Render a built-in template. Unknown ids yield "".
+ * Render a built-in core template. Unknown ids yield "".
  * Context values are Mustache-escaped (HTML entities) so hostile folder names
  * stay inert through Preview; the output must contain no Mustache tags.
  */

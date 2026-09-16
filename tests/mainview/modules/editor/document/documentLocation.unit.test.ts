@@ -22,7 +22,7 @@ function buffer(
   };
 }
 
-// Intent: one pure projection for document chrome — paths, tabs, window title.
+// Intent: one pure projection for document chrome - paths, tabs, window title.
 describe("document location", () => {
   test("projects relative paths without inventing a folder, and titles follow the destination", () => {
     expect(

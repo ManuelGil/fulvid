@@ -1,5 +1,5 @@
 /* Graph stage tokens - document owns identity; canvas is the answer.
- * Hierarchy (CSS only): Focus → direct references → wider context → chrome.
+ * Hierarchy (CSS only): Focus -> direct references -> wider context -> chrome.
  */
 
 .graph-workbench {

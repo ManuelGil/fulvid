@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 
 import ContextMenu, { type ContextMenuAction } from "./ContextMenu.vue";
 import type { MenuAnchor } from "./contextMenuPosition";
-import { toAriaKeyshortcuts, type CommandId } from "./commands";
+import { toAriaKeyshortcuts } from "./commands";
 import {
   presentedMenuAction,
   type PresentedMenuBar,
@@ -16,7 +16,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  command: [id: CommandId];
+  command: [id: string];
 }>();
 
 const { t } = useI18n();
@@ -36,6 +36,27 @@ function setMenuButton(id: string, element: unknown): void {
   }
 }
 
+function findPresentedItem(
+  items: readonly PresentedMenuItem[],
+  id: string,
+): PresentedMenuItem | null {
+  for (const item of items) {
+    if (item.type === "separator") {
+      continue;
+    }
+    if (item.id === id) {
+      return item;
+    }
+    if (item.type === "submenu") {
+      const nested = findPresentedItem(item.items, id);
+      if (nested) {
+        return nested;
+      }
+    }
+  }
+  return null;
+}
+
 function toContextActions(items: readonly PresentedMenuItem[]): ContextMenuAction[] {
   return items.map((item) => {
     if (item.type === "separator") {
@@ -48,9 +69,10 @@ function toContextActions(items: readonly PresentedMenuItem[]): ContextMenuActio
         children: toContextActions(item.items),
       };
     }
-    const commandId = presentedMenuAction(item);
+    // Keep unique item.id as the Vue/ContextMenu key. Role entries like paste and
+    // pasteAndMatchStyle share the same fallbackCommand and must not collide.
     return {
-      id: commandId ?? item.id,
+      id: item.id,
       label: item.label,
       shortcut: item.type === "command" ? item.shortcut : undefined,
       ariaShortcut: item.type === "command" ? toAriaKeyshortcuts(item.shortcut) : undefined,
@@ -90,7 +112,17 @@ function closeMenu(): void {
 
 function selectCommand(id: string): void {
   closeMenu();
-  emit("command", id as CommandId);
+  for (const menu of props.menus) {
+    const item = findPresentedItem(menu.items, id);
+    if (item) {
+      const commandId = presentedMenuAction(item);
+      if (commandId) {
+        emit("command", commandId);
+      }
+      return;
+    }
+  }
+  emit("command", id);
 }
 
 function focusAdjacentMenu(menuId: string, direction: -1 | 1): void {

@@ -22,6 +22,13 @@ import ContextMenu, { type ContextMenuAction } from "../../shell/ContextMenu.vue
 import EmptyState from "../../shell/EmptyState.vue";
 import PageShell from "../../shell/PageShell.vue";
 import { patchSettings } from "../../modules/settings/settingsStore";
+import { registerEditorExtensionSeam } from "../../extensions/editorExtensionSeam";
+import type { ExtensionDecorationRange } from "../../extensions/decorationCapability";
+import {
+  listDocumentActivationCommands,
+  runExtensionCommand,
+  discoveredExtensions,
+} from "../../extensions/extensionRegistry";
 
 import {
   applyScannedNote,
@@ -137,6 +144,24 @@ type MonacoHostHandle = {
   runMarkdownAction: (action: MarkdownFormatAction) => void;
   insertTextAtCursor: (text: string) => void;
   getSelectedText: () => string;
+  getExtensionApplyContext: () => {
+    selection: string;
+    alternativeVersionId: number;
+    startOffset: number;
+    endOffset: number;
+  } | null;
+  getExtensionDocumentContext: () => {
+    text: string;
+    alternativeVersionId: number;
+    cursorLine: number;
+    cursorColumn: number;
+  } | null;
+  replacePrimarySelection: (text: string) => boolean;
+  setExtensionDecorations: (
+    extensionId: string,
+    ranges: readonly ExtensionDecorationRange[],
+  ) => boolean;
+  clearExtensionDecorations: (extensionId: string) => boolean;
   trimTrailingWhitespace: () => boolean;
   currentCursorPosition: () => { lineNumber: number; column: number };
   findAnnotationAtLine: (lineNumber: number) => {
@@ -343,7 +368,7 @@ async function saveAsEditorDocument(): Promise<void> {
     return;
   }
 
-  // Trim only after the user confirms a destination — cancel must not mutate.
+  // Trim only after the user confirms a destination - cancel must not mutate.
   if (settings.value.editor.trimTrailingWhitespaceOnSave) {
     monacoHostRef.value?.trimTrailingWhitespace();
   }
@@ -508,7 +533,7 @@ function togglePreview(): void {
 }
 
 function createNewDocument(): void {
-  // Same command as File → New → New Document and Quick Actions.
+  // Same command as File -> New -> New Document and Quick Actions.
   void executeCommand("newDocument");
 }
 
@@ -1058,7 +1083,133 @@ function onPreviewMediaChange(event: MediaQueryListEvent): void {
   previewStacked.value = event.matches;
 }
 
+/**
+ * Always-on document packs: silent refresh when the active document identity
+ * changes or the live Monaco model text changes.
+ *
+ * Monaco's alternativeVersionId is not Vue-reactive - do not watch it. Live
+ * edits are observed via MonacoHost `contentChange` (onDidChangeModelContent).
+ */
+let documentActivationTimer: ReturnType<typeof setTimeout> | null = null;
+let documentActivationGeneration = 0;
+
+function scheduleDocumentActivationRefresh(): void {
+  if (documentActivationTimer) {
+    clearTimeout(documentActivationTimer);
+  }
+  const generation = ++documentActivationGeneration;
+  documentActivationTimer = setTimeout(() => {
+    documentActivationTimer = null;
+    if (generation !== documentActivationGeneration) {
+      return;
+    }
+    const commands = listDocumentActivationCommands();
+    if (commands.length === 0 || !activeBuffer.value || !monacoHostRef.value) {
+      return;
+    }
+    // Lua forbids reentrancy - run document packs strictly one at a time.
+    void (async () => {
+      for (const command of commands) {
+        if (generation !== documentActivationGeneration) {
+          return;
+        }
+        try {
+          await runExtensionCommand(command.namespacedId, { silent: true });
+        } catch (error: unknown) {
+          // Isolation: one pack failure must not stop others or the editor.
+          // A concurrent edit may reject as stale; the next contentChange
+          // reschedules with a fresh live snapshot.
+          const detail =
+            error instanceof Error
+              ? error.message
+              : typeof error === "string"
+                ? error
+                : JSON.stringify(error);
+          console.warn("Document activation failed:", command.namespacedId, detail);
+        }
+      }
+    })();
+  }, 180);
+}
+
+watch(
+  () => activeBuffer.value?.id ?? null,
+  () => {
+    scheduleDocumentActivationRefresh();
+  },
+  { flush: "post" },
+);
+
+// MonacoHost is async - ref is null until the chunk mounts. Discovery also
+// arrives after App onMounted. Re-arm when either becomes ready.
+watch(monacoHostRef, (host) => {
+  if (host && activeBuffer.value) {
+    scheduleDocumentActivationRefresh();
+  }
+});
+
+watch(
+  () => discoveredExtensions.value.loaded.length,
+  () => {
+    if (activeBuffer.value && monacoHostRef.value) {
+      scheduleDocumentActivationRefresh();
+    }
+  },
+);
+
 onMounted(() => {
+  registerEditorExtensionSeam({
+    getApplyContext: () => {
+      const host = monacoHostRef.value;
+      const buffer = activeBuffer.value;
+      if (!host || !buffer) {
+        return null;
+      }
+      const context = host.getExtensionApplyContext();
+      if (!context) {
+        return null;
+      }
+      return {
+        selection: context.selection,
+        documentId: buffer.id,
+        alternativeVersionId: context.alternativeVersionId,
+        startOffset: context.startOffset,
+        endOffset: context.endOffset,
+      };
+    },
+    getDocumentContext: () => {
+      const host = monacoHostRef.value;
+      const buffer = activeBuffer.value;
+      if (!host || !buffer) {
+        return null;
+      }
+      const context = host.getExtensionDocumentContext();
+      if (!context) {
+        return null;
+      }
+      return {
+        text: context.text,
+        documentId: buffer.id,
+        alternativeVersionId: context.alternativeVersionId,
+        cursorLine: context.cursorLine,
+        cursorColumn: context.cursorColumn,
+      };
+    },
+    replaceSelection: (text) => monacoHostRef.value?.replacePrimarySelection(text) ?? false,
+    reveal: (lineNumber, column) => {
+      const host = monacoHostRef.value;
+      if (!host) {
+        return false;
+      }
+      host.revealPosition(lineNumber, column);
+      return true;
+    },
+    setExtensionDecorations: (extensionId, ranges) =>
+      monacoHostRef.value?.setExtensionDecorations(extensionId, ranges) ?? false,
+    clearExtensionDecorations: (extensionId) =>
+      monacoHostRef.value?.clearExtensionDecorations(extensionId) ?? false,
+    hasActiveEditor: () => Boolean(monacoHostRef.value && activeBuffer.value),
+  });
   previewMedia = window.matchMedia("(max-width: 900px)");
   previewStacked.value = previewMedia.matches;
   previewMedia.addEventListener("change", onPreviewMediaChange);
@@ -1073,11 +1224,18 @@ onMounted(() => {
       ) {
         monacoHostRef.value?.focus();
       }
+      scheduleDocumentActivationRefresh();
     });
   });
 });
 
 onBeforeUnmount(() => {
+  if (documentActivationTimer) {
+    clearTimeout(documentActivationTimer);
+    documentActivationTimer = null;
+  }
+  documentActivationGeneration += 1;
+  registerEditorExtensionSeam(null);
   previewResizeCleanup?.();
   previewResizeCleanup = null;
   previewMedia?.removeEventListener("change", onPreviewMediaChange);
@@ -1219,10 +1377,12 @@ onBeforeUnmount(() => {
               @save="saveEditorDocument"
               @save-as="saveAsEditorDocument"
               @outline="openOutlinePanel"
+              @quick-open="() => void executeCommand('openQuickOpen')"
               @escape="leaveEditor"
               @scroll="syncPreviewScroll"
               @command-state="onCommandState"
               @annotate-line="(lineNumber) => void annotateAtLine(lineNumber, 1)"
+              @content-change="scheduleDocumentActivationRefresh"
             />
             <p v-else class="editor-page__empty-editor">
               {{ t("workspace.chooseDocument") }}

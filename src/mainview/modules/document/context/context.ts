@@ -1,6 +1,6 @@
 /**
  * Document Context helpers shared by inspector and Search summaries.
- * Document counts only — not a folder-level Context root.
+ * Document counts only - not a folder-level Context root.
  */
 import { i18n } from "../../../i18n";
 

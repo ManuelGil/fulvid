@@ -76,7 +76,7 @@ async function launchDesktopSmoke(): Promise<void> {
     return;
   }
 
-  console.log("→ Desktop launch smoke\n");
+  console.log("-> Desktop launch smoke\n");
 
   const proc = Bun.spawn(["bun", "x", "electrobun", "dev"], {
     cwd: root,
@@ -98,10 +98,10 @@ async function launchDesktopSmoke(): Promise<void> {
 
 console.log("\nFulvid smoke\n");
 
-console.log("→ Integration tests\n");
+console.log("-> Integration tests\n");
 run("bun", ["test", "tests/bun/filesystem/io/documentLifecycle.smoke.test.ts"]);
 
-console.log("\n→ Built shell\n");
+console.log("\n-> Built shell\n");
 verifyBuiltShell();
 console.log("  dist/index.html and bundled assets look usable.\n");
 

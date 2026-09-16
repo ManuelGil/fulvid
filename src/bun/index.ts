@@ -14,13 +14,37 @@ import {
 import { enqueueExternalOpenRequest, takePendingExternalOpens } from "./external/externalOpen";
 import { externalOpenRequestsFromArguments } from "./external/startupArguments";
 import { configureWorkspaceApprovals } from "./workspaceGrants";
+import {
+  configureExtensionDiscovery,
+  discoverExtensions,
+  getDiscoveredExtensions,
+  installExtensionFromDirectory,
+  loadAllowedBlockedExtension,
+  resolveInstalledExtensionPath,
+  uninstallExtensionPack,
+} from "./extensions/discoverExtensions";
+import { invokeLuaExtensionCommand } from "./extensions/lua/luaExtensionRuntime";
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
 import { canPersistWindowFrame, toggleNativeFullScreen } from "./windowFullScreen";
 import { setNativeWindowTitle } from "./windowTitle";
 
+async function pickExtensionSourceDirectory(): Promise<string | null> {
+  const chosenPaths = await Utils.openFileDialog({
+    startingFolder: Utils.paths.home,
+    allowedFileTypes: "*",
+    canChooseFiles: false,
+    canChooseDirectory: true,
+    allowsMultipleSelection: false,
+  });
+  return chosenPaths[0] ?? null;
+}
+
 // Folder approvals are host state: which folders a person picked in a dialog.
 // Configuring the store here keeps the approval rules free of the runtime.
 configureWorkspaceApprovals(Utils.paths.userData);
+// Declarative packs live under userData/extensions - filesystem is source of truth.
+configureExtensionDiscovery(Utils.paths.userData);
+await discoverExtensions();
 
 const DEV_SERVER_HOST = "127.0.0.1";
 const DEV_SERVER_PORT = 5173;
@@ -50,6 +74,43 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
     requests: {
       ...filesystemRpcHandlers,
       takePendingExternalOpens: () => takePendingExternalOpens(),
+      listDiscoveredExtensions: () => getDiscoveredExtensions(),
+      rediscoverExtensions: async () => discoverExtensions(),
+      installExtensionPack: async () => {
+        const selectedPath = await pickExtensionSourceDirectory();
+        if (!selectedPath) {
+          return { status: "cancelled" as const };
+        }
+        return installExtensionFromDirectory(selectedPath);
+      },
+      uninstallExtensionPack: async ({ id }) => {
+        if (typeof id !== "string" || id.length === 0 || id.length > 256) {
+          return {
+            status: "error" as const,
+            reason: "invalid extension id",
+            discovery: getDiscoveredExtensions(),
+          };
+        }
+        return uninstallExtensionPack(id);
+      },
+      allowBlockedExtension: async ({ id }) => {
+        if (typeof id !== "string" || id.length === 0 || id.length > 256) {
+          return getDiscoveredExtensions();
+        }
+        return loadAllowedBlockedExtension(id);
+      },
+      revealExtensionPack: ({ id }) => {
+        if (typeof id !== "string" || id.length === 0 || id.length > 256) {
+          return false;
+        }
+        const path = resolveInstalledExtensionPath(id);
+        if (!path) {
+          return false;
+        }
+        Utils.showItemInFolder(path);
+        return true;
+      },
+      invokeExtensionLuaCommand: (params) => invokeLuaExtensionCommand(params),
       setApplicationMenu: ({ items }) => setNativeApplicationMenu(items),
       getApplicationMenuSupport: () => applicationMenuSupport(),
       quitApplication: () => quitApplication(),

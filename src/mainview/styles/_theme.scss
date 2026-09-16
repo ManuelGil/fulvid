@@ -1,10 +1,10 @@
 // Design System V2 - semantic color roles.
 //
 // Surface ladder (must remain distinguishable):
-//   background  → window chrome
-//   surface     → sidebar / navigation
-//   surface-elevated → page stage, dialogs, canvas
-//   surface-hover / selection → interaction
+//   background  -> window chrome
+//   surface     -> sidebar / navigation
+//   surface-elevated -> page stage, dialogs, canvas
+//   surface-hover / selection -> interaction
 
 @mixin emit-theme-tokens($tokens) {
   @each $name, $value in $tokens {
@@ -479,7 +479,7 @@ $monochrome-tokens: (
 }
 
 // Pre-JS paint matches first-run default (appearance.theme = system): follow
-// the OS. Explicit [data-theme=…] skins override after settings hydrate.
+// the OS. Explicit [data-theme=...] skins override after settings hydrate.
 :root {
   @include dark-tokens;
   --ui-text-scale: 1;

@@ -153,7 +153,7 @@ describe("document path rename", () => {
     expect(plan.edits[0]?.previous).toBe("./a.md");
     expect(applyTextEdits(live, plan.edits)).toBe("See [A](./alpha.md).\n");
 
-    // Prefix insertion shifts offsets — planned previous no longer sits at start/end.
+    // Prefix insertion shifts offsets - planned previous no longer sits at start/end.
     const drifted = `x${live}`;
     expect(drifted.slice(plan.edits[0]!.start, plan.edits[0]!.end)).not.toBe(
       plan.edits[0]!.previous,

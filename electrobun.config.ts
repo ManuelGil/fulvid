@@ -16,7 +16,7 @@ export default {
   app: {
     name: "Fulvid",
     identifier: "fulvid.imgil.dev",
-    version: "0.8.0",
+    version: "0.9.0",
   },
   build: {
     mainProcess: "bun",
@@ -26,6 +26,8 @@ export default {
     copy: {
       "dist/index.html": "views/mainview/index.html",
       "dist/assets": "views/mainview/assets",
+      // wasmoon loads Wasm from disk beside the Bun host entry (not CDN).
+      "node_modules/wasmoon/dist/glue.wasm": "bun/glue.wasm",
     },
     watchIgnore: ["dist/**"],
     mac: {

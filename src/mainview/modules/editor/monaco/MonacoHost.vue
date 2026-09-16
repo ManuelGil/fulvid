@@ -48,6 +48,12 @@ import {
   registerDocumentLanguage,
   registerFrontmatterDiagnostics,
 } from "./documentLanguage";
+import {
+  monacoDecorationOptionsForRange,
+  ensureExtensionDecorationStyles,
+  ensureExtensionAppearanceStyles,
+  type ExtensionDecorationRange,
+} from "../../../extensions/decorationCapability";
 
 installMonacoLucideIcons();
 
@@ -63,10 +69,13 @@ const emit = defineEmits<{
   save: [];
   saveAs: [];
   outline: [];
+  quickOpen: [];
   escape: [];
   scroll: [ratio: number];
   commandState: [state: EditorCommandState];
   annotateLine: [lineNumber: number];
+  /** Live model text changed - host document extensions may reprocess. */
+  contentChange: [];
 }>();
 
 const hostRef = ref<HTMLDivElement | null>(null);
@@ -87,6 +96,11 @@ let backToTopButton: HTMLButtonElement | null = null;
 let backToTopWidget: monaco.editor.IOverlayWidget | null = null;
 let stopLayoutWatch: monaco.IDisposable | null = null;
 let stopAnnotationMouseWatch: monaco.IDisposable | null = null;
+/** Per-extension decoration collections (Extension API decorations capability). */
+const extensionDecorationCollections = new Map<
+  string,
+  monaco.editor.IEditorDecorationsCollection
+>();
 
 const BACK_TO_TOP_WIDGET_ID = "fulvid.backToTop";
 /** Show the control once the viewport has left the first screen of the document. */
@@ -442,6 +456,9 @@ function mountEditor(): void {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyO, () =>
     emit("outline"),
   );
+  // Same ownership as Save: native menu accelerators do not reach the webview when
+  // Monaco has focus, and App.vue defers Ctrl/Cmd+P to the native menu on GTK.
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => emit("quickOpen"));
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => find());
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => replace());
   registerMarkdownActions();
@@ -449,7 +466,7 @@ function mountEditor(): void {
     if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
       return;
     }
-    // Left button only — do not open annotate on right/middle click.
+    // Left button only - do not open annotate on right/middle click.
     if (!event.event.leftButton) {
       return;
     }
@@ -464,7 +481,10 @@ function mountEditor(): void {
     registerMarkdownActions();
     updateBackToTopLabel();
   });
-  stopContentWatch = editor.onDidChangeModelContent(queueCommandState);
+  stopContentWatch = editor.onDidChangeModelContent(() => {
+    queueCommandState();
+    emit("contentChange");
+  });
   stopCursorWatch = editor.onDidChangeCursorPosition(queueCommandState);
   stopEditorKeyWatch = editor.onKeyDown((event) => {
     if (event.keyCode === monaco.KeyCode.Escape) {
@@ -508,6 +528,7 @@ watch(
   () => props.model,
   (model) => {
     if (editor && editor.getModel() !== model) {
+      clearAllExtensionDecorations();
       editor.setModel(model);
       languageRegistration?.dispose();
       languageRegistration = props.rootPath
@@ -827,6 +848,150 @@ function getSelectedText(): string {
 }
 
 /**
+ * Host-only editor apply context for Extension API v1 (stamps + selection text).
+ * Not exposed to Lua guests.
+ */
+function getExtensionApplyContext(): {
+  selection: string;
+  alternativeVersionId: number;
+  startOffset: number;
+  endOffset: number;
+} | null {
+  if (!editor) {
+    return null;
+  }
+  const model = editor.getModel();
+  const selection = editor.getSelection();
+  if (!model || !selection) {
+    return null;
+  }
+  const startOffset = model.getOffsetAt(selection.getStartPosition());
+  const endOffset = model.getOffsetAt(selection.getEndPosition());
+  return {
+    selection: selection.isEmpty() ? "" : model.getValueInRange(selection),
+    alternativeVersionId: model.getAlternativeVersionId(),
+    startOffset,
+    endOffset,
+  };
+}
+
+/**
+ * Full-document snapshot for document/decorations capabilities (host stamps included).
+ */
+function getExtensionDocumentContext(): {
+  text: string;
+  alternativeVersionId: number;
+  cursorLine: number;
+  cursorColumn: number;
+} | null {
+  if (!editor) {
+    return null;
+  }
+  const model = editor.getModel();
+  if (!model) {
+    return null;
+  }
+  const position = editor.getPosition() ?? { lineNumber: 1, column: 1 };
+  return {
+    text: model.getValue(),
+    alternativeVersionId: model.getAlternativeVersionId(),
+    cursorLine: position.lineNumber,
+    cursorColumn: position.column,
+  };
+}
+
+/**
+ * Replace the primary selection (or insert at the cursor when empty).
+ * Empty `text` clears the selection. Returns false when no editor/model.
+ * Undoable Monaco edit - dirty state follows the model.
+ */
+function replacePrimarySelection(text: string): boolean {
+  if (!editor) {
+    return false;
+  }
+  const model = editor.getModel();
+  const selection = editor.getSelection();
+  if (!model || !selection) {
+    return false;
+  }
+  editor.executeEdits("fulvid-extension-replace-selection", [
+    {
+      range: selection,
+      text,
+      forceMoveMarkers: true,
+    },
+  ]);
+  const end = model.getPositionAt(model.getOffsetAt(selection.getStartPosition()) + text.length);
+  editor.setSelection(monaco.Selection.fromPositions(end, end));
+  editor.focus();
+  queueCommandState();
+  return true;
+}
+
+function setExtensionDecorations(
+  extensionId: string,
+  ranges: readonly ExtensionDecorationRange[],
+): boolean {
+  if (!editor) {
+    return false;
+  }
+  ensureExtensionDecorationStyles();
+  for (const range of ranges) {
+    if (range.appearance) {
+      ensureExtensionAppearanceStyles(range.appearance);
+    }
+  }
+  let collection = extensionDecorationCollections.get(extensionId);
+  if (!collection) {
+    collection = editor.createDecorationsCollection([]);
+    extensionDecorationCollections.set(extensionId, collection);
+  }
+  collection.set(
+    ranges.map((range) => {
+      const render = monacoDecorationOptionsForRange(range);
+      return {
+        range: new monaco.Range(range.startLine, range.startColumn, range.endLine, range.endColumn),
+        options: {
+          inlineClassName: render.inlineClassName,
+          ...(render.glyphMarginClassName
+            ? { glyphMarginClassName: render.glyphMarginClassName }
+            : {}),
+          stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+          overviewRuler: {
+            color: render.overviewRulerColor,
+            position: monaco.editor.OverviewRulerLane.Center,
+          },
+        },
+      };
+    }),
+  );
+  return true;
+}
+
+function clearExtensionDecorations(extensionId: string): boolean {
+  if (!editor) {
+    return false;
+  }
+  const collection = extensionDecorationCollections.get(extensionId);
+  if (collection) {
+    collection.clear();
+    extensionDecorationCollections.delete(extensionId);
+  }
+  return true;
+}
+
+function clearAllExtensionDecorations(): void {
+  for (const collection of extensionDecorationCollections.values()) {
+    try {
+      collection.clear();
+    } catch {
+      // best-effort
+    }
+  }
+  extensionDecorationCollections.clear();
+}
+
+/**
  * Remove trailing spaces/tabs via Monaco edits. Returns true when the model changed.
  * No-op when there is nothing to trim (dirty state unchanged).
  */
@@ -867,6 +1032,11 @@ defineExpose({
   runMarkdownAction,
   insertTextAtCursor,
   getSelectedText,
+  getExtensionApplyContext,
+  getExtensionDocumentContext,
+  replacePrimarySelection,
+  setExtensionDecorations,
+  clearExtensionDecorations,
   trimTrailingWhitespace,
   currentCursorPosition,
   findAnnotationAtLine,
@@ -879,6 +1049,7 @@ defineExpose({
 
 onBeforeUnmount(() => {
   hostRef.value?.removeEventListener("paste", onMarkdownPaste, true);
+  clearAllExtensionDecorations();
   stopThemeWatch?.();
   stopThemeWatch = null;
   stopEditorKeyWatch?.dispose();
@@ -984,5 +1155,36 @@ onBeforeUnmount(() => {
   background: currentColor;
   content: "";
   opacity: 0.85;
+}
+
+/*
+ * Fallback chip rules (also injected at apply-time via ensureExtensionDecorationStyles).
+ * Solid hex - no color-mix. Prefer the injected sheet's !important for WebKitGTK.
+ */
+.fulvid-ext-decoration-info {
+  box-decoration-break: clone;
+  border-radius: 0.2rem;
+  font-weight: 700;
+  padding: 0 0.12em;
+  background-color: #4a7fc4;
+  color: #ffffff !important;
+}
+
+.fulvid-ext-decoration-warn {
+  box-decoration-break: clone;
+  border-radius: 0.2rem;
+  font-weight: 700;
+  padding: 0 0.12em;
+  background-color: #d29922;
+  color: #0d1117 !important;
+}
+
+.fulvid-ext-decoration-error {
+  box-decoration-break: clone;
+  border-radius: 0.2rem;
+  font-weight: 700;
+  padding: 0 0.12em;
+  background-color: #ff7b72;
+  color: #0d1117 !important;
 }
 </style>

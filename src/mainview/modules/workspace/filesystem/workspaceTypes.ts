@@ -28,7 +28,7 @@ export function isMarkdownFile(path: string): boolean {
 }
 
 /**
- * Explorer create/rename names must be basenames only — same refusal class as
+ * Explorer create/rename names must be basenames only - same refusal class as
  * host `requireSafeBasename` (no separators, traversal, or empty stems).
  */
 export function isSafeDocumentBasename(name: string): boolean {
@@ -64,7 +64,7 @@ export interface ScannedNote {
   words: number;
   /** Raw document content retained for workspace content search. */
   content?: string;
-  /** True when the relative path includes a hidden segment (e.g. `.notes/…`). */
+  /** True when the relative path includes a hidden segment (e.g. `.notes/...`). */
   hidden?: boolean;
 }
 

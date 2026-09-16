@@ -1,5 +1,5 @@
 /**
- * Vue adapter: Focus (and virtual/standalone fallback) → Graph Core inputs.
+ * Vue adapter: Focus (and virtual/standalone fallback) -> Graph Core inputs.
  *
  * Graph does not read `activeId`. Tests use `graphActiveTargetFromInputs`.
  */

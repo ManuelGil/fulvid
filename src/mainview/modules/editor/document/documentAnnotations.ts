@@ -55,7 +55,7 @@ export function annotationTextAsHoverMarkdown(text: string): string {
   return text.replace(/([\\`*_{}[\]()#+\-.!|<>~])/g, "\\$1");
 }
 
-/** Collapse whitespace, drop C0/DEL controls, cap length. Empty → null. */
+/** Collapse whitespace, drop C0/DEL controls, cap length. Empty -> null. */
 export function normalizeAnnotationText(raw: string): string | null {
   let withoutControls = "";
   for (let i = 0; i < raw.length; i += 1) {
