@@ -26,9 +26,6 @@ describe("explorer list session", () => {
     expect(isCurrentExplorerListSession(1, 1, "/ws-a", "/ws-b")).toBe(false);
     expect(isCurrentExplorerListSession(1, 1, null, "/ws")).toBe(false);
     expect(isCurrentExplorerListSession(1, 1, "/ws", null)).toBe(false);
-  });
-
-  test("parent path uses workspace-relative segments", () => {
     expect(explorerParentPath("notes/a.md")).toBe("notes");
     expect(explorerParentPath("a.md")).toBe("");
     expect(explorerParentPath("notes/deep/a.md")).toBe("notes/deep");

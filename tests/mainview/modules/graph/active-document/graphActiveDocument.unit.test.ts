@@ -54,7 +54,7 @@ function buffer(
 }
 
 // Intent: Graph consumes Focus for folder projection; the active tab is not
-// a second selection authority. Undirected Graph membership ≠ directed Context reach.
+// a second selection authority. Undirected Graph membership is not directed Context reach.
 describe("graph active document", () => {
   beforeEach(() => {
     setDocumentLinkSettings({ linkMode: "markdown", resolution: "both" });

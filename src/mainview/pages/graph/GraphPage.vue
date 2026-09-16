@@ -96,13 +96,13 @@ const graphSummary = computed(() => {
 
   const incomplete = unresolvedDocumentLinks(focusNote, [...target.notes]).length;
   if (incomplete > 0) {
-    text += ` · ${
+    text += `, ${
       incomplete === 1
         ? t("graph.incompleteOne", { count: incomplete })
         : t("graph.incompleteMany", { count: incomplete })
     }`;
   } else if (documents === 1) {
-    text += ` · ${t("graph.standsAlone")}`;
+    text += `, ${t("graph.standsAlone")}`;
   }
 
   return text;

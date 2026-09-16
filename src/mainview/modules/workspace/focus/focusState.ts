@@ -26,7 +26,7 @@ const activeWorkspacePath = ref<string | null>(null);
  */
 export const inspectorOpen = ref(false);
 
-/** Path being read in the Inspector. Null means “use focus”. */
+/** Path being read in the Inspector. Null means "use focus". */
 export const inspectionPath = ref<string | null>(null);
 
 export function openInspector(): void {

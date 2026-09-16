@@ -24,6 +24,11 @@ describe("object context menu semantics", () => {
     const folderActions = [...explorerFolderContextActionIds()];
     expect(fileActions).toEqual(["rename", "reveal", "copy", "delete"]);
     expect(folderActions).toEqual(["reveal", "copy"]);
+    // Rename/Delete stay file-only; folder menus must not grow destructive IDs.
+    expect(fileActions).toContain("rename");
+    expect(fileActions).toContain("delete");
+    expect(folderActions).not.toContain("rename");
+    expect(folderActions).not.toContain("delete");
     // Removed product concept: Context root must not return via menu actions.
     expect(fileActions.some((id) => id.toLowerCase().includes("context"))).toBe(false);
     expect(folderActions.some((id) => id.toLowerCase().includes("context"))).toBe(false);
@@ -40,15 +45,5 @@ describe("object context menu semantics", () => {
         (action) => action.id,
       ),
     ).toEqual(["close", "close-others"]);
-  });
-
-  test("Explorer file actions stay bound to the invoked row kind", () => {
-    // Rename/Delete are file-only; folder menus must not grow destructive IDs.
-    // ExplorerPanel freezes contextTarget at open so selection changes cannot
-    // retarget these IDs onto a different row.
-    expect(explorerFileContextActionIds()).toContain("rename");
-    expect(explorerFileContextActionIds()).toContain("delete");
-    expect(explorerFolderContextActionIds()).not.toContain("rename");
-    expect(explorerFolderContextActionIds()).not.toContain("delete");
   });
 });

@@ -457,7 +457,7 @@ export async function reopenLastWorkspace(): Promise<void> {
   await selectRecentWorkspace(last.path);
 }
 
-/** Called once at app start when the workspace startup mode is “last”. */
+/** Called once at app start when the workspace startup mode is "last". */
 export function bootstrapWorkspace(): void {
   if (settings.value.workspace.workspaceStartup !== "last") {
     return;

@@ -64,7 +64,7 @@ export function dismissToast(id: number): void {
   toasts.value = toasts.value.filter((toast) => toast.id !== id);
 }
 
-/** Test seam: number of live auto-dismiss timers (should stay ≤ MAX_VISIBLE). */
+/** Test seam: number of live auto-dismiss timers (should stay at most MAX_VISIBLE). */
 export function activeToastTimerCount(): number {
   return dismissTimers.size;
 }

@@ -31,7 +31,7 @@ defineEmits<{
     @click="$emit('click')"
   >
     <span class="note-preview__title">
-      <span v-if="hidden" class="note-preview__hidden-mark" aria-hidden="true">·</span>{{ title }}
+      <span v-if="hidden" class="note-preview__hidden-mark" aria-hidden="true">-</span>{{ title }}
     </span>
     <span v-if="summary || $slots.summary" class="note-preview__summary">
       <slot name="summary">{{ summary }}</slot>

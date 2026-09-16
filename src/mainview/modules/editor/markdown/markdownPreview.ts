@@ -140,10 +140,6 @@ function escapeAttribute(value: string): string {
   return escapeHtml(value);
 }
 
-function safeExternalHref(href: string): string {
-  return /^(?:https:|mailto:)/i.test(href) ? href : "#";
-}
-
 function documentHref(path: string, anchor?: string): string {
   return `#document/${encodeURIComponent(path)}${anchor ? `#${encodeURIComponent(anchor)}` : ""}`;
 }
@@ -253,9 +249,9 @@ export function renderMarkdownPreview(
     }
 
     const titleValue = title ? ` title="${escapeAttribute(title)}"` : "";
-    return `<a href="${escapeAttribute(
-      safeExternalHref(href),
-    )}" rel="noopener noreferrer nofollow"${titleValue}>${label}</a>`;
+    // Non-document URLs are display-only in Preview: never tab stops or navigable.
+    // Document links remain real anchors via renderInternalDocumentAnchor.
+    return `<span class="markdown-preview__external"${titleValue}>${label}</span>`;
   };
 
   const wikilinkTokenizer: TokenizerExtensionFunction = (value) => {

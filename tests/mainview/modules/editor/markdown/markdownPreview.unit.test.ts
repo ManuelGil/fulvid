@@ -26,7 +26,7 @@ function note(path: string, documentLinks: DocumentLink[] = []): ScannedNote {
 
 // Intent: Preview is inert Markdown. MDX is never executed. Hostile schemes,
 // attributes, and folder escapes must not become active behavior. Density is
-// bounded so a crafted document cannot freeze the renderer. Export ≡ Preview.
+// bounded so a crafted document cannot freeze the renderer. Export matches Preview.
 describe("markdown preview", () => {
   test("hostile HTML, MDX, schemes, and folder escapes stay inert", () => {
     const html = renderMarkdownPreview(
@@ -56,10 +56,14 @@ describe("markdown preview", () => {
       "file:///etc/passwd",
       "http://example.com",
       "//evil.example/x",
+      "https://example.com/doc",
+      "mailto:user@example.com",
     ]) {
       const result = renderMarkdownPreview(`[x](${target})`, [], "markdown");
       expect(result.html).not.toContain(target);
-      expect(result.html).toContain('href="#"');
+      // Non-document URLs are display-only: never tab stops or navigable anchors.
+      expect(result.html).toContain('class="markdown-preview__external"');
+      expect(result.html).not.toMatch(/<a\b[^>]*href=/i);
     }
 
     const images = renderMarkdownPreview(

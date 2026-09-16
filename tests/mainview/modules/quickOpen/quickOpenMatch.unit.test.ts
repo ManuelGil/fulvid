@@ -1,10 +1,30 @@
 import { describe, expect, test } from "bun:test";
 
-import type { QuickOpenCandidate } from "../../../../src/mainview/modules/quickOpen/quickOpenCandidates.ts";
+import {
+  quickOpenCandidatesFromNotes,
+  type QuickOpenCandidate,
+} from "../../../../src/mainview/modules/quickOpen/quickOpenCandidates.ts";
 import {
   MAX_QUICK_OPEN_VISIBLE,
   matchQuickOpenCandidates,
 } from "../../../../src/mainview/modules/quickOpen/quickOpenMatch.ts";
+import type { ScannedNote } from "../../../../src/mainview/modules/workspace/filesystem/workspaceTypes.ts";
+
+function note(
+  partial: Partial<ScannedNote> & Pick<ScannedNote, "path" | "name" | "title">,
+): ScannedNote {
+  return {
+    aliases: [],
+    documentLinks: [],
+    tags: [],
+    categories: [],
+    projects: [],
+    summary: "",
+    words: 0,
+    content: "should not appear in candidates",
+    ...partial,
+  };
+}
 
 function candidate(
   partial: Pick<QuickOpenCandidate, "title" | "name" | "path">,
@@ -12,10 +32,17 @@ function candidate(
   return partial;
 }
 
-// Intent: Quick Open matching is identity-only with prefix preference and a visible cap.
-// Candidate projection lives in quickOpenCandidates.unit.test.ts.
-describe("quick open match", () => {
-  test("ranks title prefix over path substring, normalizes separators, and caps visible rows", () => {
+// Intent: Quick Open projects folder identity only (never content), then ranks
+// with prefix preference and a visible result cap.
+describe("quick open", () => {
+  test("projects identity-only candidates and ranks with a visible cap", () => {
+    expect(quickOpenCandidatesFromNotes([])).toEqual([]);
+    const projected = quickOpenCandidatesFromNotes([
+      note({ path: "docs/guide.md", name: "guide.md", title: "Guide" }),
+    ]);
+    expect(projected).toEqual([{ title: "Guide", name: "guide.md", path: "docs/guide.md" }]);
+    expect(projected[0]).not.toHaveProperty("content");
+
     const notes = [
       candidate({ title: "Architecture", name: "architecture.md", path: "docs/architecture.md" }),
       candidate({ title: "Guide", name: "guide.md", path: "docs/guide.md" }),

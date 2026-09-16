@@ -60,7 +60,7 @@ The Extension System is **not**:
 - a Monaco wrapper
 - a general RPC bus
 
-**Capability isolation ≠ OS sandbox.** Declared capabilities, reduced guest globals, Wasm guest heap ceilings, and wall-clock execution budgets constrain what an extension may ask the host to do. They do **not** place the guest in a separate OS process with kernel isolation. Do not oversell Lua/Wasm as equivalent to an OS process sandbox.
+**Capability isolation is not an OS sandbox.** Declared capabilities, reduced guest globals, Wasm guest heap ceilings, and wall-clock execution budgets constrain what an extension may ask the host to do. They do **not** place the guest in a separate OS process with kernel isolation. Do not oversell Lua/Wasm as equivalent to an OS process sandbox.
 
 ## Current capability surface
 
@@ -413,7 +413,7 @@ PRODUCTION
 Honest trust model:
 
 ```text
-Capability isolation ≠ OS sandbox
+Capability isolation is not an OS sandbox
 ```
 
 Extensions are locally installed executable code. Fulvid constrains capabilities; it does not provide an OS-level sandbox.

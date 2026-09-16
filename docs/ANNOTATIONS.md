@@ -10,7 +10,7 @@ A **document annotation** is a short session-local note attached to a tracked po
 
 They are a good fit for:
 
-- “Come back to this paragraph”
+- "Come back to this paragraph"
 - A one-line draft thought while you rewrite
 - A temporary marker before you turn it into real prose or a checklist
 
@@ -67,14 +67,14 @@ Hiding removes glyphs and glyph hover. Notes remain until you clear them, close 
 
 | Behavior | Detail |
 | --- | --- |
-| Session-local | Lost when the tab’s model is disposed, the tab closes, or Fulvid exits |
+| Session-local | Lost when the tab's model is disposed, the tab closes, or Fulvid exits |
 | Document-local | Each open document keeps its own set |
 | Not dirty | Adding or editing an annotation does not mark the file unsaved |
 | Not on disk | No sidecar files, no frontmatter, no IPC writes for annotation text |
 | Tracked position | Monaco keeps the range as you type; if the range disappears, that annotation is dropped |
 | Text | Up to 200 characters, normalized plain text |
 | Soft cap | 32 annotations per open document |
-| Show ≠ delete | Hide is presentation only |
+| Show is not delete | Hide is presentation only |
 
 **Show document annotations** under Settings -> Editor is the preferred default when Fulvid starts or when you change/reset that setting. A session Show/Hide (View) can differ until you change the setting, reset settings, or restart. Resetting settings does **not** delete existing session annotations.
 

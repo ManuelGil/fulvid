@@ -1,5 +1,5 @@
 /**
- * Combined renderer↔host RPC. Filesystem requests stay owned by FilesystemRPC;
+ * Combined renderer/host RPC. Filesystem requests stay owned by FilesystemRPC;
  * this file adds Application Menu transport and narrow window capabilities on
  * the same Electrobun channel (fullscreen toggle, title presentation).
  */

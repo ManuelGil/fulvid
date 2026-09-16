@@ -52,7 +52,7 @@ export function buildDepthMap(
 
 /**
  * Keeps edges that explain contextual structure:
- * focus spokes and neighbor ↔ secondary links.
+ * focus spokes and neighbor to secondary links.
  */
 export function selectStructuralEdges(
   edges: ReferenceGraphEdge[],

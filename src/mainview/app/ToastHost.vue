@@ -3,17 +3,19 @@ import { toasts } from "./notify";
 </script>
 
 <template>
-  <div class="toast-host" aria-live="polite" aria-relevant="additions">
-    <p
-      v-for="toast in toasts"
-      :key="toast.id"
-      class="toast"
-      :class="`toast--${toast.tone}`"
-      role="status"
-    >
-      {{ toast.message }}
-    </p>
-  </div>
+  <Teleport to="body">
+    <div class="toast-host" aria-live="polite" aria-relevant="additions">
+      <p
+        v-for="toast in toasts"
+        :key="toast.id"
+        class="toast"
+        :class="`toast--${toast.tone}`"
+        role="status"
+      >
+        {{ toast.message }}
+      </p>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped lang="scss">

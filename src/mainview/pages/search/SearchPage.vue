@@ -520,7 +520,7 @@ onBeforeUnmount(() => {
         </div>
         <p id="search-status-line" class="search-desk__meta">
           <span>{{ t("search.scopeLabel", { scope: scopeLabel }) }}</span>
-          <span aria-hidden="true">·</span>
+          <span aria-hidden="true">-</span>
           <span>{{ t("search.filtersLabel", { filters: filterSummary }) }}</span>
           <button class="search-desk__options" type="button" @click="openSearchOptions">
             {{ t("search.filtersOptions") }}
@@ -570,7 +570,7 @@ onBeforeUnmount(() => {
             <div class="search-result__header">
               <h3 class="search-result__title">
                 <span v-if="group.note.hidden" class="search-result__hidden" aria-hidden="true"
-                  >·</span
+                  >-</span
                 >{{ group.note.title }}
               </h3>
               <span class="search-result__count">

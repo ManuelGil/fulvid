@@ -10,7 +10,7 @@ import {
 } from "../../src/bun/extensions/lua/extensionTemplateRender.ts";
 
 describe("extension template.render", () => {
-  test("interpolates variables, escapes HTML, and rejects sections/unescaped syntax", () => {
+  test("escapes HTML, rejects unsafe syntax, and enforces size bounds", () => {
     expect(renderExtensionTemplate("Hello {{name}} - {{missing}}!", { name: "world" })).toEqual({
       ok: true,
       text: "Hello world - !",
@@ -26,9 +26,7 @@ describe("extension template.render", () => {
     expect(renderExtensionTemplate("{{{raw}}}", { raw: "a" }).ok).toBe(false);
     expect(renderExtensionTemplate("{{&raw}}", { raw: "a" }).ok).toBe(false);
     expect(renderExtensionTemplate("{{>partial}}", {}).ok).toBe(false);
-  });
 
-  test("enforces variable and size bounds", () => {
     expect(parseExtensionTemplateVariables({ ok: true }).ok).toBe(false);
     expect(parseExtensionTemplateVariables({ "bad-key": "x" }).ok).toBe(false);
     expect(parseExtensionTemplateVariables({ nested: { a: "1" } }).ok).toBe(false);

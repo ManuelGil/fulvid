@@ -53,15 +53,6 @@ function syncFallback(graph: ReferenceGraph): ComposedGraph {
 // Intent: terminate/supersede must settle Promises so GraphPage cannot hang
 // with isDeriving stuck after worker.terminate().
 describe("graph computation session", () => {
-  test("discarded composition is empty but keeps focusPath", () => {
-    const graph = reference("note.md");
-    expect(discardedComposedGraph(graph)).toEqual({
-      focusPath: "note.md",
-      nodes: [],
-      edges: [],
-    });
-  });
-
   test("superseding a silent worker settles the prior Promise without hanging", async () => {
     const workers: Array<ReturnType<typeof silentWorker>> = [];
     const session = createGraphComputationSession({
@@ -81,6 +72,12 @@ describe("graph computation session", () => {
     expect(workers[0]?.terminated).toBe(true);
 
     const firstResult = await first;
+    // Discarded composition stays empty while preserving focusPath.
+    expect(firstResult).toEqual({
+      focusPath: "a.md",
+      nodes: [],
+      edges: [],
+    });
     expect(firstResult).toEqual(discardedComposedGraph(reference("a.md")));
 
     session.terminate();

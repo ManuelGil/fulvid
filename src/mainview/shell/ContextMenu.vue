@@ -3,6 +3,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import { restoreUsableFocus } from "../app/usableFocusTarget";
+import AppIcon from "./AppIcon.vue";
 import { placeContextMenu, type MenuAnchor, type MenuPlacement } from "./contextMenuPosition";
 
 export interface ContextMenuAction {
@@ -365,9 +366,9 @@ onBeforeUnmount(() => {
           @click="selectAction(action)"
         >
           <span>{{ action.label }}</span>
-          <span v-if="action.children?.length" class="context-menu__chevron" aria-hidden="true"
-            >▸</span
-          >
+          <span v-if="action.children?.length" class="context-menu__chevron" aria-hidden="true">
+            <AppIcon name="chevron-right" :size="12" />
+          </span>
           <kbd v-else-if="action.shortcut">{{ action.shortcut }}</kbd>
         </button>
         <ContextMenu

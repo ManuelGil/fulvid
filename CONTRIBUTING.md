@@ -57,7 +57,7 @@ Classification (reproduced on Ubuntu 24.04 / Wayland / AMD Mesa / WebKitGTK 2.52
 
 Impact: the window still starts (`Fulvid started`); Fulvid remains interactive in normal use. These lines are runtime diagnostics, not a Fulvid Annotations/filesystem/security failure. The HMR URL (`ws://127.0.0.1:5173/`, protocol `vite-hmr`) matches the page origin and works from Bun/Chromium. WebKitGTK can still drop the HMR socket under NetworkProcess churn; reconnects are expected until upstream WebKit/Electrobun improve.
 
-Controlled mitigation matrix (≈55s each, same machine/WebKitGTK 2.52.6/Vite 8.2.2/Electrobun 2.0.1, three EditorPage touches):
+Controlled mitigation matrix (about 55s each, same machine/WebKitGTK 2.52.6/Vite 8.2.2/Electrobun 2.0.1, three EditorPage touches):
 
 | Mitigation | reconnect effect | notes |
 | --- | --- | --- |
@@ -72,7 +72,7 @@ What Fulvid does:
 
 - `vite.config.ts` `server.warmup.clientFiles` pre-transforms the first-paint graph (measured reduction in HMR reconnect rate; does not silence WebKit).
 - `scripts/devHmr.ts` waits only for `/`, `/@vite/client`, and `/main.ts` before `electrobun dev` (do not expand this list without new measurements).
-- `vite.config.ts` sets `server.forwardConsole: false` so Cursor-agent sessions do not pipe console over the HMR socket (Vite’s default is agent-detected `true`, otherwise `false`). This is not a proven reconnect fix.
+- `vite.config.ts` sets `server.forwardConsole: false` so Cursor-agent sessions do not pipe console over the HMR socket (Vite's default is agent-detected `true`, otherwise `false`). This is not a proven reconnect fix.
 - `electrobunClient.ts` installs a minimal `window.__electrobun` bridge if preload has not yet, so Electroview.init does not throw under Vite HTTP.
 - `scripts/devHmr.ts` defaults `WEBKIT_DISABLE_COMPOSITING_MODE=1` on Linux when unset (same profile as Linux compatibility CI) for `GLXBadWindow`, not for `WebLoaderStrategy` failures.
 - Does **not** filter or hide WebKit/GLX messages.

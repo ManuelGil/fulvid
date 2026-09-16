@@ -108,7 +108,7 @@ function bump(state: LiveState, text: string): void {
   state.version += 1;
 }
 
-describe("live Monaco document ↔ extension lifecycle", () => {
+describe("live Monaco document and extension lifecycle", () => {
   test("snapshot currency rejects drift; both packs register as document-activation", async () => {
     expect(
       documentSnapshotIsCurrent(

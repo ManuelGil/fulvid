@@ -606,6 +606,9 @@ async function onRowKeydown(event: KeyboardEvent, row: VisibleRow): Promise<void
     event.preventDefault();
     if (!expandedDirectories.value.has(row.entry.path)) {
       await toggleDirectory(row.entry);
+    } else {
+      // Already expanded: APG tree pattern moves into the first visible child.
+      focusRelativeRow(row.entry.path, 1);
     }
     return;
   }

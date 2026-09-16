@@ -83,7 +83,7 @@ function preserveModelEol(model: MonacoModel, previous: MonacoEndOfLineSequence)
 }
 
 /**
- * Toggle LF ↔ CRLF on the live model. Undoable, marks dirty, writes only on Save.
+ * Toggle LF and CRLF on the live model. Undoable, marks dirty, writes only on Save.
  */
 export function cycleDocumentEol(buffer: DocumentBuffer): void {
   const api = initializeMonaco();

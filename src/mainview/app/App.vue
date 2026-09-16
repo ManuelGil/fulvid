@@ -700,14 +700,14 @@ const routeAnnouncement = computed(() => {
   const documentLabel = location
     ? `${location.full}${
         activeBuffer.value && isDocumentDirty(activeBuffer.value)
-          ? ` · ${t("tabs.unsavedChanges")}`
+          ? `, ${t("tabs.unsavedChanges")}`
           : ""
       }`
     : validatedFocus.value
       ? noteTitle(validatedFocus.value.path, workspace.value?.scannedNotes ?? [])
       : "";
 
-  return [documentLabel, routeLabel.value, workspaceLabel].filter(Boolean).join(" · ");
+  return [documentLabel, routeLabel.value, workspaceLabel].filter(Boolean).join(", ");
 });
 
 const writingFocusAnnouncement = ref("");
@@ -767,7 +767,7 @@ watch(
 );
 
 const liveAnnouncement = computed(() =>
-  [routeAnnouncement.value, writingFocusAnnouncement.value].filter(Boolean).join(" · "),
+  [routeAnnouncement.value, writingFocusAnnouncement.value].filter(Boolean).join(", "),
 );
 
 async function createNewDocument(content?: string): Promise<void> {

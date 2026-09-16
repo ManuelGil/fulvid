@@ -14,7 +14,8 @@ import {
 } from "../../../../src/mainview/modules/editor/writingFocus.ts";
 
 // Intent: Writing Focus is session chrome on the editor route only, and stays
-// orthogonal to native Full Screen (all four combinations).
+// orthogonal to native Full Screen (all four combinations). Host fullscreen
+// fails closed and never persists a fullscreen frame as normal bounds.
 describe("writing focus", () => {
   test("route rules stay independent of native fullscreen", () => {
     writingFocusActive.value = false;
@@ -59,5 +60,15 @@ describe("writing focus", () => {
     expect(toggleNativeFullScreen(window)).toBe(false);
     expect(writingFocusActive.value).toBe(false);
     expect(fullScreen).toBe(false);
+
+    // Host errors fail closed; do not flip fullscreen state.
+    expect(
+      toggleNativeFullScreen({
+        isFullScreen: () => false,
+        setFullScreen: () => {
+          throw new Error("gone");
+        },
+      }),
+    ).toBe(false);
   });
 });

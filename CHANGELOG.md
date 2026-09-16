@@ -43,7 +43,7 @@ This file is updated as part of the change, not reconstructed when a version is 
 - Appearance defaults to the operating system light/dark preference (`system`). Choosing Light or Dark in Settings still forces that skin.
 - Global Search keeps exact text and regular expression matching over Folder document bodies (and open buffers). Extra strategies (fuzzy, words, boolean, proximity, pattern, path) are removed; obsolete strategy values in a saved Search URL fall back to literal.
 - Graph and Document Context always use the open Folder. The separate Context root preference is gone.
-- Object menus: clearer Explorer and Search path actions, tab Close others / Close all when several tabs are open, and the native WebView/browser context menu is suppressed so Fulvid’s own menus own right-click.
+- Object menus: clearer Explorer and Search path actions, tab Close others / Close all when several tabs are open, and the native WebView/browser context menu is suppressed so Fulvid's own menus own right-click.
 
 ### Removed
 

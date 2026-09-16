@@ -78,7 +78,7 @@ PRODUCTION (reject-stale apply)
 Honest limitation:
 
 ```text
-Capability isolation ≠ OS sandbox
+Capability isolation is not an OS sandbox
 ```
 
 Authoritative contract: [EXTENSIONS.md](./EXTENSIONS.md). Promotion gates / acceptance: [EXTENSION-PRODUCT-CONTRACT.md](./EXTENSION-PRODUCT-CONTRACT.md).
@@ -96,7 +96,7 @@ Corrupt settings, layout, or recent-folder lists must not grant filesystem acces
 These surfaces need another look whenever they change. This is not a checklist of every file.
 
 - Folder roots, grants, and path containment, including symlinks
-- Filesystem RPC and the host–renderer bridge
+- Filesystem RPC and the host-renderer bridge
 - Preview, Export HTML, and the Markdown/MDX parser
 - Document open, save, create, rename, delete, and external file changes
 - Folder scan, Search, and Graph projection
@@ -132,7 +132,7 @@ Unreadable or vanished entries during a scan are skipped and counted. That is a 
 
 Automated coverage that is actually in the repository:
 
-- **Unit tests** - Preview inertness and density timing; link resolution scale and semantics; RPC parameter shape and size; `selectDocument` ↔ Focus pairing; Writing Focus ⊥ native Full Screen; Extension contract tests under `tests/extensions/` ([EXTENSIONS.md](./EXTENSIONS.md#tests-as-security-contracts))
+- **Unit tests** - Preview inertness and density timing; link resolution scale and semantics; RPC parameter shape and size; `selectDocument` paired with Focus; Writing Focus is independent of native Full Screen; Extension contract tests under `tests/extensions/` ([EXTENSIONS.md](./EXTENSIONS.md#tests-as-security-contracts))
 - **Integration tests** - folder containment (lexical and canonical, including symlinks); grants; External Open resolve path; scan skip of unreadable or vanished entries; scan ceilings; document I/O and exclusive create; RPC error containment
 - **Smoke** - real editing loop; optional packaged launch (`bun run smoke:compatibility`); Lua packaged runtime (`bun run smoke:lua-packaged`)
 - **Compatibility CI** - package and launch on the images in [compatibility.md](./compatibility.md). That is runtime compatibility, not a filesystem red team

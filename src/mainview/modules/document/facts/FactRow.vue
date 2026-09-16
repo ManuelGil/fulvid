@@ -3,6 +3,7 @@
 import { computed } from "vue";
 import type { DocumentFact } from "./documentFacts";
 
+// Recognize common absent markers, including an en dash users may paste from documents.
 const ABSENT_VALUE =
   /^(-|–|N\/A|None|None declared|Unknown|No data|No value|Empty|No references)$/i;
 
