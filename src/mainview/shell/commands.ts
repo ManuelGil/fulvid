@@ -392,13 +392,13 @@ export const quickActions: readonly QuickActionDefinition[] = [
   },
   {
     id: "toggleWritingFocus",
-    label: "actions.focusMode",
+    label: "actions.writingFocus",
     shortcut: "Ctrl/Cmd+Shift+Enter",
     icon: "focus",
     group: "fulvid",
     subgroup: "mode",
     order: 10,
-    // Application presentation mode; shortcut + More remain (Focus keeps .quick-actions).
+    // Application presentation mode; shortcut + More remain (Writing Focus keeps .quick-actions).
     tier: "secondary",
     overflowOrder: 40,
   },

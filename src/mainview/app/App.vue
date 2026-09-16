@@ -701,9 +701,11 @@ const routeAnnouncement = computed(() => {
   return [documentLabel, routeLabel.value, workspaceLabel].filter(Boolean).join(" · ");
 });
 
-const focusModeAnnouncement = ref("");
+const writingFocusAnnouncement = ref("");
 watch(writingFocusActive, (active) => {
-  focusModeAnnouncement.value = active ? t("actions.writingFocusOn") : t("actions.writingFocusOff");
+  writingFocusAnnouncement.value = active
+    ? t("actions.writingFocusOn")
+    : t("actions.writingFocusOff");
 });
 
 /** Restore left sidebar after Writing Focus collapses it. */
@@ -756,7 +758,7 @@ watch(
 );
 
 const liveAnnouncement = computed(() =>
-  [routeAnnouncement.value, focusModeAnnouncement.value].filter(Boolean).join(" · "),
+  [routeAnnouncement.value, writingFocusAnnouncement.value].filter(Boolean).join(" · "),
 );
 
 async function createNewDocument(content?: string): Promise<void> {

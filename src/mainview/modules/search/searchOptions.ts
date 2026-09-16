@@ -2,8 +2,8 @@
  * Search query options as URL state. Not a settings store: leaving Search
  * can drop them. Strategy implementations live in `searchStrategies.ts`.
  *
- * Obsolete strategy modes (fuzzy, words, boolean, proximity, pattern, path)
- * in a saved URL fall back to literal and are cleared on the next write.
+ * Unknown `mode` values fall back to literal. `regex=1` means the regex
+ * strategy. Extra query keys are cleared when options are rewritten.
  */
 import type { LocationQuery, LocationQueryRaw } from "vue-router";
 
@@ -23,14 +23,6 @@ export type SearchOptions = {
   wholeWord: boolean;
   fileType: SearchFileType;
   sort: SearchSort;
-};
-
-export const DEFAULT_SEARCH_OPTIONS: SearchOptions = {
-  strategy: "literal",
-  caseSensitive: false,
-  wholeWord: false,
-  fileType: "all",
-  sort: "path",
 };
 
 function queryValue(value: unknown): string | undefined {
@@ -89,7 +81,7 @@ export function searchOptionsQuery(
   return {
     ...currentQuery,
     mode: next.strategy === "literal" ? undefined : next.strategy,
-    // Drop removed-strategy and legacy checkbox keys so bookmarks stay clean.
+    // Drop unused query keys when rewriting Search URL state.
     regex: undefined,
     bool: undefined,
     near: undefined,

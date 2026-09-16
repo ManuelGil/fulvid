@@ -9,10 +9,9 @@ import {
   settings,
 } from "../../../../src/mainview/modules/settings/settingsStore";
 
-// Intent: persisted settings stay backward-compatible and fail-closed.
-// Unknown product concepts (Context root, templates) must not hydrate.
-describe("settings migration", () => {
-  test("migrates legacy values, rejects unsupported enums, and resets to defaults", () => {
+// Intent: persisted settings fail closed. Unknown concepts must not hydrate.
+describe("settings sanitize", () => {
+  test("accepts current fields, rejects unsupported enums, and resets to defaults", () => {
     expect(defaultSettings().appearance.theme).toBe("system");
     expect(sanitizeSettings({}).appearance.theme).toBe("system");
 
@@ -28,9 +27,9 @@ describe("settings migration", () => {
         tabSize: 3,
         defaultEol: "native",
       },
+      // Unknown / retired shapes must not become live settings.
       workspace: { reopenLast: true },
       links: { syntaxes: ["wikilink"], resolution: "guess" },
-      // Removed concepts must not reappear as live settings shape.
       templates: { meeting: true },
       contextRoot: "/notes",
       contextRoots: ["/notes"],
@@ -41,8 +40,9 @@ describe("settings migration", () => {
     expect(next.appearance.theme).toBe("system");
     expect(next.editor.fontSize).toBe(14);
     expect(next.editor.defaultEol).toBe("lf");
-    expect(next.workspace.workspaceStartup).toBe("last");
-    expect(next.links.linkMode).toBe("wikilink");
+    // Unknown workspace/link keys are ignored; current defaults apply.
+    expect(next.workspace.workspaceStartup).toBe("none");
+    expect(next.links.linkMode).toBe("markdown");
     expect(next.links.resolution).toBe("both");
     expect(next).not.toHaveProperty("templates");
     expect(next).not.toHaveProperty("contextRoot");
@@ -53,6 +53,18 @@ describe("settings migration", () => {
     );
     expect(sanitizeSettings({ appearance: { theme: "light" } }).appearance.theme).toBe("light");
     expect(sanitizeSettings({ appearance: { theme: "dark" } }).appearance.theme).toBe("dark");
+    expect(
+      sanitizeSettings({
+        workspace: { workspaceStartup: "last" },
+        links: { linkMode: "wikilink" },
+      }).workspace.workspaceStartup,
+    ).toBe("last");
+    expect(
+      sanitizeSettings({
+        workspace: { workspaceStartup: "last" },
+        links: { linkMode: "wikilink" },
+      }).links.linkMode,
+    ).toBe("wikilink");
     expect(appearanceDatasetFor(defaultSettings().appearance).theme).toBe("system");
     expect(sanitizeSettings({ editor: { defaultEol: "crlf" } }).editor.defaultEol).toBe("crlf");
 

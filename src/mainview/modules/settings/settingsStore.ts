@@ -199,21 +199,9 @@ function themeFromPersistedAppearance(
   appearance: Partial<FulvidSettings["appearance"]>,
 ): ThemePreference {
   const persistedTheme = appearance.theme as string;
-  const migratedTheme = persistedTheme === "high-contrast" ? "high-contrast-dark" : persistedTheme;
-  const storedTheme = VALID_THEMES.has(migratedTheme as ThemePreference)
-    ? (migratedTheme as ThemePreference)
+  return VALID_THEMES.has(persistedTheme as ThemePreference)
+    ? (persistedTheme as ThemePreference)
     : DEFAULT_THEME;
-  const legacyMonacoTheme = (appearance as { monacoTheme?: unknown }).monacoTheme;
-
-  if (
-    legacyMonacoTheme === "light" ||
-    legacyMonacoTheme === "dark" ||
-    legacyMonacoTheme === "high-contrast"
-  ) {
-    return legacyMonacoTheme === "high-contrast" ? "high-contrast-dark" : legacyMonacoTheme;
-  }
-
-  return storedTheme;
 }
 
 export function sanitizeSettings(value: unknown): FulvidSettings {
@@ -236,34 +224,14 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
     source.links && typeof source.links === "object" ? source.links : {};
   const preview: Partial<FulvidSettings["preview"]> =
     source.preview && typeof source.preview === "object" ? source.preview : {};
-  const legacyLinks = links as Partial<
-    FulvidSettings["links"] & {
-      syntaxes: unknown;
-      insertFormat: unknown;
-    }
-  >;
-  const legacyWorkspace = workspace as Partial<
-    FulvidSettings["workspace"] & { reopenLast: unknown }
-  >;
-  const legacySyntaxes = Array.isArray(legacyLinks.syntaxes)
-    ? legacyLinks.syntaxes.filter(
-        (syntax): syntax is LinkSyntax => syntax === "markdown" || syntax === "wikilink",
-      )
-    : [];
   const linkMode: LinkMode =
-    legacyLinks.linkMode === "markdown" || legacyLinks.linkMode === "wikilink"
-      ? legacyLinks.linkMode
-      : legacySyntaxes.length === 1
-        ? legacySyntaxes[0]
-        : DEFAULT_SETTINGS.links.linkMode;
+    links.linkMode === "markdown" || links.linkMode === "wikilink"
+      ? links.linkMode
+      : DEFAULT_SETTINGS.links.linkMode;
   const workspaceStartup: WorkspaceStartup =
-    legacyWorkspace.workspaceStartup === "none" || legacyWorkspace.workspaceStartup === "last"
-      ? legacyWorkspace.workspaceStartup
-      : typeof legacyWorkspace.reopenLast === "boolean"
-        ? legacyWorkspace.reopenLast
-          ? "last"
-          : "none"
-        : DEFAULT_SETTINGS.workspace.workspaceStartup;
+    workspace.workspaceStartup === "none" || workspace.workspaceStartup === "last"
+      ? workspace.workspaceStartup
+      : DEFAULT_SETTINGS.workspace.workspaceStartup;
 
   return {
     locale: VALID_LOCALES.has(source.locale as Locale)
@@ -370,9 +338,7 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
       showMarkdownFormatBar:
         typeof (editor as { showMarkdownFormatBar?: unknown }).showMarkdownFormatBar === "boolean"
           ? (editor as { showMarkdownFormatBar: boolean }).showMarkdownFormatBar
-          : typeof (editor as { showMarkdownToolbar?: unknown }).showMarkdownToolbar === "boolean"
-            ? (editor as { showMarkdownToolbar: boolean }).showMarkdownToolbar
-            : DEFAULT_SETTINGS.editor.showMarkdownFormatBar,
+          : DEFAULT_SETTINGS.editor.showMarkdownFormatBar,
       showDocumentAnnotations:
         typeof (editor as { showDocumentAnnotations?: unknown }).showDocumentAnnotations ===
         "boolean"
@@ -382,9 +348,7 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
         editor.readingStatistics as ReadingStatisticsMode,
       )
         ? (editor.readingStatistics as ReadingStatisticsMode)
-        : (statusbarIndicators as { reading?: unknown }).reading === false
-          ? "off"
-          : DEFAULT_SETTINGS.editor.readingStatistics,
+        : DEFAULT_SETTINGS.editor.readingStatistics,
       typewriterScrolling:
         typeof editor.typewriterScrolling === "boolean"
           ? editor.typewriterScrolling

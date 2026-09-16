@@ -41,12 +41,12 @@ function assertAbsentPhrases(source: string, phrases: readonly string[]): void {
 // revive removed Context-root wording. Graph Focus stays a separate concept.
 describe("product terminology", () => {
   test("Writing Focus stays current and removed Context-root copy stays gone", () => {
-    expect(en.actions.focusMode).toBe("Writing Focus");
-    expect(en.actions.exitFocusMode).toBe("Exit Writing Focus");
-    expect(en.menu.focusMode).toBe("Writing Focus");
-    expect(es.actions.focusMode).toBe("Foco de escritura");
-    expect(es.actions.exitFocusMode).toBe("Salir del foco de escritura");
-    expect(es.menu.focusMode).toBe("Foco de escritura");
+    expect(en.actions.writingFocus).toBe("Writing Focus");
+    expect(en.actions.exitWritingFocus).toBe("Exit Writing Focus");
+    expect(en.menu.writingFocus).toBe("Writing Focus");
+    expect(es.actions.writingFocus).toBe("Foco de escritura");
+    expect(es.actions.exitWritingFocus).toBe("Salir del foco de escritura");
+    expect(es.menu.writingFocus).toBe("Foco de escritura");
     // Graph Focus is still "Focus" / "Enfocar" - not Writing Focus.
     expect(en.actions.focus).toBe("Focus");
     expect(es.actions.focus).toBe("Enfocar");

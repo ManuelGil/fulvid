@@ -1,14 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  migrateLegacyExtensionId,
   namespacedExtensionCommandId,
   validateExtensionManifest,
 } from "../../src/mainview/extensions/extensionManifest.ts";
 import { luaManifest } from "./manifestTestHelpers.ts";
 
 describe("publisher.name extension identity contract", () => {
-  test("accepts publisher.name identities; namespaces commands; migrates known local ids", () => {
+  test("accepts publisher.name identities and namespaces commands", () => {
     expect(
       validateExtensionManifest(
         luaManifest("imgildev.todo-decorator", ["lua", "commands", "ui", "document"], {
@@ -46,12 +45,6 @@ describe("publisher.name extension identity contract", () => {
     expect(namespacedExtensionCommandId("imgildev.todo-decorator", "todoNext")).toBe(
       "imgildev.todo-decorator.todoNext",
     );
-
-    expect(migrateLegacyExtensionId("local.todo-decorator")).toBe("imgildev.todo-decorator");
-    expect(migrateLegacyExtensionId("local.blank-note")).toBe("fulvid.blank-note");
-    expect(migrateLegacyExtensionId("local.host-notify")).toBe("fulvid.host-notify");
-    expect(migrateLegacyExtensionId("local.unknown")).toBeNull();
-    expect(migrateLegacyExtensionId("acme.example-extension")).toBe("acme.example-extension");
   });
 
   test("rejects reserved local, mismatches, unknown caps, and invalid presentation", () => {
@@ -67,7 +60,7 @@ describe("publisher.name extension identity contract", () => {
 
     expect(
       validateExtensionManifest({
-        ...luaManifest("local.legacy-extension"),
+        ...luaManifest("local.retired-extension"),
         publisher: undefined,
       }),
     ).toMatchObject({

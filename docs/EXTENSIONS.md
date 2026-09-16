@@ -90,7 +90,7 @@ acme.example-extension      # any third-party publisher
 
 - Folder name under `userData/extensions/` **must equal** `manifest.id`.
 - `id` is derived as `${publisher}.${name}`. If `id` is present in JSON, it must match; omitting it is fine - validation always normalizes to the derived id.
-- Publisher `local` is **reserved** (legacy). Old `local.*` allowances are rewritten once via `LEGACY_EXTENSION_ID_MIGRATION`; `local.*` is not a valid canonical identity.
+- Publisher `local` is **reserved** and is not a valid canonical identity.
 - Fulvid does **not** hard-code `imgildev` (or any publisher) in the engine. Publisher metadata is pack-owned.
 
 ### Compact manifest fields

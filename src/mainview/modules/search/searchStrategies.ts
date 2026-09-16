@@ -6,8 +6,8 @@
  * Find References. Reuses folder-scan `ScannedNote.content` (plus open
  * buffer overlays from the Search page). No second filesystem scan.
  *
- * Legacy URL `regex=1` still maps to the regex strategy. Unknown `mode`
- * values fall back to literal.
+ * `regex=1` maps to the regex strategy. Unknown `mode` values fall back to
+ * literal.
  */
 import type { ScannedNote } from "../workspace/filesystem/workspaceTypes";
 
@@ -39,7 +39,7 @@ export type SearchQueryOptions = {
   strategy?: SearchStrategyId;
   caseSensitive?: boolean;
   wholeWord?: boolean;
-  /** Legacy checkbox flag; treated as strategy "regex". */
+  /** When true without `strategy`, treated as strategy "regex". */
   regex?: boolean;
 };
 

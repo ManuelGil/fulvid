@@ -5,10 +5,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import {
-  isValidExtensionId,
-  migrateLegacyExtensionId,
-} from "../../mainview/extensions/extensionManifest";
+import { isValidExtensionId } from "../../mainview/extensions/extensionManifest";
 
 const MAX_ALLOWED = 64;
 const STORAGE_NAME = "extension-allowances.json";
@@ -39,14 +36,10 @@ function sanitize(value: unknown): string[] {
   }
   const ids: string[] = [];
   for (const entry of value) {
-    if (typeof entry !== "string") {
+    if (typeof entry !== "string" || !isValidExtensionId(entry) || ids.includes(entry)) {
       continue;
     }
-    const migrated = migrateLegacyExtensionId(entry);
-    if (!migrated || ids.includes(migrated)) {
-      continue;
-    }
-    ids.push(migrated);
+    ids.push(entry);
     if (ids.length >= MAX_ALLOWED) {
       break;
     }
@@ -65,11 +58,11 @@ function loadAllowedIds(): string[] {
   }
   try {
     const raw = JSON.parse(readFileSync(path, "utf8"));
-    const migrated = sanitize(raw);
-    cachedIds = migrated;
-    // Persist one-time rewrite when stored ids used pre-publisher.identity shapes.
-    if (Array.isArray(raw) && JSON.stringify(raw) !== JSON.stringify(migrated)) {
-      persist(migrated);
+    const sanitized = sanitize(raw);
+    cachedIds = sanitized;
+    // Drop invalid entries from disk when the stored list diverges.
+    if (Array.isArray(raw) && JSON.stringify(raw) !== JSON.stringify(sanitized)) {
+      persist(sanitized);
     }
   } catch {
     cachedIds = [];

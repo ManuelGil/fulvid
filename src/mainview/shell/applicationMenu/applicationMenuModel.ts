@@ -196,7 +196,7 @@ function commandLabel(id: CommandId, label: string, state: ApplicationMenuState)
     return state.documentAnnotationsVisible ? "actions.hideAnnotations" : "actions.showAnnotations";
   }
   if (id === "toggleWritingFocus") {
-    return state.writingFocus ? "actions.exitFocusMode" : "actions.focusMode";
+    return state.writingFocus ? "actions.exitWritingFocus" : "actions.writingFocus";
   }
   return label;
 }
@@ -542,7 +542,7 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
         {
           type: "command",
           id: "toggleWritingFocus",
-          label: "menu.focusMode",
+          label: "menu.writingFocus",
           shortcut: "Ctrl/Cmd+Shift+Enter",
           availability: "always",
           checked: "writingFocus",

@@ -95,7 +95,7 @@ function localizedLabel(action: QuickActionDefinition): string {
     );
   }
   if (action.id === "toggleWritingFocus") {
-    return t(writingFocusActive.value ? "actions.exitFocusMode" : "actions.focusMode");
+    return t(writingFocusActive.value ? "actions.exitWritingFocus" : "actions.writingFocus");
   }
   return t(action.label);
 }
