@@ -1,12 +1,7 @@
 /**
- * Host discovery for extensions under userData/extensions.
- *
- * Startup preload: validate -> classify -> load only safe packs. Blocked/failed
- * packs stay unloaded until explicit user consent. Source of truth is the
- * filesystem. Invalid packs fail in isolation.
- *
- * Install/uninstall are host-owned mutations of that same inventory - no parallel
- * package manager.
+ * Discover and load packs from userData/extensions.
+ * Filesystem is source of truth. Blocked packs stay unloaded until consent.
+ * Install/uninstall mutate that same inventory - no package manager.
  */
 import { mkdirSync } from "node:fs";
 import { copyFile, lstat, mkdir, readdir, readFile, realpath, rename, rm } from "node:fs/promises";

@@ -1,17 +1,6 @@
 /**
- * Production decorations capability contract (Extension API v1).
- *
- * Explicit guest surface (requires capability `decorations` + `lua`):
- *   - decorations.set(ranges) -> queues host-owned Monaco decorations
- *   - decorations.clear() -> queues clear of this extension's decorations
- *
- * Two paint paths (no product marker semantics in either):
- *   - `style`: closed host severity tokens `info|warn|error` (generic chips)
- *   - `appearance`: extension-owned structured colors (validated hex/rgba only)
- *
- * Host never accepts CSS/HTML/JS strings from guests. Appearance values are
- * turned into host-authored CSS classes. Apply uses document identity stamps
- * (reject stale). Live packs reprocess via Monaco contentChange -> silent invoke.
+ * Decoration capability: packs choose style or appearance; Fulvid paints safely.
+ * Guests never send CSS. Stale document stamps reject apply.
  */
 import { LUA_EXTENSION_LIMITS } from "../../bun/extensions/lua/luaLimits";
 

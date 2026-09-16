@@ -1,12 +1,6 @@
 /**
  * Resource limits for the Lua/Wasm extension runtime.
- *
- * Labels are honest: `implemented` means Fulvid enforces the cap with an
- * observable failure. Wasm memory isolation and wasmoon thread hooks are
- * capability/resource controls - not an OS sandbox.
- *
- * Notify character budget is shared via EXTENSION_PACK_LIMITS
- * (single contract value for ui.notify).
+ * "implemented" means Fulvid enforces the cap. Not an OS sandbox.
  */
 import { EXTENSION_PACK_LIMITS } from "../../../mainview/extensions/extensionManifest";
 

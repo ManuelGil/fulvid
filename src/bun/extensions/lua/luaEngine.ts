@@ -1,10 +1,6 @@
 /**
- * Hardened wasmoon engine creation and timed Lua source execution.
- *
- * Interruption uses wasmoon Thread hooks (`run({ timeout })` / `functionTimeout`),
- * not Promise.race. Memory uses `traceAllocations` + `setMemoryMax`.
- *
- * Wasm isolates guest memory from the host heap layout; this is NOT an OS sandbox.
+ * Hardened wasmoon engine with real timeouts and memory ceilings.
+ * Wasm isolates guest memory from the host heap; this is not an OS sandbox.
  */
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -33,8 +29,7 @@ export const LUA_GUEST_REMOVED_GLOBALS = [
 ] as const;
 
 /**
- * Strip dangerous stdlib entry points. Keep math/string/table/basic for scripts.
- * `string.dump` is cleared so guests cannot produce bytecode even if `load` returned.
+ * Strip io/os/package/load/require and string.dump after standard libs open.
  */
 export async function reduceLuaGuestEnvironment(engine: LuaEngine): Promise<void> {
   await engine.doString(`

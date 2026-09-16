@@ -1,6 +1,5 @@
 /**
- * Ownership + security for extension-owned decoration appearance.
- * Fulvid paints; packs that care about TODO own their colors.
+ * Ownership for extension decorations: packs pick colors; Fulvid paints safely.
  */
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
@@ -9,7 +8,10 @@ import { join } from "node:path";
 import {
   appearanceClassKey,
   cssClassForExtensionAppearance,
+  cssClassForExtensionDecoration,
   ensureExtensionAppearanceStyles,
+  EXTENSION_DECORATION_OVERVIEW_HEX,
+  monacoDecorationOptionsForExtensionStyle,
   monacoDecorationOptionsForRange,
   parseDecorationAppearance,
   parseDecorationColor,
@@ -145,5 +147,33 @@ describe("extension-owned decoration appearance", () => {
       expect(sheet?.textContent).toContain("#ff7b72");
       expect(sheet?.textContent).not.toContain("url(");
     }
+  });
+
+  test("closed style tokens map to host chips", () => {
+    for (const style of ["info", "warn", "error"] as const) {
+      const options = monacoDecorationOptionsForExtensionStyle(style);
+      expect(options.inlineClassName).toBe(cssClassForExtensionDecoration(style));
+      expect(options.overviewRulerColor).toBe(EXTENSION_DECORATION_OVERVIEW_HEX[style]);
+    }
+  });
+
+  test("appearance paint path differs from style tokens", () => {
+    const styled = monacoDecorationOptionsForRange({
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 4,
+      style: "warn",
+    });
+    const owned = monacoDecorationOptionsForRange({
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 4,
+      appearance: { backgroundColor: "#d29922", color: "#0d1117", bold: true },
+    });
+    expect(styled.inlineClassName.startsWith("fulvid-ext-decoration-")).toBe(true);
+    expect(owned.inlineClassName.startsWith("fulvid-ext-a-")).toBe(true);
+    expect(owned.overviewRulerColor).toBe("#d29922");
   });
 });

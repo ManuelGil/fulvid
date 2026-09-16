@@ -1,8 +1,6 @@
 /**
- * Explicit user consent for blocked/failed extension packs.
- *
- * Stored on the Bun host under userData - never inferred from menus or Settings
- * navigation. Discovery consults this list only when attempting a consented load.
+ * Explicit consent list for blocked/failed packs (under userData).
+ * Discovery never treats menus as consent.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

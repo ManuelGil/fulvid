@@ -1,6 +1,6 @@
 /**
- * Load entry.lua and invoke commands through an explicit capability bridge.
- * No generic host.call. Budgets via wasmoon hooks / Wasm memory max.
+ * Load entry.lua and run commands through an explicit capability bridge.
+ * No generic host.call. Budgets come from wasmoon hooks and Wasm memory max.
  */
 import { readFile, stat } from "node:fs/promises";
 
