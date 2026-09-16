@@ -19,6 +19,7 @@ import {
   filesystemErrorMessage,
   type FilesystemErrorCode,
 } from "../../../mainview/modules/workspace/filesystem/workspaceErrors";
+import { RESERVED_DEVICE_NAMES } from "../../../mainview/modules/workspace/filesystem/workspaceTypes";
 
 /** Longest relative path accepted from the renderer. */
 const MAX_RELATIVE_PATH_LENGTH = 1024;
@@ -53,6 +54,26 @@ export function hasControlCharacters(value: string): boolean {
   return false;
 }
 
+export { RESERVED_DEVICE_NAMES };
+
+/** Characters illegal in Windows path segments (includes ADS `:`). */
+const WINDOWS_ILLEGAL_SEGMENT_CHARS = /[<>:"|?*]/;
+
+/**
+ * True when a path segment would be a reserved device name or otherwise unsafe
+ * on Windows (trailing dot/space, illegal characters).
+ */
+export function isUnsafePathSegment(segment: string): boolean {
+  if (!segment || segment !== segment.trim() || /[.\s]$/.test(segment)) {
+    return true;
+  }
+  if (WINDOWS_ILLEGAL_SEGMENT_CHARS.test(segment)) {
+    return true;
+  }
+  const stem = segment.includes(".") ? segment.slice(0, segment.lastIndexOf(".")) : segment;
+  return stem !== "" && RESERVED_DEVICE_NAMES.has(stem.toLowerCase());
+}
+
 /**
  * Split a renderer-supplied relative path into safe segments.
  *
@@ -73,8 +94,13 @@ export function workspaceRelativeSegments(relativePath: string): string[] {
   if (isAbsolute(relativePath) || /^[A-Za-z]:/.test(relativePath)) {
     reject("outsideFolder");
   }
+  // Refuse padded paths rather than trim: Windows strips trailing dots/spaces
+  // and would retarget the operation to a different path.
+  if (relativePath !== relativePath.trim()) {
+    reject("invalidTarget");
+  }
 
-  const normalized = relativePath.replace(/\\/g, "/").trim();
+  const normalized = relativePath.replace(/\\/g, "/");
   if (normalized.startsWith("/")) {
     reject("outsideFolder");
   }
@@ -85,6 +111,9 @@ export function workspaceRelativeSegments(relativePath: string): string[] {
   }
   if (segments.some((segment) => segment.length > MAX_SEGMENT_LENGTH)) {
     reject("invalidTarget");
+  }
+  if (segments.some((segment) => isUnsafePathSegment(segment))) {
+    reject("unsafeName");
   }
   if (segments.length > MAX_PATH_DEPTH) {
     reject("invalidTarget");

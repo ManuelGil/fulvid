@@ -191,7 +191,7 @@ describe("adversarial lifecycle and isolation", () => {
   test("reentrancy fail-closed, capability denial, and malformed DTO", async () => {
     const root = await tempRoot("lifecycle");
 
-    // Overlapping loads first — cold factory so createHardenedLuaEngine overlaps.
+    // Overlapping loads first - cold factory so createHardenedLuaEngine overlaps.
     const a = await writePack(root, "test.adv-loada", luaManifest("test.adv-loada"), {
       "entry.lua": `
 commands.register({ id = "a", title = "A", run = function() ui.notify("a") end })

@@ -7,12 +7,12 @@ import { ref, type Ref } from "vue";
 import { LocalizedError } from "../modules/workspace/filesystem/workspaceErrors";
 import { i18n } from "../i18n";
 import {
-  assertEditorReplaceWithinLimit,
+  editorReplaceLimitError,
   editorSnapshotIsCurrent,
   type EditorSelectionSnapshot,
 } from "./editorCapability";
 import {
-  assertCreateUntitledWithinLimit,
+  createUntitledLimitError,
   documentSnapshotIsCurrent,
   type DocumentSnapshot,
 } from "./documentCapability";
@@ -207,7 +207,16 @@ export async function runExtensionCommand(
         throw fail("extensions.sizeLimitExceeded");
       }
       documentSnapshot = context;
-      request.document = context;
+      // Decorations-only packs need stamps, not the full body over RPC.
+      request.document = wantsDocument
+        ? context
+        : {
+            text: "",
+            documentId: context.documentId,
+            alternativeVersionId: context.alternativeVersionId,
+            cursorLine: context.cursorLine,
+            cursorColumn: context.cursorColumn,
+          };
     } else if (wantsDocument) {
       documentSnapshot = {
         text: "",
@@ -259,7 +268,7 @@ export async function runExtensionCommand(
     if (!wantsEditor || !editorSnapshot) {
       throw fail("extensions.commandFailed");
     }
-    if (assertEditorReplaceWithinLimit(result.editor.replaceSelection)) {
+    if (editorReplaceLimitError(result.editor.replaceSelection)) {
       throw fail("extensions.sizeLimitExceeded");
     }
   }
@@ -287,20 +296,34 @@ export async function runExtensionCommand(
     if (!wantsDocument) {
       throw fail("extensions.commandFailed");
     }
-    if (assertCreateUntitledWithinLimit(result.createUntitled)) {
+    if (createUntitledLimitError(result.createUntitled)) {
       throw fail("extensions.sizeLimitExceeded");
     }
   }
 
   const liveSeam = editorExtensionSeam();
   const hasDecorationMutation = Boolean(result.decorations?.clear || result.decorations?.set);
+  const wantsReveal = result.reveal !== undefined;
 
-  if (hasDecorationMutation) {
+  if (hasDecorationMutation || wantsReveal) {
     if (!documentSnapshot?.documentId) {
       throw fail("extensions.commandFailed");
     }
     if (!documentSnapshotIsCurrent(documentSnapshot, liveSeam?.getDocumentContext() ?? null)) {
       throw fail("extensions.editorStale");
+    }
+  }
+
+  // Decorate against the pre-invoke snapshot before replaceSelection mutates
+  // the model (ranges were computed for that snapshot).
+  if (result.decorations) {
+    if (result.decorations.clear && !liveSeam?.clearExtensionDecorations(extension.id)) {
+      throw fail("extensions.noActiveEditor");
+    }
+    if (parsedDecorationRanges?.ok) {
+      if (!liveSeam?.setExtensionDecorations(extension.id, parsedDecorationRanges.ranges)) {
+        throw fail("extensions.noActiveEditor");
+      }
     }
   }
 
@@ -317,28 +340,16 @@ export async function runExtensionCommand(
   }
 
   if (result.reveal !== undefined) {
-    if (documentSnapshot?.documentId) {
-      const liveDoc = liveSeam?.getDocumentContext() ?? null;
-      if (!liveDoc || liveDoc.documentId !== documentSnapshot.documentId) {
-        throw fail("extensions.editorStale");
-      }
+    // Stamp was checked before mutations; after replace only identity must match.
+    const liveDoc = liveSeam?.getDocumentContext() ?? null;
+    if (!liveDoc || liveDoc.documentId !== documentSnapshot!.documentId) {
+      throw fail("extensions.editorStale");
     }
     if (
       !liveSeam?.hasActiveEditor() ||
       !liveSeam.reveal(result.reveal.lineNumber, result.reveal.column)
     ) {
       throw fail("extensions.noActiveEditor");
-    }
-  }
-
-  if (result.decorations) {
-    if (result.decorations.clear && !liveSeam?.clearExtensionDecorations(extension.id)) {
-      throw fail("extensions.noActiveEditor");
-    }
-    if (parsedDecorationRanges?.ok) {
-      if (!liveSeam?.setExtensionDecorations(extension.id, parsedDecorationRanges.ranges)) {
-        throw fail("extensions.noActiveEditor");
-      }
     }
   }
 

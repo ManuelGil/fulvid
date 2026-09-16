@@ -11,7 +11,7 @@ import {
 import { resetLuaFactoryForTests } from "../../src/bun/extensions/lua/luaEngine.ts";
 import { LUA_EXTENSION_LIMITS } from "../../src/bun/extensions/lua/luaLimits.ts";
 import {
-  assertDocumentTextWithinLimit,
+  documentTextLimitError,
   DOCUMENT_EXTENSION_LIMITS,
   type DocumentSnapshot,
 } from "../../src/mainview/extensions/documentCapability.ts";
@@ -75,10 +75,8 @@ describe("host document/decorations contracts", () => {
     const limit = DOCUMENT_EXTENSION_LIMITS.maxTextChars.value;
     expect(limit).toBe(512 * 1024);
     expect(LUA_EXTENSION_LIMITS.maxDocumentTextChars.value).toBe(limit);
-    expect(assertDocumentTextWithinLimit("x".repeat(limit))).toBeNull();
-    expect(assertDocumentTextWithinLimit("x".repeat(limit + 1))).toBe(
-      "document text exceeds size limit",
-    );
+    expect(documentTextLimitError("x".repeat(limit))).toBeNull();
+    expect(documentTextLimitError("x".repeat(limit + 1))).toBe("document text exceeds size limit");
 
     expect(DECORATION_EXTENSION_LIMITS.maxRanges.value).toBe(500);
     expect(

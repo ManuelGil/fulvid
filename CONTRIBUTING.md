@@ -105,7 +105,7 @@ Fulvid supports Linux, Windows, and macOS. Tests protect the product contract, n
 | Do | Do not |
 | --- | --- |
 | Use `os.tmpdir()` and `tests/support/platform.linkDirectory` | Hardcode `/tmp`, `/home/...`, or Unix-only `symlink` for directory escape cases |
-| Assert containment / refuse-don't-fix for Windows-looking paths (`C:\\…`, `C:foo`, `..\\`) even on Linux CI | Assume `/` is the only separator, or that drive letters are "absolute" via Node `isAbsolute` alone |
+| Assert containment / refuse-don't-fix for Windows-looking paths (`C:\\...`, `C:foo`, `..\\`) even on Linux CI | Assume `/` is the only separator, or that drive letters are "absolute" via Node `isAbsolute` alone |
 | Treat `Ctrl` (Windows/Linux) and `Cmd` (macOS) as distinct modifiers; Full Screen is `F11` vs `Ctrl+Cmd+F` | Equate Ctrl with Cmd in shortcut or binding tests |
 | Keep EOL/encoding asserts model-owned (LF/CRLF explicit) | Assume OS default EOL, locale, or timezone |
 | Skip or inject faults when POSIX `chmod` denial is unavailable (`posixModeBitsDenyAccess`) | Pretend Windows applies Unix mode bits |

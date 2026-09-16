@@ -100,7 +100,8 @@ function closeEngine(engine: LuaEngine | null): void {
   }
 }
 
-function dropExtension(extensionId: string): void {
+/** Drop a pack's engine and commands (failed load cleanup and uninstall). */
+export function unloadLuaExtensionPack(extensionId: string): void {
   const record = engines.get(extensionId);
   if (record) {
     closeEngine(record.engine);
@@ -111,11 +112,6 @@ function dropExtension(extensionId: string): void {
       commands.delete(namespacedId);
     }
   }
-}
-
-/** Drop a pack's engine and commands after a failed post-load contract check. */
-export function unloadLuaExtensionPack(extensionId: string): void {
-  dropExtension(extensionId);
 }
 
 /** Drop all Lua engines and registrations (rediscovery and test seams). */
@@ -394,7 +390,7 @@ export async function loadLuaExtensionPack(
     await runLuaSourceWithBudget(engine, source);
 
     const committed = loadTxn.pending;
-    dropExtension(manifest.id);
+    unloadLuaExtensionPack(manifest.id);
     engines.set(manifest.id, { engine, capabilities: [...manifest.capabilities] });
     for (const command of committed) {
       commands.set(command.namespacedId, command);

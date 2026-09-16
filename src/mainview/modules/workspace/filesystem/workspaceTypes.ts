@@ -7,6 +7,16 @@ import type { DocumentLink } from "../../document/links/documentLink";
 
 export type MarkdownFileType = "md" | "markdown" | "mdx";
 
+/** Names Windows refuses regardless of extension (CON, PRN, COM1, ...). */
+export const RESERVED_DEVICE_NAMES = new Set([
+  "con",
+  "prn",
+  "aux",
+  "nul",
+  ...Array.from({ length: 9 }, (_, index) => `com${index + 1}`),
+  ...Array.from({ length: 9 }, (_, index) => `lpt${index + 1}`),
+]);
+
 /** Which supported document extension a path uses, if any. */
 export function documentFileType(path: string): MarkdownFileType | null {
   const lower = path.toLowerCase();
@@ -29,7 +39,8 @@ export function isMarkdownFile(path: string): boolean {
 
 /**
  * Explorer create/rename names must be basenames only - same refusal class as
- * host `requireSafeBasename` (no separators, traversal, or empty stems).
+ * host `requireSafeBasename` (no separators, traversal, reserved names, or
+ * Windows-illegal characters).
  */
 export function isSafeDocumentBasename(name: string): boolean {
   const basenameValue = name.trim();
@@ -44,11 +55,16 @@ export function isSafeDocumentBasename(name: string): boolean {
     basenameValue.includes("\0") ||
     basenameValue.includes("..") ||
     /[.\s]$/.test(basenameValue) ||
+    /[<>:"|?*]/.test(basenameValue) ||
     /^[A-Za-z]:/.test(basenameValue)
   ) {
     return false;
   }
-  return isMarkdownFile(basenameValue);
+  if (!isMarkdownFile(basenameValue)) {
+    return false;
+  }
+  const stem = basenameValue.replace(/\.[^.]+$/, "");
+  return stem !== "" && !RESERVED_DEVICE_NAMES.has(stem.toLowerCase());
 }
 
 export interface ScannedNote {

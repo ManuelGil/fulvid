@@ -2,8 +2,9 @@
  * Quit confirmation gate - not a lifecycle or dirty-state owner.
  *
  * documentBuffers -> dirty count; dialogs -> confirm UI; this module -> whether
- * to ask; host -> native quit. Menu Quit must stay a command (not OS quit role)
- * so the renderer gate cannot be bypassed. Do not duplicate dirty state here.
+ * to ask; host -> native quit. Menu Quit and OS window close (host `will-close`
+ * veto -> `windowCloseRequested`) share this gate. Menu Quit stays a command
+ * (not OS quit role). Do not duplicate dirty state here.
  */
 export function shouldConfirmQuit(options: {
   dirtyCount: number;

@@ -22,6 +22,7 @@ import {
   loadAllowedBlockedExtension,
   resolveInstalledExtensionPath,
   uninstallExtensionPack,
+  withExtensionLifecycleLock,
 } from "./extensions/discoverExtensions";
 import { invokeLuaExtensionCommand } from "./extensions/lua/luaExtensionRuntime";
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
@@ -110,7 +111,8 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
         Utils.showItemInFolder(path);
         return true;
       },
-      invokeExtensionLuaCommand: (params) => invokeLuaExtensionCommand(params),
+      invokeExtensionLuaCommand: (params) =>
+        withExtensionLifecycleLock(() => invokeLuaExtensionCommand(params)),
       setApplicationMenu: ({ items }) => setNativeApplicationMenu(items),
       getApplicationMenuSupport: () => applicationMenuSupport(),
       quitApplication: () => quitApplication(),
@@ -141,6 +143,17 @@ mainWindowHolder.window = new BrowserWindow({
   url,
   frame,
   rpc: mainRPC,
+});
+
+// Electrobun 2.0.1: OS chrome close is sync `will-close` with
+// `event.response = { allow: false }`. There is no awaitable close and no
+// web beforeunload. Veto here, then reuse the renderer confirmAndQuit owner
+// (same path as Menu Quit -> quitApplication -> Utils.quit). Utils.quit does
+// not re-enter will-close.
+mainWindowHolder.window.on("will-close", (event: unknown) => {
+  const closeEvent = event as { response?: { allow: boolean } };
+  closeEvent.response = { allow: false };
+  mainRPC.send.windowCloseRequested({});
 });
 
 setInterval(() => {

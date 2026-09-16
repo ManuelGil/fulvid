@@ -174,6 +174,9 @@ describe("document I/O", () => {
       expect(() => validateHtmlBasename("page.html.")).toThrow(unsafe);
       expect(() => validateHtmlBasename("C:x.html")).toThrow(unsafe);
       await expect(saveSelectedDocument(root, "CON.md", "# x\n")).rejects.toThrow(unsafe);
+      await expect(createDocument(root, "CON.md", "# x\n")).rejects.toThrow(unsafe);
+      await expect(createDocument(root, "note:ads.md", "# x\n")).rejects.toThrow(unsafe);
+      await expect(createDocument(root, "notes./file.md", "# x\n")).rejects.toThrow(unsafe);
       await expect(saveSelectedDocument(root, "note.md ", "# x\n")).rejects.toThrow(unsafe);
     } finally {
       await rm(root, { recursive: true, force: true });

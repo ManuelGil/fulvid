@@ -11,8 +11,8 @@ import {
 import { resetLuaFactoryForTests } from "../../src/bun/extensions/lua/luaEngine.ts";
 import { LUA_EXTENSION_LIMITS } from "../../src/bun/extensions/lua/luaLimits.ts";
 import {
-  assertEditorReplaceWithinLimit,
-  assertEditorSelectionWithinLimit,
+  editorReplaceLimitError,
+  editorSelectionLimitError,
   editorSnapshotIsCurrent,
   EDITOR_EXTENSION_LIMITS,
   type EditorSelectionSnapshot,
@@ -145,13 +145,13 @@ describe("editor capability contract", () => {
     const limit = 256 * 1024;
     expect(EDITOR_EXTENSION_LIMITS.maxSelectionChars.value).toBe(limit);
     expect(LUA_EXTENSION_LIMITS.maxEditorSelectionChars.value).toBe(limit);
-    expect(assertEditorReplaceWithinLimit(1)).toBe("editor.replaceSelection requires a string");
-    expect(assertEditorSelectionWithinLimit("x".repeat(limit))).toBeNull();
-    expect(assertEditorReplaceWithinLimit("x".repeat(limit))).toBeNull();
-    expect(assertEditorSelectionWithinLimit("x".repeat(limit + 1))).toBe(
+    expect(editorReplaceLimitError(1)).toBe("editor.replaceSelection requires a string");
+    expect(editorSelectionLimitError("x".repeat(limit))).toBeNull();
+    expect(editorReplaceLimitError("x".repeat(limit))).toBeNull();
+    expect(editorSelectionLimitError("x".repeat(limit + 1))).toBe(
       "editor selection exceeds size limit",
     );
-    expect(assertEditorReplaceWithinLimit("x".repeat(limit + 1))).toBe(
+    expect(editorReplaceLimitError("x".repeat(limit + 1))).toBe(
       "editor.replaceSelection exceeds size limit",
     );
 

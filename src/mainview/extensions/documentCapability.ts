@@ -18,14 +18,14 @@ export type DocumentSnapshot = {
   cursorColumn: number;
 };
 
-export function assertDocumentTextWithinLimit(text: string): string | null {
+export function documentTextLimitError(text: string): string | null {
   if (text.length > DOCUMENT_EXTENSION_LIMITS.maxTextChars.value) {
     return "document text exceeds size limit";
   }
   return null;
 }
 
-export function assertCreateUntitledWithinLimit(text: unknown): string | null {
+export function createUntitledLimitError(text: unknown): string | null {
   if (typeof text !== "string") {
     return "document.createUntitled requires a string";
   }

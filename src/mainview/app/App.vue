@@ -94,7 +94,11 @@ import {
   presentApplicationMenu,
   type ApplicationMenuState,
 } from "../shell/applicationMenu/applicationMenuModel";
-import { desktopRequest, onApplicationMenuClicked } from "../desktop/electrobunClient";
+import {
+  desktopRequest,
+  onApplicationMenuClicked,
+  onWindowCloseRequested,
+} from "../desktop/electrobunClient";
 import {
   configureExtensionHostActions,
   listExtensionMenuCommands,
@@ -637,6 +641,10 @@ const unregisterNativeMenu = onApplicationMenuClicked((action) => {
   void runShellCommand(action);
 });
 
+const unregisterWindowClose = onWindowCloseRequested(() => {
+  void requestApplicationQuit();
+});
+
 onMounted(() => {
   syncDocumentAnnotationsVisibleFromPreference(settings.value.editor.showDocumentAnnotations);
   configureExtensionHostActions({
@@ -1120,21 +1128,32 @@ const unregisterCommands = [
   }),
 ];
 
+let applicationQuitInFlight = false;
+
 async function requestApplicationQuit(): Promise<void> {
-  const dirtyCount = openBuffers.value.filter(isDocumentDirty).length;
-  await confirmAndQuit({
-    dirtyCount,
-    confirmCloseEnabled: settings.value.workspace.confirmClose,
-    confirm: () =>
-      confirmDialog(
-        dirtyCount === 1
-          ? t("workspace.quitUnsavedOne", {
-              name: openBuffers.value.find(isDocumentDirty)?.title ?? "",
-            })
-          : t("workspace.quitUnsaved", { count: dirtyCount }),
-      ),
-    quit: quitApplication,
-  });
+  // Menu Quit and OS will-close both land here; coalesce so X spam cannot stack dialogs.
+  if (applicationQuitInFlight) {
+    return;
+  }
+  applicationQuitInFlight = true;
+  try {
+    const dirtyCount = openBuffers.value.filter(isDocumentDirty).length;
+    await confirmAndQuit({
+      dirtyCount,
+      confirmCloseEnabled: settings.value.workspace.confirmClose,
+      confirm: () =>
+        confirmDialog(
+          dirtyCount === 1
+            ? t("workspace.quitUnsavedOne", {
+                name: openBuffers.value.find(isDocumentDirty)?.title ?? "",
+              })
+            : t("workspace.quitUnsaved", { count: dirtyCount }),
+        ),
+      quit: quitApplication,
+    });
+  } finally {
+    applicationQuitInFlight = false;
+  }
 }
 
 const editorCommandIds = new Set<CommandId>([
@@ -1210,6 +1229,7 @@ onBeforeUnmount(() => {
   narrowViewportMedia?.removeEventListener("change", onNarrowViewportChange);
   unregisterCommands.forEach((unregister) => unregister());
   unregisterNativeMenu();
+  unregisterWindowClose();
 });
 </script>
 

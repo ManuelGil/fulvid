@@ -7,7 +7,7 @@
  * renderer may ask to reopen a folder, but it cannot invent one.
  *
  * These are persisted **folder approvals**, not session **document grants**.
- * Document grants (UUID token → one absolute path) live in `workspaceAuthority`.
+ * Document grants (UUID token -> one absolute path) live in `workspaceAuthority`.
  *
  * Intent only - which folders were approved, not what they contain. The host
  * entry point supplies the storage directory so this module stays free of the

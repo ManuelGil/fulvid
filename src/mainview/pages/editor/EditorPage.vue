@@ -300,12 +300,13 @@ watch(
       return;
     }
     await nextTick();
-    if (!monacoHostRef.value) {
+    // Tab may have changed while we waited for layout.
+    if (activeId.value !== documentId || !monacoHostRef.value) {
       return;
     }
     const position = consumePendingReveal(documentId);
     if (position) {
-      monacoHostRef.value?.revealPosition(position.lineNumber, position.column);
+      monacoHostRef.value.revealPosition(position.lineNumber, position.column);
     }
   },
   { deep: true },

@@ -165,6 +165,11 @@ export type DesktopRPC = {
     requests: FilesystemRPC["webview"]["requests"];
     messages: FilesystemRPC["webview"]["messages"] & {
       applicationMenuClicked: { action: string };
+      /**
+       * Host vetoed BrowserWindow `will-close` (OS chrome). Renderer must run
+       * the same `confirmAndQuit` owner as Menu Quit, then `quitApplication`.
+       */
+      windowCloseRequested: Record<string, never>;
     };
   }>;
 };

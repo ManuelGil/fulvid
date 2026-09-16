@@ -27,6 +27,8 @@ import {
   assertCanonicallyContained,
   containedPath,
   hasControlCharacters,
+  isUnsafePathSegment,
+  RESERVED_DEVICE_NAMES,
   WorkspaceBoundaryError,
 } from "../security/workspacePaths";
 import { MAX_DOCUMENT_BYTES } from "../rpc/rpcInput";
@@ -71,43 +73,26 @@ function assertStandaloneDocumentPath(targetPath: string): string {
   return absolutePath;
 }
 
-/** Names Windows refuses regardless of extension. */
-const RESERVED_DEVICE_NAMES = new Set([
-  "con",
-  "prn",
-  "aux",
-  "nul",
-  ...Array.from({ length: 9 }, (_, index) => `com${index + 1}`),
-  ...Array.from({ length: 9 }, (_, index) => `lpt${index + 1}`),
-]);
-
 function requireSafeBasename(value: string): string {
   if (typeof value !== "string") {
     throw new WorkspaceBoundaryError("unsafeName");
   }
-  // Refuse padded names rather than trim: Windows strips trailing dots/spaces and
-  // would retarget the write to a different path.
-  if (value !== value.trim()) {
-    throw new WorkspaceBoundaryError("unsafeName");
-  }
-  const basenameValue = value;
+  // Refuse padded/illegal/reserved names rather than repair them.
   if (
-    !basenameValue ||
-    basenameValue.length > 255 ||
-    basenameValue === "." ||
-    basenameValue === ".." ||
-    basenameValue.includes("/") ||
-    basenameValue.includes("\\") ||
-    basenameValue.includes("\0") ||
-    basenameValue.includes("..") ||
-    hasControlCharacters(basenameValue) ||
-    /[.\s]$/.test(basenameValue) ||
-    /^[A-Za-z]:/.test(basenameValue) ||
-    isAbsolute(basenameValue)
+    !value ||
+    value.length > 255 ||
+    value.includes("/") ||
+    value.includes("\\") ||
+    value.includes("\0") ||
+    value.includes("..") ||
+    hasControlCharacters(value) ||
+    /^[A-Za-z]:/.test(value) ||
+    isAbsolute(value) ||
+    isUnsafePathSegment(value)
   ) {
     throw new WorkspaceBoundaryError("unsafeName");
   }
-  return basenameValue;
+  return value;
 }
 
 function validateDocumentBasename(
@@ -270,6 +255,10 @@ async function readFileContentWithMtimeCheck(
   if (finalMtimeMs === null) {
     throw new Error(filesystemErrorMessage("operationFailed"));
   }
+  // Reject a torn read when the file changed under us between the two stats.
+  if (finalMtimeMs !== initialMtimeMs) {
+    throw new Error(filesystemErrorMessage("operationFailed"));
+  }
 
   return { content, mtimeMs: finalMtimeMs };
 }
@@ -367,7 +356,17 @@ export async function renameDocument(
   }
 
   await mkdir(dirname(nextTargetPath), { recursive: true });
-  await rename(targetPath, nextTargetPath);
+  // Claim the destination exclusively before rename so a concurrent create
+  // cannot be silently overwritten by POSIX/Windows rename-replace.
+  if (!(await createExclusively(nextTargetPath, ""))) {
+    throw new Error(filesystemErrorMessage("documentExists"));
+  }
+  try {
+    await rename(targetPath, nextTargetPath);
+  } catch (error) {
+    await rm(nextTargetPath, { force: true });
+    throw error;
+  }
   const note = await scannedNoteFromFile(rootPath, nextTargetPath, linkMode);
   const mtimeMs = await fileMtimeOrNull(nextTargetPath);
   if (mtimeMs === null) {
