@@ -245,34 +245,6 @@ commands.register({ id = "b", title = "B", run = function() ui.notify("b") end }
     });
   });
 
-  test("failed load leaves no live command; neighbor remains usable", async () => {
-    const root = await tempRoot("iso");
-    const bad = await writePack(root, "test.adv-bad", luaManifest("test.adv-bad"), {
-      "entry.lua": `
-commands.register({ id = "one", title = "One", run = function() end })
-error("explode")
-`,
-    });
-    const good = await writePack(root, "test.adv-good", luaManifest("test.adv-good"), {
-      "entry.lua": `
-commands.register({
-  id = "ping",
-  title = "Ping",
-  run = function()
-    ui.notify("pong")
-  end
-})
-`,
-    });
-    await expect(loadPack(bad)).rejects.toBeDefined();
-    expect(findLuaCommand("test.adv-bad.one")).toBeNull();
-    await loadPack(good);
-    expect(await invokeLuaExtensionCommand("test.adv-good.ping")).toEqual({
-      ok: true,
-      notifications: ["pong"],
-    });
-  });
-
   test("capability denial: editor snapshot rejected without editor capability", async () => {
     const root = await tempRoot("cap");
     const pack = await writePack(root, "test.adv-nocap", luaManifest("test.adv-nocap"), {

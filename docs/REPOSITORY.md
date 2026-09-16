@@ -12,7 +12,7 @@ LICENSE
 assets/                  Application icon
 assets/screenshots/      Window captures
 examples/                Demo folder for local checks and those captures
-extensions/              Extension-boundary fixtures (copy into userData/extensions to load)
+extensions/              Empty by design (extension packs live in fulvid-extensions)
 src/bun/                 Desktop host and filesystem RPC
 src/bun/extensions/      Extension discovery (userData/extensions); lua/ host runtime
 src/bun/filesystem/      io/, rpc/, scanning/, security/

@@ -3,25 +3,13 @@
  * appearance paint is host-authored from validated colors (no guest CSS).
  */
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import {
   cssClassForExtensionDecoration,
-  ensureExtensionDecorationStyles,
   EXTENSION_DECORATION_OVERVIEW_HEX,
   monacoDecorationOptionsForExtensionStyle,
   monacoDecorationOptionsForRange,
 } from "../../src/mainview/extensions/decorationCapability.ts";
-
-const MONACO_HOST = join(
-  import.meta.dir,
-  "../../src/mainview/modules/editor/monaco/MonacoHost.vue",
-);
-const DECORATION_CAPABILITY = join(
-  import.meta.dir,
-  "../../src/mainview/extensions/decorationCapability.ts",
-);
 
 describe("extension decoration visual contract", () => {
   test("closed style tokens still map to host chips", () => {
@@ -50,15 +38,5 @@ describe("extension decoration visual contract", () => {
     expect(styled.inlineClassName.startsWith("fulvid-ext-decoration-")).toBe(true);
     expect(owned.inlineClassName.startsWith("fulvid-ext-a-")).toBe(true);
     expect(owned.overviewRulerColor).toBe("#d29922");
-  });
-
-  test("MonacoHost applies style + appearance ensure paths", () => {
-    const source = readFileSync(MONACO_HOST, "utf8");
-    expect(source).toContain("ensureExtensionDecorationStyles()");
-    expect(source).toContain("ensureExtensionAppearanceStyles");
-    expect(source).toContain("monacoDecorationOptionsForRange");
-    const capability = readFileSync(DECORATION_CAPABILITY, "utf8");
-    expect(capability).toContain("fulvid-extension-appearance-styles");
-    expect(typeof ensureExtensionDecorationStyles).toBe("function");
   });
 });

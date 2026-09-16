@@ -64,7 +64,7 @@ export interface ScannedNote {
   words: number;
   /** Raw document content retained for workspace content search. */
   content?: string;
-  /** True when the relative path includes a hidden segment (e.g. `.notes/…`). */
+  /** True when the relative path includes a hidden segment (e.g. `.notes/...`). */
   hidden?: boolean;
 }
 

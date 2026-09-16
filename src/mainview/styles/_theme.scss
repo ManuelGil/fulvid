@@ -479,7 +479,7 @@ $monochrome-tokens: (
 }
 
 // Pre-JS paint matches first-run default (appearance.theme = system): follow
-// the OS. Explicit [data-theme=…] skins override after settings hydrate.
+// the OS. Explicit [data-theme=...] skins override after settings hydrate.
 :root {
   @include dark-tokens;
   --ui-text-scale: 1;

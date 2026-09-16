@@ -7,10 +7,10 @@ Fulvid's local **Extensions** system (API v1): small packs that add commands and
 | Audience | Start here |
 | --- | --- |
 | User | What Extensions can and cannot do (below); install by copying a pack into `userData/extensions/` |
-| Extension author | Capability tables + [reference packs](../extensions/) |
+| Extension author | Capability tables + sibling [`fulvid-extensions`](../../fulvid-extensions/) |
 | Maintainer | Ownership, budgets, footprint, and [tests as security contracts](#tests-as-security-contracts) |
 
-Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [CONCEPTS.md](./CONCEPTS.md) · [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md) · [`extensions/README.md`](../extensions/README.md)
+Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [CONCEPTS.md](./CONCEPTS.md) · [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md) · [`fulvid-extensions`](../../fulvid-extensions/)
 
 Lua is a **supported extension runtime** inside Extensions - not a second product and not a general scripting environment.
 
@@ -64,9 +64,9 @@ The Extension System is **not**:
 
 ## Current capability surface
 
-Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api": 1`). Repository packs under [`extensions/`](../extensions/) are production examples to copy into that path - not the load path itself. Official product packs (TODO / MDX / ADR) live in the sibling [`fulvid-extensions`](../../fulvid-extensions/) repository and use the same contract.
+Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api": 1`). Fulvid does **not** ship packs under repository `extensions/` - that directory stays empty by design. Curated product packs live in the sibling [`fulvid-extensions`](../../fulvid-extensions/) repository and use the same install contract.
 
-**Install / uninstall:** Settings → Extensions (also File → Extensions) can install from a local folder or remove an installed pack. The host validates the candidate before an atomic copy into `userData/extensions/<id>/`, and uninstall unloads that pack, deletes only its directory, and clears its allowance. Manual folder copy still works; rediscovery (Reload inventory or restart) converges to the filesystem. There is no marketplace, archive format, or network installer.
+**Install / uninstall:** Settings -> Extensions (also File -> Extensions) can install from a local folder or remove an installed pack. The host validates the candidate before an atomic copy into `userData/extensions/<id>/`, and uninstall unloads that pack, deletes only its directory, and clears its allowance. Manual folder copy still works; rediscovery (Reload inventory or restart) converges to the filesystem. There is no marketplace, archive format, or network installer.
 
 All packs that contribute commands use Lua (`entry.lua` / `init.lua`). There is no declarative host-action path.
 
@@ -76,12 +76,11 @@ Canonical pack identity is **`publisher.name`** (VS Code-style). Installation so
 
 ```text
 imgildev.todo-decorator     # official product pack (publisher imgildev)
-fulvid.host-notify          # Fulvid reference pack
 acme.example-extension      # any third-party publisher
 ```
 
 - Folder name under `userData/extensions/` **must equal** `manifest.id`.
-- `id` is derived as `${publisher}.${name}`. If `id` is present in JSON, it must match; omitting it is fine — validation always normalizes to the derived id.
+- `id` is derived as `${publisher}.${name}`. If `id` is present in JSON, it must match; omitting it is fine - validation always normalizes to the derived id.
 - Publisher `local` is **reserved** (legacy). Old `local.*` allowances are rewritten once via `LEGACY_EXTENSION_ID_MIGRATION`; `local.*` is not a valid canonical identity.
 - Fulvid does **not** hard-code `imgildev` (or any publisher) in the engine. Publisher metadata is pack-owned.
 
@@ -89,7 +88,7 @@ acme.example-extension      # any third-party publisher
 
 | Field | Required | Role |
 | --- | --- | --- |
-| `publisher` | yes | Slug (`imgildev`, `fulvid`, `acme`) |
+| `publisher` | yes | Slug (`imgildev`, `acme`, ...) |
 | `name` | yes | Machine package name (`todo-decorator`) |
 | `id` | optional | Must equal `publisher.name` when present |
 | `displayName` | yes | Human product title |
@@ -164,7 +163,7 @@ Commands are namespaced as `publisher.name.commandId` (e.g. `imgildev.todo-decor
 | `editor` | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation; navigation; identity stamps in Lua | `maxEditorSelectionChars` | Rejected / fail closed / stale rejected; see Editor section |
 | `document` | Untitled / document snapshot via seam | `document.getText` / `document.getCursor` / `document.reveal` / `document.createUntitled` | Filesystem write; activate/open document; live model; host template loader | `maxDocumentTextChars` (512 KiB); createUntitled reuses `maxTemplateBytes` | Rejected / fail closed |
 | `decorations` | Monaco decorations via seam | `decorations.set(ranges)` / `decorations.clear()` (closed `style` tokens **or** validated `appearance` colors; per-extension) | Arbitrary CSS/HTML/JS; live decoration APIs; product marker semantics; keystroke auto-refresh | `maxDecorationRanges` (500) | Rejected / fail closed / stale rejected |
-| `templates` | Generic Mustache substitute + UTC calendar date | `template.render(source, variables)` - escaped `{{name}}` only; string→string vars. Optional `clock.isoDate()` → `YYYY-MM-DD` (UTC) for pack-built context | Sections/partials/unescaped HTML; lambdas; filesystem; product variable factories (`getVariables`, ADR metadata); date/time subsystems | Template/output reuse `maxTemplateBytes`; 64 vars; key/value caps | Rejected / fail closed |
+| `templates` | Generic Mustache substitute + UTC calendar date | `template.render(source, variables)` - escaped `{{name}}` only; string->string vars. Optional `clock.isoDate()` -> `YYYY-MM-DD` (UTC) for pack-built context | Sections/partials/unescaped HTML; lambdas; filesystem; product variable factories (`getVariables`, ADR metadata); date/time subsystems | Template/output reuse `maxTemplateBytes`; 64 vars; key/value caps | Rejected / fail closed |
 
 Guest APIs are only the surfaces above. There is no generic `host.call`. There is no Lua `fulvid.date` or command `prompts`.
 
@@ -313,8 +312,8 @@ userData extension paths          Utils.paths.userData/extensions
 documentation                     docs/EXTENSIONS.md, ARCHITECTURE, INVARIANTS, CONCEPTS, compatibility
 i18n strings                      extension-related catalog keys
 tests                             tests/extensions/
-temporary fixtures                tests/extensions/fixtures/
-reference packs                   extensions/
+temporary fixtures                tests/extensions/fixtures/ (notify + editor only)
+reference / product packs         sibling fulvid-extensions (install into userData)
 build/package configuration       packaging + Electrobun copy rules
 dependencies                      wasmoon (and related)
 security documentation            SECURITY-AND-RESILIENCE.md
@@ -333,28 +332,29 @@ This is a checklist, not a removal script.
 | Lua runtime | `src/bun/extensions/lua/` |
 | Manifest / registry / editor seam | `src/mainview/extensions/` |
 | Permanent contract tests | `tests/extensions/` |
-| Declarative fixtures | `extensions/` |
-| Disposable Lua fixtures | `tests/extensions/fixtures/` |
+| Empty pack tree (intentional) | `extensions/` (README only) |
+| Minimal Lua fixtures (`test.*`) | `tests/extensions/fixtures/` (notify + editor only) |
+| Official product packs | sibling `fulvid-extensions` (`imgildev.*`) |
 | Packaged glue | `electrobun.config.ts` -> `bun/glue.wasm` |
 | Packaged smoke | `scripts/luaPackagedSmoke.ts` (`bun run smoke:lua-packaged`) |
 | Docs | this file; cross-links in ARCHITECTURE, INVARIANTS, CONCEPTS, SECURITY-AND-RESILIENCE, compatibility |
 
 ## Tests as security contracts
 
-Permanent tests under `tests/extensions/` protect architectural and security boundaries. They are **contract tests**, not merely implementation coverage.
+Permanent tests under `tests/extensions/` protect architectural and security boundaries. Prefer **host unit tests** and **one minimal fixture** over a zoo of contract packs. Product semantics for `imgildev.*` are covered in `fulvid-extensions`.
 
 | Question | Primary permanent coverage |
 | --- | --- |
-| Can an extension escape containment / own Monaco or filesystem? | `extensionUiBoundary.unit.test.ts`, `extensionFixtures.unit.test.ts` |
-| Can it execute bytecode? | Load path rejects bytecode (`extensionLuaRuntime` / runtime) |
-| Can it recover prohibited Lua globals? | `lua guest environment` - dangerous stdlib absent after reduction |
-| Can it bypass execution limits? | `lua execution and memory budgets` - interrupt on load/invoke |
-| Can it bypass memory limits? | same - controlled memory failure + neighbor isolation |
-| Can it exceed capability limits? | notify size; command registration; editor size tests |
-| Can malformed packs poison discovery? | `extensionDiscovery.unit.test.ts` - isolation / fail closed |
-| Can one extension affect another? | failed pack does not block valid neighbor (Lua + editor suites) |
-| Can editor access exceed its contract? | `extensionEditorCapability.unit.test.ts` |
-| Can the editor size boundary regress (including constant mutation)? | `pins selection and replace boundary at 256 KiB` |
+| Can an extension escape containment / own Monaco or filesystem? | Capability denial + closed icon vocabulary (`extensionAdversarial`, `tests/mainview/shell/appIcons`) |
+| Can it execute bytecode? | `extensionAdversarial` bytecode rejection |
+| Can it recover prohibited Lua globals? | `extensionLuaRuntime` - dangerous stdlib absent after reduction |
+| Can it bypass execution / memory limits? | `extensionLuaRuntime` budgets + neighbor recovery |
+| Can it exceed capability limits? | notify size; editor/document budgets; decoration bounds |
+| Can malformed packs poison discovery? | `extensionDiscovery` isolation / fail closed |
+| Can one extension affect another? | Discovery + Lua timeout/OOM neighbor isolation; lifecycle uninstall |
+| Can editor access exceed its contract? | `extensionEditorCapability` |
+| Install/uninstall isolation? | `extensionLifecycle` |
+| Silent document activation (no notify)? | `extensionLiveDocumentLifecycle` |
 | Can the packaged runtime execute correctly? | `bun run smoke:lua-packaged` (platform matrix in `compatibility.md`) |
 
 ### Protecting contract tests

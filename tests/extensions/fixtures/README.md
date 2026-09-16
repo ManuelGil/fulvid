@@ -1,11 +1,12 @@
 # Disposable extension contract fixtures
 
-These packs live under **tests** only. They are **not** Fulvid product examples.
+These packs live under **tests** only. They are **not** Fulvid product examples and are never shipped.
 
-- Product reference packs: `extensions/fulvid.host-notify`, `fulvid.blank-note`, `fulvid.sort-lines`
-- Fixtures here exercise discovery, isolation, budgets, and editor seams for permanent contract tests
-- They are **not** a permanent attack corpus and must not be presented as installable user examples
+| Fixture | Why it exists |
+| --- | --- |
+| `test.contract-lua-notify` | Real pack load/register/invoke for notify (also packaged smoke) |
+| `test.contract-lua-editor` | Real pack load for editor selection/replace seam |
 
-Packaged smoke may copy `test.contract-lua-notify` into a temp `userData/extensions` for runtime verification only.
+Host discovery, budgets, and isolation otherwise use inline temp packs. Product packs live in sibling `fulvid-extensions`.
 
-Fixture ids use publisher `test` (e.g. `test.contract-lua-notify`). Do not use reserved publisher `local`.
+Packaged smoke may copy `test.contract-lua-notify` into a temp `userData/extensions`. Fixture ids use publisher `test`.

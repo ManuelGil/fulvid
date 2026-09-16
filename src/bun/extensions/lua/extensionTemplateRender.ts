@@ -32,7 +32,7 @@ export type ExtensionTemplateRenderResult =
   { ok: true; text: string } | { ok: false; error: string };
 
 /**
- * Parse a guest variables table into string→string only.
+ * Parse a guest variables table into string->string only.
  * Rejects nested tables, functions, and non-string scalars.
  */
 export function parseExtensionTemplateVariables(

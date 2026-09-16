@@ -116,14 +116,14 @@ describe("organic menu integration", () => {
       ],
       [
         {
-          namespacedId: "imgildev.adr-templates.newAdr",
-          title: "New ADR",
+          namespacedId: "acme.templates.newDoc",
+          title: "New From Template",
           menu: "file.new",
           order: 20,
         },
         {
-          namespacedId: "fulvid.blank-note.createBlankNote",
-          title: "New Blank Note",
+          namespacedId: "acme.notes.createNote",
+          title: "New Note",
           menu: "file.new",
           order: 10,
         },
@@ -137,40 +137,12 @@ describe("organic menu integration", () => {
       const labels = submenu.items
         .filter((item) => item.type === "command")
         .map((item) => (item.type === "command" ? item.label : ""));
-      expect(labels).toEqual(["Untitled", "New Blank Note", "New ADR"]);
+      expect(labels).toEqual(["Untitled", "New Note", "New From Template"]);
     }
   });
 });
 
 describe("preload quarantine and consent", () => {
-  test("safe packs preload; broken packs stay unloaded and isolated", async () => {
-    const userData = await tempRoot("preload");
-    const extensions = join(userData, "extensions");
-    await mkdir(extensions, { recursive: true });
-    await writePack(extensions, "test.ok", {
-      ...luaManifest("test.ok"),
-      activation: "command",
-      actions: [{ id: "ping", menu: "help", title: "Ping" }],
-    });
-    await writePack(
-      extensions,
-      "test.bad",
-      {
-        ...luaManifest("test.bad"),
-      },
-      `error("intentional preload failure")`,
-    );
-
-    configureExtensionDiscovery(userData);
-    const result = await discoverExtensions();
-    expect(result.loaded.map((pack) => pack.id)).toEqual(["test.ok"]);
-    expect(result.loaded[0]?.state).toBe("loaded");
-    expect(result.failed.some((entry) => entry.id === "test.bad")).toBe(true);
-    const bad = result.installed.find((pack) => pack.id === "test.bad");
-    expect(bad?.state).toBe("failed");
-    expect(bad?.commands).toEqual([]);
-  });
-
   test("blocked preflight packs are not executable until consent retries discovery", async () => {
     const userData = await tempRoot("blocked");
     const extensions = join(userData, "extensions");

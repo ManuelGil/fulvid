@@ -11,18 +11,18 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Added
 
-- **Extensions (API v1)**: local Lua packs under `userData/extensions/` add commands through existing owners (notify, untitled, Monaco selection/document/decorations). Source-only Lua/Wasm on the Bun host; no marketplace, network, filesystem, or live Monaco authority. Reference packs: `extensions/`. Guide: [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
+- **Extensions (API v1)**: local Lua packs under `userData/extensions/` add commands through existing owners (notify, untitled, Monaco selection/document/decorations). Source-only Lua/Wasm on the Bun host; no marketplace, network, filesystem, or live Monaco authority. Packs: sibling [`fulvid-extensions`](../fulvid-extensions/). Guide: [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
 - **Extension API expansion**: Lua packs may use least-privilege `document` (`getText` / `getCursor` / `reveal` / `createUntitled`), `decorations` (set/clear with host styles or validated `appearance`), selection replace under `editor`, and generic `template.render` under `templates`. Snapshot/apply stays Bun-runtime -> renderer-apply through existing owners. No `fulvid.date` or command `prompts` - product template semantics (ADR sections, defaults, naming) live in packs.
 - **Generic `templates` capability**: `template.render(source, variables)` substitutes escaped `{{name}}` only (bounded strings). Optional `clock.isoDate()` returns a UTC `YYYY-MM-DD` for pack-built context. No sections/partials/lambdas, no host variable factories, no ADR/domain knowledge.
 
 ### Changed
 
-- **Extension management**: Settings → Extensions supports install from folder, uninstall with confirmation, and reload inventory. File → Extensions opens that section. Install validates then copies atomically into `userData/extensions/<id>/`; uninstall unloads, deletes only that pack, and clears its allowance. No marketplace or package manager.
-- **Extension identity**: canonical pack id is `publisher.name` (e.g. `imgildev.todo-decorator`, `fulvid.host-notify`). Publisher `local` is reserved; persisted allowances migrate former `local.*` ids once. Compact package metadata (`displayName`, `description`, `author`, `license`, optional URLs/keywords) is validated on the manifest — not a marketplace.
+- **Extension management**: Settings -> Extensions supports install from folder, uninstall with confirmation, and reload inventory. File -> Extensions opens that section. Install validates then copies atomically into `userData/extensions/<id>/`; uninstall unloads, deletes only that pack, and clears its allowance. No marketplace or package manager.
+- **Extension identity**: canonical pack id is `publisher.name` (e.g. `imgildev.todo-decorator`, `acme.example-extension`). Publisher `local` is reserved; persisted allowances migrate former `local.*` ids once. Compact package metadata (`displayName`, `description`, `author`, `license`, optional URLs/keywords) is validated on the manifest - not a marketplace.
 - **Extensions host surface**: removed declarative host actions (`notify`, `createUntitledFromTemplate`). Packs use `entry.lua` / `init.lua`. Seed Markdown and rich template context are pack-owned; Fulvid only interpolates when `templates` is granted.
 - **Extensions documentation**: host docs describe only the generic extension contract. Pack-specific product vocabulary is not part of Fulvid.
 - **Extension host internals**: flatter command/engine maps, guest reduction folded into the Lua engine module, thinner registry orchestration.
-- **Extension host ceremony**: removed unused discovery helpers, re-exports, value-box wrappers, and redundant ID recomputation on the load path.
+- **Extension packages**: Fulvid ships no packs under `extensions/`. Curated product packs (`imgildev.adr-templates`, `imgildev.todo-decorator`, `imgildev.mdx-comments`) live only in sibling `fulvid-extensions`. Trivial `fulvid.*` API demos were removed - host tests cover host APIs.
 
 ## [0.8.0] - 2026-09-14
 

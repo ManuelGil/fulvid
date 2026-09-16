@@ -5,7 +5,7 @@
  * packs stay unloaded until explicit user consent. Source of truth is the
  * filesystem. Invalid packs fail in isolation.
  *
- * Install/uninstall are host-owned mutations of that same inventory — no parallel
+ * Install/uninstall are host-owned mutations of that same inventory - no parallel
  * package manager.
  */
 import { mkdirSync } from "node:fs";
@@ -96,7 +96,7 @@ export function getExtensionsRootPath(): string | null {
 
 function boundReason(raw: string): string {
   const reason = raw.split(/\r?\n/, 1)[0]?.trim() || raw;
-  return reason.length > 300 ? `${reason.slice(0, 300)}…` : reason;
+  return reason.length > 300 ? `${reason.slice(0, 300)}...` : reason;
 }
 
 function emptyResult(): ExtensionDiscoveryResult {
@@ -350,7 +350,7 @@ async function copyPackNoFollow(
 
 /**
  * Validate a candidate pack directory and install it under userData/extensions/<id>.
- * Picker ownership stays in the Bun RPC handler — this accepts only a host-owned path.
+ * Picker ownership stays in the Bun RPC handler - this accepts only a host-owned path.
  */
 export async function installExtensionFromDirectory(
   sourceDirectory: string,

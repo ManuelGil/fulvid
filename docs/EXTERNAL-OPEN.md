@@ -122,7 +122,7 @@ external opened one.
 | --- | --- |
 | Contract, handler, queue, drain | Implemented and tested |
 | argv adapter (`src/bun/external/startupArguments.ts`) | Implemented and tested |
-| Linux desktop `Exec=… %F` | Prepared in all three variants |
+| Linux desktop `Exec=... %F` | Prepared in all three variants |
 | Debian wrapper `exec /opt/fulvid/bin/launcher "$@"` | Already forwards what the desktop environment expanded |
 
 `%F` is the Freedesktop field code for one or more local paths, each its own
@@ -192,7 +192,7 @@ treat `2.0.2-beta.*` as delivery. Reopen Fulvid work only when:
    daemons, or a second authority.
 
 Until then: keep the external-open funnel as the sole authority; keep desktop
-`Exec=… %F` ready; do not advertise handlers Fulvid cannot receive.
+`Exec=... %F` ready; do not advertise handlers Fulvid cannot receive.
 
 ## Adding an adapter later
 

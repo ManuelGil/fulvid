@@ -31,7 +31,6 @@ import { validateExtensionManifest } from "../../src/mainview/extensions/extensi
 import { luaManifest } from "./manifestTestHelpers.ts";
 
 const EDITOR_FIXTURE = join(import.meta.dir, "fixtures/test.contract-lua-editor");
-const SORT_LINES_EXAMPLE = join(import.meta.dir, "../../extensions/fulvid.sort-lines");
 
 function editorSnap(
   selection: string,
@@ -97,49 +96,17 @@ afterEach(() => {
 });
 
 describe("editor capability contract", () => {
-  test("accepts editor only with lua", () => {
-    expect(
-      validateExtensionManifest(
-        luaManifest("test.contract-lua-editor", ["lua", "commands", "ui", "editor"], {
-          version: "0.0.0",
-          displayName: "Editor",
-        }),
-      ),
-    ).toMatchObject({ manifest: expect.anything() });
-
-    expect(
-      validateExtensionManifest(
-        luaManifest("test.no-lua-editor", ["editor", "commands"], {
-          version: "0.0.0",
-          displayName: "Bad",
-          entry: undefined,
-        }),
-      ),
-    ).toEqual({ reason: "editor capability requires the lua capability" });
-  });
-
-  test("enforces selection and replace size limits", () => {
-    const oversized = "x".repeat(EDITOR_EXTENSION_LIMITS.maxSelectionChars.value + 1);
-    expect(assertEditorSelectionWithinLimit(oversized)).toBe("editor selection exceeds size limit");
-    expect(assertEditorReplaceWithinLimit(oversized)).toBe(
-      "editor.replaceSelection exceeds size limit",
-    );
-    expect(assertEditorReplaceWithinLimit(1)).toBe("editor.replaceSelection requires a string");
-    expect(LUA_EXTENSION_LIMITS.maxEditorSelectionChars.status).toBe("implemented");
-  });
-
   test("pins selection and replace boundary at 256 KiB", () => {
     const limit = 256 * 1024;
-    const justUnder = "x".repeat(limit - 1);
-    const atLimit = "x".repeat(limit);
-    const overLimit = "x".repeat(limit + 1);
-
-    expect(assertEditorSelectionWithinLimit(justUnder)).toBeNull();
-    expect(assertEditorReplaceWithinLimit(justUnder)).toBeNull();
-    expect(assertEditorSelectionWithinLimit(atLimit)).toBeNull();
-    expect(assertEditorReplaceWithinLimit(atLimit)).toBeNull();
-    expect(assertEditorSelectionWithinLimit(overLimit)).toBe("editor selection exceeds size limit");
-    expect(assertEditorReplaceWithinLimit(overLimit)).toBe(
+    expect(EDITOR_EXTENSION_LIMITS.maxSelectionChars.value).toBe(limit);
+    expect(LUA_EXTENSION_LIMITS.maxEditorSelectionChars.status).toBe("implemented");
+    expect(assertEditorReplaceWithinLimit(1)).toBe("editor.replaceSelection requires a string");
+    expect(assertEditorSelectionWithinLimit("x".repeat(limit))).toBeNull();
+    expect(assertEditorReplaceWithinLimit("x".repeat(limit))).toBeNull();
+    expect(assertEditorSelectionWithinLimit("x".repeat(limit + 1))).toBe(
+      "editor selection exceeds size limit",
+    );
+    expect(assertEditorReplaceWithinLimit("x".repeat(limit + 1))).toBe(
       "editor.replaceSelection exceeds size limit",
     );
   });
@@ -551,85 +518,5 @@ commands.register({
     await expect(runExtensionCommand("test.contract-lua-editor.wrapBold")).rejects.toThrow(
       /size limit/i,
     );
-  });
-
-  test("failed editor pack does not block a later valid editor pack", async () => {
-    const root = await tempRoot("iso");
-    const bad = await writePack(
-      root,
-      "test.contract-lua-baded",
-      luaManifest("test.contract-lua-baded", ["lua", "commands", "ui", "editor"], {
-        version: "0.0.0",
-        displayName: "Bad",
-      }),
-      {
-        "entry.lua": `
-commands.register({
-  id = "boom",
-  title = "Boom",
-  run = function()
-    error("editor boom")
-  end
-})
-`,
-      },
-    );
-    const good = join(root, "test.contract-lua-editor");
-    await cp(EDITOR_FIXTURE, good, { recursive: true });
-
-    const badManifest = validateExtensionManifest(
-      JSON.parse(await readFile(join(bad, "manifest.json"), "utf8")),
-    );
-    const goodManifest = validateExtensionManifest(
-      JSON.parse(await readFile(join(good, "manifest.json"), "utf8")),
-    );
-    if (!("manifest" in badManifest) || !("manifest" in goodManifest)) {
-      throw new Error("expected manifests");
-    }
-    await loadLuaExtensionPack(bad, badManifest.manifest);
-    await loadLuaExtensionPack(good, goodManifest.manifest);
-
-    const failed = await invokeLuaExtensionCommand({
-      namespacedId: "test.contract-lua-baded.boom",
-      editor: editorSnap("x"),
-    });
-    expect(failed.ok).toBe(false);
-    if (!failed.ok) {
-      expect(failed.error).toContain("editor boom");
-    }
-
-    expect(
-      await invokeLuaExtensionCommand({
-        namespacedId: "test.contract-lua-editor.wrapBold",
-        editor: editorSnap("ok"),
-      }),
-    ).toEqual({
-      ok: true,
-      notifications: ["wrapped"],
-      editor: { replaceSelection: "**ok**" },
-    });
-  });
-
-  test("sort-lines production example sorts selected lines", async () => {
-    const root = await tempRoot("sort");
-    const pack = join(root, "fulvid.sort-lines");
-    await cp(SORT_LINES_EXAMPLE, pack, { recursive: true });
-    const validated = validateExtensionManifest(
-      JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-    );
-    if (!("manifest" in validated)) {
-      throw new Error(validated.reason);
-    }
-    await loadLuaExtensionPack(pack, validated.manifest);
-
-    const result = await invokeLuaExtensionCommand({
-      namespacedId: "fulvid.sort-lines.sortLines",
-      editor: editorSnap("c\na\nb"),
-    });
-    expect(result).toEqual({
-      ok: true,
-      notifications: ["Sorted 3 lines."],
-      editor: { replaceSelection: "a\nb\nc" },
-    });
   });
 });

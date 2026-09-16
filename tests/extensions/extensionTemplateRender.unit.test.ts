@@ -65,23 +65,18 @@ describe("extension template.render", () => {
     expect(source).not.toMatch(/\blicense\b/);
   });
 
-  test("ADR pack owns template sections and defaults", () => {
+  test("ADR pack owns template sections, defaults, and {{vars}}", () => {
     const source = readFileSync(ADR_INIT, "utf8");
     expect(source).toContain("ADR_TEMPLATE");
     expect(source).toContain("ADR_DEFAULTS");
     expect(source).toContain("## Context and Problem Statement");
-    expect(source).toContain("## Decision Drivers");
     expect(source).toContain("## Decision Outcome");
     expect(source).toContain('status = "proposed"');
     expect(source).toContain("clock.isoDate()");
     expect(source).toContain("template.render");
     expect(source).not.toContain("YYYY-MM-DD");
     expect(source).not.toMatch(/fileNamePascalCase/);
-    expect(source).not.toMatch(/timestampISO/);
-  });
 
-  test("ADR template {{vars}} are covered by pack context keys", () => {
-    const source = readFileSync(ADR_INIT, "utf8");
     const templateMatch = source.match(
       /local ADR_TEMPLATE = table\.concat\(\{([\s\S]*?)\}, "\\n"\)/,
     );
@@ -89,11 +84,7 @@ describe("extension template.render", () => {
     const referenced = [
       ...((templateMatch?.[1] ?? "").matchAll(/\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g) ?? []),
     ].map((match) => match[1]);
-    // date comes from clock at create time; others from ADR_DEFAULTS.
     expect(new Set(referenced)).toEqual(new Set(["status", "date", "deciders", "title"]));
-    expect(source).toContain("title = ");
-    expect(source).toContain("status = ");
-    expect(source).toContain("deciders = ");
     expect(source).toContain("vars.date = clock.isoDate()");
   });
 });

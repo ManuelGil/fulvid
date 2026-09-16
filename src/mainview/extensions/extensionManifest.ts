@@ -9,7 +9,7 @@
  *
  * Optional presentation metadata (`activation`, `actions`, `documentAction`)
  * places approved actions into existing Fulvid menus and marks document-oriented
- * packs for host-driven always-on refresh — not a plugin framework.
+ * packs for host-driven always-on refresh - not a plugin framework.
  */
 
 export const EXTENSION_API_VERSION = 1;
@@ -49,7 +49,7 @@ export type ExtensionAuthor =
 
 /**
  * Pack-wide resource budgets.
- * Changing a value is a contract change — pin behavior in tests/extensions.
+ * Changing a value is a contract change - pin behavior in tests/extensions.
  */
 export const EXTENSION_PACK_LIMITS = {
   /** Maximum UTF-8 byte length of manifest.json. */
@@ -80,7 +80,7 @@ export const ALLOWED_EXTENSION_CAPABILITIES = [
   "editor",
   "document",
   "decorations",
-  /** Generic `template.render(source, vars)` — no product-domain variables. */
+  /** Generic `template.render(source, vars)` - no product-domain variables. */
   "templates",
 ] as const;
 
@@ -134,7 +134,7 @@ export type ExtensionManifest = {
   bugs?: string;
   keywords?: string[];
   capabilities: ExtensionCapability[];
-  /** Relative `.lua` source — required when capabilities include `lua`. */
+  /** Relative `.lua` source - required when capabilities include `lua`. */
   entry?: string;
   /** Defaults to `command` when omitted. */
   activation?: ExtensionActivation;
@@ -322,7 +322,7 @@ function parseAuthor(
 
 /**
  * Validate a parsed JSON value as an Extension API v1 manifest.
- * Returns a reason string on failure — never throws.
+ * Returns a reason string on failure - never throws.
  */
 export function validateExtensionManifest(value: unknown): ManifestValidationResult {
   if (!isRecord(value)) {

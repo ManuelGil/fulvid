@@ -640,7 +640,7 @@ export default {
     extensionsHint:
       "Local packs under your user data. Install from a folder, review blocked packs, or remove ones you no longer need. Extension actions appear in Fulvid menus; always-on packs decorate the active document after preload.",
     extensionsEmpty: "No extensions are installed yet.",
-    extensionInstall: "Install from Folder…",
+    extensionInstall: "Install from Folder...",
     extensionRediscover: "Reload inventory",
     extensionRediscoverSucceeded: "Extension inventory reloaded.",
     extensionRediscoverFailed: "Couldn't reload the extension inventory.",

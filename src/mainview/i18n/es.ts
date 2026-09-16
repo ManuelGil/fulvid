@@ -651,7 +651,7 @@ export default {
     extensionsHint:
       "Paquetes locales en tus datos de usuario. Instala desde una carpeta, revisa paquetes bloqueados o elimina los que ya no necesites. Las acciones aparecen en los menús de Fulvid; los paquetes siempre activos decoran el documento activo tras la precarga.",
     extensionsEmpty: "Aún no hay extensiones instaladas.",
-    extensionInstall: "Instalar desde carpeta…",
+    extensionInstall: "Instalar desde carpeta...",
     extensionRediscover: "Recargar inventario",
     extensionRediscoverSucceeded: "Inventario de extensiones recargado.",
     extensionRediscoverFailed: "No se pudo recargar el inventario de extensiones.",

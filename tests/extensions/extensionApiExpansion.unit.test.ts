@@ -69,21 +69,9 @@ afterEach(() => {
 });
 
 describe("host document/decorations contracts", () => {
-  test("document and decorations require lua", () => {
+  test("pins document text budget at 512 KiB", () => {
     expect(ALLOWED_EXTENSION_CAPABILITIES).toContain("document");
     expect(ALLOWED_EXTENSION_CAPABILITIES).toContain("decorations");
-    expect(
-      validateExtensionManifest(
-        luaManifest("test.no-lua-doc", ["document", "commands"], {
-          version: "0.0.0",
-          displayName: "Bad",
-          entry: undefined,
-        }),
-      ),
-    ).toEqual({ reason: "document capability requires the lua capability" });
-  });
-
-  test("pins document text budget at 512 KiB", () => {
     const limit = DOCUMENT_EXTENSION_LIMITS.maxTextChars.value;
     expect(limit).toBe(512 * 1024);
     expect(LUA_EXTENSION_LIMITS.maxDocumentTextChars.status).toBe("implemented");

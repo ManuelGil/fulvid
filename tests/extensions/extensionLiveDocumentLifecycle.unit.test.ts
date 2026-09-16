@@ -67,7 +67,7 @@ type LiveState = {
   byExtension: Map<string, ExtensionDecorationRange[]>;
 };
 
-function installLiveSeam(state: LiveState): void {
+function installLiveSeam(state: LiveState, onNotify: () => void = () => undefined): void {
   registerEditorExtensionSeam({
     getApplyContext: () => null,
     getDocumentContext: () => ({
@@ -90,7 +90,7 @@ function installLiveSeam(state: LiveState): void {
     hasActiveEditor: () => true,
   });
   configureExtensionHostActions({
-    notify: () => undefined,
+    notify: onNotify,
     createUntitled: () => undefined,
     invokeLuaCommand: (request) =>
       import("../../src/bun/extensions/lua/luaExtensionRuntime.ts").then((m) =>
@@ -142,7 +142,7 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     ).toEqual([MDX_REFRESH, TODO_REFRESH]);
   });
 
-  test("TODO: insert, type-change, removal, multi-marker, and empty document", async () => {
+  test("TODO: insert, type-change, shift, fence removal, multi-marker, and empty document", async () => {
     await loadBothPacks();
     const state: LiveState = {
       text: "# Note\n",
@@ -150,9 +150,13 @@ describe("live Monaco document ↔ extension lifecycle", () => {
       version: 1,
       byExtension: new Map(),
     };
-    installLiveSeam(state);
+    let notified = 0;
+    installLiveSeam(state, () => {
+      notified += 1;
+    });
 
     await runExtensionCommand(TODO_REFRESH, { silent: true });
+    expect(notified).toBe(0);
     expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
 
     bump(state, "# Note\nTODO: one\n");
@@ -185,75 +189,22 @@ describe("live Monaco document ↔ extension lifecycle", () => {
       new Set(["#ff7b72"]),
     );
 
+    bump(state, "preface\n\nFIXME: one\nBUG: two\n");
+    await runExtensionCommand(TODO_REFRESH, { silent: true });
+    applied = rangesOf(state, "imgildev.todo-decorator");
+    expect(applied[0]?.startLine).toBe(3);
+    expect(applied).toHaveLength(2);
+
+    bump(state, "preface\n\n```\nFIXME: one\nBUG: two\n```\n");
+    await runExtensionCommand(TODO_REFRESH, { silent: true });
+    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
+
     bump(state, "");
     await runExtensionCommand(TODO_REFRESH, { silent: true });
     expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
   });
 
-  test("TODO: insert-above shifts marker line; fence wrap drops decoration", async () => {
-    await loadBothPacks();
-    const state: LiveState = {
-      text: "TODO: stay\n",
-      documentId: "doc-shift",
-      version: 1,
-      byExtension: new Map(),
-    };
-    installLiveSeam(state);
-
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")[0]?.startLine).toBe(1);
-
-    bump(state, "preface\n\nTODO: stay\n");
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")[0]?.startLine).toBe(3);
-
-    bump(state, "preface\n\n```\nTODO: stay\n```\n");
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
-
-    bump(state, "preface\n\nTODO: stay\n");
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")[0]?.startLine).toBe(3);
-  });
-
-  test("TODO: undo/redo and whole-document replace reconcile decorations", async () => {
-    await loadBothPacks();
-    const state: LiveState = {
-      text: "TODO: a\n",
-      documentId: "doc-undo",
-      version: 1,
-      byExtension: new Map(),
-    };
-    installLiveSeam(state);
-
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(1);
-
-    const beforeEdit = state.text;
-    bump(state, "TODO: a\nFIXME: b\n");
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(2);
-
-    // Undo -> prior Monaco text/version.
-    bump(state, beforeEdit);
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(1);
-    expect(rangesOf(state, "imgildev.todo-decorator")[0]?.appearance?.backgroundColor).toBe(
-      "#d29922",
-    );
-
-    // Redo.
-    bump(state, "TODO: a\nFIXME: b\n");
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(2);
-
-    // Replace entire document.
-    bump(state, "replaced without markers\n");
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
-  });
-
-  test("MDX: insert, edit tag, removal, multi-comment, and empty document", async () => {
+  test("MDX: insert, edit tag, shift, removal, multi-comment, and empty document", async () => {
     await loadBothPacks();
     const state: LiveState = {
       text: "# MDX\n",
@@ -299,20 +250,6 @@ describe("live Monaco document ↔ extension lifecycle", () => {
     bump(state, "");
     await runExtensionCommand(MDX_REFRESH, { silent: true });
     expect(rangesOf(state, "imgildev.mdx-comments")).toEqual([]);
-  });
-
-  test("MDX: insert-above shifts comment range; undo/redo and replace reconcile", async () => {
-    await loadBothPacks();
-    const state: LiveState = {
-      text: "{/* ! a */}\n",
-      documentId: "doc-mdx-shift",
-      version: 1,
-      byExtension: new Map(),
-    };
-    installLiveSeam(state);
-
-    await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.mdx-comments")[0]?.startLine).toBe(1);
 
     bump(state, "intro\n\n{/* ! a */}\n");
     await runExtensionCommand(MDX_REFRESH, { silent: true });

@@ -12,7 +12,7 @@ export type FormatDocumentLinkInput = {
   /** Visible label; sanitized for the active link syntax. */
   label: string;
   /**
-   * Document target path (folder-relative or `./…`). Empty when linking only
+   * Document target path (folder-relative or `./...`). Empty when linking only
    * to a heading in the current document (`#anchor` / `[[#anchor]]`).
    */
   target: string;

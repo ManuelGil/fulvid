@@ -476,9 +476,10 @@ READY FOR PRODUCTION
 
 ### First-release workflows
 
-1. Command -> notify (`fulvid.host-notify`)
-2. Template -> untitled blank note (`fulvid.blank-note`)
-3. Selection transform -> sort lines (`fulvid.sort-lines`)
+1. Document activation + decorations (`imgildev.todo-decorator`, `imgildev.mdx-comments`)
+2. Template -> untitled structured document (`imgildev.adr-templates`)
+
+These are installable product packs in sibling `fulvid-extensions`, not Fulvid built-ins. Host APIs (notify, editor, createUntitled) are covered by Fulvid host tests - not by micro reference packs.
 
 ### Remaining honesty (not blockers)
 

@@ -8,10 +8,7 @@ import {
   discoverExtensions,
   resetExtensionDiscoveryForTests,
 } from "../../src/bun/extensions/discoverExtensions.ts";
-import {
-  validateExtensionManifest,
-  namespacedExtensionCommandId,
-} from "../../src/mainview/extensions/extensionManifest.ts";
+import { namespacedExtensionCommandId } from "../../src/mainview/extensions/extensionManifest.ts";
 import { luaManifest } from "./manifestTestHelpers.ts";
 import {
   configureExtensionHostActions,
@@ -22,8 +19,6 @@ import {
   setDiscoveredExtensions,
 } from "../../src/mainview/extensions/extensionRegistry.ts";
 import { invokeLuaExtensionCommand } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
-
-const REPO_FIXTURES = join(import.meta.dir, "../../extensions");
 
 async function tempExtensionsRoot(label: string): Promise<string> {
   const root = join(tmpdir(), `fulvid-ext-${label}-${crypto.randomUUID()}`);
@@ -60,91 +55,6 @@ commands.register({
 afterEach(() => {
   resetExtensionDiscoveryForTests();
   resetExtensionRegistryForTests();
-});
-
-describe("extension manifest contract", () => {
-  test("accepts a valid api 1 lua manifest", () => {
-    const result = validateExtensionManifest(luaManifest("fulvid.host-notify"));
-    expect("manifest" in result).toBe(true);
-    if ("manifest" in result) {
-      expect(result.manifest.id).toBe("fulvid.host-notify");
-      expect(result.manifest.publisher).toBe("fulvid");
-      expect(result.manifest.name).toBe("host-notify");
-    }
-  });
-
-  test("rejects an unsupported api version", () => {
-    const result = validateExtensionManifest({
-      ...luaManifest("fulvid.host-notify"),
-      api: 2,
-    });
-    expect(result).toEqual({ reason: "unsupported api version: 2" });
-  });
-
-  test("rejects an unknown capability", () => {
-    const result = validateExtensionManifest({
-      ...luaManifest("fulvid.host-notify"),
-      capabilities: ["monaco"],
-    });
-    expect(result).toEqual({ reason: "unknown capability: monaco" });
-  });
-
-  test("rejects an invalid extension id", () => {
-    const result = validateExtensionManifest({
-      ...luaManifest("test.bad"),
-      id: "test.other",
-    });
-    expect(result).toEqual({ reason: "id must equal publisher.name" });
-  });
-
-  test("rejects commands capability without lua", () => {
-    expect(
-      validateExtensionManifest({
-        ...luaManifest("fulvid.host-notify"),
-        capabilities: ["commands", "ui"],
-        entry: undefined,
-      }),
-    ).toEqual({ reason: "commands capability requires the lua capability" });
-  });
-
-  test("rejects declarative commands and templates keys", () => {
-    expect(
-      validateExtensionManifest({
-        ...luaManifest("fulvid.host-notify"),
-        commands: [{ id: "ping", title: "Ping", action: "notify", message: "hi" }],
-      }),
-    ).toEqual({ reason: "forbidden manifest key: commands" });
-
-    expect(
-      validateExtensionManifest({
-        ...luaManifest("fulvid.blank-note", ["lua", "commands", "ui", "document"]),
-        templates: [{ id: "t", name: "T", file: "t.md" }],
-      }),
-    ).toEqual({ reason: "forbidden manifest key: templates" });
-  });
-
-  test("accepts templates capability with lua; rejects without lua", () => {
-    expect(
-      validateExtensionManifest({
-        ...luaManifest("imgildev.adr-templates", [
-          "lua",
-          "commands",
-          "ui",
-          "document",
-          "templates",
-        ]),
-      }),
-    ).toMatchObject({
-      manifest: expect.objectContaining({
-        capabilities: expect.arrayContaining(["templates"]),
-      }),
-    });
-    expect(
-      validateExtensionManifest({
-        ...luaManifest("fulvid.blank-note", ["templates", "commands"], { entry: undefined }),
-      }),
-    ).toEqual({ reason: "templates capability requires the lua capability" });
-  });
 });
 
 describe("extension discovery", () => {
@@ -232,26 +142,45 @@ describe("extension discovery", () => {
 });
 
 describe("lua host actions", () => {
-  test("host-notify and blank-note examples register through Lua bridges", async () => {
-    const userData = join(await tempExtensionsRoot("fix"), "userData");
+  test("notify and createUntitled queue through host bridges without shipped packs", async () => {
+    const userData = join(await tempExtensionsRoot("bridge"), "userData");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
 
-    for (const id of ["fulvid.host-notify", "fulvid.blank-note"] as const) {
-      const sourceManifest = await Bun.file(join(REPO_FIXTURES, id, "manifest.json")).text();
-      await mkdir(join(extensions, id), { recursive: true });
-      await writeFile(join(extensions, id, "manifest.json"), sourceManifest);
-      await writeFile(
-        join(extensions, id, "entry.lua"),
-        await Bun.file(join(REPO_FIXTURES, id, "entry.lua")).text(),
-      );
-    }
+    await writePack(extensions, "test.bridge-notify", luaManifest("test.bridge-notify"), {
+      "entry.lua": `
+commands.register({
+  id = "ping",
+  title = "Ping",
+  run = function()
+    ui.notify("bridge ok")
+  end
+})
+`,
+    });
+    await writePack(
+      extensions,
+      "test.bridge-untitled",
+      luaManifest("test.bridge-untitled", ["lua", "commands", "ui", "document"]),
+      {
+        "entry.lua": `
+commands.register({
+  id = "note",
+  title = "Note",
+  run = function()
+    document.createUntitled("# Note\\n")
+    ui.notify("created")
+  end
+})
+`,
+      },
+    );
 
     configureExtensionDiscovery(userData);
     const discovered = await discoverExtensions();
     expect(discovered.loaded.map((pack) => pack.id).sort()).toEqual([
-      "fulvid.blank-note",
-      "fulvid.host-notify",
+      "test.bridge-notify",
+      "test.bridge-untitled",
     ]);
     setDiscoveredExtensions(discovered);
 
@@ -266,19 +195,15 @@ describe("lua host actions", () => {
     });
 
     expect(
-      await runExtensionCommand(namespacedExtensionCommandId("fulvid.host-notify", "sayReady")),
+      await runExtensionCommand(namespacedExtensionCommandId("test.bridge-notify", "ping")),
     ).toBe(true);
-    expect(notifications[0]).toMatch(/Extensions are available|host notify/i);
+    expect(notifications).toEqual(["bridge ok"]);
 
     expect(
-      await runExtensionCommand(
-        namespacedExtensionCommandId("fulvid.blank-note", "createBlankNote"),
-      ),
+      await runExtensionCommand(namespacedExtensionCommandId("test.bridge-untitled", "note")),
     ).toBe(true);
-    expect(untitledBodies).toHaveLength(1);
-    expect(untitledBodies[0]).toContain("Date:");
-    expect(untitledBodies[0]).toContain("YYYY-MM-DD");
-    expect(notifications.some((message) => /blank note/i.test(message))).toBe(true);
+    expect(untitledBodies).toEqual(["# Note\n"]);
+    expect(notifications).toEqual(["bridge ok", "created"]);
     expect(listExtensionCommands().every((command) => command.namespacedId.includes("."))).toBe(
       true,
     );

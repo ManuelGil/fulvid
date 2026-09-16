@@ -35,7 +35,7 @@ const MDX_INIT = join(
 );
 
 describe("extension-owned decoration appearance", () => {
-  test("Fulvid decoration host has no TODO/FIXME/BUG/HACK product markers", () => {
+  test("packs own decoration colors; host has no product markers", () => {
     const capability = readFileSync(DECORATION_CAPABILITY, "utf8");
     const monacoHost = readFileSync(MONACO_HOST, "utf8");
     for (const source of [capability, monacoHost]) {
@@ -43,42 +43,26 @@ describe("extension-owned decoration appearance", () => {
       expect(source).not.toMatch(/\bFIXME\b/);
       expect(source).not.toMatch(/\bBUG\b/);
       expect(source).not.toMatch(/\bHACK\b/);
-    }
-  });
-
-  test("TODO pack owns marker colors in its package", () => {
-    const source = readFileSync(TODO_INIT, "utf8");
-    expect(source).toContain('word = "TODO"');
-    expect(source).toContain('backgroundColor = "#d29922"');
-    expect(source).toContain('word = "FIXME"');
-    expect(source).toContain('backgroundColor = "#ff7b72"');
-    expect(source).toContain("appearance =");
-    expect(source).not.toMatch(/style\s*=\s*"warn"/);
-    expect(source).not.toMatch(/style\s*=\s*"error"/);
-  });
-
-  test("MDX Comments pack owns tag colors; Fulvid has no MDX comment semantics", () => {
-    const capability = readFileSync(DECORATION_CAPABILITY, "utf8");
-    const monacoHost = readFileSync(MONACO_HOST, "utf8");
-    for (const source of [capability, monacoHost]) {
       expect(source).not.toMatch(/\{\/\*/);
       expect(source).not.toMatch(/mdxComments/i);
       expect(source).not.toMatch(/Better Comments/i);
     }
-    const source = readFileSync(MDX_INIT, "utf8");
-    expect(source).toContain('prefix = "!"');
-    expect(source).toContain('backgroundColor = "#ff7b72"');
-    expect(source).toContain('prefix = "?"');
-    expect(source).toContain('backgroundColor = "#4a7fc4"');
-    expect(source).toContain('word = "TODO"');
-    expect(source).toContain('backgroundColor = "#d29922"');
-    expect(source).toContain("appearance =");
-    expect(source).not.toMatch(/style\s*=\s*"info"/);
-    expect(source).not.toMatch(/style\s*=\s*"warn"/);
-    expect(source).not.toMatch(/style\s*=\s*"error"/);
-    expect(source).not.toMatch(/return\s+"error"/);
-    expect(source).not.toMatch(/return\s+"info"/);
-    expect(source).not.toMatch(/return\s+"warn"/);
+
+    const todo = readFileSync(TODO_INIT, "utf8");
+    expect(todo).toContain('word = "TODO"');
+    expect(todo).toContain('backgroundColor = "#d29922"');
+    expect(todo).toContain('word = "FIXME"');
+    expect(todo).toContain('backgroundColor = "#ff7b72"');
+    expect(todo).toContain("appearance =");
+    expect(todo).not.toMatch(/style\s*=\s*"warn"/);
+
+    const mdx = readFileSync(MDX_INIT, "utf8");
+    expect(mdx).toContain('prefix = "!"');
+    expect(mdx).toContain('backgroundColor = "#ff7b72"');
+    expect(mdx).toContain('prefix = "?"');
+    expect(mdx).toContain('backgroundColor = "#4a7fc4"');
+    expect(mdx).toContain("appearance =");
+    expect(mdx).not.toMatch(/style\s*=\s*"info"/);
   });
 
   test("accepts hex/rgba appearance and rejects CSS escape hatches", () => {

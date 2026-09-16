@@ -8,14 +8,15 @@ import {
 import { luaManifest } from "./manifestTestHelpers.ts";
 
 describe("publisher.name extension identity contract", () => {
-  test("accepts official and arbitrary publisher manifests", () => {
-    const official = validateExtensionManifest(
-      luaManifest("imgildev.todo-decorator", ["lua", "commands", "ui", "document"], {
-        displayName: "TODO Decorator",
-        description: "Decorates TODO markers.",
-      }),
-    );
-    expect(official).toMatchObject({
+  test("accepts official, reference, and third-party publisher manifests", () => {
+    expect(
+      validateExtensionManifest(
+        luaManifest("imgildev.todo-decorator", ["lua", "commands", "ui", "document"], {
+          displayName: "TODO Decorator",
+          description: "Decorates TODO markers.",
+        }),
+      ),
+    ).toMatchObject({
       manifest: {
         id: "imgildev.todo-decorator",
         publisher: "imgildev",
@@ -23,13 +24,18 @@ describe("publisher.name extension identity contract", () => {
       },
     });
 
-    const thirdParty = validateExtensionManifest(
-      luaManifest("acme.example-extension", ["lua", "commands", "ui"], {
-        displayName: "Example Extension",
-        description: "An extension from an arbitrary publisher.",
-      }),
-    );
-    expect(thirdParty).toMatchObject({
+    expect(validateExtensionManifest(luaManifest("acme.notify-demo"))).toMatchObject({
+      manifest: { id: "acme.notify-demo", publisher: "acme", name: "notify-demo" },
+    });
+
+    expect(
+      validateExtensionManifest(
+        luaManifest("acme.example-extension", ["lua", "commands", "ui"], {
+          displayName: "Example Extension",
+          description: "An extension from an arbitrary publisher.",
+        }),
+      ),
+    ).toMatchObject({
       manifest: {
         id: "acme.example-extension",
         publisher: "acme",
@@ -38,7 +44,7 @@ describe("publisher.name extension identity contract", () => {
     });
   });
 
-  test("rejects the reserved local publisher", () => {
+  test("rejects reserved local publisher and identity mismatches", () => {
     expect(
       validateExtensionManifest({
         ...luaManifest("imgildev.todo-decorator"),
@@ -46,24 +52,96 @@ describe("publisher.name extension identity contract", () => {
         id: "local.todo-decorator",
       }),
     ).toEqual({ reason: "reserved publisher" });
-  });
 
-  test("rejects a missing publisher before legacy id validation", () => {
     expect(
       validateExtensionManifest({
         ...luaManifest("local.legacy-extension"),
         publisher: undefined,
       }),
     ).toEqual({ reason: "invalid publisher" });
-  });
 
-  test("rejects an id that does not match publisher.name", () => {
     expect(
       validateExtensionManifest({
         ...luaManifest("acme.example-extension"),
         id: "acme.other-extension",
       }),
     ).toEqual({ reason: "id must equal publisher.name" });
+  });
+
+  test("rejects unsupported api, unknown capability, and lua-gated surfaces", () => {
+    expect(
+      validateExtensionManifest({
+        ...luaManifest("acme.notify-demo"),
+        api: 2,
+      }),
+    ).toEqual({ reason: "unsupported api version: 2" });
+
+    expect(
+      validateExtensionManifest({
+        ...luaManifest("acme.notify-demo"),
+        capabilities: ["monaco"],
+      }),
+    ).toEqual({ reason: "unknown capability: monaco" });
+
+    expect(
+      validateExtensionManifest({
+        ...luaManifest("acme.notify-demo"),
+        capabilities: ["commands", "ui"],
+        entry: undefined,
+      }),
+    ).toEqual({ reason: "commands capability requires the lua capability" });
+
+    expect(
+      validateExtensionManifest({
+        ...luaManifest("acme.notify-demo"),
+        commands: [{ id: "ping", title: "Ping", action: "notify", message: "hi" }],
+      }),
+    ).toEqual({ reason: "forbidden manifest key: commands" });
+
+    expect(
+      validateExtensionManifest({
+        ...luaManifest("acme.doc-demo", ["lua", "commands", "ui", "document"]),
+        templates: [{ id: "t", name: "T", file: "t.md" }],
+      }),
+    ).toEqual({ reason: "forbidden manifest key: templates" });
+
+    expect(
+      validateExtensionManifest({
+        ...luaManifest("imgildev.adr-templates", [
+          "lua",
+          "commands",
+          "ui",
+          "document",
+          "templates",
+        ]),
+      }),
+    ).toMatchObject({
+      manifest: expect.objectContaining({
+        capabilities: expect.arrayContaining(["templates"]),
+      }),
+    });
+
+    expect(
+      validateExtensionManifest({
+        ...luaManifest("acme.doc-demo", ["templates", "commands"], { entry: undefined }),
+      }),
+    ).toEqual({ reason: "templates capability requires the lua capability" });
+
+    expect(
+      validateExtensionManifest(
+        luaManifest("test.no-lua-editor", ["editor", "commands"], {
+          entry: undefined,
+        }),
+      ),
+    ).toEqual({ reason: "editor capability requires the lua capability" });
+
+    expect(
+      validateExtensionManifest(
+        luaManifest("test.no-lua-doc", ["document", "commands"], {
+          entry: undefined,
+        }),
+      ),
+    ).toEqual({ reason: "document capability requires the lua capability" });
   });
 
   test("rejects invalid version, empty presentation text, and oversized keywords", () => {

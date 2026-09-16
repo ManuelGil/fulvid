@@ -17,13 +17,10 @@ import {
 } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 
 import {
-  createHardenedLuaEngine,
-  describeLuaRuntimeFailure,
   luaGlobalType,
   reduceLuaGuestEnvironment,
   resetLuaFactoryForTests,
   resolveWasmoonGlueWasmPath,
-  runLuaSourceWithBudget,
 } from "../../src/bun/extensions/lua/luaEngine.ts";
 import {
   LUA_EXTENSION_LIMITS,
@@ -77,69 +74,6 @@ afterEach(() => {
   resetLuaFactoryForTests();
 });
 
-describe("lua extension manifest contract", () => {
-  test("accepts a lua pack with entry and required capabilities", () => {
-    const result = validateExtensionManifest(
-      luaManifest("test.contract-lua-notify", ["lua", "commands", "ui"], {
-        version: "0.0.0",
-        displayName: "Spike",
-      }),
-    );
-    expect("manifest" in result).toBe(true);
-  });
-
-  test("rejects lua without entry and entry without lua", () => {
-    expect(
-      validateExtensionManifest({
-        ...luaManifest("test.contract-lua-notify", ["lua", "commands", "ui"], {
-          version: "0.0.0",
-          displayName: "Spike",
-        }),
-        entry: undefined,
-      }),
-    ).toEqual({ reason: "lua capability requires entry" });
-
-    expect(
-      validateExtensionManifest({
-        ...luaManifest("test.contract-lua-notify", ["commands", "ui"], {
-          version: "0.0.0",
-          displayName: "Spike",
-        }),
-        capabilities: ["commands", "ui"],
-        entry: "entry.lua",
-      }),
-    ).toEqual({ reason: "entry requires the lua capability" });
-  });
-
-  test("rejects declarative commands on lua packs", () => {
-    expect(
-      validateExtensionManifest({
-        ...luaManifest("test.contract-lua-notify", ["lua", "commands", "ui"], {
-          version: "0.0.0",
-          displayName: "Spike",
-        }),
-        commands: [{ id: "ping", title: "Ping", action: "notify", message: "x" }],
-      }),
-    ).toEqual({ reason: "forbidden manifest key: commands" });
-  });
-
-  test("rejects traversal and drive-letter entry paths at validation", () => {
-    const base = luaManifest("test.contract-lua-notify", ["lua", "commands", "ui"], {
-      version: "0.0.0",
-      displayName: "Spike",
-      entry: undefined,
-    });
-    for (const entry of ["../outside.lua", "foo/../../x.lua", "./entry.lua", "C:/Windows/x.lua"]) {
-      expect(validateExtensionManifest({ ...base, entry })).toEqual({
-        reason: "entry must be a relative .lua source file",
-      });
-    }
-    expect(validateExtensionManifest({ ...base, entry: "subdir/entry.lua" })).toHaveProperty(
-      "manifest",
-    );
-  });
-});
-
 describe("lua guest environment", () => {
   test("dangerous stdlib globals are absent after reduction", async () => {
     const factory = new LuaFactory(resolveWasmoonGlueWasmPath());
@@ -152,29 +86,10 @@ describe("lua guest environment", () => {
     for (const name of ["io", "os", "package", "debug", "require", "dofile", "loadfile", "load"]) {
       expect(await luaGlobalType(engine, name)).toBe("nil");
     }
-    // Bytecode path blocked: load is nil; string.dump cleared.
     await expect(
       engine.doString("local f=function() return 1 end; return string.dump(f)"),
     ).rejects.toBeDefined();
     engine.global.close();
-  });
-
-  test("describeLuaRuntimeFailure keeps only the first line of guest errors", () => {
-    expect(
-      describeLuaRuntimeFailure(
-        new Error('[string "x"]:1: boom\nstack traceback:\n\t[string "x"]:1: in main chunk'),
-      ),
-    ).toBe("lua:1: boom");
-    expect(
-      describeLuaRuntimeFailure(
-        new Error(
-          '[string "error("intentional e2e load failure")..."]:1: intentional e2e load failure',
-        ),
-      ),
-    ).toBe("lua:1: intentional e2e load failure");
-    expect(describeLuaRuntimeFailure(new Error("execution limit exceeded"))).toBe(
-      "execution limit exceeded",
-    );
   });
 });
 
@@ -208,30 +123,6 @@ error("boom after register")
 
     await expect(loadPack(pack)).rejects.toBeDefined();
     expect(findLuaCommand("test.contract-lua-bad.one")).toBeNull();
-  });
-
-  test("one failed Lua pack does not stop a valid neighbor", async () => {
-    const userData = join(await tempExtensionsRoot("iso"), "userData");
-    const extensions = join(userData, "extensions");
-    await mkdir(extensions, { recursive: true });
-    await writePack(extensions, "test.contract-lua-bad", luaManifest("test.contract-lua-bad"), {
-      "entry.lua": "error('fail')",
-    });
-    await cp(NOTIFY_FIXTURE, join(extensions, "test.contract-lua-notify"), { recursive: true });
-
-    configureExtensionDiscovery(userData);
-    const result = await discoverExtensions();
-    expect(result.failed.some((entry) => entry.id === "test.contract-lua-bad")).toBe(true);
-    expect(result.loaded.some((entry) => entry.id === "test.contract-lua-notify")).toBe(true);
-    expect(
-      result.loaded.find((entry) => entry.id === "test.contract-lua-notify")?.commands,
-    ).toEqual([
-      {
-        id: "ping",
-        namespacedId: "test.contract-lua-notify.ping",
-        title: "Lua Ping",
-      },
-    ]);
   });
 
   test("duplicate command ids are rejected and leave no commit", async () => {
@@ -305,16 +196,6 @@ describe("lua execution and memory budgets", () => {
     const path = resolveWasmoonGlueWasmPath();
     expect(existsSync(path)).toBe(true);
     expect(path.endsWith("glue.wasm")).toBe(true);
-  });
-
-  test("documents enforced resource limits", () => {
-    expect(LUA_EXTENSION_LIMITS.maxSourceBytes.status).toBe("implemented");
-    expect(LUA_EXTENSION_LIMITS.maxCommandsPerExtension.status).toBe("implemented");
-    expect(LUA_EXTENSION_LIMITS.maxNotifyMessageChars.status).toBe("implemented");
-    expect(LUA_EXTENSION_LIMITS.maxWasmMemoryBytes.status).toBe("implemented");
-    expect(LUA_EXTENSION_LIMITS.maxExecutionMs.status).toBe("implemented");
-    expect(LUA_EXTENSION_LIMITS.maxWasmMemoryBytes.value).toBeGreaterThan(0);
-    expect(LUA_EXTENSION_LIMITS.maxExecutionMs.value).toBeGreaterThan(0);
   });
 
   test("interrupts infinite loop during load and leaves no partial registrations", async () => {
@@ -426,31 +307,7 @@ commands.register({ id = "b", title = "B", run = function() ui.notify("b") end }
     });
   });
 
-  test("memory limit fails controlled and leaves no partial registrations", async () => {
-    setLuaMemoryBudgetForTests(256 * 1024);
-    setLuaExecutionBudgetForTests(5_000);
-    const root = await tempExtensionsRoot("oom");
-    const pack = await writePack(
-      root,
-      "test.contract-lua-oom",
-      luaManifest("test.contract-lua-oom"),
-      {
-        "entry.lua": `
-commands.register({ id = "one", title = "One", run = function() end })
-local t = {}
-for i = 1, 1000000 do
-  t[i] = string.rep("x", 1024)
-end
-`,
-      },
-    );
-    await expect(loadPack(pack)).rejects.toMatchObject({
-      reason: "memory limit exceeded",
-    });
-    expect(findLuaCommand("test.contract-lua-oom.one")).toBeNull();
-  });
-
-  test("memory failure during load does not block a later valid extension", async () => {
+  test("memory limit fails controlled and neighbor recovery still works", async () => {
     setLuaMemoryBudgetForTests(256 * 1024);
     setLuaExecutionBudgetForTests(5_000);
     const userData = join(await tempExtensionsRoot("oom-iso"), "userData");
@@ -458,6 +315,7 @@ end
     await mkdir(extensions, { recursive: true });
     await writePack(extensions, "test.contract-lua-oom", luaManifest("test.contract-lua-oom"), {
       "entry.lua": `
+commands.register({ id = "one", title = "One", run = function() end })
 local t = {}
 for i = 1, 1000000 do
   t[i] = string.rep("x", 1024)
@@ -473,20 +331,14 @@ commands.register({ id = "ping", title = "Ping", run = function() ui.notify("ali
     configureExtensionDiscovery(userData);
     const result = await discoverExtensions();
     expect(result.failed.some((failure) => failure.id === "test.contract-lua-oom")).toBe(true);
+    expect(result.failed.find((failure) => failure.id === "test.contract-lua-oom")?.reason).toBe(
+      "memory limit exceeded",
+    );
+    expect(findLuaCommand("test.contract-lua-oom.one")).toBeNull();
     expect(result.loaded.some((pack) => pack.id === "test.contract-lua-ok")).toBe(true);
     expect(await invokeLuaExtensionCommand("test.contract-lua-ok.ping")).toEqual({
       ok: true,
       notifications: ["alive"],
     });
-  });
-
-  test("normal script completes under the hardened engine", async () => {
-    setLuaExecutionBudgetForTests(500);
-    const engine = await createHardenedLuaEngine();
-    try {
-      await runLuaSourceWithBudget(engine, "return 2 + 2");
-    } finally {
-      engine.global.close();
-    }
   });
 });

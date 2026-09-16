@@ -1,5 +1,5 @@
 /**
- * Shared helpers for extension unit tests — valid publisher.name manifests.
+ * Shared helpers for extension unit tests - valid publisher.name manifests.
  */
 export function splitExtensionId(id: string): { publisher: string; name: string } {
   const dot = id.indexOf(".");
