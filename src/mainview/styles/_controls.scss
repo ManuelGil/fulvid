@@ -62,8 +62,22 @@
   width: 15px;
   height: 15px;
   margin: 0;
+  flex-shrink: 0;
   accent-color: $accent;
+  // Match Fulvid chrome so native unchecked/checked paint follows the theme
+  // instead of the OS light-control default on dark surfaces.
+  color-scheme: var(--color-scheme, light dark);
   cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: 2px;
+  }
 }
 
 @mixin control-search {

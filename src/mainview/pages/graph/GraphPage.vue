@@ -798,7 +798,7 @@ onBeforeUnmount(() => {
 }
 
 .graph-workbench__chrome-label {
-  padding-inline: 7px 2px;
+  padding-inline: $space-2 2px;
   color: var(--graph-workbench-muted);
   font-size: $font-micro;
   font-weight: 500;

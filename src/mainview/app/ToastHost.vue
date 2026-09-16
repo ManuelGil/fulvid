@@ -47,6 +47,10 @@ import { toasts } from "./notify";
   cursor: default;
   animation: toast-in 160ms $ease-out;
 
+  &--neutral {
+    border-color: $border-subtle;
+  }
+
   &--success {
     border-color: color-mix(in srgb, $success-text 35%, $border-subtle);
   }

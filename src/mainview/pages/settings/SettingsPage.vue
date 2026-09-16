@@ -578,7 +578,7 @@ async function onResetSettings(): Promise<void> {
       <div class="settings-page__content">
         <div class="settings-search">
           <label class="settings-search__field">
-            <span class="visually-hidden">{{ t("settings.searchLabel") }}</span>
+            <span class="sr-only">{{ t("settings.searchLabel") }}</span>
             <input
               id="settings-search-query"
               v-model="searchQuery"
@@ -975,6 +975,7 @@ async function onResetSettings(): Promise<void> {
 
               <label class="settings-option" data-settings-id="editor.trimTrailingWhitespaceOnSave">
                 <input
+                  class="settings-option__control"
                   type="checkbox"
                   :checked="settings.editor.trimTrailingWhitespaceOnSave"
                   :aria-label="t('settings.trimTrailingWhitespaceOnSave')"
@@ -2081,20 +2082,8 @@ async function onResetSettings(): Promise<void> {
 }
 
 .settings-search__input {
+  @include control-field;
   width: 100%;
-  min-height: $control-height;
-  padding: 0 $space-compact;
-  border: 1px solid $border-subtle;
-  border-radius: $radius;
-  background: $surface;
-  color: $text-primary;
-  font: inherit;
-  font-size: $font-control;
-
-  &:focus-visible {
-    outline: 2px solid $focus-ring;
-    outline-offset: 1px;
-  }
 }
 
 .settings-search__clear {
@@ -2163,18 +2152,6 @@ async function onResetSettings(): Promise<void> {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 .settings-section {
@@ -2551,7 +2528,7 @@ async function onResetSettings(): Promise<void> {
   display: flex;
   justify-content: space-between;
   gap: $space-related;
-  min-height: 13px;
+  min-height: $font-control;
   padding: 0 $space-related;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
@@ -2665,6 +2642,9 @@ async function onResetSettings(): Promise<void> {
   margin-inline-start: auto;
 }
 
+// All boolean radios/checkboxes in option rows share control-checkbox,
+// including rows that omit settings-option__control by mistake.
+.settings-option input[type="checkbox"],
 .settings-option input[type="radio"] {
   @include control-checkbox;
   margin-top: 2px;

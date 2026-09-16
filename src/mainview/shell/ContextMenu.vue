@@ -434,7 +434,7 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: $space-group;
     width: 100%;
-    min-height: $hit-min;
+    min-height: $menu-row-height;
     padding: $space-2 $space-3;
     border: 0;
     border-radius: $radius;
