@@ -13,7 +13,8 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 - **Extensions (API v1)**: local Lua packs under `userData/extensions/` add commands through existing owners (notify, untitled, Monaco selection/document/decorations). Source-only Lua/Wasm on the Bun host; no marketplace, network, filesystem, or live Monaco authority. Packs: sibling [`fulvid-extensions`](../fulvid-extensions/). Guide: [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
 - **Extension API expansion**: Lua packs may use least-privilege `document` (`getText` / `getCursor` / `reveal` / `createUntitled`), `decorations` (set/clear with host styles or validated `appearance`), selection replace under `editor`, and generic `template.render` under `templates`. Snapshot/apply stays Bun-runtime -> renderer-apply through existing owners. No `fulvid.date` or command `prompts` - product template semantics (ADR sections, defaults, naming) live in packs.
-- **Generic `templates` capability**: `template.render(source, variables)` substitutes escaped `{{name}}` only (bounded strings). Optional `clock.isoDate()` returns a UTC `YYYY-MM-DD` for pack-built context. No sections/partials/lambdas, no host variable factories, no ADR/domain knowledge.
+- **Generic `templates` capability**: `template.render(source, variables)` substitutes escaped `{{name}}` only (bounded strings). No sections/partials/lambdas, no host variable factories, no ADR/domain knowledge.
+- **Extension author contract**: [docs/EXTENSION-AUTHOR-CONTRACT.md](docs/EXTENSION-AUTHOR-CONTRACT.md) documents the public Lua + live-document lifecycle. Audit notes: [docs/EXTENSION-API-AUDIT.md](docs/EXTENSION-API-AUDIT.md).
 
 ### Changed
 
@@ -23,6 +24,9 @@ This file is updated as part of the change, not reconstructed when a version is 
 - **Extensions documentation**: host docs describe only the generic extension contract. Pack-specific product vocabulary is not part of Fulvid.
 - **Extension host internals**: flatter command/engine maps, guest reduction folded into the Lua engine module, thinner registry orchestration.
 - **Extension packages**: Fulvid ships no packs under `extensions/`. Curated product packs (`imgildev.adr-templates`, `imgildev.todo-decorator`, `imgildev.mdx-comments`) live only in sibling `fulvid-extensions`. Trivial `fulvid.*` API demos were removed - host tests cover host APIs.
+- **`clock.isoDate()`**: available to every Lua pack (no longer gated on `templates`), still UTC calendar day only.
+- **Extension authoring DX**: author contract covers install/reload/remove, action↔command matching, capability-nil failures, and honest editing limits; manifest validation reasons include expected shapes. Fresh-author example [`acme.heading-nav`](../fulvid-extensions/tests/extensions/acme.heading-nav/) (under `tests/extensions/`, not the production catalog); audit notes [docs/EXTENSION-AUTHOR-DX-AUDIT.md](docs/EXTENSION-AUTHOR-DX-AUDIT.md).
+- **fulvid-extensions layout**: production packs stay under `extensions/imgildev.*`; ACME reference/litmus packs live under `tests/extensions/acme.*` so they are not mistaken for shipping product.
 
 ## [0.8.0] - 2026-09-14
 

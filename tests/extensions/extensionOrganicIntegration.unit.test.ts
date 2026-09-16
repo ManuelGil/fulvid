@@ -84,7 +84,9 @@ describe("manifest menu placement and activation", () => {
       ...luaManifest("test.bad-menu"),
       actions: [{ id: "ping", menu: "extensions" }],
     });
-    expect(result).toEqual({ reason: "invalid menu target: extensions" });
+    expect(result).toEqual({
+      reason: "invalid menu target: extensions (allowed: file.new, edit, view, navigate, help)",
+    });
   });
 
   test("rejects document activation without documentAction", () => {
@@ -92,7 +94,10 @@ describe("manifest menu placement and activation", () => {
       ...luaManifest("test.bad-doc", ["lua", "commands", "ui", "document", "decorations"]),
       activation: "document",
     });
-    expect(result).toEqual({ reason: "document activation requires documentAction" });
+    expect(result).toEqual({
+      reason:
+        "document activation requires documentAction (Lua command id re-invoked on buffer changes)",
+    });
   });
 });
 

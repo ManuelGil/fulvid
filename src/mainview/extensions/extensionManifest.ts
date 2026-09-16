@@ -336,40 +336,49 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
   }
 
   if (typeof value.publisher !== "string" || !PUBLISHER_PATTERN.test(value.publisher)) {
-    return { reason: "invalid publisher" };
+    return {
+      reason: "invalid publisher: expect lowercase slug matching /^[a-z][a-z0-9-]*$/ (e.g. acme)",
+    };
   }
   if (RESERVED_PUBLISHERS.has(value.publisher)) {
-    return { reason: "reserved publisher" };
+    return { reason: 'reserved publisher: "local" is not allowed; use your own slug' };
   }
   if (typeof value.name !== "string" || !isValidPackageName(value.name)) {
-    return { reason: "invalid extension name" };
+    return {
+      reason:
+        "invalid extension name: expect lowercase slug matching /^[a-z][a-z0-9-]*$/ (e.g. heading-nav)",
+    };
   }
   const derivedId = extensionIdFromPublisherName(value.publisher, value.name);
   if (value.id !== undefined) {
     if (typeof value.id !== "string" || value.id !== derivedId) {
-      return { reason: "id must equal publisher.name" };
+      return {
+        reason: `id must equal publisher.name (expected "${derivedId}")`,
+      };
     }
   }
   if (!isValidExtensionId(derivedId)) {
-    return { reason: "invalid extension id" };
+    return { reason: `invalid extension id: derived "${derivedId}" is not publisher.name` };
   }
 
   if (typeof value.displayName !== "string" || value.displayName.trim().length === 0) {
-    return { reason: "invalid displayName" };
+    return { reason: "invalid displayName: non-empty string required" };
   }
   if (value.displayName.length > EXTENSION_PACK_LIMITS.maxDisplayNameChars) {
     return { reason: "displayName exceeds size limit" };
   }
 
   if (typeof value.description !== "string" || value.description.trim().length === 0) {
-    return { reason: "invalid description" };
+    return { reason: "invalid description: non-empty string required" };
   }
   if (value.description.length > EXTENSION_PACK_LIMITS.maxDescriptionChars) {
     return { reason: "description exceeds size limit" };
   }
 
   if (typeof value.version !== "string" || !VERSION_PATTERN.test(value.version.trim())) {
-    return { reason: "invalid extension version" };
+    return {
+      reason: 'invalid extension version: expect semver MAJOR.MINOR.PATCH (e.g. "1.0.0")',
+    };
   }
   if (typeof value.api !== "number" || !Number.isInteger(value.api)) {
     return { reason: "api must be an integer" };
@@ -446,7 +455,9 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
   let activation: ExtensionActivation = "command";
   if (value.activation !== undefined) {
     if (typeof value.activation !== "string" || !isAllowedActivation(value.activation)) {
-      return { reason: "invalid activation" };
+      return {
+        reason: `invalid activation: expected "command" or "document" (got ${JSON.stringify(value.activation)})`,
+      };
     }
     activation = value.activation;
   }
@@ -454,15 +465,23 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
   let documentAction: string | undefined;
   if (value.documentAction !== undefined) {
     if (typeof value.documentAction !== "string" || !ACTION_ID_PATTERN.test(value.documentAction)) {
-      return { reason: "invalid documentAction" };
+      return {
+        reason:
+          "invalid documentAction: expect command id matching /^[a-z][a-zA-Z0-9]*$/ (must match commands.register)",
+      };
     }
     documentAction = value.documentAction;
   }
   if (activation === "document" && !documentAction) {
-    return { reason: "document activation requires documentAction" };
+    return {
+      reason:
+        "document activation requires documentAction (Lua command id re-invoked on buffer changes)",
+    };
   }
   if (documentAction && activation !== "document") {
-    return { reason: "documentAction requires document activation" };
+    return {
+      reason: 'documentAction requires activation: "document"',
+    };
   }
 
   let actions: ExtensionActionPlacement[] | undefined;
@@ -480,7 +499,9 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
         return { reason: "invalid action" };
       }
       if (typeof rawAction.id !== "string" || !ACTION_ID_PATTERN.test(rawAction.id)) {
-        return { reason: "invalid action id" };
+        return {
+          reason: "invalid action id: expect /^[a-z][a-zA-Z0-9]*$/ matching a commands.register id",
+        };
       }
       if (seenActionIds.has(rawAction.id)) {
         return { reason: `duplicate action id: ${rawAction.id}` };
@@ -492,8 +513,8 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
           return {
             reason:
               typeof rawAction.menu === "string"
-                ? `invalid menu target: ${rawAction.menu}`
-                : "invalid menu target",
+                ? `invalid menu target: ${rawAction.menu} (allowed: ${EXTENSION_MENU_TARGETS.join(", ")})`
+                : `invalid menu target (allowed: ${EXTENSION_MENU_TARGETS.join(", ")})`,
           };
         }
         placement.menu = rawAction.menu;
@@ -505,13 +526,13 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
           rawAction.order < 0 ||
           rawAction.order > 10_000
         ) {
-          return { reason: "invalid action order" };
+          return { reason: "invalid action order: integer 0..10000 required" };
         }
         placement.order = rawAction.order;
       }
       if (rawAction.title !== undefined) {
         if (typeof rawAction.title !== "string" || rawAction.title.trim().length === 0) {
-          return { reason: "invalid action title" };
+          return { reason: "invalid action title: non-empty string required" };
         }
         if (rawAction.title.length > 200) {
           return { reason: "action title exceeds size limit" };

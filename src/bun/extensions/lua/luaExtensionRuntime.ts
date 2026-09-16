@@ -315,14 +315,15 @@ async function installBridge(
         return rendered.text;
       },
     });
-    // Generic UTC calendar date for seed documents. Not a date subsystem;
-    // packs decide whether/how to use it in their own variable context.
-    engine.global.set("clock", {
-      isoDate(): string {
-        return new Date().toISOString().slice(0, 10);
-      },
-    });
   }
+
+  // Generic UTC calendar date for any Lua pack (seed docs, timestamps, metadata).
+  // Not a date subsystem; available without the templates capability.
+  engine.global.set("clock", {
+    isoDate(): string {
+      return new Date().toISOString().slice(0, 10);
+    },
+  });
 }
 
 export async function loadLuaExtensionPack(

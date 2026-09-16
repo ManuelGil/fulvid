@@ -7,10 +7,10 @@ Fulvid's local **Extensions** system (API v1): small packs that add commands and
 | Audience | Start here |
 | --- | --- |
 | User | What Extensions can and cannot do (below); install by copying a pack into `userData/extensions/` |
-| Extension author | Capability tables + sibling [`fulvid-extensions`](../../fulvid-extensions/) |
+| Extension author | **[EXTENSION-AUTHOR-CONTRACT.md](./EXTENSION-AUTHOR-CONTRACT.md)** (public Lua + lifecycle contract); DX audit [EXTENSION-AUTHOR-DX-AUDIT.md](./EXTENSION-AUTHOR-DX-AUDIT.md) |
 | Maintainer | Ownership, budgets, footprint, and [tests as security contracts](#tests-as-security-contracts) |
 
-Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [CONCEPTS.md](./CONCEPTS.md) · [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md) · [`fulvid-extensions`](../../fulvid-extensions/)
+Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [CONCEPTS.md](./CONCEPTS.md) · [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md) · [`fulvid-extensions`](../../fulvid-extensions/) · [author contract](./EXTENSION-AUTHOR-CONTRACT.md)
 
 Lua is a **supported extension runtime** inside Extensions - not a second product and not a general scripting environment.
 
@@ -64,7 +64,16 @@ The Extension System is **not**:
 
 ## Current capability surface
 
-Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api": 1`). Fulvid does **not** ship packs under repository `extensions/` - that directory stays empty by design. Curated product packs live in the sibling [`fulvid-extensions`](../../fulvid-extensions/) repository and use the same install contract.
+Load path: `userData/extensions/<id>/` at startup (**Extension API v1**, `"api": 1`). Fulvid does **not** ship packs under repository `extensions/` - that directory stays empty by design.
+
+Sibling [`fulvid-extensions`](../../fulvid-extensions/) keeps two trees:
+
+| Tree | Contents | Role |
+| --- | --- | --- |
+| `extensions/` | `imgildev.*` | **Production catalog** — packs intended to ship/install as product features |
+| `tests/extensions/` | `acme.*` | **Reference / contract** — independent third-party-style packs that prove the public API; not user recommendations |
+
+Install either kind the same way (folder copy / Settings Install). Discovery never reads the sibling repo — only `userData/extensions/`.
 
 **Install / uninstall:** Settings -> Extensions (also File -> Extensions) can install from a local folder or remove an installed pack. The host validates the candidate before an atomic copy into `userData/extensions/<id>/`, and uninstall unloads that pack, deletes only its directory, and clears its allowance. Manual folder copy still works; rediscovery (Reload inventory or restart) converges to the filesystem. There is no marketplace, archive format, or network installer.
 
@@ -159,11 +168,12 @@ Commands are namespaced as `publisher.name.commandId` (e.g. `imgildev.todo-decor
 | Capability / surface | Authority owner | Permitted operation | Explicitly absent | Limits | Failure |
 | --- | --- | --- | --- | --- | --- |
 | `lua` + `commands` | Lua host runtime -> registry | `commands.register` then host invoke of `run()` | Manifest command tables; generic bridges; host prompts | `LUA_EXTENSION_LIMITS` (source, commands, execution, memory) | Load/invoke fails closed; neighbors continue |
-| `ui` | UI notify owner | `ui.notify(message)` | Arbitrary DOM/HTML/SVG; date helpers | `maxNotifyMessageChars` | Oversized notify rejected |
-| `editor` | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer access; document activation; navigation; identity stamps in Lua | `maxEditorSelectionChars` | Rejected / fail closed / stale rejected; see Editor section |
-| `document` | Untitled / document snapshot via seam | `document.getText` / `document.getCursor` / `document.reveal` / `document.createUntitled` | Filesystem write; activate/open document; live model; host template loader | `maxDocumentTextChars` (512 KiB); createUntitled reuses `maxTemplateBytes` | Rejected / fail closed |
-| `decorations` | Monaco decorations via seam | `decorations.set(ranges)` / `decorations.clear()` (closed `style` tokens **or** validated `appearance` colors; per-extension) | Arbitrary CSS/HTML/JS; live decoration APIs; product marker semantics; keystroke auto-refresh | `maxDecorationRanges` (500) | Rejected / fail closed / stale rejected |
-| `templates` | Generic Mustache substitute + UTC calendar date | `template.render(source, variables)` - escaped `{{name}}` only; string->string vars. Optional `clock.isoDate()` -> `YYYY-MM-DD` (UTC) for pack-built context | Sections/partials/unescaped HTML; lambdas; filesystem; product variable factories (`getVariables`, ADR metadata); date/time subsystems | Template/output reuse `maxTemplateBytes`; 64 vars; key/value caps | Rejected / fail closed |
+| `ui` | UI notify owner | `ui.notify(message)` | Arbitrary DOM/HTML/SVG | `maxNotifyMessageChars` | Oversized notify rejected |
+| `editor` | Monaco via editor seam | `editor.getSelection` / `editor.replaceSelection` | Live Monaco objects; full-buffer rewrite API; identity stamps in Lua | `maxEditorSelectionChars` | Rejected / fail closed / stale rejected; see Editor section |
+| `document` | Untitled / document snapshot via seam | `document.getText` / `document.getCursor` / `document.reveal` / `document.createUntitled` | Filesystem write; activate/open document; host template loader | `maxDocumentTextChars` (512 KiB); createUntitled reuses `maxTemplateBytes` | Rejected / fail closed |
+| `decorations` | Monaco decorations via seam | `decorations.set(ranges)` / `decorations.clear()` (closed `style` tokens **or** validated `appearance` colors; per-extension) | Arbitrary CSS/HTML/JS; live decoration APIs; product marker semantics | `maxDecorationRanges` (500) | Rejected / fail closed / stale rejected |
+| `templates` | Generic Mustache substitute | `template.render(source, variables)` - escaped `{{name}}` only; string->string vars | Sections/partials/unescaped HTML; lambdas; filesystem; product variable factories | Template/output reuse `maxTemplateBytes`; 64 vars; key/value caps | Rejected / fail closed |
+| `clock` (with any `lua` pack) | Host UTC calendar | `clock.isoDate()` -> `YYYY-MM-DD` | Date/time frameworks; locales; clocks other than UTC calendar day | n/a | Always available to Lua packs |
 
 Guest APIs are only the surfaces above. There is no generic `host.call`. There is no Lua `fulvid.date` or command `prompts`.
 
@@ -174,7 +184,15 @@ Decoration paint has two mutually exclusive range fields:
 
 Fulvid does not assign meaning to document text when applying decorations. Packs that care about `TODO`/`FIXME`, MDX comment tags, or any other product marker own that mapping and their colors themselves.
 
-`template.render` is intentionally domain-free: packs supply both the template text and the variable table. Fulvid does not invent ADR (or any other product) variable names, defaults, naming transforms, or clocks for interpolation. `clock.isoDate()` is a generic UTC calendar string only - packs decide whether to put it in their context.
+`template.render` is intentionally domain-free: packs supply both the template text and the variable table. Fulvid does not invent ADR (or any other product) variable names, defaults, or naming transforms. `clock.isoDate()` is a generic UTC calendar string available to every Lua pack (not gated on `templates`).
+
+## Live document activation
+
+Packs with `activation: "document"` and a `documentAction` are refreshed by the host when the active buffer’s Monaco model changes (and when the active document identity changes). Contract details for authors: [EXTENSION-AUTHOR-CONTRACT.md](./EXTENSION-AUTHOR-CONTRACT.md#live-document-contract). Summary:
+
+- debounce ~180 ms; sequential silent invokes; Lua reentrancy forbidden
+- decorations apply only if document stamps still match
+- no generic event bus — document activation is the change seam
 
 ## Absent by design
 
@@ -334,7 +352,8 @@ This is a checklist, not a removal script.
 | Permanent contract tests | `tests/extensions/` |
 | Empty pack tree (intentional) | `extensions/` (README only) |
 | Minimal Lua fixtures (`test.*`) | `tests/extensions/fixtures/` (notify + editor only) |
-| Official product packs | sibling `fulvid-extensions` (`imgildev.*`) |
+| Official product packs | sibling `fulvid-extensions/extensions/` (`imgildev.*`) |
+| Reference / contract packs | sibling `fulvid-extensions/tests/extensions/` (`acme.*`) — not the production catalog |
 | Packaged glue | `electrobun.config.ts` -> `bun/glue.wasm` |
 | Packaged smoke | `scripts/luaPackagedSmoke.ts` (`bun run smoke:lua-packaged`) |
 | Docs | this file; cross-links in ARCHITECTURE, INVARIANTS, CONCEPTS, SECURITY-AND-RESILIENCE, compatibility |

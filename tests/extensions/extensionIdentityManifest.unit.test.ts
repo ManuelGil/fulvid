@@ -51,21 +51,27 @@ describe("publisher.name extension identity contract", () => {
         publisher: "local",
         id: "local.todo-decorator",
       }),
-    ).toEqual({ reason: "reserved publisher" });
+    ).toEqual({
+      reason: 'reserved publisher: "local" is not allowed; use your own slug',
+    });
 
     expect(
       validateExtensionManifest({
         ...luaManifest("local.legacy-extension"),
         publisher: undefined,
       }),
-    ).toEqual({ reason: "invalid publisher" });
+    ).toMatchObject({
+      reason: expect.stringMatching(/^invalid publisher:/),
+    });
 
     expect(
       validateExtensionManifest({
         ...luaManifest("acme.example-extension"),
         id: "acme.other-extension",
       }),
-    ).toEqual({ reason: "id must equal publisher.name" });
+    ).toEqual({
+      reason: 'id must equal publisher.name (expected "acme.example-extension")',
+    });
   });
 
   test("rejects unsupported api, unknown capability, and lua-gated surfaces", () => {
@@ -150,21 +156,23 @@ describe("publisher.name extension identity contract", () => {
         ...luaManifest("acme.example-extension"),
         version: "1.0",
       }),
-    ).toEqual({ reason: "invalid extension version" });
+    ).toEqual({
+      reason: 'invalid extension version: expect semver MAJOR.MINOR.PATCH (e.g. "1.0.0")',
+    });
 
     expect(
       validateExtensionManifest({
         ...luaManifest("acme.example-extension"),
         displayName: " ",
       }),
-    ).toEqual({ reason: "invalid displayName" });
+    ).toEqual({ reason: "invalid displayName: non-empty string required" });
 
     expect(
       validateExtensionManifest({
         ...luaManifest("acme.example-extension"),
         description: "",
       }),
-    ).toEqual({ reason: "invalid description" });
+    ).toEqual({ reason: "invalid description: non-empty string required" });
 
     expect(
       validateExtensionManifest({
