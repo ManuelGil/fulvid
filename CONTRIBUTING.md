@@ -53,18 +53,33 @@ Classification (reproduced on Ubuntu 24.04 / Wayland / AMD Mesa / WebKitGTK 2.52
 | Message | When | Meaning |
 | --- | --- | --- |
 | `GLXBadWindow` | HMR and `views://` (no Vite) | XWayland/GLX + WebKit accelerated compositing under Electrobun's forced X11 backend. Not Fulvid application logic. |
-| `internallyFailedLoadTimerFired` | Mainly while loading from Vite HMR (`http://127.0.0.1:5173`) | WebKitGTK NetworkProcess internal failures during concurrent Vite module loads. Does **not** appear on the packaged `views://` path in the same session. |
+| `internallyFailedLoadTimerFired` | Mainly while loading from Vite HMR (`http://127.0.0.1:5173`) | WebKitGTK NetworkProcess internal failures during concurrent Vite module loads. Can drop the HMR WebSocket after it has already connected (`[vite] connected` then `server connection lost`). Does **not** appear on the packaged `views://` path in the same session. |
 
-Impact: the window still starts (`Fulvid started`); Fulvid remains interactive in normal use. These lines are runtime diagnostics, not a Fulvid Annotations/filesystem/security failure.
+Impact: the window still starts (`Fulvid started`); Fulvid remains interactive in normal use. These lines are runtime diagnostics, not a Fulvid Annotations/filesystem/security failure. The HMR URL (`ws://127.0.0.1:5173/`, protocol `vite-hmr`) matches the page origin and works from Bun/Chromium. WebKitGTK can still drop the HMR socket under NetworkProcess churn; reconnects are expected until upstream WebKit/Electrobun improve.
+
+Controlled mitigation matrix (≈55s each, same machine/WebKitGTK 2.52.6/Vite 8.2.2/Electrobun 2.0.1, three EditorPage touches):
+
+| Mitigation | reconnect effect | notes |
+| --- | --- | --- |
+| `server.warmup.clientFiles` | material drop in `connection lost`/min | keep |
+| expanded HTTP warmup (extra Monaco/Vue URLs) | **increased** failures and reconnects | do not expand |
+| minimal HTTP wait (`/`, `/@vite/client`, `/main.ts`) | readiness gate only | keep small |
+| `forwardConsole: false` | no change in reconnect rate | keep for Cursor-agent console hygiene (Vite auto-enables forwardConsole when an agent is detected) |
+| `__electrobun` stub | not an HMR metric | keep for rare Vite-HTTP preload race |
+| `WEBKIT_DISABLE_COMPOSITING_MODE=1` | separate from HMR; targets `GLXBadWindow` | Linux HMR only |
 
 What Fulvid does:
 
-- `scripts/devHmr.ts` defaults `WEBKIT_DISABLE_COMPOSITING_MODE=1` on Linux when unset (same profile as Linux compatibility CI), which removes `GLXBadWindow` during HMR without swallowing stderr.
+- `vite.config.ts` `server.warmup.clientFiles` pre-transforms the first-paint graph (measured reduction in HMR reconnect rate; does not silence WebKit).
+- `scripts/devHmr.ts` waits only for `/`, `/@vite/client`, and `/main.ts` before `electrobun dev` (do not expand this list without new measurements).
+- `vite.config.ts` sets `server.forwardConsole: false` so Cursor-agent sessions do not pipe console over the HMR socket (Vite’s default is agent-detected `true`, otherwise `false`). This is not a proven reconnect fix.
+- `electrobunClient.ts` installs a minimal `window.__electrobun` bridge if preload has not yet, so Electroview.init does not throw under Vite HTTP.
+- `scripts/devHmr.ts` defaults `WEBKIT_DISABLE_COMPOSITING_MODE=1` on Linux when unset (same profile as Linux compatibility CI) for `GLXBadWindow`, not for `WebLoaderStrategy` failures.
 - Does **not** filter or hide WebKit/GLX messages.
 - Does **not** switch to CEF, add a WebView watchdog, or auto-restart the renderer.
 - Does **not** set compositing env in packaged production code; override locally if needed: `WEBKIT_DISABLE_COMPOSITING_MODE=1`.
 
-Upstream direction: Electrobun native Wayland support (remove forced `GDK_BACKEND=x11`) is the real fix when a Fulvid-compatible Electrobun release ships it. Re-test HMR after any Electrobun upgrade.
+Upstream direction: Electrobun native Wayland support (remove forced `GDK_BACKEND=x11`) plus WebKitGTK NetworkProcess stability under heavy ESM load. Re-test HMR after Electrobun/WebKitGTK upgrades. No exact upstream bug matching this Vite+Electrobun HMR scenario was identified; related WebKit work exists around NetworkProcess kills under load (RealtimeKit).
 
 When upgrading the desktop stack, re-check:
 

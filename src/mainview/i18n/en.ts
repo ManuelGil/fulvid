@@ -197,6 +197,8 @@ export default {
     backToTop: "Back to top",
     noWorkspace: "No folder open",
     lastOpenedFolder: "Last opened folder",
+    reopenUnauthorized:
+      "This folder is no longer authorized. Use Open folder... to choose it again, then Reopen will work.",
     noWorkspaceText: "You'll need a folder for Explorer, Search, and Graph.",
     chooseDocument: "Create or open a document to start writing.",
     rightClickActions: "Right-click for Reveal in Folder, Copy Path, Open..., Close",

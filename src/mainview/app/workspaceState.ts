@@ -26,6 +26,7 @@ import {
   revealInExplorer,
   scanWorkspace,
 } from "../modules/workspace/filesystem/workspaceScanner";
+import { parseFilesystemErrorCode } from "../modules/workspace/filesystem/workspaceErrors";
 import type { ScannedNote, WorkspaceScan } from "../modules/workspace/filesystem/workspaceTypes";
 import { folderDocumentPreflight, shouldLoadFolderWorkspace } from "./folderPreflight";
 import { settings } from "../modules/settings/settingsStore";
@@ -354,7 +355,13 @@ export async function selectRecentWorkspace(path: string): Promise<void> {
       await loadWorkspace(authorizedPath);
     }
   } catch (error) {
-    errorMessage.value = describeFilesystemError(error, "workspace.openWorkspaceError");
+    // Host refused a recent path that is not in approved-folders (renderer
+    // recent is not authority). Say that plainly - the generic folderNotOpen
+    // copy reads like a no-op when the person just clicked Reopen.
+    errorMessage.value =
+      parseFilesystemErrorCode(error) === "folderNotOpen"
+        ? i18n.global.t("workspace.reopenUnauthorized")
+        : describeFilesystemError(error, "workspace.openWorkspaceError");
   }
 }
 

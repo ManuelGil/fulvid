@@ -199,6 +199,8 @@ export default {
     backToTop: "Volver al inicio",
     noWorkspace: "No hay carpeta abierta",
     lastOpenedFolder: "Última carpeta abierta",
+    reopenUnauthorized:
+      "Esta carpeta ya no está autorizada. Usa Abrir carpeta... para elegirla de nuevo; después Reabrir funcionará.",
     noWorkspaceText: "Para el Explorador, Buscar y el Grafo hace falta una carpeta.",
     chooseDocument: "Crea o abre un documento para empezar a escribir.",
     rightClickActions: "Clic derecho para Mostrar en la carpeta, Copiar ruta, Abrir... o Cerrar",

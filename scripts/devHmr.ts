@@ -1,14 +1,16 @@
 /**
- * Warm Vite's browser entry points before Electrobun creates its WebView.
- *
- * WebKit can fail the first concurrent module requests while Vite is
- * transforming them. HMR must start only after these responses are ready.
+ * Wait until Vite answers the browser entry points before Electrobun opens
+ * the WebView. Keep this list small (`/`, `/@vite/client`, `/main.ts`): a
+ * controlled mitigation matrix showed expanding HTTP warmup *increased*
+ * WebKitGTK `internallyFailedLoadTimerFired` and HMR reconnect rates.
+ * Vite `server.warmup.clientFiles` is the measured win for transform churn.
  *
  * On Linux, Electrobun 2.0.1 forces GDK_BACKEND=x11 (XWayland on Wayland
  * sessions). Accelerated compositing then often logs GLXBadWindow. Linux
  * compatibility CI already launches with WEBKIT_DISABLE_COMPOSITING_MODE=1.
  * Inherit an explicit value; otherwise default to the same profile for HMR
- * only. This does not silence stderr and does not change packaged builds.
+ * only. That env targets GLX/compositing, not the HMR WebSocket path. This
+ * does not silence stderr and does not change packaged builds.
  */
 const devServerUrl = "http://127.0.0.1:5173";
 const warmupPaths = ["/", "/@vite/client", "/main.ts"];
