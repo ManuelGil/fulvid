@@ -184,7 +184,7 @@ export async function writeDocument(
   rootPath: string,
   relativePath: string,
   content: string,
-  expectedMtimeMs?: number,
+  expectedMtimeMs: number,
   linkMode: LinkSyntax = "markdown",
 ): Promise<DocumentWriteResult> {
   return desktopRequest().writeDocument({

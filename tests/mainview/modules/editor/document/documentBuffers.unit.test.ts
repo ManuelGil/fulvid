@@ -31,9 +31,11 @@ let nextSaveAsResult: {
   grantToken: "grant-1",
 };
 let lastWrittenContent = "";
+let lastWrittenPath = "";
 let nextReadContent: string | null = null;
 let rewriteHook: (() => void) | null = null;
-let saveAsHook: (() => void) | null = null;
+let writeGate: Promise<void> | null = null;
+let saveAsGate: Promise<void> | null = null;
 let writeHook: (() => void) | null = null;
 let readHook: ((path: string) => Promise<void>) | null = null;
 
@@ -47,11 +49,15 @@ mock.module("../../../../../src/mainview/modules/workspace/filesystem/workspaceS
       mtimeMs: 1,
     };
   },
-  writeDocument: async (_rootPath: string, _path: string, content: string) => {
+  writeDocument: async (_rootPath: string, path: string, content: string) => {
     lastWrittenContent = content;
+    lastWrittenPath = path;
     const hook = writeHook;
     writeHook = null;
     hook?.();
+    if (writeGate) {
+      await writeGate;
+    }
     return {
       note: {
         path: "unused.md",
@@ -69,8 +75,9 @@ mock.module("../../../../../src/mainview/modules/workspace/filesystem/workspaceS
     };
   },
   pickAndSaveDocument: async () => {
-    saveAsHook?.();
-    saveAsHook = null;
+    if (saveAsGate) {
+      await saveAsGate;
+    }
     return nextSaveAsResult;
   },
   writeGrantedDocument: async () => {
@@ -151,9 +158,13 @@ mock.module("../../../../../src/mainview/modules/editor/monaco/monacoSetup.ts", 
 }));
 
 const {
+  awaitAllBufferWrites,
+  awaitBufferWrites,
   closeAllDocuments,
   saveDocument,
+  saveAsDocument,
   closeDocument,
+  closeDocumentById,
   activeBuffer,
   createUntitledDocument,
   cycleDocumentEol,
@@ -161,6 +172,7 @@ const {
   isDocumentDirty,
   openBuffers,
   openDocument,
+  renameDocumentBuffer,
   selectDocument,
 } = await import("../../../../../src/mainview/modules/editor/document/documentBuffers.ts");
 const { activeId, clearSessionDocuments } =
@@ -183,10 +195,12 @@ afterEach(() => {
     grantToken: "grant-1",
   };
   rewriteHook = null;
-  saveAsHook = null;
+  writeGate = null;
+  saveAsGate = null;
   writeHook = null;
   readHook = null;
   lastWrittenContent = "";
+  lastWrittenPath = "";
   nextReadContent = null;
   patchSettings({ editor: { ...settings.value.editor, defaultEol: "lf" } });
 });
@@ -288,5 +302,106 @@ describe("document buffers", () => {
     expect(isDocumentDirty(opened)).toBe(true);
     await saveDocument(opened);
     expect(lastWrittenContent).toBe("alpha\nbeta\n");
+  });
+
+  test("background rename keeps dirty text and does not steal the active tab or Focus", async () => {
+    bindFocusToWorkspace("/workspace");
+    const active = await openDocument("/workspace", "active.md");
+    const background = await openDocument("/workspace", "background.md");
+    background.model.setValue("# dirty rename");
+    expect(isDocumentDirty(background)).toBe(true);
+
+    expect(selectDocument(active.id)).toBe(true);
+    expect(activeId.value).toBe(active.id);
+    expect(currentFocus.value).toEqual({ path: "active.md", workspacePath: "/workspace" });
+
+    renameDocumentBuffer(background, "renamed.md", 9);
+
+    expect(activeId.value).toBe(active.id);
+    expect(currentFocus.value).toEqual({ path: "active.md", workspacePath: "/workspace" });
+    expect(getDocumentBuffer("/workspace", "background.md")).toBeNull();
+    const renamed = getDocumentBuffer("/workspace", "renamed.md");
+    expect(renamed).not.toBeNull();
+    expect(renamed?.model.getValue()).toBe("# dirty rename");
+    expect(isDocumentDirty(renamed!)).toBe(true);
+  });
+
+  test("awaitBufferWrites drains an in-flight save to the captured path", async () => {
+    bindFocusToWorkspace("/workspace");
+    const buffer = await openDocument("/workspace", "pending.md");
+    buffer.model.setValue("# saving");
+
+    let releaseWrite!: () => void;
+    writeGate = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    let writeStarted = false;
+    writeHook = () => {
+      writeStarted = true;
+    };
+
+    const saving = saveDocument(buffer);
+    await Promise.resolve();
+    expect(writeStarted).toBe(true);
+    expect(isDocumentDirty(buffer)).toBe(true);
+
+    const drained = awaitBufferWrites(buffer);
+    releaseWrite();
+    await drained;
+    await saving;
+
+    expect(lastWrittenPath).toBe("pending.md");
+    expect(lastWrittenContent).toBe("# saving");
+    expect(isDocumentDirty(buffer)).toBe(false);
+    await awaitAllBufferWrites();
+  });
+
+  test("close during Save As dialog does not reidentify the abandoned buffer", async () => {
+    const untitled = createUntitledDocument("# draft\n");
+    const untitledId = untitled.id;
+
+    let releaseDialog!: () => void;
+    saveAsGate = new Promise<void>((resolve) => {
+      releaseDialog = resolve;
+    });
+
+    const saving = saveAsDocument(untitled, "draft.md", "md");
+    await Promise.resolve();
+    expect(closeDocumentById(untitledId, true)).toBe(true);
+    expect(openBuffers.value.find((buffer) => buffer.id === untitledId)).toBeUndefined();
+
+    releaseDialog();
+    const outcome = await saving;
+    expect(outcome.result.status).toBe("saved");
+    // Abandoned buffer must not return as a reidentified open tab.
+    expect(openBuffers.value).toHaveLength(0);
+    expect(outcome.buffer.id).toBe(untitledId);
+  });
+
+  test("abandoned in-flight save cannot clear dirty state on a replacement buffer", async () => {
+    bindFocusToWorkspace("/workspace");
+    const original = await openDocument("/workspace", "race.md");
+    original.model.setValue("# v1");
+
+    let releaseWrite!: () => void;
+    writeGate = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    const saving = saveDocument(original);
+    await Promise.resolve();
+
+    expect(closeDocument("/workspace", "race.md", true)).toBe(true);
+    const replacement = await openDocument("/workspace", "race.md");
+    replacement.model.setValue("# v2 edited");
+    expect(isDocumentDirty(replacement)).toBe(true);
+
+    releaseWrite();
+    await saving.catch(() => undefined);
+    await awaitBufferWrites(original);
+
+    expect(isDocumentDirty(replacement)).toBe(true);
+    expect(replacement.model.getValue()).toBe("# v2 edited");
+    expect(lastWrittenPath).toBe("race.md");
+    expect(lastWrittenContent).toBe("# v1");
   });
 });

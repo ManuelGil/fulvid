@@ -200,7 +200,8 @@ export const filesystemRpcHandlers = {
       await authorizedWorkspaceRoot(requireString(params, "rootPath")),
       requireString(params, "relativePath"),
       requireDocumentContent(params),
-      optionalMtime(params),
+      // Saves always carry the open buffer's mtime so external edits conflict.
+      requireMtime(params),
       requireLinkMode(params),
     ),
   ),

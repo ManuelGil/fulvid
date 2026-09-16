@@ -18,9 +18,9 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Focus ownership | Focus is folder-scoped Graph/Context metadata. Graph consumes Focus and does not own it |
 | Writing Focus / Full Screen | Writing Focus is session editor chrome only: it may hide or inert secondary chrome but must keep deliberate capability surfaces usable (`WRITING_FOCUS_KEPT_SELECTORS`, including Quick Actions). Native Full Screen is BrowserWindow state on the host. Either may be on, off, or combined; neither owns the other, grants, containment, Preview, or document selection |
 | Extension UI boundary | Path: `extension -> declared capability/command -> existing owner -> presentation`. An extension is never an owner and never a generic host bridge. The Extension System orchestrates capabilities; it does not own filesystem, document, editor, window, search, graph, or renderer authority. Extension API v1 production surface (commands, ui, lua, editor, document, decorations with reject-stale apply where stamped), budgets, absent-by-design list, and contract tests: [EXTENSIONS.md](./EXTENSIONS.md). Capability isolation ≠ OS sandbox. Do not fix a UI bug by inventing a second owner of the same behavior |
-| Quit and dirty buffers | When Settings -> Confirm before closing is on, Quit asks before discarding unsaved tabs, using the same confirmation owner as closing dirty tabs. Host `quitApplication` runs only after that gate. Menu Quit is a command, not an OS quit role. OS window close is sync-vetoed on BrowserWindow `will-close` and routed to the same renderer gate (Electrobun has no awaitable close / beforeunload) |
+| Quit and dirty buffers | When Settings -> Confirm before closing is on, Quit asks before discarding unsaved tabs, using the same confirmation owner as closing dirty tabs. After that gate (or when confirmation is off), the renderer drains in-flight/queued buffer writes via `awaitAllBufferWrites` before host `quitApplication`. Dirty unsaved text is not auto-saved. Menu Quit is a command, not an OS quit role. OS window close is sync-vetoed on BrowserWindow `will-close` and routed to the same renderer gate (Electrobun has no awaitable close / beforeunload) |
 | Document location | Editor chrome projects `DocumentBuffer` fields into a compact relative path (or Untitled / standalone basename). Settings choose main panel, window title, or hidden. Tabs use basename unless open tabs collide (then add segments until unique). Path display is not navigation and not authorization |
-| Search ownership | Local find uses the active Monaco model. Global Search uses Folder scan document bodies (plus open buffer overlays) with exact text or regular expression matching only |
+| Search ownership | Local find uses the active Monaco model. Global Search uses Folder scan document bodies (plus open buffer overlays) with exact text or regular expression matching only. Regex queries are length-bounded and refuse nested-quantifier patterns that commonly cause ReDoS; a wall-clock budget marks remaining work too expensive rather than hanging the renderer |
 | Quick Open ownership | Quick Open matches document identity (`title`, filename, relative path) from `workspace.scannedNotes` in the open Folder only. It does not search content, own a scan, or bypass `openOrActivate` / filesystem containment |
 | Semantic rename | F2 renames a heading or fragment in document text. It never renames a file or document ID |
 | File rename references | Explorer rename may rewrite DocumentLink targets that already resolved to the renamed path. It reuses parse/resolve and existing writes; it is not a transaction or link index |
@@ -38,6 +38,7 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Not the product center | Graph must not redefine Search, Explorer, Folder, or Document Context |
 | Depth is Graph-local | Graph depth must not affect other features |
 | Link count is not quality | Reference count is not a score |
+| Worker settlement | Graph layout may use a worker. Terminate, supersede, unmount, or clearing Focus must settle the in-flight Promise so `deriveGraph` cannot hang; superseded results are discarded by layout generation |
 
 ## Resources
 
@@ -68,11 +69,11 @@ The renderer is untrusted. It may ask for a document inside a folder the person 
 | Error containment | Failures cross the boundary as codes from `filesystemErrors`. No host path, errno, or stack reaches the UI |
 | Scan ceilings | A folder scan is bounded in document count and depth, and per-file analysis is capped. A partial scan is reported, never silent |
 | External open | An external request is intent, never privilege. It earns exactly what the equivalent dialog earns, through the same authorities. See [EXTERNAL-OPEN.md](./EXTERNAL-OPEN.md) |
-| Save integrity | A save that did not reach disk never clears dirty. Creating a document is an exclusive create, so a concurrent create is reported rather than overwritten |
+| Save integrity | A save that did not reach disk never clears dirty. Creating a document is an exclusive create, so a concurrent create is reported rather than overwritten. In-flight writes capture path and content at start; abandoned buffers skip post-write mutation. Rename/delete/detach/quit drain that buffer's save queue before moving or removing the filesystem identity |
 
 ## Persisted state
 
-Persisted state is treated as potentially corrupt or tampered with. Settings, layout, and folder approvals each sanitize on read: an invalid part is discarded and its default applied, and Fulvid still starts. Persisted state can never grant a capability. A recent-folder entry does not authorize a folder.
+Persisted state is treated as potentially corrupt or tampered with. Settings, layout, and folder approvals each sanitize on read: an invalid part is discarded and its default applied, and Fulvid still starts. Corrupt settings JSON is replaced with defaults when possible so the next cold start does not keep failing to parse. Persisted state can never grant a capability. A recent-folder entry does not authorize a folder.
 
 ## Content Security Policy
 

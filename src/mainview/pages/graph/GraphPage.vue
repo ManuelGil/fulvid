@@ -118,21 +118,25 @@ const regardingLine = computed(() => {
 async function deriveGraph(graph: ReferenceGraph): Promise<void> {
   const generation = ++layoutGeneration;
   isDeriving.value = true;
-  const composed = await computeComposedGraph(graph);
-  if (generation !== layoutGeneration) {
-    return;
-  }
-
-  composedGraph.value = composed;
-  isDeriving.value = false;
-  if (focusCanvasOnFirstGraph) {
-    focusCanvasOnFirstGraph = false;
-    await nextTick();
-    if (
-      !(document.activeElement instanceof Element) ||
-      !document.activeElement.closest(".app-shell__panel")
-    ) {
-      canvasRef.value?.focus();
+  try {
+    const composed = await computeComposedGraph(graph);
+    if (generation !== layoutGeneration) {
+      return;
+    }
+    composedGraph.value = composed;
+    if (focusCanvasOnFirstGraph) {
+      focusCanvasOnFirstGraph = false;
+      await nextTick();
+      if (
+        !(document.activeElement instanceof Element) ||
+        !document.activeElement.closest(".app-shell__panel")
+      ) {
+        canvasRef.value?.focus();
+      }
+    }
+  } finally {
+    if (generation === layoutGeneration) {
+      isDeriving.value = false;
     }
   }
 }
@@ -184,6 +188,7 @@ watch(
   ([graph]) => {
     if (!graph) {
       layoutGeneration += 1;
+      terminateActiveGraphWorker();
       composedGraph.value = null;
       isDeriving.value = false;
       return;

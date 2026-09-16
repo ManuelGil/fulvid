@@ -36,6 +36,7 @@ import {
 } from "../modules/workspace/filesystem/workspaceScanner";
 import {
   activeBuffer,
+  awaitAllBufferWrites,
   isDocumentDirty,
   openBuffers,
   openOrActivate,
@@ -1149,7 +1150,12 @@ async function requestApplicationQuit(): Promise<void> {
               })
             : t("workspace.quitUnsaved", { count: dirtyCount }),
         ),
-      quit: quitApplication,
+      quit: async () => {
+        // Finish captured in-flight writes before process exit. Dirty unsaved
+        // buffers are already confirmed above; this only drains started saves.
+        await awaitAllBufferWrites();
+        await quitApplication();
+      },
     });
   } finally {
     applicationQuitInFlight = false;

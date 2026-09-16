@@ -13,6 +13,7 @@ import {
   isDocumentDirty,
   openBuffers,
   openOrActivate,
+  awaitBufferWrites,
   renameDocumentBuffer,
 } from "../../editor/document/documentBuffers";
 import { applyDocumentPathRenamePlan } from "../../document/links/applyDocumentPathRename";
@@ -53,6 +54,11 @@ import {
   explorerFolderContextActionIds,
   explorerPathActionLabelKeys,
 } from "./explorerContextMenu";
+import {
+  explorerParentPath,
+  isCurrentExplorerListSession,
+  reconcileExplorerDirectoryState,
+} from "./explorerListSession";
 import { settings } from "../../settings/settingsStore";
 
 type VisibleRow = {
@@ -71,22 +77,29 @@ const selectedPath = ref<string | null>(null);
 const loadingDirectories = ref(new Set<string>());
 const errorMessage = ref<string | null>(null);
 const rowElements = new Map<string, HTMLButtonElement>();
+/** Frozen row for the open context menu; actions must not retarget live selection. */
+const contextTarget = ref<FileSystemEntry | null>(null);
+/** Bumped on reset/refresh so in-flight listDirectory results cannot mutate newer state. */
+let explorerListSession = 0;
+const pendingDirectoryLoads = new Map<string, Promise<boolean>>();
 
 const workspaceRoot = computed(() => workspace.value?.path ?? null);
 const rootEntries = computed(() => entriesByDirectory.value[""] ?? []);
-const selectedEntry = computed<FileSystemEntry | null>(() => {
-  if (!selectedPath.value) {
+
+function findEntryByPath(path: string | null): FileSystemEntry | null {
+  if (!path) {
     return null;
   }
-
   for (const entries of Object.values(entriesByDirectory.value)) {
-    const entry = entries.find((candidate) => candidate.path === selectedPath.value);
+    const entry = entries.find((candidate) => candidate.path === path);
     if (entry) {
       return entry;
     }
   }
   return null;
-});
+}
+
+const selectedEntry = computed<FileSystemEntry | null>(() => findEntryByPath(selectedPath.value));
 
 const visibleRows = computed<VisibleRow[]>(() => {
   const rows: VisibleRow[] = [];
@@ -111,7 +124,7 @@ const visibleRows = computed<VisibleRow[]>(() => {
 });
 
 const contextActions = computed<readonly ContextMenuAction[]>(() => {
-  const entry = selectedEntry.value;
+  const entry = contextTarget.value;
   if (!entry) {
     return [];
   }
@@ -150,7 +163,7 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
 });
 
 const contextMenuLabel = computed(() => {
-  const entry = selectedEntry.value;
+  const entry = contextTarget.value;
   if (!entry) {
     return t("files.documentActions");
   }
@@ -163,12 +176,6 @@ const contextMenu = ref({
   y: 0,
 });
 
-function parentPath(path: string): string {
-  const segments = path.split("/").filter(Boolean);
-  segments.pop();
-  return segments.join("/");
-}
-
 function setRowRef(path: string, element: unknown): void {
   if (element instanceof HTMLButtonElement) {
     rowElements.set(path, element);
@@ -177,33 +184,81 @@ function setRowRef(path: string, element: unknown): void {
   }
 }
 
-async function loadDirectory(relativePath: string): Promise<void> {
+function markDirectoryLoading(relativePath: string, loading: boolean): void {
+  const next = new Set(loadingDirectories.value);
+  if (loading) {
+    next.add(relativePath);
+  } else {
+    next.delete(relativePath);
+  }
+  loadingDirectories.value = next;
+}
+
+/**
+ * List one directory against the authorized workspace root.
+ * Returns false when the request is stale, the workspace closed, or listing failed.
+ * Concurrent callers for the same path share one in-flight promise.
+ */
+async function loadDirectory(relativePath: string): Promise<boolean> {
   const rootPath = workspaceRoot.value;
-  if (!rootPath || loadingDirectories.value.has(relativePath)) {
-    return;
+  if (!rootPath) {
+    return false;
   }
 
-  loadingDirectories.value.add(relativePath);
-  errorMessage.value = null;
-  try {
-    const result = await listDirectory(
-      rootPath,
-      relativePath,
-      settings.value.workspace.showHiddenFiles,
-    );
-    if (workspaceRoot.value !== rootPath) {
-      return;
+  const existing = pendingDirectoryLoads.get(relativePath);
+  if (existing) {
+    return existing;
+  }
+
+  const session = explorerListSession;
+  const loadPromise = (async (): Promise<boolean> => {
+    markDirectoryLoading(relativePath, true);
+    if (isCurrentExplorerListSession(session, explorerListSession, rootPath, workspaceRoot.value)) {
+      errorMessage.value = null;
     }
-    entriesByDirectory.value = {
-      ...entriesByDirectory.value,
-      [relativePath]: result,
-    };
-  } catch (error) {
-    errorMessage.value = describeFilesystemError(error, "files.readError");
+    try {
+      const result = await listDirectory(
+        rootPath,
+        relativePath,
+        settings.value.workspace.showHiddenFiles,
+      );
+      if (
+        !isCurrentExplorerListSession(session, explorerListSession, rootPath, workspaceRoot.value)
+      ) {
+        return false;
+      }
+      const reconciled = reconcileExplorerDirectoryState(
+        relativePath,
+        result,
+        entriesByDirectory.value,
+        expandedDirectories.value,
+      );
+      entriesByDirectory.value = reconciled.entriesByDirectory;
+      expandedDirectories.value = reconciled.expandedDirectories;
+      return true;
+    } catch (error) {
+      if (
+        isCurrentExplorerListSession(session, explorerListSession, rootPath, workspaceRoot.value)
+      ) {
+        errorMessage.value = describeFilesystemError(error, "files.readError");
+      }
+      return false;
+    } finally {
+      if (
+        isCurrentExplorerListSession(session, explorerListSession, rootPath, workspaceRoot.value)
+      ) {
+        markDirectoryLoading(relativePath, false);
+      }
+    }
+  })();
+
+  pendingDirectoryLoads.set(relativePath, loadPromise);
+  try {
+    return await loadPromise;
   } finally {
-    const next = new Set(loadingDirectories.value);
-    next.delete(relativePath);
-    loadingDirectories.value = next;
+    if (pendingDirectoryLoads.get(relativePath) === loadPromise) {
+      pendingDirectoryLoads.delete(relativePath);
+    }
   }
 }
 
@@ -220,7 +275,10 @@ async function toggleDirectory(entry: FileSystemEntry): Promise<void> {
     return;
   }
 
-  await loadDirectory(entry.path);
+  const loaded = await loadDirectory(entry.path);
+  if (!loaded || !entriesByDirectory.value[entry.path]) {
+    return;
+  }
   expandedDirectories.value = new Set([...expandedDirectories.value, entry.path]);
 }
 
@@ -247,15 +305,18 @@ async function openEntry(entry: FileSystemEntry): Promise<void> {
   }
 }
 
-function targetDirectory(): string {
-  const entry = selectedEntry.value;
+function targetDirectory(preferred?: FileSystemEntry | null): string {
+  const entry = preferred ?? selectedEntry.value;
   if (entry?.kind === "directory") {
     return entry.path;
   }
-  return entry ? parentPath(entry.path) : "";
+  return entry ? explorerParentPath(entry.path) : "";
 }
 
-async function createExplorerDocument(seed: "blank" | "readme"): Promise<void> {
+async function createExplorerDocument(
+  seed: "blank" | "readme",
+  preferredParent?: FileSystemEntry | null,
+): Promise<void> {
   const rootPath = workspaceRoot.value;
   if (!rootPath) {
     return;
@@ -281,7 +342,7 @@ async function createExplorerDocument(seed: "blank" | "readme"): Promise<void> {
     return;
   }
 
-  const parentDirectory = targetDirectory();
+  const parentDirectory = targetDirectory(preferredParent);
   const content =
     seed === "readme"
       ? renderDocumentTemplate("readme", {
@@ -303,21 +364,21 @@ async function createExplorerDocument(seed: "blank" | "readme"): Promise<void> {
   }
 }
 
-function createNewDocument(): Promise<void> {
-  return createExplorerDocument("blank");
+function createNewDocument(preferredParent?: FileSystemEntry | null): Promise<void> {
+  return createExplorerDocument("blank", preferredParent);
 }
 
-function createNewDocumentFromReadme(): Promise<void> {
-  return createExplorerDocument("readme");
+function createNewDocumentFromReadme(preferredParent?: FileSystemEntry | null): Promise<void> {
+  return createExplorerDocument("readme", preferredParent);
 }
 
-async function renameSelectedDocument(): Promise<void> {
+async function renameDocumentEntry(entry: FileSystemEntry): Promise<void> {
   const rootPath = workspaceRoot.value;
-  const entry = selectedEntry.value;
-  if (!rootPath || !entry || entry.kind !== "file") {
+  if (!rootPath || entry.kind !== "file") {
     return;
   }
 
+  const sourcePath = entry.path;
   const nextName = await promptFilename({
     title: t("files.rename"),
     label: t("files.renameName"),
@@ -331,8 +392,13 @@ async function renameSelectedDocument(): Promise<void> {
     return;
   }
 
-  const nextPath = [parentPath(entry.path), nextName].filter(Boolean).join("/");
-  const buffer = getDocumentBuffer(rootPath, entry.path);
+  // Workspace may have closed while the dialog was open.
+  if (workspaceRoot.value !== rootPath) {
+    return;
+  }
+
+  const nextPath = [explorerParentPath(sourcePath), nextName].filter(Boolean).join("/");
+  const buffer = getDocumentBuffer(rootPath, sourcePath);
   const linkMode = settings.value.links.linkMode;
   const contentByPath = new Map<string, string>();
   for (const note of workspaceNotes.value) {
@@ -347,7 +413,7 @@ async function renameSelectedDocument(): Promise<void> {
   }
 
   const plan = planDocumentPathRename({
-    oldPath: entry.path,
+    oldPath: sourcePath,
     newPath: nextPath,
     notes: workspaceNotes.value,
     linkMode,
@@ -355,19 +421,35 @@ async function renameSelectedDocument(): Promise<void> {
   });
 
   try {
-    const result = await renameDocument(rootPath, entry.path, nextPath, buffer?.mtimeMs, linkMode);
+    // Drain in-flight saves first so a late write cannot recreate the old path
+    // after the filesystem rename has already moved the file.
+    if (buffer) {
+      await awaitBufferWrites(buffer);
+    }
+    if (workspaceRoot.value !== rootPath) {
+      return;
+    }
+    const result = await renameDocument(rootPath, sourcePath, nextPath, buffer?.mtimeMs, linkMode);
+    if (workspaceRoot.value !== rootPath) {
+      return;
+    }
     if (buffer) {
       renameDocumentBuffer(buffer, nextPath, result.mtimeMs);
     }
-    applyRenamedNote(entry.path, result.note);
-    if (currentFocus.value?.path === entry.path) {
+    applyRenamedNote(sourcePath, result.note);
+    // renameDocumentBuffer already re-pairs Focus for the active tab. Only
+    // update Focus/inspection when this path was the Focus target without
+    // stealing the editor selection for a background rename.
+    if (currentFocus.value?.path === sourcePath) {
       focusDocument(nextPath);
-    } else if (inspectionPath.value === entry.path) {
+    } else if (inspectionPath.value === sourcePath) {
       inspectionPath.value = nextPath;
     }
-    selectedPath.value = nextPath;
-    await loadDirectory(parentPath(entry.path));
-    await loadDirectory(parentPath(nextPath));
+    if (selectedPath.value === sourcePath) {
+      selectedPath.value = nextPath;
+    }
+    await loadDirectory(explorerParentPath(sourcePath));
+    await loadDirectory(explorerParentPath(nextPath));
 
     if (plan.edits.length > 0) {
       const applied = await applyDocumentPathRenamePlan({
@@ -391,14 +473,14 @@ async function renameSelectedDocument(): Promise<void> {
   }
 }
 
-async function deleteSelectedDocument(): Promise<void> {
+async function deleteDocumentEntry(entry: FileSystemEntry): Promise<void> {
   const rootPath = workspaceRoot.value;
-  const entry = selectedEntry.value;
-  if (!rootPath || !entry || entry.kind !== "file") {
+  if (!rootPath || entry.kind !== "file") {
     return;
   }
 
-  const buffer = getDocumentBuffer(rootPath, entry.path);
+  const sourcePath = entry.path;
+  const buffer = getDocumentBuffer(rootPath, sourcePath);
   if (
     !(await confirmDialog(
       t(buffer && isDocumentDirty(buffer) ? "files.deleteUnsaved" : "files.deleteConfirm", {
@@ -409,13 +491,29 @@ async function deleteSelectedDocument(): Promise<void> {
     return;
   }
 
+  if (workspaceRoot.value !== rootPath) {
+    return;
+  }
+
   try {
-    await deleteDocument(rootPath, entry.path, buffer?.mtimeMs);
+    // Drain first: an in-flight save after unlink would recreate the deleted file.
     if (buffer) {
-      closeDocument(rootPath, entry.path, true);
+      await awaitBufferWrites(buffer);
     }
-    selectedPath.value = null;
-    await loadDirectory(parentPath(entry.path));
+    if (workspaceRoot.value !== rootPath) {
+      return;
+    }
+    await deleteDocument(rootPath, sourcePath, buffer?.mtimeMs);
+    if (workspaceRoot.value !== rootPath) {
+      return;
+    }
+    if (buffer) {
+      closeDocument(rootPath, sourcePath, true);
+    }
+    if (selectedPath.value === sourcePath) {
+      selectedPath.value = null;
+    }
+    await loadDirectory(explorerParentPath(sourcePath));
     await refreshWorkspace({ silent: true });
   } catch (error) {
     notify(describeFilesystemError(error, "files.deleteError"));
@@ -423,21 +521,31 @@ async function deleteSelectedDocument(): Promise<void> {
 }
 
 async function runContextAction(id: string): Promise<void> {
+  const entry = contextTarget.value;
   contextMenu.value.open = false;
-  const entry = selectedEntry.value;
+  contextTarget.value = null;
+  if (!entry) {
+    return;
+  }
+
   if (id === "newDocument") {
-    await createNewDocument();
+    await createNewDocument(entry);
   } else if (id === "newDocumentFromReadme") {
-    await createNewDocumentFromReadme();
+    await createNewDocumentFromReadme(entry);
   } else if (id === "rename") {
-    await renameSelectedDocument();
+    await renameDocumentEntry(entry);
   } else if (id === "delete") {
-    await deleteSelectedDocument();
-  } else if (id === "reveal" && entry) {
+    await deleteDocumentEntry(entry);
+  } else if (id === "reveal") {
     await revealWorkspaceInExplorer(entry.path);
-  } else if (id === "copy" && entry) {
+  } else if (id === "copy") {
     await copyWorkspacePath(entry.path);
   }
+}
+
+function closeContextMenu(): void {
+  contextMenu.value.open = false;
+  contextTarget.value = null;
 }
 
 function openContextMenu(event: MouseEvent, entry: FileSystemEntry): void {
@@ -448,6 +556,7 @@ function openContextMenu(event: MouseEvent, entry: FileSystemEntry): void {
 
 function openContextMenuAt(x: number, y: number, entry: FileSystemEntry): void {
   selectedPath.value = entry.path;
+  contextTarget.value = entry;
   contextMenu.value = {
     open: true,
     x,
@@ -505,7 +614,7 @@ async function onRowKeydown(event: KeyboardEvent, row: VisibleRow): Promise<void
     if (row.entry.kind === "directory" && expandedDirectories.value.has(row.entry.path)) {
       await toggleDirectory(row.entry);
     } else {
-      const parent = parentPath(row.entry.path);
+      const parent = explorerParentPath(row.entry.path);
       if (parent) {
         focusRow(parent);
       }
@@ -521,11 +630,14 @@ async function onRowKeydown(event: KeyboardEvent, row: VisibleRow): Promise<void
 }
 
 function resetExplorer(): void {
+  explorerListSession += 1;
+  pendingDirectoryLoads.clear();
   entriesByDirectory.value = {};
   expandedDirectories.value = new Set();
   loadingDirectories.value = new Set();
   selectedPath.value = null;
   errorMessage.value = null;
+  closeContextMenu();
   if (workspaceRoot.value) {
     void loadDirectory("");
   }
@@ -543,6 +655,8 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  explorerListSession += 1;
+  pendingDirectoryLoads.clear();
   rowElements.clear();
 });
 </script>
@@ -559,7 +673,7 @@ onBeforeUnmount(() => {
           :title="t('files.newDocument')"
           :aria-label="t('files.newDocument')"
           :disabled="!workspaceRoot"
-          @click="createNewDocument"
+          @click="() => createNewDocument()"
         >
           <AppIcon name="new-document" :size="14" />
         </button>
@@ -568,7 +682,7 @@ onBeforeUnmount(() => {
           :title="t('files.newDocumentFromReadme')"
           :aria-label="t('files.newDocumentFromReadme')"
           :disabled="!workspaceRoot"
-          @click="createNewDocumentFromReadme"
+          @click="() => createNewDocumentFromReadme()"
         >
           <AppIcon name="document" :size="14" />
         </button>
@@ -636,7 +750,7 @@ onBeforeUnmount(() => {
           />
         </span>
         <AppIcon :name="row.entry.kind === 'directory' ? 'folder' : 'document'" :size="14" />
-        <span class="explorer-panel__name">{{ row.entry.name }}</span>
+        <span class="explorer-panel__name" :title="row.entry.name">{{ row.entry.name }}</span>
       </button>
     </div>
 
@@ -647,7 +761,7 @@ onBeforeUnmount(() => {
       :actions="contextActions"
       :label="contextMenuLabel"
       @select="runContextAction"
-      @close="contextMenu.open = false"
+      @close="closeContextMenu"
     />
   </section>
 </template>

@@ -47,5 +47,20 @@ describe("application quit guard", () => {
     expect(clean).toBe(true);
     expect(confirmCalls).toBe(0);
     expect(quitCalls).toBe(2);
+
+    const flushOrder: string[] = [];
+    const withFlush = await confirmAndQuit({
+      dirtyCount: 0,
+      confirmCloseEnabled: true,
+      confirm: async () => true,
+      quit: async () => {
+        flushOrder.push("flush");
+        quitCalls += 1;
+        flushOrder.push("quit");
+      },
+    });
+    expect(withFlush).toBe(true);
+    expect(flushOrder).toEqual(["flush", "quit"]);
+    expect(quitCalls).toBe(3);
   });
 });

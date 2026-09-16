@@ -4,11 +4,37 @@ import {
   appearanceDatasetFor,
   defaultSettings,
   patchSettings,
+  reloadSettings,
   resetSettingsToDefaults,
   sanitizeSettings,
+  SETTINGS_STORAGE_KEY,
   settings,
 } from "../../../../src/mainview/modules/settings/settingsStore";
 
+const memoryStorage = new Map<string, string>();
+
+function installMemoryLocalStorage(): void {
+  (globalThis as { localStorage?: Storage }).localStorage = {
+    get length() {
+      return memoryStorage.size;
+    },
+    clear() {
+      memoryStorage.clear();
+    },
+    getItem(key: string) {
+      return memoryStorage.get(key) ?? null;
+    },
+    setItem(key: string, value: string) {
+      memoryStorage.set(key, value);
+    },
+    removeItem(key: string) {
+      memoryStorage.delete(key);
+    },
+    key() {
+      return null;
+    },
+  } as Storage;
+}
 // Intent: persisted settings fail closed. Unknown concepts must not hydrate.
 describe("settings sanitize", () => {
   test("accepts current fields, rejects unsupported enums, and resets to defaults", () => {
@@ -83,6 +109,23 @@ describe("settings sanitize", () => {
       expect(settings.value).toEqual(sanitizeSettings({}));
     } finally {
       settings.value = sanitizeSettings(JSON.parse(beforeJson));
+    }
+  });
+
+  test("corrupt settings JSON heals storage to defaults on reload", () => {
+    installMemoryLocalStorage();
+    memoryStorage.clear();
+    const before = JSON.parse(JSON.stringify(settings.value)) as ReturnType<typeof defaultSettings>;
+    try {
+      memoryStorage.set(SETTINGS_STORAGE_KEY, "{not-json");
+      reloadSettings();
+      expect(settings.value).toEqual(defaultSettings());
+      expect(JSON.parse(memoryStorage.get(SETTINGS_STORAGE_KEY) ?? "null")).toEqual(
+        defaultSettings(),
+      );
+    } finally {
+      memoryStorage.clear();
+      settings.value = before;
     }
   });
 });

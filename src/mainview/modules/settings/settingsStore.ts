@@ -178,6 +178,9 @@ const DEFAULT_SETTINGS: FulvidSettings = {
 
 const STORAGE_KEY = "fulvid.settings.v1";
 
+/** Storage key for tests and recovery tooling - not a second settings authority. */
+export const SETTINGS_STORAGE_KEY = STORAGE_KEY;
+
 const VALID_THEMES = new Set<ThemePreference>(THEME_PREFERENCES);
 const VALID_LOCALES = new Set<Locale>(["en", "es"]);
 const VALID_EDITOR_FONT_FAMILIES = new Set<EditorFontFamily>(["monospace", "system", "serif"]);
@@ -414,6 +417,13 @@ function loadSettings(): FulvidSettings {
     }
     return sanitized;
   } catch {
+    // Corrupt JSON must not remain as a permanent poison pill: heal storage so
+    // the next cold start does not keep hitting the same catch path.
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
+    } catch {
+      // A read-only or full storage must not prevent the app from starting.
+    }
     return structuredClone(DEFAULT_SETTINGS);
   }
 }
@@ -431,6 +441,15 @@ export function appearanceDatasetFor(
 
 export const settings = ref<FulvidSettings>(loadSettings());
 setDocumentLinkSettings(settings.value.links);
+
+/**
+ * Re-read persisted settings into the live ref (corrupt-storage heal / tests).
+ * Does not invent a second settings owner.
+ */
+export function reloadSettings(): void {
+  settings.value = loadSettings();
+  setDocumentLinkSettings(settings.value.links);
+}
 
 /** Clone of the built-in defaults. Does not read localStorage. */
 export function defaultSettings(): FulvidSettings {

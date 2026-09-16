@@ -41,4 +41,14 @@ describe("object context menu semantics", () => {
       ),
     ).toEqual(["close", "close-others"]);
   });
+
+  test("Explorer file actions stay bound to the invoked row kind", () => {
+    // Rename/Delete are file-only; folder menus must not grow destructive IDs.
+    // ExplorerPanel freezes contextTarget at open so selection changes cannot
+    // retarget these IDs onto a different row.
+    expect(explorerFileContextActionIds()).toContain("rename");
+    expect(explorerFileContextActionIds()).toContain("delete");
+    expect(explorerFolderContextActionIds()).not.toContain("rename");
+    expect(explorerFolderContextActionIds()).not.toContain("delete");
+  });
 });

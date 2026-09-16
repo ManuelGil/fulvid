@@ -134,6 +134,25 @@ function isAbandonedBuffer(buffer: DocumentBuffer): boolean {
   return abandonedWrites.has(buffer) || !buffers.value.includes(buffer);
 }
 
+/**
+ * Wait until every write already queued for this buffer has settled.
+ *
+ * In-flight RPCs still complete against the path/content they captured when
+ * they started. Callers that rename, delete, detach, or quit must drain first
+ * so a late write cannot recreate a path the filesystem no longer owns.
+ */
+export async function awaitBufferWrites(buffer: DocumentBuffer): Promise<void> {
+  const pending = saveQueues.get(buffer);
+  if (pending) {
+    await pending;
+  }
+}
+
+/** Drain every open buffer's save queue before quit or workspace teardown. */
+export async function awaitAllBufferWrites(): Promise<void> {
+  await Promise.all(buffers.value.map((buffer) => awaitBufferWrites(buffer)));
+}
+
 export const openBuffers = computed(() => buffers.value);
 
 export const activeBuffer = computed(() => {
@@ -627,6 +646,9 @@ async function saveAsDocumentNow(
   defaultExtension: "md" | "markdown" | "mdx",
   overwrite: boolean,
 ): Promise<{ result: SaveAsResult; buffer: DocumentBuffer }> {
+  if (isAbandonedBuffer(buffer)) {
+    throw new LocalizedError(i18n.global.t("workspace.saveError"));
+  }
   const initialVersionId = buffer.model.getAlternativeVersionId();
   const saveAsOutcome = await pickAndSaveDocument(
     basename,
@@ -635,6 +657,11 @@ async function saveAsDocumentNow(
     overwrite,
   );
   if (saveAsOutcome.status !== "saved") {
+    return { result: saveAsOutcome, buffer };
+  }
+  // Dialog can outlive the tab: bytes may already be on disk, but never
+  // reidentify or rewrite a buffer the user already closed.
+  if (isAbandonedBuffer(buffer)) {
     return { result: saveAsOutcome, buffer };
   }
   let savedMtimeMs = saveAsOutcome.mtimeMs;
@@ -646,6 +673,9 @@ async function saveAsDocumentNow(
       buffer.model.getValue(),
       saveAsOutcome.mtimeMs,
     );
+    if (isAbandonedBuffer(buffer)) {
+      return { result: saveAsOutcome, buffer };
+    }
     savedMtimeMs = rewritten.mtimeMs;
     versionWritten =
       buffer.model.getAlternativeVersionId() === versionWrittenDuringRewrite
@@ -654,6 +684,9 @@ async function saveAsDocumentNow(
   }
   if (versionWritten !== null && buffer.model.getAlternativeVersionId() !== versionWritten) {
     versionWritten = null;
+  }
+  if (isAbandonedBuffer(buffer)) {
+    return { result: saveAsOutcome, buffer };
   }
   const nextBuffer = reidentifyAsPersisted(
     buffer,
@@ -673,6 +706,8 @@ export async function detachDocumentBuffer(buffer: DocumentBuffer): Promise<Docu
   if (!buffer.absolutePath || !buffer.rootPath || !buffer.path) {
     return buffer;
   }
+  // Finish folder-relative writes while rootPath/path still describe the file.
+  await awaitBufferWrites(buffer);
   let grantToken: string | null = null;
   try {
     const grant = await grantDetachedWorkspaceDocument(buffer.rootPath, buffer.path);

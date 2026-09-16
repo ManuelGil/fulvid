@@ -4,7 +4,9 @@ import { parseSearchOptions } from "../../../../src/mainview/modules/search/sear
 import {
   SEARCH_STRATEGY_IDS,
   isSearchStrategyId,
+  looksCatastrophicRegex,
   resolveSearchStrategy,
+  runSearchStrategy,
   searchQueryIssue,
 } from "../../../../src/mainview/modules/search/searchStrategies.ts";
 
@@ -23,5 +25,40 @@ describe("search strategies", () => {
     expect(parseSearchOptions({ regex: "1" }).strategy).toBe("regex");
     expect(searchQueryIssue("(unclosed", { strategy: "regex" })).toBe("invalidRegex");
     expect(searchQueryIssue("a".repeat(200), { strategy: "regex" })).toBe("tooExpensive");
+  });
+
+  test("refuses nested-quantifier regex patterns before matching", () => {
+    expect(looksCatastrophicRegex("(a+)+b")).toBe(true);
+    expect(looksCatastrophicRegex("(a*)*")).toBe(true);
+    expect(looksCatastrophicRegex("note|draft")).toBe(false);
+    expect(searchQueryIssue("(a+)+$", { strategy: "regex" })).toBe("tooExpensive");
+    expect(searchQueryIssue("heading", { strategy: "regex" })).toBe(null);
+
+    const notes = [
+      {
+        path: "big.md",
+        name: "big.md",
+        title: "Big",
+        aliases: [],
+        documentLinks: [],
+        tags: [],
+        categories: [],
+        projects: [],
+        summary: "",
+        words: 1,
+        content: `${"a".repeat(5000)}b`,
+      },
+    ];
+    const run = runSearchStrategy(
+      notes,
+      "(a+)+b",
+      { strategy: "regex" },
+      {
+        maxPerDocument: 25,
+        maxCollected: 500,
+      },
+    );
+    expect(run.issue).toBe("tooExpensive");
+    expect(run.hits).toEqual([]);
   });
 });
