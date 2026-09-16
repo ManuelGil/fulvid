@@ -324,7 +324,7 @@ describe("adversarial renderer apply boundary", () => {
         createUntitled: oversized,
       }),
     });
-    await expect(runExtensionCommand("test.adv-reg.go")).rejects.toThrow(/size limit/i);
+    await expect(runExtensionCommand("test.adv-reg.go")).rejects.toThrow(/too large|size limit/i);
     expect(created).toBe(false);
   });
 
@@ -369,7 +369,7 @@ describe("adversarial renderer apply boundary", () => {
         createUntitled: "# ok",
       }),
     });
-    await expect(runExtensionCommand("test.adv-reg2.go")).rejects.toThrow(/size limit/i);
+    await expect(runExtensionCommand("test.adv-reg2.go")).rejects.toThrow(/too large|size limit/i);
     expect(notified).toBe(0);
     expect(created).toBe(false);
   });

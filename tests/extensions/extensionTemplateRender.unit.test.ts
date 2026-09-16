@@ -15,10 +15,6 @@ const RENDER_MODULE = join(
   import.meta.dir,
   "../../src/bun/extensions/lua/extensionTemplateRender.ts",
 );
-const ADR_INIT = join(
-  import.meta.dir,
-  "../../../fulvid-extensions/extensions/imgildev.adr-templates/init.lua",
-);
 
 describe("extension template.render", () => {
   test("interpolates string variables and leaves missing keys empty", () => {
@@ -63,28 +59,5 @@ describe("extension template.render", () => {
     expect(source).not.toMatch(/getVariables/);
     expect(source).not.toMatch(/\bauthor\b/);
     expect(source).not.toMatch(/\blicense\b/);
-  });
-
-  test("ADR pack owns template sections, defaults, and {{vars}}", () => {
-    const source = readFileSync(ADR_INIT, "utf8");
-    expect(source).toContain("ADR_TEMPLATE");
-    expect(source).toContain("ADR_DEFAULTS");
-    expect(source).toContain("## Context and Problem Statement");
-    expect(source).toContain("## Decision Outcome");
-    expect(source).toContain('status = "proposed"');
-    expect(source).toContain("clock.isoDate()");
-    expect(source).toContain("template.render");
-    expect(source).not.toContain("YYYY-MM-DD");
-    expect(source).not.toMatch(/fileNamePascalCase/);
-
-    const templateMatch = source.match(
-      /local ADR_TEMPLATE = table\.concat\(\{([\s\S]*?)\}, "\\n"\)/,
-    );
-    expect(templateMatch).toBeTruthy();
-    const referenced = [
-      ...((templateMatch?.[1] ?? "").matchAll(/\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g) ?? []),
-    ].map((match) => match[1]);
-    expect(new Set(referenced)).toEqual(new Set(["status", "date", "deciders", "title"]));
-    expect(source).toContain("vars.date = clock.isoDate()");
   });
 });

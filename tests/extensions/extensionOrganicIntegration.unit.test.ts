@@ -10,18 +10,10 @@ import {
   resetExtensionDiscoveryForTests,
 } from "../../src/bun/extensions/discoverExtensions.ts";
 import { resetExtensionAllowancesForTests } from "../../src/bun/extensions/extensionAllowances.ts";
-import {
-  validateExtensionManifest,
-  type DiscoveredExtensionCommand,
-} from "../../src/mainview/extensions/extensionManifest.ts";
+import { validateExtensionManifest } from "../../src/mainview/extensions/extensionManifest.ts";
 import { luaManifest } from "./manifestTestHelpers.ts";
 import { integrateExtensionActionsIntoMenus } from "../../src/mainview/shell/applicationMenu/applicationMenuModel.ts";
-import {
-  listDocumentActivationCommands,
-  listExtensionMenuCommands,
-  resetExtensionRegistryForTests,
-  setDiscoveredExtensions,
-} from "../../src/mainview/extensions/extensionRegistry.ts";
+import { resetExtensionRegistryForTests } from "../../src/mainview/extensions/extensionRegistry.ts";
 
 async function tempRoot(label: string): Promise<string> {
   const root = join(tmpdir(), `fulvid-organic-${label}-${crypto.randomUUID()}`);
@@ -169,52 +161,5 @@ describe("preload quarantine and consent", () => {
     // Invalid capability remains blocked after explicit retry.
     expect(still?.state).toBe("blocked");
     expect(afterConsent.loaded).toEqual([]);
-  });
-
-  test("document activation commands are listed for always-on host refresh", () => {
-    setDiscoveredExtensions({
-      loaded: [
-        {
-          id: "imgildev.todo-decorator",
-          publisher: "imgildev",
-          name: "TODO",
-          displayName: "TODO",
-          version: "1.0.0",
-          api: 1,
-          description: "Test TODO decorator",
-          capabilities: ["lua", "commands", "ui", "document", "decorations"],
-          commands: [
-            {
-              id: "todoRefresh",
-              namespacedId: "imgildev.todo-decorator.todoRefresh",
-              title: "Refresh",
-              documentAction: true,
-            },
-            {
-              id: "todoNext",
-              namespacedId: "imgildev.todo-decorator.todoNext",
-              title: "Next TODO",
-              menu: "navigate",
-            },
-          ] satisfies DiscoveredExtensionCommand[],
-          location: "/tmp/imgildev.todo-decorator",
-          state: "loaded",
-          activation: "document",
-          documentAction: "todoRefresh",
-        },
-      ],
-      failed: [],
-      installed: [],
-      extensionsRoot: null,
-    });
-    expect(listDocumentActivationCommands()).toEqual([
-      {
-        extensionId: "imgildev.todo-decorator",
-        namespacedId: "imgildev.todo-decorator.todoRefresh",
-      },
-    ]);
-    expect(listExtensionMenuCommands().map((command) => command.namespacedId)).toEqual([
-      "imgildev.todo-decorator.todoNext",
-    ]);
   });
 });

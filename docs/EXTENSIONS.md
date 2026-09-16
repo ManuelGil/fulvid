@@ -7,10 +7,10 @@ Fulvid's local **Extensions** system (API v1): small packs that add commands and
 | Audience | Start here |
 | --- | --- |
 | User | What Extensions can and cannot do (below); install by copying a pack into `userData/extensions/` |
-| Extension author | **[EXTENSION-AUTHOR-CONTRACT.md](./EXTENSION-AUTHOR-CONTRACT.md)** (public Lua + lifecycle contract); DX audit [EXTENSION-AUTHOR-DX-AUDIT.md](./EXTENSION-AUTHOR-DX-AUDIT.md) |
+| Extension author | [EXTENSION-AUTHOR-CONTRACT.md](./EXTENSION-AUTHOR-CONTRACT.md) |
 | Maintainer | Ownership, budgets, footprint, and [tests as security contracts](#tests-as-security-contracts) |
 
-Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [CONCEPTS.md](./CONCEPTS.md) · [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md) · [`fulvid-extensions`](../../fulvid-extensions/) · [author contract](./EXTENSION-AUTHOR-CONTRACT.md)
+Related: [ARCHITECTURE.md](./ARCHITECTURE.md) - [CONCEPTS.md](./CONCEPTS.md) - [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md) - [`fulvid-extensions`](../../fulvid-extensions/) - [author contract](./EXTENSION-AUTHOR-CONTRACT.md)
 
 Lua is a **supported extension runtime** inside Extensions - not a second product and not a general scripting environment.
 
@@ -70,10 +70,10 @@ Sibling [`fulvid-extensions`](../../fulvid-extensions/) keeps two trees:
 
 | Tree | Contents | Role |
 | --- | --- | --- |
-| `extensions/` | `imgildev.*` | **Production catalog** — packs intended to ship/install as product features |
-| `tests/extensions/` | `acme.*` | **Reference / contract** — independent third-party-style packs that prove the public API; not user recommendations |
+| `extensions/` | `imgildev.*` | **Production catalog** - packs intended to ship/install as product features |
+| `tests/extensions/` | `acme.*` | **Reference / contract** - independent third-party-style packs that prove the public API; not user recommendations |
 
-Install either kind the same way (folder copy / Settings Install). Discovery never reads the sibling repo — only `userData/extensions/`.
+Install either kind the same way (folder copy / Settings Install). Discovery never reads the sibling repo - only `userData/extensions/`.
 
 **Install / uninstall:** Settings -> Extensions (also File -> Extensions) can install from a local folder or remove an installed pack. The host validates the candidate before an atomic copy into `userData/extensions/<id>/`, and uninstall unloads that pack, deletes only its directory, and clears its allowance. Manual folder copy still works; rediscovery (Reload inventory or restart) converges to the filesystem. There is no marketplace, archive format, or network installer.
 
@@ -188,11 +188,11 @@ Fulvid does not assign meaning to document text when applying decorations. Packs
 
 ## Live document activation
 
-Packs with `activation: "document"` and a `documentAction` are refreshed by the host when the active buffer’s Monaco model changes (and when the active document identity changes). Contract details for authors: [EXTENSION-AUTHOR-CONTRACT.md](./EXTENSION-AUTHOR-CONTRACT.md#live-document-contract). Summary:
+Packs with `activation: "document"` and a `documentAction` are refreshed by the host when the active buffer's Monaco model changes (and when the active document identity changes). Contract details for authors: [EXTENSION-AUTHOR-CONTRACT.md](./EXTENSION-AUTHOR-CONTRACT.md#live-document-contract). Summary:
 
 - debounce ~180 ms; sequential silent invokes; Lua reentrancy forbidden
 - decorations apply only if document stamps still match
-- no generic event bus — document activation is the change seam
+- no generic event bus - document activation is the change seam
 
 ## Absent by design
 
@@ -223,11 +223,11 @@ Protocol:
 
 ```text
 snapshot (text + host-only identity stamps)
-    ↓
+    |
 Lua (text only)
-    ↓
+    |
 validate stamps still current
-    ↓
+    |
 Monaco owner/seam apply
 ```
 
@@ -353,7 +353,7 @@ This is a checklist, not a removal script.
 | Empty pack tree (intentional) | `extensions/` (README only) |
 | Minimal Lua fixtures (`test.*`) | `tests/extensions/fixtures/` (notify + editor only) |
 | Official product packs | sibling `fulvid-extensions/extensions/` (`imgildev.*`) |
-| Reference / contract packs | sibling `fulvid-extensions/tests/extensions/` (`acme.*`) — not the production catalog |
+| Reference / contract packs | sibling `fulvid-extensions/tests/extensions/` (`acme.*`) - not the production catalog |
 | Packaged glue | `electrobun.config.ts` -> `bun/glue.wasm` |
 | Packaged smoke | `scripts/luaPackagedSmoke.ts` (`bun run smoke:lua-packaged`) |
 | Docs | this file; cross-links in ARCHITECTURE, INVARIANTS, CONCEPTS, SECURITY-AND-RESILIENCE, compatibility |

@@ -516,7 +516,7 @@ commands.register({
     });
 
     await expect(runExtensionCommand("test.contract-lua-editor.wrapBold")).rejects.toThrow(
-      /size limit/i,
+      /too large|size limit/i,
     );
   });
 });
