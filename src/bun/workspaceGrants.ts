@@ -6,11 +6,18 @@
  * recent folder does not require trusting a path the renderer supplies: the
  * renderer may ask to reopen a folder, but it cannot invent one.
  *
+ * These are persisted **folder approvals**, not session **document grants**.
+ * Document grants (UUID token -> one absolute path) live in `workspaceAuthority`.
+ *
  * Intent only - which folders were approved, not what they contain. The host
  * entry point supplies the storage directory so this module stays free of the
  * Electrobun runtime and can be exercised directly.
+ *
+ * Reads always come from disk (no long-lived in-memory list). A stale cache
+ * previously let a later approve() overwrite peer approvals written by another
+ * run, leaving renderer "recent folders" pointing at paths reopen then refused.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /** Approvals retained across sessions, newest first. */
@@ -18,12 +25,10 @@ const MAX_APPROVED_ROOTS = 32;
 const MAX_PATH_LENGTH = 4096;
 
 let storageDirectory: string | null = null;
-let cachedRoots: string[] | null = null;
 
 /** Point approvals at the host's user-data directory. Called once at startup. */
 export function configureWorkspaceApprovals(directory: string): void {
   storageDirectory = directory;
-  cachedRoots = null;
 }
 
 function approvalsPath(): string | null {
@@ -64,33 +69,36 @@ function sanitize(value: unknown): string[] {
 }
 
 function loadApprovedRoots(): string[] {
-  if (cachedRoots) {
-    return cachedRoots;
-  }
   const path = approvalsPath();
   if (!path) {
-    cachedRoots = [];
-    return cachedRoots;
+    return [];
   }
   try {
-    cachedRoots = sanitize(JSON.parse(readFileSync(path, "utf8")));
+    return sanitize(JSON.parse(readFileSync(path, "utf8")));
   } catch {
     // Missing, unreadable or corrupt: start from no approvals rather than
     // failing startup. The person re-picks the folder once.
-    cachedRoots = [];
+    return [];
   }
-  return cachedRoots;
 }
 
 function persist(roots: string[]): void {
-  cachedRoots = roots;
   const path = approvalsPath();
   if (!path) {
     return;
   }
+  const temporaryPath = `${path}.${process.pid}.tmp`;
   try {
-    writeFileSync(path, JSON.stringify(roots));
+    // Atomic replace so a concurrent reader never sees a truncated file and
+    // treats approvals as empty on the next approve merge.
+    writeFileSync(temporaryPath, JSON.stringify(roots));
+    renameSync(temporaryPath, path);
   } catch (error) {
+    try {
+      unlinkSync(temporaryPath);
+    } catch {
+      // Best-effort cleanup of a leftover temp file.
+    }
     // An unwritable user-data directory must not block the folder itself; the
     // approval simply does not survive this session.
     console.warn("Could not persist folder approvals:", error);
@@ -101,7 +109,8 @@ function persist(roots: string[]): void {
  * Record a folder the person selected in a native dialog.
  *
  * `canonicalPath` must already be `canonicalRoot()` output. This store compares
- * strings; it does not canonicalize on read.
+ * strings; it does not canonicalize on read. Each approve re-reads disk so a
+ * peer approval written since process start is kept.
  */
 export function approveWorkspaceRoot(canonicalPath: string): void {
   const existing = loadApprovedRoots().filter((root) => root !== canonicalPath);
@@ -116,5 +125,4 @@ export function isApprovedWorkspaceRoot(canonicalPath: string): boolean {
 /** Test seam: forget approvals and any configured storage. */
 export function resetWorkspaceApprovals(): void {
   storageDirectory = null;
-  cachedRoots = null;
 }

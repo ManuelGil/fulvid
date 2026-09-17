@@ -186,26 +186,6 @@ export const quickActions: readonly QuickActionDefinition[] = [
     overflowOrder: 60,
   },
   {
-    id: "newDocumentFromReadme",
-    label: "actions.newDocumentFromReadme",
-    icon: "document",
-    group: "file",
-    subgroup: "document",
-    order: 15,
-    tier: "secondary",
-    overflowOrder: 75,
-  },
-  {
-    id: "newDocumentFromSelection",
-    label: "actions.newDocumentFromSelection",
-    icon: "document",
-    group: "file",
-    subgroup: "document",
-    order: 16,
-    tier: "secondary",
-    overflowOrder: 76,
-  },
-  {
     id: "openFile",
     label: "actions.openFile",
     shortcut: "Ctrl/Cmd+O",
@@ -392,13 +372,13 @@ export const quickActions: readonly QuickActionDefinition[] = [
   },
   {
     id: "toggleWritingFocus",
-    label: "actions.focusMode",
+    label: "actions.writingFocus",
     shortcut: "Ctrl/Cmd+Shift+Enter",
     icon: "focus",
     group: "fulvid",
     subgroup: "mode",
     order: 10,
-    // Application presentation mode; shortcut + More remain (Focus keeps .quick-actions).
+    // Application presentation mode; shortcut + More remain (Writing Focus keeps .quick-actions).
     tier: "secondary",
     overflowOrder: 40,
   },

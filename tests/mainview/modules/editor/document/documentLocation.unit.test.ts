@@ -24,7 +24,7 @@ function buffer(
 
 // Intent: one pure projection for document chrome - paths, tabs, window title.
 describe("document location", () => {
-  test("projects relative paths without inventing a folder, and titles follow the destination", () => {
+  test("projects paths and disambiguates tabs without inventing a folder", () => {
     expect(
       documentLocationFromBuffer(
         buffer({
@@ -76,9 +76,7 @@ describe("document location", () => {
       "Fulvid - docs/index.md",
     );
     expect(windowTitleForDocumentLocation("Fulvid", location, "hidden")).toBe("Fulvid");
-  });
 
-  test("tabs add path segments only until collisions resolve", () => {
     const notes = buffer({ id: "2", title: "index.md", rootPath: "/w", path: "notes/index.md" });
     const docs = buffer({ id: "3", title: "index.md", rootPath: "/w", path: "docs/index.md" });
     expect(tabLabelsForBuffers([notes, docs]).get("2")).toBe("notes/index.md");

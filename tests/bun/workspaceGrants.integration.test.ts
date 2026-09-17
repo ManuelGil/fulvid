@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -9,6 +9,12 @@ import {
   isApprovedWorkspaceRoot,
   resetWorkspaceApprovals,
 } from "../../src/bun/workspaceGrants";
+import {
+  authorizeChosenWorkspaceRoot,
+  reauthorizeWorkspaceRoot,
+  resetWorkspaceAuthority,
+} from "../../src/bun/filesystem/security/workspaceAuthority";
+import { filesystemErrorMessage } from "../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
 
 const directories: string[] = [];
 
@@ -22,25 +28,22 @@ async function useStore(): Promise<string> {
 
 afterEach(async () => {
   resetWorkspaceApprovals();
+  resetWorkspaceAuthority();
   await Promise.all(
     directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
   );
 });
 
-// Intent: ensure persisted folder approval is durable and fail-closed on corruption.
-// Growth boundary: add cases only for storage-schema or trust-policy changes.
+// Intent: persisted folder approval is durable and fail-closed on corruption.
 describe("folder approvals", () => {
-  test("an approval survives into the next session", async () => {
+  test("an approval survives into the next session; a corrupt store grants nothing", async () => {
     const directory = await useStore();
     approveWorkspaceRoot("/home/me/notes");
-
     resetWorkspaceApprovals();
     configureWorkspaceApprovals(directory);
     expect(isApprovedWorkspaceRoot("/home/me/notes")).toBe(true);
     expect(isApprovedWorkspaceRoot("/home/me/other")).toBe(false);
-  });
 
-  test("a corrupt store grants nothing and still starts", async () => {
     for (const corrupt of [
       "not json at all",
       '{"roots":["/home/me/notes"]}',
@@ -48,13 +51,49 @@ describe("folder approvals", () => {
       '"/home/me/notes"',
       "[]",
     ]) {
-      const directory = await mkdtemp(join(tmpdir(), "fulvid-approvals-bad-"));
-      directories.push(directory);
-      await writeFile(join(directory, "approved-folders.json"), corrupt);
+      const bad = await mkdtemp(join(tmpdir(), "fulvid-approvals-bad-"));
+      directories.push(bad);
+      await writeFile(join(bad, "approved-folders.json"), corrupt);
       resetWorkspaceApprovals();
-      configureWorkspaceApprovals(directory);
-
+      configureWorkspaceApprovals(bad);
       expect(isApprovedWorkspaceRoot("/home/me/notes")).toBe(false);
     }
+  });
+
+  test("approving another folder keeps peers already on disk (no stale empty merge)", async () => {
+    const directory = await useStore();
+    approveWorkspaceRoot("/home/me/first");
+    // Simulate a peer writer updating the file after this process first read it.
+    await writeFile(
+      join(directory, "approved-folders.json"),
+      JSON.stringify(["/home/me/first", "/home/me/peer"]),
+    );
+    approveWorkspaceRoot("/home/me/second");
+    expect(isApprovedWorkspaceRoot("/home/me/first")).toBe(true);
+    expect(isApprovedWorkspaceRoot("/home/me/peer")).toBe(true);
+    expect(isApprovedWorkspaceRoot("/home/me/second")).toBe(true);
+    const stored = JSON.parse(await readFile(join(directory, "approved-folders.json"), "utf8"));
+    expect(stored[0]).toBe("/home/me/second");
+  });
+
+  test("dialog approval then session reset still allows Reopen via reauthorize", async () => {
+    const base = await mkdtemp(join(tmpdir(), "fulvid-reopen-"));
+    directories.push(base);
+    const folder = join(base, "docs");
+    await mkdir(folder);
+    await writeFile(join(folder, "note.md"), "hi\n");
+    resetWorkspaceAuthority();
+    resetWorkspaceApprovals();
+    configureWorkspaceApprovals(join(base, "userdata"));
+
+    const authorized = await authorizeChosenWorkspaceRoot(folder);
+    resetWorkspaceAuthority();
+    await expect(reauthorizeWorkspaceRoot(authorized)).resolves.toBe(authorized);
+
+    const stranger = join(base, "other");
+    await mkdir(stranger);
+    await expect(reauthorizeWorkspaceRoot(stranger)).rejects.toThrow(
+      filesystemErrorMessage("folderNotOpen"),
+    );
   });
 });

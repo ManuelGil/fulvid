@@ -105,6 +105,13 @@ export type FilesystemRPC = {
         };
         response: DocumentWriteResult;
       };
+      createDirectory: {
+        params: {
+          rootPath: string;
+          relativePath: string;
+        };
+        response: { path: string };
+      };
       renameDocument: {
         params: {
           rootPath: string;

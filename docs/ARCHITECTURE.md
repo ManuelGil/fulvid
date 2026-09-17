@@ -46,7 +46,7 @@ Graph consumes Focus. It does not follow the editor tab. It does not decide Focu
 
 The Filesystem owner handles read, write, create, rename, and delete. The renderer reaches disk only through that RPC.
 
-Folder targets are `rootPath` + `relativePath`, checked by `assertWithinWorkspace`, written with temp+rename, with mtime conflict detection before the replace. Open File and Save As are main-process dialogs. There is no generic absolute-path RPC. A grant issued at dialog time is required for later standalone saves.
+Folder targets are `rootPath` + `relativePath`, checked first by lexical `assertWithinWorkspace` and then by `assertCanonicallyContained` (symlink/realpath), written with temp+rename, with mtime conflict detection before the replace. Open File and Save As are main-process dialogs. There is no generic absolute-path RPC. A grant issued at dialog time is required for later standalone saves.
 
 HTML Export is a separate dialog that writes `.html` only, using the Preview renderer. Containment and grants: [INVARIANTS.md](./INVARIANTS.md).
 
@@ -96,7 +96,7 @@ Path: `extension -> declared capability / command -> existing owner -> existing 
 
 | Category | Surfaces / rules |
 | --- | --- |
-| **Current** | Discovery loads `userData/extensions` at startup (**Extension API v1**). Invalid packs fail in isolation. Packs are not shipped inside Fulvid; install from sibling [`fulvid-extensions`](../../fulvid-extensions/) or any local folder. **Lua:** supported runtime via wasmoon (embedded PUC Lua 5.4.5 / Wasm) with `commands.register` / `ui.notify` / `editor` / `document` / `decorations` under `LUA_EXTENSION_LIMITS`. Snapshot + host-only identity stamps -> Lua text-only -> reject-stale apply through Monaco. Capability isolation ≠ OS sandbox. Full contract: [`EXTENSIONS.md`](./EXTENSIONS.md). |
+| **Current** | Discovery loads `userData/extensions` at startup (**Extension API v1**). Invalid packs fail in isolation. Packs are not shipped inside Fulvid; install from sibling [`fulvid-extensions`](../../fulvid-extensions/) or any local folder. **Lua:** supported runtime via wasmoon (embedded PUC Lua 5.4.5 / Wasm) with `commands.register` / `ui.notify` / `editor` / `document` / `decorations` under `LUA_EXTENSION_LIMITS`. Snapshot + host-only identity stamps -> Lua text-only -> reject-stale apply through Monaco. Capability isolation is not an OS sandbox. Full contract: [`EXTENSIONS.md`](./EXTENSIONS.md). |
 | **Additional capabilities** | Only via an explicit security/design decision - not a routine API widening |
 | **Core-controlled** | Focus, dirty state, document selection, Writing Focus policy, grants, filesystem, Graph, Preview inertness, native Full Screen, right-rail panel set, Statusbar indicators, tabs chrome |
 | **Forbidden** | Monaco internals, filesystem/grants/containment, BrowserWindow / native window APIs, parallel IPC channels, process, network, Vue internals, arbitrary DOM/HTML/SVG injection, MDX execution, extension-owned dirty/selection state, generic `host.call` bridges, bytecode entry, undeclared executable surfaces |

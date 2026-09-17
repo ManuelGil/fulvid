@@ -21,14 +21,14 @@ export type EditorMutationRequest = {
   replaceSelection?: string;
 };
 
-export function assertEditorSelectionWithinLimit(selection: string): string | null {
+export function editorSelectionLimitError(selection: string): string | null {
   if (selection.length > EDITOR_EXTENSION_LIMITS.maxSelectionChars.value) {
     return "editor selection exceeds size limit";
   }
   return null;
 }
 
-export function assertEditorReplaceWithinLimit(text: unknown): string | null {
+export function editorReplaceLimitError(text: unknown): string | null {
   if (typeof text !== "string") {
     return "editor.replaceSelection requires a string";
   }

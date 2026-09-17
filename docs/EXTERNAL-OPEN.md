@@ -22,21 +22,21 @@ the checks it already had.
 
 ```text
 external source
-      │
-      ▼
+      |
+      v
 ExternalOpenRequest        { kind, path, source }
-      │
-      ▼
+      |
+      v
 parseExternalOpenRequest   shape only, no I/O
-      │
-      ▼
+      |
+      v
 takePendingExternalOpens   resolves through existing host authority
-      │                    file   -> readSelectedDocument + grantDocument
-      │                    folder -> authorizeChosenWorkspaceRoot
-      ▼
+      |                    file   -> readSelectedDocument + grantDocument
+      |                    folder -> authorizeChosenWorkspaceRoot
+      v
 ResolvedExternalOpen       a grant snapshot, an authorized root, or a refusal
-      │
-      ▼
+      |
+      v
 applyPendingExternalOpens  file   -> openOrActivate  (-> selectDocument -> Focus)
                            folder -> selectRecentWorkspace (-> scan -> load)
 ```

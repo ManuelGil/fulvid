@@ -14,7 +14,7 @@ import {
 // Intent: object menus expose only filesystem/product-grounded actions.
 // Folder menus must not reintroduce Context-root operations.
 describe("object context menu semantics", () => {
-  test("Explorer menus are filesystem operations named by entry kind", () => {
+  test("Explorer and tab menus stay filesystem-grounded", () => {
     expect(explorerContextMenuLabelKey("file")).toBe("files.documentActions");
     expect(explorerContextMenuLabelKey("directory")).toBe("files.folderActions");
     expect(explorerPathActionLabelKeys.copy).toBe("menu.copyPath");
@@ -22,14 +22,19 @@ describe("object context menu semantics", () => {
 
     const fileActions = [...explorerFileContextActionIds()];
     const folderActions = [...explorerFolderContextActionIds()];
-    expect(fileActions).toEqual(["rename", "reveal", "copy", "delete"]);
+    expect(fileActions).toEqual(["rename", "move", "reveal", "copy", "delete"]);
     expect(folderActions).toEqual(["reveal", "copy"]);
+    // Rename/Delete/Move stay file-only; folder menus must not grow destructive IDs.
+    expect(fileActions).toContain("rename");
+    expect(fileActions).toContain("move");
+    expect(fileActions).toContain("delete");
+    expect(folderActions).not.toContain("rename");
+    expect(folderActions).not.toContain("move");
+    expect(folderActions).not.toContain("delete");
     // Removed product concept: Context root must not return via menu actions.
     expect(fileActions.some((id) => id.toLowerCase().includes("context"))).toBe(false);
     expect(folderActions.some((id) => id.toLowerCase().includes("context"))).toBe(false);
-  });
 
-  test("Close others is omitted unless at least two tabs are open", () => {
     expect(canCloseOtherEditorTabs(1)).toBe(false);
     expect(canCloseOtherEditorTabs(2)).toBe(true);
     expect(

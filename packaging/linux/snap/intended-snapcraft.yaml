@@ -16,7 +16,7 @@
 
 name: fulvid
 base: core24
-version: "0.9.0"
+version: "0.10.0"
 summary: A standalone desktop editor for Markdown and MDX
 description: |
   Fulvid is a standalone desktop editor for Markdown and MDX.

@@ -76,7 +76,7 @@ If the pack is **blocked** (manifest/path invalid) or **failed** (Lua/load error
 
 - `lua` requires `commands` + `ui` + `entry`.
 - Other caps require `lua`.
-- Missing capability ⇒ that API global is **nil** in Lua (e.g. calling `document.getText` without `document` fails with an attempt to index nil).
+- Missing capability means that API global is **nil** in Lua (e.g. calling `document.getText` without `document` fails with an attempt to index nil).
 
 ### Menu targets (closed)
 
@@ -105,14 +105,14 @@ Guest has no `os` / `io` / `require` / `load` / `host.call`.
 
 | API | When | Notes |
 | --- | --- | --- |
-| `commands.register({ id, title, run })` | load only | Id `/^[a-z][a-zA-Z0-9]*$/`; ≤16 commands |
+| `commands.register({ id, title, run })` | load only | Id `/^[a-z][a-zA-Z0-9]*$/`; at most 16 commands |
 | `clock.isoDate()` | load + invoke | UTC `YYYY-MM-DD` only - not a date framework |
 
 ### `ui`
 
 | API | Notes |
 | --- | --- |
-| `ui.notify(message)` | invoke only; ≤500 chars; ≤16/invoke; suppressed when host uses silent document activation |
+| `ui.notify(message)` | invoke only; at most 500 chars; at most 16 per invoke; suppressed when host uses silent document activation |
 
 ### `editor` (editing boundary)
 
@@ -128,7 +128,7 @@ Possible today: insert at cursor, replace/transform selection, seed a new buffer
 
 | API | Notes |
 | --- | --- |
-| `document.getText()` | full buffer snapshot (≤512 KiB) |
+| `document.getText()` | full buffer snapshot (at most 512 KiB) |
 | `document.getCursor()` | `{ line, column }` 1-based |
 | `document.reveal(line, column)` | scroll/focus |
 | `document.createUntitled(markdown)` | new untitled tab after return |
@@ -137,7 +137,7 @@ Possible today: insert at cursor, replace/transform selection, seed a new buffer
 
 | API | Notes |
 | --- | --- |
-| `decorations.set(ranges)` | ≤500 ranges; each needs **exactly one** of `style` or `appearance` |
+| `decorations.set(ranges)` | at most 500 ranges; each needs **exactly one** of `style` or `appearance` |
 | `decorations.clear()` | clear this pack's decorations |
 
 `style`: `"info"` \| `"warn"` \| `"error"` (host chips).  
@@ -156,7 +156,7 @@ Ownership: each pack's decorations are cleared/replaced by that pack only. Stale
 For `activation: "document"`:
 
 1. Host watches the active Monaco model (`contentChange`) and active buffer identity.
-2. Debounce ≈ **180 ms**; newer changes cancel in-flight work.
+2. Debounce about **180 ms**; newer changes cancel in-flight work.
 3. Host runs each pack's `documentAction` **sequentially** with `{ silent: true }` (no toasts).
 4. Snapshot includes host-only stamps (`documentId`, `alternativeVersionId`). Lua never sees stamps.
 5. `decorations.set` / `clear` apply only if stamps still match; otherwise fail closed - next change retries.

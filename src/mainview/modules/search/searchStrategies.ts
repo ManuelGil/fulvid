@@ -6,8 +6,8 @@
  * Find References. Reuses folder-scan `ScannedNote.content` (plus open
  * buffer overlays from the Search page). No second filesystem scan.
  *
- * Legacy URL `regex=1` still maps to the regex strategy. Unknown `mode`
- * values fall back to literal.
+ * `regex=1` maps to the regex strategy. Unknown `mode` values fall back to
+ * literal.
  */
 import type { ScannedNote } from "../workspace/filesystem/workspaceTypes";
 
@@ -39,7 +39,7 @@ export type SearchQueryOptions = {
   strategy?: SearchStrategyId;
   caseSensitive?: boolean;
   wholeWord?: boolean;
-  /** Legacy checkbox flag; treated as strategy "regex". */
+  /** When true without `strategy`, treated as strategy "regex". */
   regex?: boolean;
 };
 
@@ -62,6 +62,8 @@ export const SEARCH_STRATEGY_IDS = [
 
 const MAX_REGEX_LENGTH = 120;
 const MAX_STRATEGY_STEPS = 40_000;
+/** Wall-clock budget for one Search run (regex `exec` can hang beyond step counts). */
+const MAX_SEARCH_WALL_MS = 75;
 
 export type SearchStrategyLimits = {
   maxPerDocument: number;
@@ -74,15 +76,28 @@ type Finder = (text: string, from: number) => { index: number; length: number } 
 
 type Budget = {
   remaining: number;
+  deadlineMs: number;
 };
 
 function createBudget(): Budget {
-  return { remaining: MAX_STRATEGY_STEPS };
+  return { remaining: MAX_STRATEGY_STEPS, deadlineMs: Date.now() + MAX_SEARCH_WALL_MS };
 }
 
 function spend(budget: Budget, cost = 1): boolean {
+  if (Date.now() > budget.deadlineMs) {
+    budget.remaining = 0;
+    return false;
+  }
   budget.remaining -= cost;
   return budget.remaining > 0;
+}
+
+/**
+ * Heuristic refuse for nested quantifiers that commonly cause ReDoS.
+ * Not a complete regex complexity analysis - paired with the wall-clock budget.
+ */
+export function looksCatastrophicRegex(source: string): boolean {
+  return /\([^)]*[+*{][^)]*\)[+*{]/.test(source) || /[+*][+*]/.test(source);
 }
 
 export function isSearchStrategyId(value: unknown): value is SearchStrategyId {
@@ -125,6 +140,9 @@ export function searchQueryIssue(
     return null;
   }
   if (needle.length > MAX_REGEX_LENGTH) {
+    return "tooExpensive";
+  }
+  if (looksCatastrophicRegex(needle)) {
     return "tooExpensive";
   }
   try {

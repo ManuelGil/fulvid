@@ -12,7 +12,7 @@ export function usesNativeApplicationMenu(): boolean {
   return applicationMenuSupport.value?.native === true;
 }
 
-/** HTML menubar is a compatibility fallback, never a native Application Menu. */
+/** HTML menubar when the host reports no native Application Menu. */
 export function usesHtmlApplicationMenuFallback(): boolean {
   return applicationMenuSupport.value?.native === false;
 }

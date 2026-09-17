@@ -50,6 +50,13 @@ export async function authorizeChosenWorkspaceRoot(path: string): Promise<string
   await assertDirectory(rootPath);
   authorizedWorkspaceRoots.add(rootPath);
   approveWorkspaceRoot(rootPath);
+  // Session auth still works if disk persist failed; cross-restart Reopen needs
+  // the approval file. Surface that without failing the open the person just did.
+  if (!isApprovedWorkspaceRoot(rootPath)) {
+    console.warn(
+      "Fulvid could not persist folder approval; Reopen after restart will require Open folder...",
+    );
+  }
   return rootPath;
 }
 
@@ -149,8 +156,11 @@ export function grantedPath(grantToken: string): string {
  * people and travel as they are. Anything else - a raw `ENOENT` carrying an
  * absolute path, a stack from a dependency - becomes a stable message, so the
  * UI never renders host internals. The original stays in the host log.
+ *
+ * Name is deliberate: this wraps RPC errors. It is not filesystem path
+ * containment (`containedPath` / `assertCanonicallyContained`).
  */
-export function contained<Params, Result>(
+export function containHostError<Params, Result>(
   operation: string,
   handler: (params: Params) => Promise<Result>,
 ): (params: Params) => Promise<Result> {

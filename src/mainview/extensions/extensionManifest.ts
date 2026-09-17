@@ -56,7 +56,6 @@ export const EXTENSION_PACK_LIMITS = {
   maxManifestBytes: 64 * 1024,
   /**
    * Maximum UTF-16 code units for `document.createUntitled` bodies.
-   * Name retained for compatibility with existing limit wiring.
    */
   maxTemplateBytes: 256 * 1024,
   /** Maximum UTF-16 code units for notify messages. */
@@ -104,7 +103,7 @@ const FORBIDDEN_MANIFEST_KEYS = new Set([
   "templates",
 ]);
 
-/** Publisher slug: `imgildev`, `acme`, `fulvid`, `test`. Not `local` (legacy). */
+/** Publisher slug: `imgildev`, `acme`, `fulvid`, `test`. Not `local` (reserved). */
 const PUBLISHER_PATTERN = /^[a-z][a-z0-9-]*$/;
 const RESERVED_PUBLISHERS = new Set(["local"]);
 /** Machine package name within a publisher: `todo-decorator`. */
@@ -682,25 +681,4 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
   }
 
   return { manifest };
-}
-
-/**
- * One-time rewrite of pre-`publisher.name` identities persisted in allowances.
- * Unknown legacy ids are dropped (they fail the new validator anyway).
- */
-export const LEGACY_EXTENSION_ID_MIGRATION: Readonly<Record<string, string>> = {
-  "local.todo-decorator": "imgildev.todo-decorator",
-  "local.mdx-comments": "imgildev.mdx-comments",
-  "local.adr-templates": "imgildev.adr-templates",
-  "local.blank-note": "fulvid.blank-note",
-  "local.host-notify": "fulvid.host-notify",
-  "local.sort-lines": "fulvid.sort-lines",
-};
-
-export function migrateLegacyExtensionId(id: string): string | null {
-  if (isValidExtensionId(id)) {
-    return id;
-  }
-  const mapped = LEGACY_EXTENSION_ID_MIGRATION[id];
-  return mapped && isValidExtensionId(mapped) ? mapped : null;
 }

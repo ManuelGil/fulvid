@@ -4,16 +4,40 @@ import {
   appearanceDatasetFor,
   defaultSettings,
   patchSettings,
+  reloadSettings,
   resetSettingsToDefaults,
   sanitizeSettings,
+  SETTINGS_STORAGE_KEY,
   settings,
 } from "../../../../src/mainview/modules/settings/settingsStore";
 
-// Intent: persisted settings stay backward-compatible and fail-closed.
-// Unknown product concepts (Context root, templates) must not hydrate.
-// First-run appearance follows the OS (theme = system); explicit light/dark win.
-describe("settings migration", () => {
-  test("keeps valid fields, migrates legacy values, and rejects unsupported enums", () => {
+const memoryStorage = new Map<string, string>();
+
+function installMemoryLocalStorage(): void {
+  (globalThis as { localStorage?: Storage }).localStorage = {
+    get length() {
+      return memoryStorage.size;
+    },
+    clear() {
+      memoryStorage.clear();
+    },
+    getItem(key: string) {
+      return memoryStorage.get(key) ?? null;
+    },
+    setItem(key: string, value: string) {
+      memoryStorage.set(key, value);
+    },
+    removeItem(key: string) {
+      memoryStorage.delete(key);
+    },
+    key() {
+      return null;
+    },
+  } as Storage;
+}
+// Intent: persisted settings fail closed. Unknown concepts must not hydrate.
+describe("settings sanitize", () => {
+  test("accepts current fields, rejects unsupported enums, and resets to defaults", () => {
     expect(defaultSettings().appearance.theme).toBe("system");
     expect(sanitizeSettings({}).appearance.theme).toBe("system");
 
@@ -29,9 +53,9 @@ describe("settings migration", () => {
         tabSize: 3,
         defaultEol: "native",
       },
+      // Unknown / retired shapes must not become live settings.
       workspace: { reopenLast: true },
       links: { syntaxes: ["wikilink"], resolution: "guess" },
-      // Removed concepts must not reappear as live settings shape.
       templates: { meeting: true },
       contextRoot: "/notes",
       contextRoots: ["/notes"],
@@ -42,8 +66,9 @@ describe("settings migration", () => {
     expect(next.appearance.theme).toBe("system");
     expect(next.editor.fontSize).toBe(14);
     expect(next.editor.defaultEol).toBe("lf");
-    expect(next.workspace.workspaceStartup).toBe("last");
-    expect(next.links.linkMode).toBe("wikilink");
+    // Unknown workspace/link keys are ignored; current defaults apply.
+    expect(next.workspace.workspaceStartup).toBe("none");
+    expect(next.links.linkMode).toBe("markdown");
     expect(next.links.resolution).toBe("both");
     expect(next).not.toHaveProperty("templates");
     expect(next).not.toHaveProperty("contextRoot");
@@ -54,13 +79,21 @@ describe("settings migration", () => {
     );
     expect(sanitizeSettings({ appearance: { theme: "light" } }).appearance.theme).toBe("light");
     expect(sanitizeSettings({ appearance: { theme: "dark" } }).appearance.theme).toBe("dark");
+    expect(
+      sanitizeSettings({
+        workspace: { workspaceStartup: "last" },
+        links: { linkMode: "wikilink" },
+      }).workspace.workspaceStartup,
+    ).toBe("last");
+    expect(
+      sanitizeSettings({
+        workspace: { workspaceStartup: "last" },
+        links: { linkMode: "wikilink" },
+      }).links.linkMode,
+    ).toBe("wikilink");
     expect(appearanceDatasetFor(defaultSettings().appearance).theme).toBe("system");
     expect(sanitizeSettings({ editor: { defaultEol: "crlf" } }).editor.defaultEol).toBe("crlf");
-  });
-});
 
-describe("settings reset", () => {
-  test("restores every persisted field to the built-in defaults", () => {
     const beforeJson = JSON.stringify(settings.value);
     try {
       patchSettings({
@@ -76,6 +109,23 @@ describe("settings reset", () => {
       expect(settings.value).toEqual(sanitizeSettings({}));
     } finally {
       settings.value = sanitizeSettings(JSON.parse(beforeJson));
+    }
+  });
+
+  test("corrupt settings JSON heals storage to defaults on reload", () => {
+    installMemoryLocalStorage();
+    memoryStorage.clear();
+    const before = JSON.parse(JSON.stringify(settings.value)) as ReturnType<typeof defaultSettings>;
+    try {
+      memoryStorage.set(SETTINGS_STORAGE_KEY, "{not-json");
+      reloadSettings();
+      expect(settings.value).toEqual(defaultSettings());
+      expect(JSON.parse(memoryStorage.get(SETTINGS_STORAGE_KEY) ?? "null")).toEqual(
+        defaultSettings(),
+      );
+    } finally {
+      memoryStorage.clear();
+      settings.value = before;
     }
   });
 });

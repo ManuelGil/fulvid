@@ -182,25 +182,6 @@ export function monacoDecorationOptionsForRange(range: ExtensionDecorationRange)
   };
 }
 
-/** @deprecated Prefer monacoDecorationOptionsForRange. */
-export function monacoDecorationOptionsForExtensionStyle(style: ExtensionDecorationStyle): {
-  inlineClassName: string;
-  glyphMarginClassName: string;
-  overviewRulerColor: string;
-} {
-  return monacoDecorationOptionsForRange({
-    startLine: 1,
-    startColumn: 1,
-    endLine: 1,
-    endColumn: 1,
-    style,
-  }) as {
-    inlineClassName: string;
-    glyphMarginClassName: string;
-    overviewRulerColor: string;
-  };
-}
-
 const EXTENSION_DECORATION_STYLE_ELEMENT_ID = "fulvid-extension-decoration-styles";
 const EXTENSION_APPEARANCE_STYLE_ELEMENT_ID = "fulvid-extension-appearance-styles";
 const injectedAppearanceKeys = new Set<string>();

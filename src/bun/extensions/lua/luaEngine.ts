@@ -14,20 +14,6 @@ const requireWasmoonAsset = createRequire(import.meta.url);
 
 let sharedFactory: LuaFactory | null = null;
 
-/** Globals removed after standard libs open - no filesystem/process/module loading. */
-export const LUA_GUEST_REMOVED_GLOBALS = [
-  "io",
-  "os",
-  "package",
-  "debug",
-  "dofile",
-  "loadfile",
-  "load",
-  "loadstring",
-  "require",
-  "string.dump",
-] as const;
-
 /**
  * Strip io/os/package/load/require and string.dump after standard libs open.
  */

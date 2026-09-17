@@ -53,47 +53,35 @@ async function resolveOne(request: unknown) {
   return resolved;
 }
 
-// Intent: an external open earns exactly the access a dialog would, no more -
-// one file grants one file, a folder grants that folder, and a kind that
-// disagrees with disk is refused.
-// Growth boundary: add cases only for a new request kind or a new source.
+// Intent: an external open earns exactly the access a dialog would - one file
+// grants one file, a folder grants that folder, mismatches refuse, links land
+// on the realpath, and argv only classifies.
 describe("resolving an external open", () => {
-  test("a file grants that document and nothing around it", async () => {
-    const resolved = await resolveOne({
+  test("file grants that document only; folder authorizes the root; mismatches refuse", async () => {
+    const file = await resolveOne({
       kind: "file",
       path: join(outside, "secret.md"),
       source: "os-context-menu",
     });
-
-    expect(resolved.kind).toBe("file");
-    if (resolved.kind !== "file") return;
-    expect(resolved.snapshot.content).toBe("SECRET\n");
-    expect(resolved.snapshot.grantToken).toMatch(/^[0-9a-f-]{36}$/i);
-
-    // Opening a document must not turn its folder into an authorized root,
-    // now or on a later reopen.
+    expect(file.kind).toBe("file");
+    if (file.kind !== "file") return;
+    expect(file.snapshot.content).toBe("SECRET\n");
+    expect(file.snapshot.grantToken).toMatch(/^[0-9a-f-]{36}$/i);
     await expect(authorizedWorkspaceRoot(outside)).rejects.toThrow(
       filesystemErrorMessage("folderNotOpen"),
     );
     await expect(reauthorizeWorkspaceRoot(outside)).rejects.toThrow(
       filesystemErrorMessage("folderNotOpen"),
     );
-  });
 
-  test("a folder becomes an authorized root, exactly as the dialog makes one", async () => {
-    const resolved = await resolveOne({ kind: "folder", path: folder, source: "shell" });
-
-    expect(resolved.kind).toBe("folder");
-    if (resolved.kind !== "folder") return;
-    await expect(authorizedWorkspaceRoot(resolved.rootPath)).resolves.toBe(resolved.rootPath);
-
-    // A sibling folder gains nothing from it.
+    const opened = await resolveOne({ kind: "folder", path: folder, source: "shell" });
+    expect(opened.kind).toBe("folder");
+    if (opened.kind !== "folder") return;
+    await expect(authorizedWorkspaceRoot(opened.rootPath)).resolves.toBe(opened.rootPath);
     await expect(authorizedWorkspaceRoot(outside)).rejects.toThrow(
       filesystemErrorMessage("folderNotOpen"),
     );
-  });
 
-  test("mismatched kinds, unsupported files, and missing documents are refused", async () => {
     expect(await resolveOne({ kind: "file", path: folder, source: "shell" })).toEqual({
       kind: "rejected",
       source: "shell",
@@ -110,61 +98,43 @@ describe("resolving an external open", () => {
     ).toEqual({ kind: "rejected", source: "shell", reason: "documentMissing" });
   });
 
-  // The property is multiplatform; provoking a raw access error is not. Windows
-  // ignores POSIX mode bits, so this case runs where they actually deny access.
-  // That an unexpected host error never crosses as itself is covered portably by
-  // workspaceAuthority's `contained` case.
-  test.skipIf(!posixModeBitsDenyAccess)(
-    "an unreadable document is refused without leaking the host path",
-    async () => {
-      const locked = join(folder, "locked.md");
-      await writeFile(locked, "# Locked\n");
-      await chmod(locked, 0o000);
-
-      try {
-        const resolved = await resolveOne({ kind: "file", path: locked, source: "shell" });
-
-        expect(resolved.kind).toBe("rejected");
-        if (resolved.kind !== "rejected") return;
-        expect(JSON.stringify(resolved)).not.toContain(locked);
-      } finally {
-        await chmod(locked, 0o644).catch(() => {});
-      }
-    },
-  );
-
-  test("a folder reached through a symlink authorizes where it really lands", async () => {
+  test("symlink folders authorize the real land; unreadable files refuse without path leak", async () => {
     await linkDirectory(outside, join(folder, "link"));
-
     const resolved = await resolveOne({
       kind: "folder",
       path: join(folder, "link"),
       source: "shell",
     });
-
     expect(resolved.kind).toBe("folder");
     if (resolved.kind !== "folder") return;
-    // Canonical, so containment for everything inside is measured against the
-    // real directory rather than the link's parent.
     expect(resolved.rootPath).not.toContain("link");
     await expect(authorizedWorkspaceRoot(base)).rejects.toThrow(
       filesystemErrorMessage("folderNotOpen"),
     );
+
+    if (posixModeBitsDenyAccess) {
+      const locked = join(folder, "locked.md");
+      await writeFile(locked, "# Locked\n");
+      await chmod(locked, 0o000);
+      try {
+        const denied = await resolveOne({ kind: "file", path: locked, source: "shell" });
+        expect(denied.kind).toBe("rejected");
+        if (denied.kind !== "rejected") return;
+        expect(JSON.stringify(denied)).not.toContain(locked);
+      } finally {
+        await chmod(locked, 0o644).catch(() => {});
+      }
+    }
   });
 
-  test("queue drains keep later requests after a refusal", async () => {
+  test("queue drains keep later requests after a refusal; argv classifies file/folder against cwd", async () => {
     enqueueExternalOpenRequest({ kind: "file", path: join(outside, "gone.md"), source: "shell" });
     enqueueExternalOpenRequest({ kind: "file", path: join(folder, "doc.md"), source: "shell" });
     expect((await takePendingExternalOpens()).map((entry) => entry.kind)).toEqual([
       "rejected",
       "file",
     ]);
-  });
-});
 
-// Intent: an adapter converts a channel's representation and decides nothing.
-describe("launch arguments as a source", () => {
-  test("classifies argv into file/folder opens and resolves relative paths against cwd", async () => {
     const requests = await externalOpenRequestsFromArguments([
       "/runtime/bun",
       "/app/main.js",

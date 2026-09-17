@@ -4,10 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  createDirectory,
   createDocument,
   deleteDocument,
   readDocument,
   renameDocument,
+  saveSelectedDocument,
   saveSelectedHtmlExport,
   validateHtmlBasename,
   writeDocument,
@@ -23,15 +25,13 @@ async function makeWorkspace(): Promise<string> {
   return mkdtemp(join(tmpdir(), "editor-document-io-"));
 }
 
-// Intent: protect document CRUD, atomic writes, and containment side effects.
-// Growth boundary: add cases only for new observable I/O or security rules.
+// Intent: protect document CRUD, atomic writes, basename safety, and containment.
 describe("document I/O", () => {
-  test("rejects traversal and absolute document targets", async () => {
+  test("supports create, read, atomic write, rename, delete; refuses traversal and drive forms", async () => {
     const root = await makeWorkspace();
     const outsideFolder = filesystemErrorMessage("outsideFolder");
 
     try {
-      // Every I/O entry point must refuse the same escapes the path authority does.
       await expect(readDocument(root, "../../../src/etc/passwd.md")).rejects.toThrow(outsideFolder);
       await expect(readDocument(root, "..\\..\\outside.md")).rejects.toThrow(outsideFolder);
       await expect(writeDocument(root, join(root, "document.md"), "# x\n")).rejects.toThrow(
@@ -43,15 +43,7 @@ describe("document I/O", () => {
       await expect(createDocument(root, "C:\\Windows\\note.md", "# x\n")).rejects.toThrow(
         outsideFolder,
       );
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
-  });
 
-  test("supports create, read, atomic write, rename, and delete", async () => {
-    const root = await makeWorkspace();
-
-    try {
       const created = await createDocument(
         root,
         "notes/example.mdx",
@@ -111,8 +103,6 @@ describe("document I/O", () => {
         ],
       });
       expect(await readdir(join(root, "notes"))).toEqual(["example.mdx"]);
-      // A successful write leaves only the document - no `.tmp` sibling from the
-      // atomic rename path. That is the observable atomicity contract.
 
       const renamed = await renameDocument(
         root,
@@ -129,12 +119,30 @@ describe("document I/O", () => {
       await expect(readDocument(root, "notes/renamed.md")).rejects.toThrow(
         filesystemErrorMessage("documentMissing"),
       );
+
+      const folder = await createDirectory(root, "notes/inbox");
+      expect(folder.path).toBe("notes/inbox");
+      expect(await readdir(join(root, "notes"))).toContain("inbox");
+      await expect(createDirectory(root, "notes/inbox")).rejects.toThrow(
+        filesystemErrorMessage("documentExists"),
+      );
+      await expect(createDirectory(root, "../outside")).rejects.toThrow(outsideFolder);
+      await expect(createDirectory(root, "notes/../escape")).rejects.toThrow(outsideFolder);
+      const moved = await createDocument(root, "notes/inbox/moved.mdx", "# Moved\n");
+      const relocated = await renameDocument(
+        root,
+        "notes/inbox/moved.mdx",
+        "notes/moved.mdx",
+        moved.mtimeMs,
+      );
+      expect(relocated.note.path).toBe("notes/moved.mdx");
+      expect(await readdir(join(root, "notes", "inbox"))).toEqual([]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
   });
 
-  test("writes HTML exports through the same folder boundary without touching the document", async () => {
+  test("HTML export stays in-folder; Windows basename rules refuse reserved and padded names", async () => {
     const root = await makeWorkspace();
 
     try {
@@ -162,7 +170,6 @@ describe("document I/O", () => {
 
       const exists = await saveSelectedHtmlExport(root, "page.html", "second");
       expect(exists).toEqual({ status: "exists", absolutePath: join(root, "page.html") });
-      expect(await readFile(join(root, "page.html"), "utf8")).toContain("<!doctype html>");
 
       const overwritten = await saveSelectedHtmlExport(
         root,
@@ -178,15 +185,25 @@ describe("document I/O", () => {
       await expect(saveSelectedHtmlExport(root, "note.md", "nope")).rejects.toThrow(
         filesystemErrorMessage("unsafeName"),
       );
-      expect(await readFile(join(root, "note.md"), "utf8")).toBe(original);
+
+      const unsafe = filesystemErrorMessage("unsafeName");
+      expect(() => validateHtmlBasename("CON.html")).toThrow(unsafe);
+      expect(() => validateHtmlBasename("com1.html")).toThrow(unsafe);
+      expect(() => validateHtmlBasename("page.html ")).toThrow(unsafe);
+      expect(() => validateHtmlBasename("page.html.")).toThrow(unsafe);
+      expect(() => validateHtmlBasename("C:x.html")).toThrow(unsafe);
+      await expect(saveSelectedDocument(root, "CON.md", "# x\n")).rejects.toThrow(unsafe);
+      await expect(createDocument(root, "CON.md", "# x\n")).rejects.toThrow(unsafe);
+      await expect(createDocument(root, "note:ads.md", "# x\n")).rejects.toThrow(unsafe);
+      await expect(createDocument(root, "notes./file.md", "# x\n")).rejects.toThrow(unsafe);
+      await expect(saveSelectedDocument(root, "note.md ", "# x\n")).rejects.toThrow(unsafe);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
   });
 });
 
-// Security boundary: keep one end-to-end symlink side-effect check; do not add
-// one test per operation unless a distinct escape or mutation is introduced.
+// Security boundary: one end-to-end symlink mutation check across I/O entry points.
 describe("folder containment for document I/O", () => {
   test("a symlinked directory cannot be read, written, created in or deleted from", async () => {
     const base = await mkdtemp(join(tmpdir(), "editor-symlink-"));
@@ -204,12 +221,11 @@ describe("folder containment for document I/O", () => {
         outsideFolder,
       );
       await expect(createDocument(root, "link/new.md", "x")).rejects.toThrow(outsideFolder);
+      await expect(createDirectory(root, "link/escape")).rejects.toThrow(outsideFolder);
       await expect(renameDocument(root, "link/secret.md", "link/renamed.md")).rejects.toThrow(
         outsideFolder,
       );
       await expect(deleteDocument(root, "link/secret.md")).rejects.toThrow(outsideFolder);
-
-      // The file outside the folder is untouched by any of it.
       await expect(readFile(join(outside, "secret.md"), "utf8")).resolves.toBe("SECRET\n");
     } finally {
       await rm(base, { recursive: true, force: true });

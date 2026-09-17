@@ -370,7 +370,7 @@ function onBackdropPointerDown(event: PointerEvent): void {
           {{ t("actions.quickOpen") }}
         </h2>
         <label class="dialog__field dialog__field--tight">
-          <span class="visually-hidden">{{ t("quickOpen.filterLabel") }}</span>
+          <span class="sr-only">{{ t("quickOpen.filterLabel") }}</span>
           <input
             id="quick-open-query"
             ref="quickOpenInputRef"
@@ -451,7 +451,7 @@ function onBackdropPointerDown(event: PointerEvent): void {
           {{ activeDialog.title }}
         </h2>
         <label class="dialog__field dialog__field--tight">
-          <span class="visually-hidden">{{ t("quickOpen.filterLabel") }}</span>
+          <span class="sr-only">{{ t("quickOpen.filterLabel") }}</span>
           <input
             id="pick-query"
             ref="pickInputRef"
@@ -633,18 +633,6 @@ function onBackdropPointerDown(event: PointerEvent): void {
 .dialog__button--quiet {
   @include quiet-button;
   min-width: 5.5rem;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 .quick-open-results {

@@ -79,11 +79,10 @@ const fakeApi = {
   },
 };
 
-// Intent: session annotations navigate by position; hover stays plain/untrusted
-// so filesystem-sourced note text cannot become active Markdown/HTML; hiding
-// changes presentation without deleting annotation state.
+// Intent: session annotations navigate by position; hover stays plain/untrusted;
+// hiding changes presentation without deleting annotation state.
 describe("document annotations", () => {
-  test("navigation wraps the document and steps from the current annotation or from between them", () => {
+  test("navigates, keeps hover untrusted, and hides glyphs without deleting state", () => {
     expect(nextDocumentAnnotationIndex(positions, { lineNumber: 25, column: 1 })).toBe(0);
     expect(previousDocumentAnnotationIndex(positions, { lineNumber: 1, column: 1 })).toBe(2);
     expect(findDocumentAnnotationNear(annotations, { lineNumber: 10, column: 3 }, "next")).toEqual(
@@ -92,9 +91,7 @@ describe("document annotations", () => {
     expect(findDocumentAnnotationNear(annotations, { lineNumber: 5, column: 1 }, "next")).toEqual(
       annotations[1],
     );
-  });
 
-  test("annotation text stays plain, bounded, and untrusted in the glyph hover", () => {
     // Annotation text comes from the user and is shown in Monaco hover Markdown.
     // Escaping + isTrusted:false is the XSS boundary for that surface.
     expect(normalizeAnnotationText("  hello   world  ")).toBe("hello world");
@@ -117,28 +114,25 @@ describe("document annotations", () => {
       isTrusted: false,
       supportHtml: false,
     });
-  });
 
-  test("hiding annotations clears glyph presentation without deleting annotation state", () => {
-    const model = createFakeModel();
-    const api = fakeApi as never;
-    const added = upsertDocumentAnnotationOnLine(api, model as never, 4, 1, "keep me", true);
-    expect(added?.action).toBe("added");
-    if (!added || added.action === "capped") {
+    const visible = upsertDocumentAnnotationOnLine(api, model as never, 4, 1, "keep me", true);
+    expect(visible?.action).toBe("added");
+    if (!visible || visible.action === "capped") {
       throw new Error("expected annotation to be added");
     }
 
     applyDocumentAnnotationPresentation(api, model as never, false);
     const listed = listDocumentAnnotations(api, model as never);
-    expect(listed).toHaveLength(1);
-    expect(listed[0]?.text).toBe("keep me");
-    expect(model.decorationOptions(listed[0]!.decorationId)?.glyphMarginClassName).toBeNull();
+    expect(listed).toHaveLength(2);
+    const keepMe = listed.find((annotation) => annotation.text === "keep me");
+    expect(keepMe).toBeDefined();
+    expect(model.decorationOptions(keepMe!.decorationId)?.glyphMarginClassName).toBeNull();
 
     applyDocumentAnnotationPresentation(api, model as never, true);
-    expect(
-      model.decorationOptions(listDocumentAnnotations(api, model as never)[0]!.decorationId)
-        ?.glyphMarginClassName,
-    ).toBeTruthy();
+    const shown = listDocumentAnnotations(api, model as never).find(
+      (annotation) => annotation.text === "keep me",
+    );
+    expect(model.decorationOptions(shown!.decorationId)?.glyphMarginClassName).toBeTruthy();
 
     clearDocumentAnnotations(model as never);
     expect(listDocumentAnnotations(api, model as never)).toHaveLength(0);

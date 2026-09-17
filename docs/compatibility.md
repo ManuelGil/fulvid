@@ -86,7 +86,7 @@ Evidence (Compatibility CI): [Windows run 34909418780](https://github.com/Manuel
 
 The Lua smoke checks packaged `bun/glue.wasm`, Wasm init, discovery + `ui.notify`, invalid-pack isolation, and lightweight interrupt/memory probes against the packaged module. It does not launch the UI and does not replace `smoke:compatibility`.
 
-Editor APIs (`editor.getSelection` / `editor.replaceSelection`) are **PRODUCTION** under Extension API v1. Snapshot includes selection text plus host-only identity stamps; apply rejects stale operations. Capability isolation ≠ OS sandbox. Full contract: [EXTENSIONS.md](./EXTENSIONS.md).
+Editor APIs (`editor.getSelection` / `editor.replaceSelection`) are **PRODUCTION** under Extension API v1. Snapshot includes selection text plus host-only identity stamps; apply rejects stale operations. Capability isolation is not an OS sandbox. Full contract: [EXTENSIONS.md](./EXTENSIONS.md).
 
 ## What the smoke covers
 

@@ -7,15 +7,13 @@ import {
 
 // Intent: seeded create/save naming stays basename-safe and predictable.
 describe("document file names", () => {
-  test("resolveNewDocumentFileName attaches the default extension and refuses unsafe names", () => {
+  test("create and untitled save names stay basename-safe", () => {
     expect(resolveNewDocumentFileName("notes", "mdx")).toBe("notes.mdx");
     expect(resolveNewDocumentFileName("notes.md", "mdx")).toBe("notes.md");
     expect(resolveNewDocumentFileName("../escape.md", "md")).toBeNull();
     expect(resolveNewDocumentFileName("notes.txt", "md")).toBeNull();
     expect(resolveNewDocumentFileName("   ", "md")).toBeNull();
-  });
 
-  test("suggestUntitledSaveBasename uses the first heading line and falls back safely", () => {
     expect(suggestUntitledSaveBasename("# README\n\nBody", "mdx")).toBe("README.mdx");
     expect(suggestUntitledSaveBasename("Selected paragraph\n\nmore", "md")).toBe(
       "Selected-paragraph.md",

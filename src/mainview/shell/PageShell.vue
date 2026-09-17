@@ -29,7 +29,7 @@ withDefaults(
     quietIdentity?: boolean;
     /**
      * Interaction rhythm - coherent differentiation across questions.
-     * calm: exists · browse: organize · immediate: recover · spatial: locate
+     * calm: exists; browse: organize; immediate: recover; spatial: locate
      */
     rhythm?: "calm" | "browse" | "immediate" | "spatial";
   }>(),

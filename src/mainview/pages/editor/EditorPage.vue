@@ -300,12 +300,13 @@ watch(
       return;
     }
     await nextTick();
-    if (!monacoHostRef.value) {
+    // Tab may have changed while we waited for layout.
+    if (activeId.value !== documentId || !monacoHostRef.value) {
       return;
     }
     const position = consumePendingReveal(documentId);
     if (position) {
-      monacoHostRef.value?.revealPosition(position.lineNumber, position.column);
+      monacoHostRef.value.revealPosition(position.lineNumber, position.column);
     }
   },
   { deep: true },
@@ -1550,15 +1551,9 @@ onBeforeUnmount(() => {
 }
 
 .editor-page :deep(.empty-state--reassure) {
+  // Editor empty workspace is wider than the default EmptyState reassure column.
   max-width: none;
   padding-block: $space-compact 0;
-}
-
-.editor-page :deep(.empty-state--reassure .empty-state__title) {
-  color: $text-primary;
-  font-size: $font-section;
-  font-weight: 600;
-  letter-spacing: -0.02em;
 }
 
 .editor-page :deep(.empty-state--reassure .empty-state__detail),

@@ -7,6 +7,16 @@ import type { DocumentLink } from "../../document/links/documentLink";
 
 export type MarkdownFileType = "md" | "markdown" | "mdx";
 
+/** Names Windows refuses regardless of extension (CON, PRN, COM1, ...). */
+export const RESERVED_DEVICE_NAMES = new Set([
+  "con",
+  "prn",
+  "aux",
+  "nul",
+  ...Array.from({ length: 9 }, (_, index) => `com${index + 1}`),
+  ...Array.from({ length: 9 }, (_, index) => `lpt${index + 1}`),
+]);
+
 /** Which supported document extension a path uses, if any. */
 export function documentFileType(path: string): MarkdownFileType | null {
   const lower = path.toLowerCase();
@@ -28,10 +38,11 @@ export function isMarkdownFile(path: string): boolean {
 }
 
 /**
- * Explorer create/rename names must be basenames only - same refusal class as
- * host `requireSafeBasename` (no separators, traversal, or empty stems).
+ * Shared basename refusals for Explorer create/rename (documents and folders):
+ * no separators, traversal, reserved device names, or Windows-illegal characters.
+ * Same refusal class as host `requireSafeBasename` / `isUnsafePathSegment`.
  */
-export function isSafeDocumentBasename(name: string): boolean {
+function isSafePathBasename(name: string): boolean {
   const basenameValue = name.trim();
   if (
     !basenameValue ||
@@ -44,11 +55,32 @@ export function isSafeDocumentBasename(name: string): boolean {
     basenameValue.includes("\0") ||
     basenameValue.includes("..") ||
     /[.\s]$/.test(basenameValue) ||
+    /[<>:"|?*]/.test(basenameValue) ||
     /^[A-Za-z]:/.test(basenameValue)
   ) {
     return false;
   }
-  return isMarkdownFile(basenameValue);
+  return true;
+}
+
+/** Explorer New Folder names: basename only, not a document extension check. */
+export function isSafeFolderBasename(name: string): boolean {
+  if (!isSafePathBasename(name)) {
+    return false;
+  }
+  return !RESERVED_DEVICE_NAMES.has(name.toLowerCase());
+}
+
+/**
+ * Explorer create/rename document names must be basenames with a supported
+ * Markdown/MDX extension.
+ */
+export function isSafeDocumentBasename(name: string): boolean {
+  if (!isSafePathBasename(name) || !isMarkdownFile(name)) {
+    return false;
+  }
+  const stem = name.replace(/\.[^.]+$/, "");
+  return stem !== "" && !RESERVED_DEVICE_NAMES.has(stem.toLowerCase());
 }
 
 export interface ScannedNote {

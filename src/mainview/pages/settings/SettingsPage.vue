@@ -203,7 +203,7 @@ function extensionMetaLine(pack: (typeof installedExtensions.value)[number]): st
   if (pack.license) {
     parts.push(pack.license);
   }
-  return parts.join(" · ");
+  return parts.join(", ");
 }
 
 async function openExtensionFolder(extensionId: string): Promise<void> {
@@ -456,7 +456,7 @@ onBeforeUnmount(() => {
 const isApplePlatform = computed(
   () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform),
 );
-const primaryModifier = computed(() => (isApplePlatform.value ? "⌘" : "Ctrl"));
+const primaryModifier = computed(() => (isApplePlatform.value ? "Cmd" : "Ctrl"));
 
 function setAppearance<K extends keyof FulvidSettings["appearance"]>(
   key: K,
@@ -578,7 +578,7 @@ async function onResetSettings(): Promise<void> {
       <div class="settings-page__content">
         <div class="settings-search">
           <label class="settings-search__field">
-            <span class="visually-hidden">{{ t("settings.searchLabel") }}</span>
+            <span class="sr-only">{{ t("settings.searchLabel") }}</span>
             <input
               id="settings-search-query"
               v-model="searchQuery"
@@ -975,6 +975,7 @@ async function onResetSettings(): Promise<void> {
 
               <label class="settings-option" data-settings-id="editor.trimTrailingWhitespaceOnSave">
                 <input
+                  class="settings-option__control"
                   type="checkbox"
                   :checked="settings.editor.trimTrailingWhitespaceOnSave"
                   :aria-label="t('settings.trimTrailingWhitespaceOnSave')"
@@ -1216,9 +1217,7 @@ async function onResetSettings(): Promise<void> {
                             v-if="settings.appearance.theme === option.id"
                             class="settings-theme-card__selected"
                             aria-hidden="true"
-                          >
-                            ✓
-                          </span>
+                          ></span>
                         </span>
                         <span :id="`theme-${option.id}-hint`" class="settings-theme-card__hint">
                           {{ t(option.hint) }}
@@ -1765,7 +1764,7 @@ async function onResetSettings(): Promise<void> {
                 data-settings-id="keyboard.fullscreen"
                 tabindex="-1"
               >
-                <dt v-if="isApplePlatform"><kbd>Ctrl</kbd><kbd>⌘</kbd><kbd>F</kbd></dt>
+                <dt v-if="isApplePlatform"><kbd>Ctrl</kbd><kbd>Cmd</kbd><kbd>F</kbd></dt>
                 <dt v-else><kbd>F11</kbd></dt>
                 <dd>{{ t("settings.shortcutFullscreen") }}</dd>
               </div>
@@ -1812,7 +1811,7 @@ async function onResetSettings(): Promise<void> {
                 <dd>{{ t("settings.shortcutCloseOthers") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
-                <dt><kbd>←</kbd> <kbd>-></kbd></dt>
+                <dt><kbd>Left</kbd> <kbd>Right</kbd></dt>
                 <dd>{{ t("settings.shortcutTabs") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
@@ -1828,7 +1827,7 @@ async function onResetSettings(): Promise<void> {
                 <dd>{{ t("settings.shortcutEscape") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
-                <dt><kbd>↑</kbd> <kbd>↓</kbd> / <kbd>J</kbd> <kbd>K</kbd></dt>
+                <dt><kbd>Up</kbd> <kbd>Down</kbd> / <kbd>J</kbd> <kbd>K</kbd></dt>
                 <dd>{{ t("settings.shortcutMove") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
@@ -1900,9 +1899,9 @@ async function onResetSettings(): Promise<void> {
                     <h3 class="settings-extension-card__name">{{ pack.displayName }}</h3>
                     <p class="settings-extension-card__identity">
                       <code>{{ pack.id }}</code>
-                      <span aria-hidden="true"> · </span>
+                      <span aria-hidden="true"> - </span>
                       <span>{{ pack.publisher }}</span>
-                      <span aria-hidden="true"> · </span>
+                      <span aria-hidden="true"> - </span>
                       <span>{{ pack.version }}</span>
                     </p>
                   </div>
@@ -2081,20 +2080,8 @@ async function onResetSettings(): Promise<void> {
 }
 
 .settings-search__input {
+  @include control-field;
   width: 100%;
-  min-height: $control-height;
-  padding: 0 $space-compact;
-  border: 1px solid $border-subtle;
-  border-radius: $radius;
-  background: $surface;
-  color: $text-primary;
-  font: inherit;
-  font-size: $font-control;
-
-  &:focus-visible {
-    outline: 2px solid $focus-ring;
-    outline-offset: 1px;
-  }
 }
 
 .settings-search__clear {
@@ -2163,18 +2150,6 @@ async function onResetSettings(): Promise<void> {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 .settings-section {
@@ -2551,7 +2526,7 @@ async function onResetSettings(): Promise<void> {
   display: flex;
   justify-content: space-between;
   gap: $space-related;
-  min-height: 13px;
+  min-height: $font-control;
   padding: 0 $space-related;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
@@ -2597,10 +2572,11 @@ async function onResetSettings(): Promise<void> {
 
 .settings-theme-card__selected {
   flex: 0 0 auto;
-  color: $accent;
-  font-size: $font-control;
-  font-weight: 700;
-  line-height: 1;
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: $accent;
 }
 
 .settings-option {
@@ -2665,6 +2641,9 @@ async function onResetSettings(): Promise<void> {
   margin-inline-start: auto;
 }
 
+// All boolean radios/checkboxes in option rows share control-checkbox,
+// including rows that omit settings-option__control by mistake.
+.settings-option input[type="checkbox"],
 .settings-option input[type="radio"] {
   @include control-checkbox;
   margin-top: 2px;
@@ -3037,7 +3016,7 @@ async function onResetSettings(): Promise<void> {
   }
 
   .settings-theme-card__selected {
-    color: Highlight;
+    background: Highlight;
   }
 
   .settings-theme-card__name,

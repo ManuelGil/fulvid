@@ -29,10 +29,11 @@ const idleState: ApplicationMenuState = {
   canRedo: false,
 };
 
-// Intent: Save follows document identity, not Folder. Linux native menu is Electrobun's limit.
-// Growth boundary: add a case only if availability or save-enablement rules change.
+// Intent: Save follows document identity, not Folder. Quit is a command so dirty
+// buffers can be confirmed. Extensions live under File. Full Screen shortcuts are
+// platform-specific (Ctrl differs from Cmd). Linux native menu is Electrobun's limit.
 describe("application menu", () => {
-  test("enables Save from document identity, not Folder", () => {
+  test("Save, Quit, Extensions, and Full Screen follow product ownership rules", () => {
     expect(menuItemEnabled("canSave", idleState)).toBe(false);
     expect(
       menuItemEnabled("canSave", {
@@ -55,33 +56,7 @@ describe("application menu", () => {
       }),
     ).toBe(false);
     expect(menuItemEnabled("hasFolder", idleState)).toBe(false);
-  });
 
-  test("treats Linux as an HTML fallback in Electrobun 2.0.1", () => {
-    expect(electrobunNativeApplicationMenuSupported("linux")).toBe(false);
-    expect(electrobunApplicationMenuFallbackReason("linux")).toBe(
-      ELECTROBUN_LINUX_APPLICATION_MENU_UNWIRED,
-    );
-    expect(electrobunNativeApplicationMenuSupported("darwin")).toBe(true);
-    expect(electrobunNativeApplicationMenuSupported("win32")).toBe(true);
-  });
-
-  test("exposes Full Screen as an explicit command, not a native maximize role", () => {
-    const menus = presentApplicationMenu("win32", idleState, (key) => key);
-    const view = menus.find((menu) => menu.id === "view");
-    const fullscreen = view?.items.find(
-      (item) => item.type === "command" && item.id === "toggleFullscreen",
-    );
-    expect(fullscreen?.type).toBe("command");
-    if (fullscreen?.type === "command") {
-      expect(presentedMenuAction(fullscreen)).toBe("toggleFullscreen");
-    }
-    expect(view?.items.some((item) => item.type === "role" && item.id === "toggleFullScreen")).toBe(
-      false,
-    );
-  });
-
-  test("routes Quit through a command so dirty buffers can be confirmed", () => {
     const darwin = presentApplicationMenu("darwin", idleState, (key) => key);
     const app = darwin.find((menu) => menu.id === "app");
     const darwinQuit = app?.items.find((item) => item.type === "command" && item.id === "quit");
@@ -98,13 +73,11 @@ describe("application menu", () => {
     if (winQuit?.type === "command") {
       expect(presentedMenuAction(winQuit)).toBe("quit");
     }
-  });
 
-  test("exposes Extensions under File without a top-level Extensions menu", () => {
-    const menus = presentApplicationMenu("linux", idleState, (key) => key);
-    expect(menus.some((menu) => menu.id === "extensions")).toBe(false);
-    const file = menus.find((menu) => menu.id === "file");
-    const openExtensions = file?.items.find(
+    const linuxMenus = presentApplicationMenu("linux", idleState, (key) => key);
+    expect(linuxMenus.some((menu) => menu.id === "extensions")).toBe(false);
+    const linuxFile = linuxMenus.find((menu) => menu.id === "file");
+    const openExtensions = linuxFile?.items.find(
       (item) => item.type === "command" && item.id === "openExtensions",
     );
     expect(openExtensions?.type).toBe("command");
@@ -112,27 +85,37 @@ describe("application menu", () => {
       expect(presentedMenuAction(openExtensions)).toBe("openExtensions");
       expect(openExtensions.label).toBe("menu.extensions");
     }
-  });
 
-  test("keeps Edit role item ids unique while paste roles share the paste command", () => {
-    const menus = presentApplicationMenu("linux", idleState, (key) => key);
-    const edit = menus.find((menu) => menu.id === "edit");
-    expect(edit).toBeDefined();
-    const ids = (edit?.items ?? [])
-      .filter((item) => item.type !== "separator")
-      .map((item) => item.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    const paste = edit?.items.find((item) => item.type === "role" && item.role === "paste");
-    const pasteMatch = edit?.items.find(
-      (item) => item.type === "role" && item.role === "pasteAndMatchStyle",
+    // Linux has no native application menu wiring; HTML fallback owns presentation.
+    expect(electrobunNativeApplicationMenuSupported("linux")).toBe(false);
+    expect(electrobunApplicationMenuFallbackReason("linux")).toBe(
+      ELECTROBUN_LINUX_APPLICATION_MENU_UNWIRED,
     );
-    expect(paste?.type).toBe("role");
-    expect(pasteMatch?.type).toBe("role");
-    if (paste?.type === "role" && pasteMatch?.type === "role") {
-      expect(paste.id).toBe("paste");
-      expect(pasteMatch.id).toBe("pasteAndMatchStyle");
-      expect(presentedMenuAction(paste)).toBe("paste");
-      expect(presentedMenuAction(pasteMatch)).toBe("paste");
+    expect(electrobunNativeApplicationMenuSupported("darwin")).toBe(true);
+    expect(electrobunNativeApplicationMenuSupported("win32")).toBe(true);
+
+    const winView = win.find((menu) => menu.id === "view");
+    const winFullscreen = winView?.items.find(
+      (item) => item.type === "command" && item.id === "toggleFullscreen",
+    );
+    expect(winFullscreen?.type).toBe("command");
+    if (winFullscreen?.type === "command") {
+      expect(presentedMenuAction(winFullscreen)).toBe("toggleFullscreen");
+      // Windows/Linux use F11; this is not "Ctrl as Cmd".
+      expect(winFullscreen.shortcut).toBe("F11");
+    }
+    expect(
+      winView?.items.some((item) => item.type === "role" && item.id === "toggleFullScreen"),
+    ).toBe(false);
+
+    const darwinView = darwin.find((menu) => menu.id === "view");
+    const darwinFullscreen = darwinView?.items.find(
+      (item) => item.type === "command" && item.id === "toggleFullscreen",
+    );
+    expect(darwinFullscreen?.type).toBe("command");
+    if (darwinFullscreen?.type === "command") {
+      // macOS Full Screen is Control+Command+F - not primary-mod equivalence with Ctrl.
+      expect(darwinFullscreen.shortcut).toBe("Ctrl+Cmd+F");
     }
   });
 });

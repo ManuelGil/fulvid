@@ -73,7 +73,7 @@ export interface EditorSettings {
    */
   showDocumentAnnotations: boolean;
   readingStatistics: ReadingStatisticsMode;
-  /** Focus-mode only. Ignored when writing focus is off. */
+  /** Writing Focus only. Ignored when Writing Focus is off. */
   typewriterScrolling: boolean;
   /**
    * Where to present the active document location (same projection everywhere).
@@ -178,6 +178,9 @@ const DEFAULT_SETTINGS: FulvidSettings = {
 
 const STORAGE_KEY = "fulvid.settings.v1";
 
+/** Storage key for tests and recovery tooling - not a second settings authority. */
+export const SETTINGS_STORAGE_KEY = STORAGE_KEY;
+
 const VALID_THEMES = new Set<ThemePreference>(THEME_PREFERENCES);
 const VALID_LOCALES = new Set<Locale>(["en", "es"]);
 const VALID_EDITOR_FONT_FAMILIES = new Set<EditorFontFamily>(["monospace", "system", "serif"]);
@@ -199,21 +202,9 @@ function themeFromPersistedAppearance(
   appearance: Partial<FulvidSettings["appearance"]>,
 ): ThemePreference {
   const persistedTheme = appearance.theme as string;
-  const migratedTheme = persistedTheme === "high-contrast" ? "high-contrast-dark" : persistedTheme;
-  const storedTheme = VALID_THEMES.has(migratedTheme as ThemePreference)
-    ? (migratedTheme as ThemePreference)
+  return VALID_THEMES.has(persistedTheme as ThemePreference)
+    ? (persistedTheme as ThemePreference)
     : DEFAULT_THEME;
-  const legacyMonacoTheme = (appearance as { monacoTheme?: unknown }).monacoTheme;
-
-  if (
-    legacyMonacoTheme === "light" ||
-    legacyMonacoTheme === "dark" ||
-    legacyMonacoTheme === "high-contrast"
-  ) {
-    return legacyMonacoTheme === "high-contrast" ? "high-contrast-dark" : legacyMonacoTheme;
-  }
-
-  return storedTheme;
 }
 
 export function sanitizeSettings(value: unknown): FulvidSettings {
@@ -236,34 +227,14 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
     source.links && typeof source.links === "object" ? source.links : {};
   const preview: Partial<FulvidSettings["preview"]> =
     source.preview && typeof source.preview === "object" ? source.preview : {};
-  const legacyLinks = links as Partial<
-    FulvidSettings["links"] & {
-      syntaxes: unknown;
-      insertFormat: unknown;
-    }
-  >;
-  const legacyWorkspace = workspace as Partial<
-    FulvidSettings["workspace"] & { reopenLast: unknown }
-  >;
-  const legacySyntaxes = Array.isArray(legacyLinks.syntaxes)
-    ? legacyLinks.syntaxes.filter(
-        (syntax): syntax is LinkSyntax => syntax === "markdown" || syntax === "wikilink",
-      )
-    : [];
   const linkMode: LinkMode =
-    legacyLinks.linkMode === "markdown" || legacyLinks.linkMode === "wikilink"
-      ? legacyLinks.linkMode
-      : legacySyntaxes.length === 1
-        ? legacySyntaxes[0]
-        : DEFAULT_SETTINGS.links.linkMode;
+    links.linkMode === "markdown" || links.linkMode === "wikilink"
+      ? links.linkMode
+      : DEFAULT_SETTINGS.links.linkMode;
   const workspaceStartup: WorkspaceStartup =
-    legacyWorkspace.workspaceStartup === "none" || legacyWorkspace.workspaceStartup === "last"
-      ? legacyWorkspace.workspaceStartup
-      : typeof legacyWorkspace.reopenLast === "boolean"
-        ? legacyWorkspace.reopenLast
-          ? "last"
-          : "none"
-        : DEFAULT_SETTINGS.workspace.workspaceStartup;
+    workspace.workspaceStartup === "none" || workspace.workspaceStartup === "last"
+      ? workspace.workspaceStartup
+      : DEFAULT_SETTINGS.workspace.workspaceStartup;
 
   return {
     locale: VALID_LOCALES.has(source.locale as Locale)
@@ -370,9 +341,7 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
       showMarkdownFormatBar:
         typeof (editor as { showMarkdownFormatBar?: unknown }).showMarkdownFormatBar === "boolean"
           ? (editor as { showMarkdownFormatBar: boolean }).showMarkdownFormatBar
-          : typeof (editor as { showMarkdownToolbar?: unknown }).showMarkdownToolbar === "boolean"
-            ? (editor as { showMarkdownToolbar: boolean }).showMarkdownToolbar
-            : DEFAULT_SETTINGS.editor.showMarkdownFormatBar,
+          : DEFAULT_SETTINGS.editor.showMarkdownFormatBar,
       showDocumentAnnotations:
         typeof (editor as { showDocumentAnnotations?: unknown }).showDocumentAnnotations ===
         "boolean"
@@ -382,9 +351,7 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
         editor.readingStatistics as ReadingStatisticsMode,
       )
         ? (editor.readingStatistics as ReadingStatisticsMode)
-        : (statusbarIndicators as { reading?: unknown }).reading === false
-          ? "off"
-          : DEFAULT_SETTINGS.editor.readingStatistics,
+        : DEFAULT_SETTINGS.editor.readingStatistics,
       typewriterScrolling:
         typeof editor.typewriterScrolling === "boolean"
           ? editor.typewriterScrolling
@@ -450,6 +417,13 @@ function loadSettings(): FulvidSettings {
     }
     return sanitized;
   } catch {
+    // Corrupt JSON must not remain as a permanent poison pill: heal storage so
+    // the next cold start does not keep hitting the same catch path.
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
+    } catch {
+      // A read-only or full storage must not prevent the app from starting.
+    }
     return structuredClone(DEFAULT_SETTINGS);
   }
 }
@@ -467,6 +441,15 @@ export function appearanceDatasetFor(
 
 export const settings = ref<FulvidSettings>(loadSettings());
 setDocumentLinkSettings(settings.value.links);
+
+/**
+ * Re-read persisted settings into the live ref (corrupt-storage heal / tests).
+ * Does not invent a second settings owner.
+ */
+export function reloadSettings(): void {
+  settings.value = loadSettings();
+  setDocumentLinkSettings(settings.value.links);
+}
 
 /** Clone of the built-in defaults. Does not read localStorage. */
 export function defaultSettings(): FulvidSettings {

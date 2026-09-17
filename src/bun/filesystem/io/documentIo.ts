@@ -27,6 +27,9 @@ import {
   assertCanonicallyContained,
   containedPath,
   hasControlCharacters,
+  isUnsafePathSegment,
+  normalizeWorkspaceRelativePath,
+  RESERVED_DEVICE_NAMES,
   WorkspaceBoundaryError,
 } from "../security/workspacePaths";
 import { MAX_DOCUMENT_BYTES } from "../rpc/rpcInput";
@@ -56,8 +59,8 @@ export class DocumentConflictError extends Error {
  * `assertCanonicallyContained`, so a symlink inside the folder cannot move the
  * target outside the root after normalization.
  */
-export function assertWithinWorkspace(rootPath: string, targetPath: string): string {
-  return containedPath(rootPath, targetPath);
+export function assertWithinWorkspace(rootPath: string, relativePath: string): string {
+  return containedPath(rootPath, relativePath);
 }
 
 function assertStandaloneDocumentPath(targetPath: string): string {
@@ -71,39 +74,26 @@ function assertStandaloneDocumentPath(targetPath: string): string {
   return absolutePath;
 }
 
-/** Names Windows refuses regardless of extension. */
-const RESERVED_DEVICE_NAMES = new Set([
-  "con",
-  "prn",
-  "aux",
-  "nul",
-  ...Array.from({ length: 9 }, (_, index) => `com${index + 1}`),
-  ...Array.from({ length: 9 }, (_, index) => `lpt${index + 1}`),
-]);
-
 function requireSafeBasename(value: string): string {
   if (typeof value !== "string") {
     throw new WorkspaceBoundaryError("unsafeName");
   }
-  const basenameValue = value.trim();
+  // Refuse padded/illegal/reserved names rather than repair them.
   if (
-    !basenameValue ||
-    basenameValue.length > 255 ||
-    basenameValue === "." ||
-    basenameValue === ".." ||
-    basenameValue.includes("/") ||
-    basenameValue.includes("\\") ||
-    basenameValue.includes("\0") ||
-    basenameValue.includes("..") ||
-    hasControlCharacters(basenameValue) ||
-    // Windows trims these silently, which would retarget the write.
-    /[.\s]$/.test(basenameValue) ||
-    /^[A-Za-z]:/.test(basenameValue) ||
-    isAbsolute(basenameValue)
+    !value ||
+    value.length > 255 ||
+    value.includes("/") ||
+    value.includes("\\") ||
+    value.includes("\0") ||
+    value.includes("..") ||
+    hasControlCharacters(value) ||
+    /^[A-Za-z]:/.test(value) ||
+    isAbsolute(value) ||
+    isUnsafePathSegment(value)
   ) {
     throw new WorkspaceBoundaryError("unsafeName");
   }
-  return basenameValue;
+  return value;
 }
 
 function validateDocumentBasename(
@@ -266,6 +256,10 @@ async function readFileContentWithMtimeCheck(
   if (finalMtimeMs === null) {
     throw new Error(filesystemErrorMessage("operationFailed"));
   }
+  // Reject a torn read when the file changed under us between the two stats.
+  if (finalMtimeMs !== initialMtimeMs) {
+    throw new Error(filesystemErrorMessage("operationFailed"));
+  }
 
   return { content, mtimeMs: finalMtimeMs };
 }
@@ -344,6 +338,43 @@ export async function createDocument(
   return { note, absolutePath: targetPath, mtimeMs };
 }
 
+/**
+ * Create one empty directory inside the open folder.
+ *
+ * Parent must already exist (`recursive: false`). Refuses when any entry
+ * already occupies the path. Not a recursive mkdir tree builder.
+ */
+export async function createDirectory(
+  rootPath: string,
+  relativePath: string,
+): Promise<{ path: string }> {
+  const normalized = normalizeWorkspaceRelativePath(relativePath);
+  if (!normalized) {
+    throw new WorkspaceBoundaryError("invalidTarget");
+  }
+  const targetPath = containedPath(rootPath, normalized);
+  await assertCanonicallyContained(rootPath, normalized);
+
+  try {
+    await stat(targetPath);
+    throw new Error(filesystemErrorMessage("documentExists"));
+  } catch (error) {
+    if (error instanceof Error && error.message === filesystemErrorMessage("documentExists")) {
+      throw error;
+    }
+    if (!(
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    )) {
+      throw error;
+    }
+  }
+
+  await mkdir(targetPath, { recursive: false });
+  return { path: normalized };
+}
+
 export async function renameDocument(
   rootPath: string,
   relativePath: string,
@@ -363,7 +394,17 @@ export async function renameDocument(
   }
 
   await mkdir(dirname(nextTargetPath), { recursive: true });
-  await rename(targetPath, nextTargetPath);
+  // Claim the destination exclusively before rename so a concurrent create
+  // cannot be silently overwritten by POSIX/Windows rename-replace.
+  if (!(await createExclusively(nextTargetPath, ""))) {
+    throw new Error(filesystemErrorMessage("documentExists"));
+  }
+  try {
+    await rename(targetPath, nextTargetPath);
+  } catch (error) {
+    await rm(nextTargetPath, { force: true });
+    throw error;
+  }
   const note = await scannedNoteFromFile(rootPath, nextTargetPath, linkMode);
   const mtimeMs = await fileMtimeOrNull(nextTargetPath);
   if (mtimeMs === null) {

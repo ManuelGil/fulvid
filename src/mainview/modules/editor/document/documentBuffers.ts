@@ -83,7 +83,7 @@ function preserveModelEol(model: MonacoModel, previous: MonacoEndOfLineSequence)
 }
 
 /**
- * Toggle LF ↔ CRLF on the live model. Undoable, marks dirty, writes only on Save.
+ * Toggle LF and CRLF on the live model. Undoable, marks dirty, writes only on Save.
  */
 export function cycleDocumentEol(buffer: DocumentBuffer): void {
   const api = initializeMonaco();
@@ -125,8 +125,33 @@ export interface DocumentBuffer {
 const buffers = shallowRef<DocumentBuffer[]>([]);
 const pendingOpens = new Map<string, Promise<DocumentBuffer>>();
 const saveQueues = new WeakMap<DocumentBuffer, Promise<unknown>>();
+/** Buffers closed while a write may still be queued - skip starting new disk writes. */
+const abandonedWrites = new WeakSet<DocumentBuffer>();
 let openGeneration = 0;
 let activationGeneration = 0;
+
+function isAbandonedBuffer(buffer: DocumentBuffer): boolean {
+  return abandonedWrites.has(buffer) || !buffers.value.includes(buffer);
+}
+
+/**
+ * Wait until every write already queued for this buffer has settled.
+ *
+ * In-flight RPCs still complete against the path/content they captured when
+ * they started. Callers that rename, delete, detach, or quit must drain first
+ * so a late write cannot recreate a path the filesystem no longer owns.
+ */
+export async function awaitBufferWrites(buffer: DocumentBuffer): Promise<void> {
+  const pending = saveQueues.get(buffer);
+  if (pending) {
+    await pending;
+  }
+}
+
+/** Drain every open buffer's save queue before quit or workspace teardown. */
+export async function awaitAllBufferWrites(): Promise<void> {
+  await Promise.all(buffers.value.map((buffer) => awaitBufferWrites(buffer)));
+}
 
 export const openBuffers = computed(() => buffers.value);
 
@@ -319,7 +344,9 @@ export async function openOrActivate(request: DocumentOpenRequest): Promise<Docu
   } else {
     buffer = openGrantedDocument(request.snapshot, request.attachment);
   }
-  if (request.reveal) {
+  // Only queue a reveal when this buffer still owns the editor. A superseded
+  // open must not overwrite a newer navigation's pendingReveal.
+  if (request.reveal && activeId.value === buffer.id) {
     pendingReveal.value = {
       documentId: buffer.id,
       ...request.reveal,
@@ -449,6 +476,9 @@ export function isDocumentDirty(buffer: DocumentBuffer): boolean {
 async function saveDocumentNow(
   buffer: DocumentBuffer,
 ): Promise<DocumentWriteResult | GrantedDocumentWriteResult> {
+  if (isAbandonedBuffer(buffer)) {
+    throw new LocalizedError(i18n.global.t("workspace.saveError"));
+  }
   const versionWritten = buffer.model.getAlternativeVersionId();
   const contentToWrite = buffer.model.getValue();
   let writeOutcome: DocumentWriteResult | GrantedDocumentWriteResult;
@@ -464,6 +494,11 @@ async function saveDocumentNow(
     writeOutcome = await writeGrantedDocument(buffer.grantToken, contentToWrite, buffer.mtimeMs);
   } else {
     throw new LocalizedError(i18n.global.t("workspace.needsSaveAs"));
+  }
+  // Closed while the write was in flight: disk may already have the bytes;
+  // do not touch a disposed buffer.
+  if (isAbandonedBuffer(buffer)) {
+    return writeOutcome;
   }
   // If the user typed while the write was in flight, the newer model version
   // remains dirty and will be saved by the next command.
@@ -488,7 +523,12 @@ function queueBufferWrite<Result>(
   write: () => Promise<Result>,
 ): Promise<Result> {
   const previous = saveQueues.get(buffer) ?? Promise.resolve();
-  const current = previous.then(write);
+  const current = previous.then(() => {
+    if (abandonedWrites.has(buffer)) {
+      return Promise.reject(new LocalizedError(i18n.global.t("workspace.saveError")));
+    }
+    return write();
+  });
   saveQueues.set(
     buffer,
     current.then(
@@ -606,6 +646,9 @@ async function saveAsDocumentNow(
   defaultExtension: "md" | "markdown" | "mdx",
   overwrite: boolean,
 ): Promise<{ result: SaveAsResult; buffer: DocumentBuffer }> {
+  if (isAbandonedBuffer(buffer)) {
+    throw new LocalizedError(i18n.global.t("workspace.saveError"));
+  }
   const initialVersionId = buffer.model.getAlternativeVersionId();
   const saveAsOutcome = await pickAndSaveDocument(
     basename,
@@ -614,6 +657,11 @@ async function saveAsDocumentNow(
     overwrite,
   );
   if (saveAsOutcome.status !== "saved") {
+    return { result: saveAsOutcome, buffer };
+  }
+  // Dialog can outlive the tab: bytes may already be on disk, but never
+  // reidentify or rewrite a buffer the user already closed.
+  if (isAbandonedBuffer(buffer)) {
     return { result: saveAsOutcome, buffer };
   }
   let savedMtimeMs = saveAsOutcome.mtimeMs;
@@ -625,6 +673,9 @@ async function saveAsDocumentNow(
       buffer.model.getValue(),
       saveAsOutcome.mtimeMs,
     );
+    if (isAbandonedBuffer(buffer)) {
+      return { result: saveAsOutcome, buffer };
+    }
     savedMtimeMs = rewritten.mtimeMs;
     versionWritten =
       buffer.model.getAlternativeVersionId() === versionWrittenDuringRewrite
@@ -633,6 +684,9 @@ async function saveAsDocumentNow(
   }
   if (versionWritten !== null && buffer.model.getAlternativeVersionId() !== versionWritten) {
     versionWritten = null;
+  }
+  if (isAbandonedBuffer(buffer)) {
+    return { result: saveAsOutcome, buffer };
   }
   const nextBuffer = reidentifyAsPersisted(
     buffer,
@@ -652,6 +706,8 @@ export async function detachDocumentBuffer(buffer: DocumentBuffer): Promise<Docu
   if (!buffer.absolutePath || !buffer.rootPath || !buffer.path) {
     return buffer;
   }
+  // Finish folder-relative writes while rootPath/path still describe the file.
+  await awaitBufferWrites(buffer);
   let grantToken: string | null = null;
   try {
     const grant = await grantDetachedWorkspaceDocument(buffer.rootPath, buffer.path);
@@ -708,6 +764,7 @@ export function renameDocumentBuffer(
     return;
   }
   const wasDirty = isDocumentDirty(buffer);
+  const wasActive = activeId.value === buffer.id;
   const previousEol = buffer.model.getEndOfLineSequence();
   const absolutePath = `${buffer.rootPath.replace(/[\\/]+$/, "")}/${nextPath.replace(/\\/g, "/")}`;
   const model = api.editor.createModel(
@@ -721,6 +778,9 @@ export function renameDocumentBuffer(
     changeVersion.value += 1;
   });
 
+  // Old buffer object leaves the open set; abandon it so a queued save cannot
+  // write the previous path after identity moves to renamedBuffer.
+  abandonedWrites.add(buffer);
   buffer.contentDisposable.dispose();
   buffer.model.dispose();
   const renamedBuffer: DocumentBuffer = {
@@ -739,7 +799,11 @@ export function renameDocumentBuffer(
     candidate === buffer ? renamedBuffer : candidate,
   );
   replaceDocumentId(buffer.id, renamedBuffer.id);
-  selectDocument(renamedBuffer.id);
+  // replaceDocumentId already preserves activeId for the active tab. Only
+  // re-pair Focus when the renamed buffer was the editor selection.
+  if (wasActive) {
+    selectDocument(renamedBuffer.id);
+  }
 }
 
 export function closeDocument(rootPath: string, path: string, force = false): boolean {
@@ -763,6 +827,9 @@ function closeDocumentBuffer(buffer: DocumentBuffer | null, force: boolean): boo
     return false;
   }
 
+  // Stop queued saves that have not started; in-flight writes still finish but
+  // must not mutate this disposed buffer afterward.
+  abandonedWrites.add(buffer);
   buffer.contentDisposable.dispose();
   buffer.model.dispose();
   const currentIndex = buffers.value.indexOf(buffer);
@@ -787,6 +854,8 @@ export function closeAllDocuments(force = false): boolean {
 
   invalidatePendingWorkspaceOpens();
   for (const buffer of buffers.value) {
+    // Same as single close: stop queued saves and ignore in-flight buffer updates.
+    abandonedWrites.add(buffer);
     buffer.contentDisposable.dispose();
     buffer.model.dispose();
     if (buffer.path) {

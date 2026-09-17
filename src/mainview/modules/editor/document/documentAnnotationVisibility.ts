@@ -10,10 +10,6 @@ import { ref } from "vue";
 /** Current glyph/hover presentation. Seeded from settings at startup / reset. */
 export const documentAnnotationsVisible = ref(true);
 
-export function setDocumentAnnotationsVisible(visible: boolean): void {
-  documentAnnotationsVisible.value = visible;
-}
-
 export function toggleDocumentAnnotationsVisible(): boolean {
   documentAnnotationsVisible.value = !documentAnnotationsVisible.value;
   return documentAnnotationsVisible.value;

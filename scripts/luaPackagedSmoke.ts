@@ -218,7 +218,7 @@ async function main(): Promise<void> {
   const { LuaFactory } = await import("wasmoon");
   const { configureExtensionDiscovery, discoverExtensions, resetExtensionDiscoveryForTests } =
     await import("../src/bun/extensions/discoverExtensions.ts");
-  const { invokeLuaExtensionCommand, resetLuaCommandStoreForTests } =
+  const { invokeLuaExtensionCommand, resetLuaCommandStore } =
     await import("../src/bun/extensions/lua/luaExtensionRuntime.ts");
   const { resetLuaFactoryForTests } = await import("../src/bun/extensions/lua/luaEngine.ts");
   const { setLuaExecutionBudgetForTests } = await import("../src/bun/extensions/lua/luaLimits.ts");
@@ -271,7 +271,7 @@ async function main(): Promise<void> {
 
   setLuaExecutionBudgetForTests(null);
   resetLuaFactoryForTests();
-  resetLuaCommandStoreForTests();
+  resetLuaCommandStore();
   resetExtensionDiscoveryForTests();
   configureExtensionDiscovery(userData);
   const discovery = await discoverExtensions();
@@ -287,7 +287,7 @@ async function main(): Promise<void> {
     throw new Error(`Lua ui.notify failed in packaged smoke: ${JSON.stringify(invoke)}`);
   }
 
-  resetLuaCommandStoreForTests();
+  resetLuaCommandStore();
   resetLuaFactoryForTests();
   resetExtensionDiscoveryForTests();
   await rm(userData, { recursive: true, force: true });

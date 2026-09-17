@@ -1,5 +1,5 @@
 /**
- * Combined renderer↔host RPC. Filesystem requests stay owned by FilesystemRPC;
+ * Combined renderer/host RPC. Filesystem requests stay owned by FilesystemRPC;
  * this file adds Application Menu transport and narrow window capabilities on
  * the same Electrobun channel (fullscreen toggle, title presentation).
  */
@@ -165,6 +165,11 @@ export type DesktopRPC = {
     requests: FilesystemRPC["webview"]["requests"];
     messages: FilesystemRPC["webview"]["messages"] & {
       applicationMenuClicked: { action: string };
+      /**
+       * Host vetoed BrowserWindow `will-close` (OS chrome). Renderer must run
+       * the same `confirmAndQuit` owner as Menu Quit, then `quitApplication`.
+       */
+      windowCloseRequested: Record<string, never>;
     };
   }>;
 };

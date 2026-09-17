@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, readFile, readdir, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+
+import { linkDirectory } from "../support/platform";
 
 import {
   configureExtensionDiscovery,
@@ -53,7 +55,7 @@ afterEach(() => {
 });
 
 describe("extension install/uninstall lifecycle", () => {
-  test("installs a valid pack atomically and exposes its commands", async () => {
+  test("installs valid pack atomically; rejects invalid and duplicate without replacing", async () => {
     const userData = await tempUserData("ok");
     configureExtensionDiscovery(userData);
     await discoverExtensions();
@@ -81,51 +83,37 @@ describe("extension install/uninstall lifecycle", () => {
       ),
     );
     expect(installedManifest.id).toBe("acme.example-extension");
-  });
 
-  test("rejects invalid manifests without creating an installed pack", async () => {
-    const userData = await tempUserData("bad");
-    configureExtensionDiscovery(userData);
-    await discoverExtensions();
-
-    const sourceRoot = join(userData, "candidates");
-    const pack = join(sourceRoot, "broken");
-    await mkdir(pack, { recursive: true });
-    await writeFile(join(pack, "manifest.json"), "{not-json");
-
-    const result = await installExtensionFromDirectory(pack);
-    expect(result.status).toBe("error");
-    if (result.status !== "error") {
-      return;
+    const badPack = join(userData, "candidates-bad", "broken");
+    await mkdir(badPack, { recursive: true });
+    await writeFile(join(badPack, "manifest.json"), "{not-json");
+    const bad = await installExtensionFromDirectory(badPack);
+    expect(bad.status).toBe("error");
+    if (bad.status === "error") {
+      expect(bad.reason).toMatch(/malformed|invalid/i);
+      expect(bad.discovery.installed.map((pack) => pack.id)).toEqual(["acme.example-extension"]);
     }
-    expect(result.reason).toMatch(/malformed|invalid/i);
-    expect(result.discovery.installed).toEqual([]);
     const listing = await readdir(join(userData, "extensions"));
-    expect(listing.filter((name) => !name.startsWith("_fulvid-staging-"))).toEqual([]);
-  });
+    expect(listing.filter((name) => !name.startsWith("_fulvid-staging-"))).toEqual([
+      "acme.example-extension",
+    ]);
 
-  test("rejects duplicate identities without replacing the installed pack", async () => {
-    const userData = await tempUserData("dup");
-    configureExtensionDiscovery(userData);
-    const sourceRoot = join(userData, "candidates");
     const first = await writeCandidate(
-      sourceRoot,
+      join(userData, "candidates-dup"),
       "acme.dup",
       luaManifest("acme.dup", ["lua", "commands", "ui"], { version: "1.0.0" }),
     );
     expect((await installExtensionFromDirectory(first)).status).toBe("ok");
-
     const second = await writeCandidate(
-      join(userData, "candidates-2"),
+      join(userData, "candidates-dup-2"),
       "acme.dup",
       luaManifest("acme.dup", ["lua", "commands", "ui"], { version: "2.0.0" }),
     );
-    const result = await installExtensionFromDirectory(second);
-    expect(result.status).toBe("error");
-    if (result.status !== "error") {
-      return;
+    const dup = await installExtensionFromDirectory(second);
+    expect(dup.status).toBe("error");
+    if (dup.status === "error") {
+      expect(dup.reason).toMatch(/already installed/);
     }
-    expect(result.reason).toMatch(/already installed/);
     const installed = JSON.parse(
       await readFile(join(userData, "extensions", "acme.dup", "manifest.json"), "utf8"),
     );
@@ -143,7 +131,8 @@ describe("extension install/uninstall lifecycle", () => {
       luaManifest("acme.linked"),
     );
     const linked = join(userData, "linked-source");
-    await symlink(realPack, linked);
+    // Junctions on Windows, directory symlinks elsewhere - same install refusal.
+    await linkDirectory(realPack, linked);
 
     const result = await installExtensionFromDirectory(linked);
     expect(result.status).toBe("error");
@@ -154,7 +143,7 @@ describe("extension install/uninstall lifecycle", () => {
     expect(getDiscoveredExtensions().installed).toEqual([]);
   });
 
-  test("uninstall removes files, commands, and allowance; neighbors stay loaded", async () => {
+  test("uninstall removes target independently; missing uninstall errors; broken neighbor stays isolated", async () => {
     const userData = await tempUserData("rm");
     configureExtensionDiscovery(userData);
 
@@ -186,24 +175,16 @@ describe("extension install/uninstall lifecycle", () => {
     expect(
       await Bun.file(join(userData, "extensions", "acme.drop", "manifest.json")).exists(),
     ).toBe(false);
-  });
 
-  test("failed uninstall reports accurately when the pack is missing", async () => {
-    const userData = await tempUserData("miss");
-    configureExtensionDiscovery(userData);
-    await discoverExtensions();
-    const result = await uninstallExtensionPack("acme.missing");
-    expect(result.status).toBe("error");
-    if (result.status !== "error") {
-      return;
+    const missing = await uninstallExtensionPack("acme.missing");
+    expect(missing.status).toBe("error");
+    if (missing.status === "error") {
+      expect(missing.reason).toMatch(/missing|invalid/i);
     }
-    expect(result.reason).toMatch(/missing|invalid/i);
-  });
 
-  test("broken neighbor remains isolated across rediscovery after install", async () => {
-    const userData = await tempUserData("iso");
-    configureExtensionDiscovery(userData);
-    const extensions = join(userData, "extensions");
+    const isoUserData = await tempUserData("iso");
+    configureExtensionDiscovery(isoUserData);
+    const extensions = join(isoUserData, "extensions");
     await mkdir(extensions, { recursive: true });
     await writeCandidate(extensions, "acme.good", luaManifest("acme.good"));
     await mkdir(join(extensions, "acme.bad"), { recursive: true });
@@ -214,7 +195,7 @@ describe("extension install/uninstall lifecycle", () => {
     expect(before.failed.some((failure) => failure.id === "acme.bad")).toBe(true);
 
     const extra = await writeCandidate(
-      join(userData, "candidates"),
+      join(isoUserData, "candidates"),
       "acme.extra",
       luaManifest("acme.extra"),
     );

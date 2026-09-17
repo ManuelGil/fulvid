@@ -11,14 +11,14 @@ export const explorerPathActionLabelKeys = {
   copy: "menu.copyPath",
 } as const;
 
-export type ExplorerContextActionId = "rename" | "reveal" | "copy" | "delete";
+export type ExplorerContextActionId = "rename" | "move" | "reveal" | "copy" | "delete";
 
 /** File row: filesystem document operations only. */
 export function explorerFileContextActionIds(): readonly ExplorerContextActionId[] {
-  return ["rename", "reveal", "copy", "delete"];
+  return ["rename", "move", "reveal", "copy", "delete"];
 }
 
-/** Folder row: filesystem reveal and path copy only. */
+/** Folder row: filesystem reveal and path copy only (New actions are a submenu). */
 export function explorerFolderContextActionIds(): readonly ExplorerContextActionId[] {
   return ["reveal", "copy"];
 }

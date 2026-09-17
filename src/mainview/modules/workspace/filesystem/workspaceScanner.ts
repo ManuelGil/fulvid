@@ -184,7 +184,7 @@ export async function writeDocument(
   rootPath: string,
   relativePath: string,
   content: string,
-  expectedMtimeMs?: number,
+  expectedMtimeMs: number,
   linkMode: LinkSyntax = "markdown",
 ): Promise<DocumentWriteResult> {
   return desktopRequest().writeDocument({
@@ -207,6 +207,16 @@ export async function createDocument(
     relativePath,
     content,
     linkMode,
+  });
+}
+
+export async function createDirectory(
+  rootPath: string,
+  relativePath: string,
+): Promise<{ path: string }> {
+  return desktopRequest().createDirectory({
+    rootPath,
+    relativePath,
   });
 }
 

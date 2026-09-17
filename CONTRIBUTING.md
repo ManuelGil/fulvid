@@ -18,7 +18,7 @@ Keep pull requests focused.
 ## Practical rules
 
 - UI selection goes through `selectDocument`. `activateDocument` is session-internal. Surfaces open a document through `openOrActivate`. Do not wire editor buffers to Focus changes.
-- Folder I/O uses `assertWithinWorkspace`. Standalone Open and Save As use host dialogs and grants. No generic absolute-path read/write RPC.
+- Folder I/O uses `assertWithinWorkspace` (lexical) plus `assertCanonicallyContained` (symlink/realpath). Standalone Open and Save As use host dialogs and grants. No generic absolute-path read/write RPC.
 - Preview and Export HTML share `renderMarkdownPreview`. Do not add a second Markdown renderer.
 - Dispose canvas, workers, and observers with their owner ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#resources)).
 - Presentation tokens: [`src/mainview/styles/`](src/mainview/styles/). Chrome icons: [`AppIcon.vue`](src/mainview/shell/AppIcon.vue). Quick Actions rules (groups, overflow tiers, a11y): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#quick-actions-toolbar). Do not fork Monaco or edit `node_modules` for icons; widget Codicons are remapped in `monacoLucideIcons.ts`. Launcher icon: [`assets/README.md`](assets/README.md).
@@ -53,18 +53,33 @@ Classification (reproduced on Ubuntu 24.04 / Wayland / AMD Mesa / WebKitGTK 2.52
 | Message | When | Meaning |
 | --- | --- | --- |
 | `GLXBadWindow` | HMR and `views://` (no Vite) | XWayland/GLX + WebKit accelerated compositing under Electrobun's forced X11 backend. Not Fulvid application logic. |
-| `internallyFailedLoadTimerFired` | Mainly while loading from Vite HMR (`http://127.0.0.1:5173`) | WebKitGTK NetworkProcess internal failures during concurrent Vite module loads. Does **not** appear on the packaged `views://` path in the same session. |
+| `internallyFailedLoadTimerFired` | Mainly while loading from Vite HMR (`http://127.0.0.1:5173`) | WebKitGTK NetworkProcess internal failures during concurrent Vite module loads. Can drop the HMR WebSocket after it has already connected (`[vite] connected` then `server connection lost`). Does **not** appear on the packaged `views://` path in the same session. |
 
-Impact: the window still starts (`Fulvid started`); Fulvid remains interactive in normal use. These lines are runtime diagnostics, not a Fulvid Annotations/filesystem/security failure.
+Impact: the window still starts (`Fulvid started`); Fulvid remains interactive in normal use. These lines are runtime diagnostics, not a Fulvid Annotations/filesystem/security failure. The HMR URL (`ws://127.0.0.1:5173/`, protocol `vite-hmr`) matches the page origin and works from Bun/Chromium. WebKitGTK can still drop the HMR socket under NetworkProcess churn; reconnects are expected until upstream WebKit/Electrobun improve.
+
+Controlled mitigation matrix (about 55s each, same machine/WebKitGTK 2.52.6/Vite 8.2.2/Electrobun 2.0.1, three EditorPage touches):
+
+| Mitigation | reconnect effect | notes |
+| --- | --- | --- |
+| `server.warmup.clientFiles` | material drop in `connection lost`/min | keep |
+| expanded HTTP warmup (extra Monaco/Vue URLs) | **increased** failures and reconnects | do not expand |
+| minimal HTTP wait (`/`, `/@vite/client`, `/main.ts`) | readiness gate only | keep small |
+| `forwardConsole: false` | no change in reconnect rate | keep for Cursor-agent console hygiene (Vite auto-enables forwardConsole when an agent is detected) |
+| `__electrobun` stub | not an HMR metric | keep for rare Vite-HTTP preload race |
+| `WEBKIT_DISABLE_COMPOSITING_MODE=1` | separate from HMR; targets `GLXBadWindow` | Linux HMR only |
 
 What Fulvid does:
 
-- `scripts/devHmr.ts` defaults `WEBKIT_DISABLE_COMPOSITING_MODE=1` on Linux when unset (same profile as Linux compatibility CI), which removes `GLXBadWindow` during HMR without swallowing stderr.
+- `vite.config.ts` `server.warmup.clientFiles` pre-transforms the first-paint graph (measured reduction in HMR reconnect rate; does not silence WebKit).
+- `scripts/devHmr.ts` waits only for `/`, `/@vite/client`, and `/main.ts` before `electrobun dev` (do not expand this list without new measurements).
+- `vite.config.ts` sets `server.forwardConsole: false` so Cursor-agent sessions do not pipe console over the HMR socket (Vite's default is agent-detected `true`, otherwise `false`). This is not a proven reconnect fix.
+- `electrobunClient.ts` installs a minimal `window.__electrobun` bridge if preload has not yet, so Electroview.init does not throw under Vite HTTP.
+- `scripts/devHmr.ts` defaults `WEBKIT_DISABLE_COMPOSITING_MODE=1` on Linux when unset (same profile as Linux compatibility CI) for `GLXBadWindow`, not for `WebLoaderStrategy` failures.
 - Does **not** filter or hide WebKit/GLX messages.
 - Does **not** switch to CEF, add a WebView watchdog, or auto-restart the renderer.
 - Does **not** set compositing env in packaged production code; override locally if needed: `WEBKIT_DISABLE_COMPOSITING_MODE=1`.
 
-Upstream direction: Electrobun native Wayland support (remove forced `GDK_BACKEND=x11`) is the real fix when a Fulvid-compatible Electrobun release ships it. Re-test HMR after any Electrobun upgrade.
+Upstream direction: Electrobun native Wayland support (remove forced `GDK_BACKEND=x11`) plus WebKitGTK NetworkProcess stability under heavy ESM load. Re-test HMR after Electrobun/WebKitGTK upgrades. No exact upstream bug matching this Vite+Electrobun HMR scenario was identified; related WebKit work exists around NetworkProcess kills under load (RealtimeKit).
 
 When upgrading the desktop stack, re-check:
 
@@ -97,6 +112,20 @@ Static checks and integration carry most of the signal. A unit test is an except
 Write a unit test when the property is deterministic, lives in one module, and integration would bury it. Do not add a unit test to raise coverage, restate TypeScript, freeze private structure, wrap a trivial helper, or duplicate an integration test.
 
 Use integration when the behavior crosses modules, the filesystem, document lifecycle, or the RPC trust boundary. `documentLifecycle.smoke.test.ts` is the reference for a real editing loop. Graph canvas behavior is smoke or manual.
+
+### Cross-platform contract
+
+Fulvid supports Linux, Windows, and macOS. Tests protect the product contract, not accidental properties of the machine that wrote them.
+
+| Do | Do not |
+| --- | --- |
+| Use `os.tmpdir()` and `tests/support/platform.linkDirectory` | Hardcode `/tmp`, `/home/...`, or Unix-only `symlink` for directory escape cases |
+| Assert containment / refuse-don't-fix for Windows-looking paths (`C:\\...`, `C:foo`, `..\\`) even on Linux CI | Assume `/` is the only separator, or that drive letters are "absolute" via Node `isAbsolute` alone |
+| Treat `Ctrl` (Windows/Linux) and `Cmd` (macOS) as distinct modifiers; Full Screen is `F11` vs `Ctrl+Cmd+F` | Equate Ctrl with Cmd in shortcut or binding tests |
+| Keep EOL/encoding asserts model-owned (LF/CRLF explicit) | Assume OS default EOL, locale, or timezone |
+| Skip or inject faults when POSIX `chmod` denial is unavailable (`posixModeBitsDenyAccess`) | Pretend Windows applies Unix mode bits |
+
+`bun run validate` runs the same unit + integration suite on Linux, Windows, and macOS (`validate.yml`). Compatibility workflows package and smoke per OS; they do not replay the full containment suite as a red team. DialogHost keyboard focus trapping, native menus, and fullscreen hit-testing still need a display - they are not proven by unit tests alone.
 
 Put a bug regression at the level where it happens. If TypeScript already makes a state impossible, do not assert that in a unit test.
 

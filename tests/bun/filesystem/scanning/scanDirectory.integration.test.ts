@@ -15,12 +15,18 @@ async function makeWorkspace(): Promise<string> {
   return mkdtemp(join(tmpdir(), "fulvid-explorer-"));
 }
 
-// Intent: protect Explorer filtering, deterministic order, symlink containment, and bounded scans.
-// Growth boundary: add cases only for changed listing policy or limits.
-describe("filesystem Explorer listing", () => {
-  test("lists supported files and folders in deterministic order", async () => {
-    const root = await makeWorkspace();
+function permissionDenied(syscall: string, target: string): NodeJS.ErrnoException {
+  const error = new Error(
+    `EACCES: permission denied, ${syscall} '${target}'`,
+  ) as NodeJS.ErrnoException;
+  error.code = "EACCES";
+  return error;
+}
 
+// Intent: Explorer filtering/order, symlink non-follow, scan ceiling, hostile skip.
+describe("filesystem Explorer listing and scan", () => {
+  test("lists supported entries in deterministic order and refuses symlink listing escape", async () => {
+    const root = await makeWorkspace();
     try {
       await mkdir(join(root, "zeta"));
       await mkdir(join(root, "Alpha"));
@@ -42,33 +48,24 @@ describe("filesystem Explorer listing", () => {
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  });
-});
 
-describe("folder containment for listing", () => {
-  test("does not list through a symlinked directory", async () => {
-    const base = await mkdtemp(join(tmpdir(), "fulvid-explorer-link-"));
-    const root = join(base, "folder");
+    const base = await makeWorkspace();
+    const linkedRoot = join(base, "folder");
     const outside = join(base, "outside");
-    await mkdir(root);
+    await mkdir(linkedRoot);
     await mkdir(outside);
     await writeFile(join(outside, "secret.md"), "secret\n");
-    await linkDirectory(outside, join(root, "link"));
-
+    await linkDirectory(outside, join(linkedRoot, "link"));
     try {
-      // The link is not offered as an entry...
-      await expect(listWorkspaceEntries(root)).resolves.toEqual([]);
-      // ...and asking for it directly is refused rather than followed.
-      await expect(listWorkspaceEntries(root, "link")).rejects.toThrow(
+      await expect(listWorkspaceEntries(linkedRoot)).resolves.toEqual([]);
+      await expect(listWorkspaceEntries(linkedRoot, "link")).rejects.toThrow(
         filesystemErrorMessage("outsideFolder"),
       );
     } finally {
       await rm(base, { recursive: true, force: true });
     }
   });
-});
 
-describe("scan limits", () => {
   test("a scan stops at its ceiling and says it was partial", async () => {
     const root = await makeWorkspace();
     try {
@@ -77,7 +74,6 @@ describe("scan limits", () => {
           writeFile(join(root, `note-${index}.md`), "# note\n"),
         ),
       );
-
       const scan = await scanWorkspace(root);
       expect(scan.truncated).toBe(true);
       expect(scan.scannedNotes.length).toBe(MAX_SCANNED_DOCUMENTS);
@@ -85,27 +81,7 @@ describe("scan limits", () => {
       await rm(root, { recursive: true, force: true });
     }
   }, 60_000);
-});
 
-/**
- * A folder is a live filesystem. A subtree can be unreadable and a file can be
- * removed by a sync client or a checkout between listing and analysis. Either
- * used to throw out of the scan, so one bad entry cost the person the whole
- * folder. These hold the partial-but-usable behaviour, and its reporting.
- *
- * The property is multiplatform. The way an access error is provoked is not:
- * Windows does not treat chmod(000) as POSIX denial, so these cases inject the
- * same skippable errno at the existing walk/analysis catch.
- */
-function permissionDenied(syscall: string, target: string): NodeJS.ErrnoException {
-  const error = new Error(
-    `EACCES: permission denied, ${syscall} '${target}'`,
-  ) as NodeJS.ErrnoException;
-  error.code = "EACCES";
-  return error;
-}
-
-describe("scanning a hostile or live folder", () => {
   test("skips hostile entries without failing, and keeps empty vs skipped-only scans distinct", async () => {
     const deniedRoot = await makeWorkspace();
     const denied = resolve(join(deniedRoot, "denied"));
@@ -113,7 +89,6 @@ describe("scanning a hostile or live folder", () => {
       await writeFile(join(deniedRoot, "readable.md"), "# Readable\n");
       await mkdir(denied);
       await writeFile(join(denied, "hidden.md"), "# Hidden\n");
-
       const deniedScan = await scanWorkspace(
         deniedRoot,
         { linkMode: "markdown" },
@@ -154,7 +129,6 @@ describe("scanning a hostile or live folder", () => {
       await rm(midRoot, { recursive: true, force: true });
     }
 
-    // Empty-of-documents (skipped=0) must not look like a skipped-only folder.
     const emptyRoot = await makeWorkspace();
     try {
       await writeFile(join(emptyRoot, "readme.txt"), "not a document\n");

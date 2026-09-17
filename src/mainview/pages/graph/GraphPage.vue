@@ -33,7 +33,9 @@ import { unresolvedDocumentLinks } from "../../modules/document/links/linkSemant
 import { graphActiveTarget } from "../../modules/graph/active-document/graphActiveDocument";
 import { workspace } from "../../app/workspaceState";
 import { isTypingTarget } from "../../app/isTypingTarget";
+import { notify } from "../../app/notify";
 import { APP_ROUTE_NAMES } from "../../app/router";
+import { notifyFilesystemError } from "../../modules/workspace/filesystem/workspaceScanner";
 
 type GraphDepth = (typeof GRAPH_DEPTH_STEPS)[number];
 
@@ -94,13 +96,13 @@ const graphSummary = computed(() => {
 
   const incomplete = unresolvedDocumentLinks(focusNote, [...target.notes]).length;
   if (incomplete > 0) {
-    text += ` · ${
+    text += `, ${
       incomplete === 1
         ? t("graph.incompleteOne", { count: incomplete })
         : t("graph.incompleteMany", { count: incomplete })
     }`;
   } else if (documents === 1) {
-    text += ` · ${t("graph.standsAlone")}`;
+    text += `, ${t("graph.standsAlone")}`;
   }
 
   return text;
@@ -116,21 +118,25 @@ const regardingLine = computed(() => {
 async function deriveGraph(graph: ReferenceGraph): Promise<void> {
   const generation = ++layoutGeneration;
   isDeriving.value = true;
-  const composed = await computeComposedGraph(graph);
-  if (generation !== layoutGeneration) {
-    return;
-  }
-
-  composedGraph.value = composed;
-  isDeriving.value = false;
-  if (focusCanvasOnFirstGraph) {
-    focusCanvasOnFirstGraph = false;
-    await nextTick();
-    if (
-      !(document.activeElement instanceof Element) ||
-      !document.activeElement.closest(".app-shell__panel")
-    ) {
-      canvasRef.value?.focus();
+  try {
+    const composed = await computeComposedGraph(graph);
+    if (generation !== layoutGeneration) {
+      return;
+    }
+    composedGraph.value = composed;
+    if (focusCanvasOnFirstGraph) {
+      focusCanvasOnFirstGraph = false;
+      await nextTick();
+      if (
+        !(document.activeElement instanceof Element) ||
+        !document.activeElement.closest(".app-shell__panel")
+      ) {
+        canvasRef.value?.focus();
+      }
+    }
+  } finally {
+    if (generation === layoutGeneration) {
+      isDeriving.value = false;
     }
   }
 }
@@ -182,6 +188,7 @@ watch(
   ([graph]) => {
     if (!graph) {
       layoutGeneration += 1;
+      terminateActiveGraphWorker();
       composedGraph.value = null;
       isDeriving.value = false;
       return;
@@ -192,9 +199,8 @@ watch(
 );
 
 function bufferForGraphNode(nodePath: string) {
-  return (
-    openBuffers.value.find((buffer) => buffer.id === nodePath || buffer.path === nodePath) ?? null
-  );
+  // Graph nodes are folder-relative paths; buffer ids are file:/untitled: identities.
+  return openBuffers.value.find((buffer) => buffer.path === nodePath) ?? null;
 }
 
 function openGraphDocument(path: string, explain = false): void {
@@ -222,8 +228,9 @@ function openGraphDocument(path: string, explain = false): void {
         }
       });
     })
-    .catch(() => {
-      // The document context panel remains usable if opening fails.
+    .catch((error) => {
+      // Same visible failure path as Search / Quick Open / Inspector - not a silent no-op.
+      notifyFilesystemError(error, "workspace.openDocumentError", notify);
     });
 }
 
@@ -796,7 +803,7 @@ onBeforeUnmount(() => {
 }
 
 .graph-workbench__chrome-label {
-  padding-inline: 7px 2px;
+  padding-inline: $space-2 2px;
   color: var(--graph-workbench-muted);
   font-size: $font-micro;
   font-weight: 500;

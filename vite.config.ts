@@ -58,5 +58,24 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 5173,
     strictPort: true,
+    // Vite 8 auto-enables forwardConsole when an AI agent is detected
+    // (`CURSOR_AGENT`, etc.). That pipes console/errors over the HMR socket.
+    // A controlled matrix did not show fewer reconnects with this off, but it
+    // avoids agent-session console flooding of the same socket. Errors still
+    // appear in the WebView. Outside agent detection Vite already defaults off.
+    forwardConsole: false,
+    // Pre-transform the first-paint graph. Measured to cut HMR reconnect rate
+    // vs baseline; does not eliminate WebKitGTK NetworkProcess failures.
+    warmup: {
+      clientFiles: [
+        "./main.ts",
+        "./app/App.vue",
+        "./app/router.ts",
+        "./desktop/electrobunClient.ts",
+        "./modules/editor/monaco/monacoSetup.ts",
+        "./modules/editor/monaco/MonacoHost.vue",
+        "./pages/editor/EditorPage.vue",
+      ],
+    },
   },
 });

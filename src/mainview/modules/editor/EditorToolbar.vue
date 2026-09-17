@@ -31,6 +31,7 @@ const MARKDOWN_ICONS: Record<MarkdownFormatAction, IconName> = {
   bulletList: "bullet-list",
   numberedList: "numbered-list",
   checklist: "checklist",
+  toggleTask: "checklist",
   indent: "indent",
   outdent: "outdent",
   link: "link",
@@ -48,7 +49,7 @@ const MARKDOWN_GROUPS: readonly {
   },
   {
     id: "list",
-    actions: ["bulletList", "numberedList", "checklist", "indent", "outdent"],
+    actions: ["bulletList", "numberedList", "checklist", "toggleTask", "indent", "outdent"],
   },
   { id: "reference", actions: ["link", "image"] },
 ];

@@ -60,7 +60,7 @@ The Extension System is **not**:
 - a Monaco wrapper
 - a general RPC bus
 
-**Capability isolation ≠ OS sandbox.** Declared capabilities, reduced guest globals, Wasm guest heap ceilings, and wall-clock execution budgets constrain what an extension may ask the host to do. They do **not** place the guest in a separate OS process with kernel isolation. Do not oversell Lua/Wasm as equivalent to an OS process sandbox.
+**Capability isolation is not an OS sandbox.** Declared capabilities, reduced guest globals, Wasm guest heap ceilings, and wall-clock execution budgets constrain what an extension may ask the host to do. They do **not** place the guest in a separate OS process with kernel isolation. Do not oversell Lua/Wasm as equivalent to an OS process sandbox.
 
 ## Current capability surface
 
@@ -90,7 +90,7 @@ acme.example-extension      # any third-party publisher
 
 - Folder name under `userData/extensions/` **must equal** `manifest.id`.
 - `id` is derived as `${publisher}.${name}`. If `id` is present in JSON, it must match; omitting it is fine - validation always normalizes to the derived id.
-- Publisher `local` is **reserved** (legacy). Old `local.*` allowances are rewritten once via `LEGACY_EXTENSION_ID_MIGRATION`; `local.*` is not a valid canonical identity.
+- Publisher `local` is **reserved** and is not a valid canonical identity.
 - Fulvid does **not** hard-code `imgildev` (or any publisher) in the engine. Publisher metadata is pack-owned.
 
 ### Compact manifest fields
@@ -413,7 +413,7 @@ PRODUCTION
 Honest trust model:
 
 ```text
-Capability isolation ≠ OS sandbox
+Capability isolation is not an OS sandbox
 ```
 
 Extensions are locally installed executable code. Fulvid constrains capabilities; it does not provide an OS-level sandbox.

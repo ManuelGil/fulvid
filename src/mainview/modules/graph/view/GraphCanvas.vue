@@ -174,7 +174,7 @@ onBeforeUnmount(() => {
     ref="containerRef"
     class="graph-canvas"
     data-graph-space
-    role="img"
+    role="application"
     tabindex="0"
     :aria-label="t('graph.canvasInstructions')"
   />

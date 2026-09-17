@@ -19,6 +19,7 @@ export type MarkdownFormatAction =
   | "bulletList"
   | "numberedList"
   | "checklist"
+  | "toggleTask"
   | "indent"
   | "outdent"
   | "link"
@@ -54,6 +55,7 @@ export const MARKDOWN_COMMANDS = [
   { action: "bulletList", id: "markdownBulletList" },
   { action: "numberedList", id: "markdownNumberedList" },
   { action: "checklist", id: "markdownChecklist" },
+  { action: "toggleTask", id: "markdownToggleTask" },
   { action: "indent", id: "markdownIndent" },
   { action: "outdent", id: "markdownOutdent" },
   { action: "link", id: "markdownLink", shortcut: "Ctrl/Cmd+K" },
@@ -165,6 +167,8 @@ function formatOne(
       return transformLines(text, selection, (lines) => toggleList(lines, "numbered"));
     case "checklist":
       return transformLines(text, selection, (lines) => toggleList(lines, "checklist"));
+    case "toggleTask":
+      return transformLines(text, selection, toggleTaskCheckboxes);
     case "indent":
       return transformLines(text, selection, (lines) => lines.map((line) => `  ${line}`));
     case "outdent":
@@ -286,6 +290,22 @@ function toggleList(lines: string[], kind: "bullet" | "numbered" | "checklist"):
     }
     const prefix = kind === "numbered" ? `${index + 1}. ` : kind === "checklist" ? "- [ ] " : "- ";
     return `${parsed.indent}${prefix}${parsed.body}`;
+  });
+}
+
+/**
+ * Flip `[ ]` / `[x]` / `[X]` on existing task list lines only.
+ * Non-task lines stay unchanged. Each task line toggles independently, so a
+ * mixed selection becomes the inverse of each marker.
+ */
+function toggleTaskCheckboxes(lines: string[]): string[] {
+  return lines.map((line) => {
+    const match = line.match(/^(\s*[-*+]\s+)\[([ xX])\](\s+.*)$/);
+    if (!match) {
+      return line;
+    }
+    const marker = match[2] === " " ? "x" : " ";
+    return `${match[1]}[${marker}]${match[3]}`;
   });
 }
 

@@ -6,12 +6,12 @@ import { tmpdir } from "node:os";
 import {
   invokeLuaExtensionCommand,
   loadLuaExtensionPack,
-  resetLuaCommandStoreForTests,
+  resetLuaCommandStore,
 } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 import { resetLuaFactoryForTests } from "../../src/bun/extensions/lua/luaEngine.ts";
 import { LUA_EXTENSION_LIMITS } from "../../src/bun/extensions/lua/luaLimits.ts";
 import {
-  assertDocumentTextWithinLimit,
+  documentTextLimitError,
   DOCUMENT_EXTENSION_LIMITS,
   type DocumentSnapshot,
 } from "../../src/mainview/extensions/documentCapability.ts";
@@ -64,24 +64,20 @@ function docSnap(text: string, overrides: Partial<DocumentSnapshot> = {}): Docum
 afterEach(() => {
   resetEditorExtensionSeamForTests();
   resetExtensionRegistryForTests();
-  resetLuaCommandStoreForTests();
+  resetLuaCommandStore();
   resetLuaFactoryForTests();
 });
 
 describe("host document/decorations contracts", () => {
-  test("pins document text budget at 512 KiB", () => {
+  test("pins budgets, closed styles, and Lua document/decoration happy path", async () => {
     expect(ALLOWED_EXTENSION_CAPABILITIES).toContain("document");
     expect(ALLOWED_EXTENSION_CAPABILITIES).toContain("decorations");
     const limit = DOCUMENT_EXTENSION_LIMITS.maxTextChars.value;
     expect(limit).toBe(512 * 1024);
-    expect(LUA_EXTENSION_LIMITS.maxDocumentTextChars.status).toBe("implemented");
-    expect(assertDocumentTextWithinLimit("x".repeat(limit))).toBeNull();
-    expect(assertDocumentTextWithinLimit("x".repeat(limit + 1))).toBe(
-      "document text exceeds size limit",
-    );
-  });
+    expect(LUA_EXTENSION_LIMITS.maxDocumentTextChars.value).toBe(limit);
+    expect(documentTextLimitError("x".repeat(limit))).toBeNull();
+    expect(documentTextLimitError("x".repeat(limit + 1))).toBe("document text exceeds size limit");
 
-  test("decoration styles are the closed host set", () => {
     expect(DECORATION_EXTENSION_LIMITS.maxRanges.value).toBe(500);
     expect(
       parseExtensionDecorationRanges([
@@ -93,9 +89,7 @@ describe("host document/decorations contracts", () => {
         { startLine: 1, startColumn: 1, endLine: 1, endColumn: 4, style: "note" },
       ]),
     ).toEqual({ ok: false, error: "unknown decoration style: note" });
-  });
 
-  test("document getText/createUntitled and decorations set/clear queue through Lua", async () => {
     const root = await tempRoot("host");
     const pack = await writePack(
       root,

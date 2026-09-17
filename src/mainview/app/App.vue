@@ -36,6 +36,7 @@ import {
 } from "../modules/workspace/filesystem/workspaceScanner";
 import {
   activeBuffer,
+  awaitAllBufferWrites,
   isDocumentDirty,
   openBuffers,
   openOrActivate,
@@ -94,7 +95,11 @@ import {
   presentApplicationMenu,
   type ApplicationMenuState,
 } from "../shell/applicationMenu/applicationMenuModel";
-import { desktopRequest, onApplicationMenuClicked } from "../desktop/electrobunClient";
+import {
+  desktopRequest,
+  onApplicationMenuClicked,
+  onWindowCloseRequested,
+} from "../desktop/electrobunClient";
 import {
   configureExtensionHostActions,
   listExtensionMenuCommands,
@@ -637,6 +642,10 @@ const unregisterNativeMenu = onApplicationMenuClicked((action) => {
   void runShellCommand(action);
 });
 
+const unregisterWindowClose = onWindowCloseRequested(() => {
+  void requestApplicationQuit();
+});
+
 onMounted(() => {
   syncDocumentAnnotationsVisibleFromPreference(settings.value.editor.showDocumentAnnotations);
   configureExtensionHostActions({
@@ -691,19 +700,21 @@ const routeAnnouncement = computed(() => {
   const documentLabel = location
     ? `${location.full}${
         activeBuffer.value && isDocumentDirty(activeBuffer.value)
-          ? ` · ${t("tabs.unsavedChanges")}`
+          ? `, ${t("tabs.unsavedChanges")}`
           : ""
       }`
     : validatedFocus.value
       ? noteTitle(validatedFocus.value.path, workspace.value?.scannedNotes ?? [])
       : "";
 
-  return [documentLabel, routeLabel.value, workspaceLabel].filter(Boolean).join(" · ");
+  return [documentLabel, routeLabel.value, workspaceLabel].filter(Boolean).join(", ");
 });
 
-const focusModeAnnouncement = ref("");
+const writingFocusAnnouncement = ref("");
 watch(writingFocusActive, (active) => {
-  focusModeAnnouncement.value = active ? t("actions.writingFocusOn") : t("actions.writingFocusOff");
+  writingFocusAnnouncement.value = active
+    ? t("actions.writingFocusOn")
+    : t("actions.writingFocusOff");
 });
 
 /** Restore left sidebar after Writing Focus collapses it. */
@@ -756,7 +767,7 @@ watch(
 );
 
 const liveAnnouncement = computed(() =>
-  [routeAnnouncement.value, focusModeAnnouncement.value].filter(Boolean).join(" · "),
+  [routeAnnouncement.value, writingFocusAnnouncement.value].filter(Boolean).join(", "),
 );
 
 async function createNewDocument(content?: string): Promise<void> {
@@ -1118,21 +1129,37 @@ const unregisterCommands = [
   }),
 ];
 
+let applicationQuitInFlight = false;
+
 async function requestApplicationQuit(): Promise<void> {
-  const dirtyCount = openBuffers.value.filter(isDocumentDirty).length;
-  await confirmAndQuit({
-    dirtyCount,
-    confirmCloseEnabled: settings.value.workspace.confirmClose,
-    confirm: () =>
-      confirmDialog(
-        dirtyCount === 1
-          ? t("workspace.quitUnsavedOne", {
-              name: openBuffers.value.find(isDocumentDirty)?.title ?? "",
-            })
-          : t("workspace.quitUnsaved", { count: dirtyCount }),
-      ),
-    quit: quitApplication,
-  });
+  // Menu Quit and OS will-close both land here; coalesce so X spam cannot stack dialogs.
+  if (applicationQuitInFlight) {
+    return;
+  }
+  applicationQuitInFlight = true;
+  try {
+    const dirtyCount = openBuffers.value.filter(isDocumentDirty).length;
+    await confirmAndQuit({
+      dirtyCount,
+      confirmCloseEnabled: settings.value.workspace.confirmClose,
+      confirm: () =>
+        confirmDialog(
+          dirtyCount === 1
+            ? t("workspace.quitUnsavedOne", {
+                name: openBuffers.value.find(isDocumentDirty)?.title ?? "",
+              })
+            : t("workspace.quitUnsaved", { count: dirtyCount }),
+        ),
+      quit: async () => {
+        // Finish captured in-flight writes before process exit. Dirty unsaved
+        // buffers are already confirmed above; this only drains started saves.
+        await awaitAllBufferWrites();
+        await quitApplication();
+      },
+    });
+  } finally {
+    applicationQuitInFlight = false;
+  }
 }
 
 const editorCommandIds = new Set<CommandId>([
@@ -1208,6 +1235,7 @@ onBeforeUnmount(() => {
   narrowViewportMedia?.removeEventListener("change", onNarrowViewportChange);
   unregisterCommands.forEach((unregister) => unregister());
   unregisterNativeMenu();
+  unregisterWindowClose();
 });
 </script>
 

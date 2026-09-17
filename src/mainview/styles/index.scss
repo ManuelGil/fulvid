@@ -87,8 +87,8 @@ body {
   top: 0;
   left: 0;
   z-index: 1000;
-  padding: 9px 14px;
-  border-radius: 0 0 9px 0;
+  padding: $space-2 $space-3;
+  border-radius: 0 0 $radius 0;
   background: var(--accent);
   color: var(--on-accent);
   font-size: $font-control;

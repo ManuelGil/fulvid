@@ -213,6 +213,7 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 @use "../../../styles/colors" as *;
 @use "../../../styles/variables" as *;
+@use "../../../styles/controls" as *;
 
 .preview-pane {
   flex: 0 0 42%;
@@ -313,9 +314,9 @@ onBeforeUnmount(() => {
   }
 
   :deep(input[type="checkbox"]) {
+    @include control-checkbox;
     margin-inline-end: 0.4em;
     pointer-events: none;
-    accent-color: $accent;
   }
 
   :deep(a) {
