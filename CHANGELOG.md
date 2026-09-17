@@ -9,6 +9,16 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-17
+
+### Added
+
+- Application chrome in **German**, **French**, **Italian**, **Dutch**, and **Portuguese**, alongside English and Spanish. Settings -> Language lists native endonyms. Document text, filenames, and extension-pack copy stay untranslated. Guide: [docs/I18N.md](docs/I18N.md).
+
+### Changed
+
+- English and Spanish UI wording for Search idle state, Graph and Focus labels, folder status, keyboard help, Document Location, and extension size-limit messages, so chrome matches the current UI state and terminology.
+
 ## [0.10.0] - 2026-09-16
 
 ### Added
@@ -149,7 +159,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.11.0
 [0.10.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.10.0
 [0.9.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.9.0
 [0.8.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.8.0
