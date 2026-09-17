@@ -17,7 +17,7 @@ import {
   type ThemePreference,
 } from "../editor/monaco/monacoThemes";
 
-export type Locale = "en" | "es";
+export type Locale = "de" | "en" | "es" | "fr" | "it" | "nl" | "pt";
 export type LinkMode = LinkSyntax;
 export type WorkspaceStartup = "none" | "last";
 export type StatusbarIndicator =
@@ -182,7 +182,7 @@ const STORAGE_KEY = "fulvid.settings.v1";
 export const SETTINGS_STORAGE_KEY = STORAGE_KEY;
 
 const VALID_THEMES = new Set<ThemePreference>(THEME_PREFERENCES);
-const VALID_LOCALES = new Set<Locale>(["en", "es"]);
+const VALID_LOCALES = new Set<Locale>(["de", "en", "es", "fr", "it", "nl", "pt"]);
 const VALID_EDITOR_FONT_FAMILIES = new Set<EditorFontFamily>(["monospace", "system", "serif"]);
 const VALID_EDITOR_LINE_HEIGHTS = new Set<EditorLineHeight>(["auto", "compact", "comfortable"]);
 const VALID_EDITOR_TAB_SIZES = new Set<EditorTabSize>([2, 4, 8]);

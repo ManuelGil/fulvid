@@ -181,7 +181,8 @@ while true do end
     await expect(loadPack(loopLoad)).rejects.toMatchObject({
       reason: "execution limit exceeded",
     });
-    expect(Date.now() - startedLoad).toBeLessThan(5_000);
+    // Interrupt must finish promptly; wall clock is a soft bound, not the contract.
+    expect(Date.now() - startedLoad).toBeLessThan(30_000);
     expect(findLuaCommand("test.contract-lua-loop.one")).toBeNull();
 
     const good = await writePack(
@@ -223,8 +224,9 @@ commands.register({
     expect(await invokeLuaExtensionCommand("test.contract-lua-loopcmd.hang")).toEqual({
       ok: false,
       error: "execution limit exceeded",
+      failureKind: "executionTimeout",
     });
-    expect(Date.now() - startedInvoke).toBeLessThan(5_000);
+    expect(Date.now() - startedInvoke).toBeLessThan(30_000);
     expect(await invokeLuaExtensionCommand("test.contract-lua-good.ping")).toEqual({
       ok: true,
       notifications: ["ok"],

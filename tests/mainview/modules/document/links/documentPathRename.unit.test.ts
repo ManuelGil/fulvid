@@ -148,10 +148,14 @@ describe("document path rename", () => {
     expect(livePlan.edits[0]?.previous).toBe("./a.md");
     expect(applyTextEdits(live, livePlan.edits)).toBe("See [A](./alpha.md).\n");
 
-    // Prefix insertion shifts offsets - planned previous no longer sits at start/end.
+    // Stale plan after concurrent edit: planned previous no longer matches the span.
+    // Apply must refuse (editsStillMatch) rather than blind-splice via applyTextEdits.
     const drifted = `x${live}`;
-    expect(drifted.slice(livePlan.edits[0]!.start, livePlan.edits[0]!.end)).not.toBe(
-      livePlan.edits[0]!.previous,
-    );
+    const stale = livePlan.edits[0]!;
+    expect(drifted.slice(stale.start, stale.end)).not.toBe(stale.previous);
+    expect(
+      livePlan.edits.every((edit) => drifted.slice(edit.start, edit.end) === edit.previous),
+    ).toBe(false);
+    expect(applyTextEdits(drifted, livePlan.edits)).not.toBe(`xSee [A](./alpha.md).\n`);
   });
 });

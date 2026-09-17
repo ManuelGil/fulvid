@@ -46,7 +46,7 @@ function buffer(
 ): GraphActiveBufferInput {
   return {
     id,
-    absolutePath: options.path ? `/tmp/workspace/${options.path}` : null,
+    absolutePath: options.path ? `/fixture/workspace/${options.path}` : null,
     rootPath: options.rootPath ?? null,
     path: options.path ?? null,
     title: options.title,
@@ -79,16 +79,16 @@ describe("graph active document", () => {
     });
 
     const notes = [note("first.md", "First"), note("second.md", "Second")];
-    const editingFirst = buffer("file:/tmp/workspace/first.md", {
+    const editingFirst = buffer("file:/fixture/workspace/first.md", {
       path: "first.md",
-      rootPath: "/tmp/workspace",
+      rootPath: "/fixture/workspace",
       title: "First",
     });
     expect(
-      graphActiveTargetFromInputs({ path: "second.md" }, editingFirst, "/tmp/workspace", notes)
+      graphActiveTargetFromInputs({ path: "second.md" }, editingFirst, "/fixture/workspace", notes)
         ?.focusPath,
     ).toBe("second.md");
-    expect(graphActiveTargetFromInputs(null, editingFirst, "/tmp/workspace", notes)).toBeNull();
+    expect(graphActiveTargetFromInputs(null, editingFirst, "/fixture/workspace", notes)).toBeNull();
 
     const linked = [note("a.md", "A"), note("b.md", "B", [link("a.md")])];
     const graph = projectReferenceGraph("a.md", linked, { depth: 1 });

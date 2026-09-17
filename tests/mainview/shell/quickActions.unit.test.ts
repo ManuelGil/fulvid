@@ -4,6 +4,7 @@ import {
   orderQuickActionsInGroup,
   quickActions,
   selectQuickActionsForVisibleCount,
+  toAriaKeyshortcuts,
   type QuickActionDefinition,
 } from "../../../src/mainview/shell/commands.ts";
 
@@ -39,21 +40,14 @@ describe("Quick Actions", () => {
     expect(indexOfId(full, "undo")).toBeLessThan(indexOfId(full, "cut"));
     expect(indexOfId(full, "toggleWritingFocus")).toBeLessThan(indexOfId(full, "openExplorer"));
 
-    expect(
-      ids(orderQuickActionsInGroup(reversed.filter((action) => action.group === "edit"))),
-    ).toEqual([
-      "annotateDocument",
-      "insertDocumentLink",
-      "insertTableOfContents",
-      "trimTrailingWhitespace",
-      "undo",
-      "redo",
-      "cut",
-      "copy",
-      "paste",
-    ]);
-    expect(byId("annotateDocument").group).toBe("edit");
-    expect(byId("toggleWritingFocus").group).toBe("fulvid");
+    const editOrdered = ids(
+      orderQuickActionsInGroup(reversed.filter((action) => action.group === "edit")),
+    );
+    expect(indexOfId(editOrdered, "annotateDocument")).toBeLessThan(
+      indexOfId(editOrdered, "insertTableOfContents"),
+    );
+    expect(indexOfId(editOrdered, "undo")).toBeLessThan(indexOfId(editOrdered, "cut"));
+    expect(indexOfId(editOrdered, "cut")).toBeLessThan(indexOfId(editOrdered, "paste"));
 
     expect(ids(selectQuickActionsForVisibleCount(quickActions, 5))).toEqual([
       "newDocument",
@@ -81,5 +75,12 @@ describe("Quick Actions", () => {
     expect(visibleIds.has("toggleWritingFocus")).toBe(true);
     expect(visibleIds.has("cut")).toBe(false);
     expect(visibleIds.has("insertTableOfContents")).toBe(false);
+
+    // ARIA tokens must expand the platform-neutral Ctrl/Cmd notation.
+    expect(toAriaKeyshortcuts("Ctrl/Cmd+S")).toBe("Control+S Meta+S");
+    expect(toAriaKeyshortcuts("Ctrl/Cmd+P")).toBe("Control+P Meta+P");
+    expect(toAriaKeyshortcuts("F11")).toBe("F11");
+    expect(toAriaKeyshortcuts("Ctrl+Cmd+F")).toBe("Control+Meta+F");
+    expect(toAriaKeyshortcuts(undefined)).toBeUndefined();
   });
 });

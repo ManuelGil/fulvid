@@ -3,9 +3,13 @@
 import { computed } from "vue";
 import type { DocumentFact } from "./documentFacts";
 
-// Recognize common absent markers, including an en dash users may paste from documents.
-const ABSENT_VALUE =
-  /^(-|–|N\/A|None|None declared|Unknown|No data|No value|Empty|No references)$/i;
+// Match common absent placeholders. Include U+2013 so a user-pasted en dash
+// from a document is treated as absent rather than shown as a fact value.
+const EN_DASH = "\u2013";
+const ABSENT_VALUE = new RegExp(
+  `^(-|${EN_DASH}|N/A|None|None declared|Unknown|No data|No value|Empty|No references)$`,
+  "i",
+);
 
 const props = defineProps<{
   fact: DocumentFact;

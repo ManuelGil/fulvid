@@ -53,6 +53,33 @@ describe("external open contract", () => {
       expect(parseFilesystemErrorCode(thrown)).not.toBeNull();
     }
 
+    // Absolute acceptance is host-path semantics: Windows drive/UNC on win32,
+    // POSIX absolute elsewhere. Drive letters are not absolute on Linux hosts.
+    if (process.platform === "win32") {
+      expect(
+        parseExternalOpenRequest({
+          kind: "file",
+          path: "C:\\Notes\\a.md",
+          source: "shell",
+        }).path,
+      ).toBe("C:\\Notes\\a.md");
+      expect(
+        parseExternalOpenRequest({
+          kind: "folder",
+          path: "\\\\server\\share\\notes",
+          source: "shell",
+        }).path,
+      ).toBe("\\\\server\\share\\notes");
+    } else {
+      expect(() =>
+        parseExternalOpenRequest({
+          kind: "file",
+          path: "C:\\Notes\\a.md",
+          source: "shell",
+        }),
+      ).toThrow();
+    }
+
     expect(() => enqueueExternalOpenRequest({ kind: "execute", path: "/bin/sh" })).toThrow();
     await expect(takePendingExternalOpens()).resolves.toEqual([]);
 

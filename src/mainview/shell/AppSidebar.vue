@@ -617,7 +617,7 @@ async function runWorkspaceMenu(id: string): Promise<void> {
   min-width: 0;
 }
 
-@media (max-width: 900px) {
+@media (max-width: $narrow-viewport-max) {
   .app-sidebar {
     position: absolute;
     top: 0;

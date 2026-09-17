@@ -53,6 +53,7 @@ import {
 import {
   explorerContextMenuLabelKey,
   explorerFileContextActionIds,
+  explorerFileContextActionLabelKeys,
   explorerFolderContextActionIds,
   explorerPathActionLabelKeys,
 } from "./explorerContextMenu";
@@ -86,6 +87,11 @@ let explorerListSession = 0;
 const pendingDirectoryLoads = new Map<string, Promise<boolean>>();
 
 const workspaceRoot = computed(() => workspace.value?.path ?? null);
+
+/** True when the open folder changed or closed while an async Explorer dialog ran. */
+function workspaceChangedDuring(rootPath: string): boolean {
+  return workspaceRoot.value !== rootPath;
+}
 const rootEntries = computed(() => entriesByDirectory.value[""] ?? []);
 
 function findEntryByPath(path: string | null): FileSystemEntry | null {
@@ -132,21 +138,11 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
   }
 
   if (entry.kind === "file") {
-    return explorerFileContextActionIds().map((id) => {
-      if (id === "rename") {
-        return { id, label: t("files.rename") };
-      }
-      if (id === "move") {
-        return { id, label: t("files.move") };
-      }
-      if (id === "reveal") {
-        return { id, label: t(explorerPathActionLabelKeys.reveal) };
-      }
-      if (id === "copy") {
-        return { id, label: t(explorerPathActionLabelKeys.copy) };
-      }
-      return { id, label: t("files.delete"), danger: true };
-    });
+    return explorerFileContextActionIds().map((id) => ({
+      id,
+      label: t(explorerFileContextActionLabelKeys[id]),
+      danger: id === "delete",
+    }));
   }
 
   return [
@@ -159,12 +155,10 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
         { id: "newFolder", label: t("files.newFolder") },
       ],
     },
-    ...explorerFolderContextActionIds().map((id) => {
-      if (id === "reveal") {
-        return { id, label: t(explorerPathActionLabelKeys.reveal) };
-      }
-      return { id, label: t(explorerPathActionLabelKeys.copy) };
-    }),
+    ...explorerFolderContextActionIds().map((id) => ({
+      id,
+      label: t(explorerPathActionLabelKeys[id]),
+    })),
   ];
 });
 
@@ -397,14 +391,14 @@ async function createNewFolder(preferredParent?: FileSystemEntry | null): Promis
     notify(t("filesystemErrors.unsafeName"));
     return;
   }
-  if (workspaceRoot.value !== rootPath) {
+  if (workspaceChangedDuring(rootPath)) {
     return;
   }
 
   const relativePath = [parentDirectory, name].filter(Boolean).join("/");
   try {
     await createDirectory(rootPath, relativePath);
-    if (workspaceRoot.value !== rootPath) {
+    if (workspaceChangedDuring(rootPath)) {
       return;
     }
     await loadDirectory(parentDirectory);
@@ -483,11 +477,11 @@ async function relocateDocumentEntry(entry: FileSystemEntry, nextPath: string): 
     if (buffer) {
       await awaitBufferWrites(buffer);
     }
-    if (workspaceRoot.value !== rootPath) {
+    if (workspaceChangedDuring(rootPath)) {
       return;
     }
     const result = await renameDocument(rootPath, sourcePath, nextPath, buffer?.mtimeMs, linkMode);
-    if (workspaceRoot.value !== rootPath) {
+    if (workspaceChangedDuring(rootPath)) {
       return;
     }
     if (buffer) {
@@ -551,7 +545,7 @@ async function renameDocumentEntry(entry: FileSystemEntry): Promise<void> {
   }
 
   // Workspace may have closed while the dialog was open.
-  if (workspaceRoot.value !== rootPath) {
+  if (workspaceChangedDuring(rootPath)) {
     return;
   }
 
@@ -570,7 +564,7 @@ async function moveDocumentEntry(entry: FileSystemEntry): Promise<void> {
     notify(t("files.moveNoDestinations"));
     return;
   }
-  if (workspaceRoot.value !== rootPath) {
+  if (workspaceChangedDuring(rootPath)) {
     return;
   }
 
@@ -585,7 +579,7 @@ async function moveDocumentEntry(entry: FileSystemEntry): Promise<void> {
   if (picked === null) {
     return;
   }
-  if (workspaceRoot.value !== rootPath) {
+  if (workspaceChangedDuring(rootPath)) {
     return;
   }
 
@@ -611,7 +605,7 @@ async function deleteDocumentEntry(entry: FileSystemEntry): Promise<void> {
     return;
   }
 
-  if (workspaceRoot.value !== rootPath) {
+  if (workspaceChangedDuring(rootPath)) {
     return;
   }
 
@@ -620,11 +614,11 @@ async function deleteDocumentEntry(entry: FileSystemEntry): Promise<void> {
     if (buffer) {
       await awaitBufferWrites(buffer);
     }
-    if (workspaceRoot.value !== rootPath) {
+    if (workspaceChangedDuring(rootPath)) {
       return;
     }
     await deleteDocument(rootPath, sourcePath, buffer?.mtimeMs);
-    if (workspaceRoot.value !== rootPath) {
+    if (workspaceChangedDuring(rootPath)) {
       return;
     }
     if (buffer) {

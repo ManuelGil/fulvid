@@ -19,6 +19,7 @@ import {
 import { parseExtensionDecorationRanges } from "./decorationCapability";
 import { editorExtensionSeam } from "./editorExtensionSeam";
 import { LUA_EXTENSION_LIMITS } from "../../bun/extensions/lua/luaLimits";
+import type { ExtensionInvokeFailureKind } from "../desktop/desktopRpc";
 import type {
   DiscoveredExtension,
   DiscoveredExtensionCommand,
@@ -51,7 +52,7 @@ export type ExtensionLuaInvokeResult =
       createUntitled?: string;
       reveal?: { lineNumber: number; column: number };
     }
-  | { ok: false; error: string };
+  | { ok: false; error: string; failureKind: ExtensionInvokeFailureKind };
 
 export type ExtensionLuaInvokeRequest = {
   namespacedId: string;
@@ -142,18 +143,23 @@ function fail(key: string): LocalizedError {
   return new LocalizedError(i18n.global.t(key));
 }
 
-function describeInvokeFailure(error: string): LocalizedError {
-  const lower = error.toLowerCase();
-  if (lower.includes("timeout") || lower.includes("interrupted") || lower.includes("execution")) {
-    return fail("extensions.executionTimeout");
+/**
+ * Map host failureKind to user-visible i18n. Classification is contract-based;
+ * `error` is diagnostic only and must not drive category selection.
+ */
+function describeInvokeFailure(failureKind: ExtensionInvokeFailureKind): LocalizedError {
+  switch (failureKind) {
+    case "executionTimeout":
+      return fail("extensions.executionTimeout");
+    case "memoryExceeded":
+      return fail("extensions.memoryExceeded");
+    case "sizeLimitExceeded":
+      return fail("extensions.sizeLimitExceeded");
+    case "commandFailed":
+    default:
+      // Unknown/malformed kinds stay safely user-facing as commandFailed.
+      return fail("extensions.commandFailed");
   }
-  if (lower.includes("not enough memory") || lower.includes("memory")) {
-    return fail("extensions.memoryExceeded");
-  }
-  if (lower.includes("exceeds size limit") || lower.includes("exceeds range limit")) {
-    return fail("extensions.sizeLimitExceeded");
-  }
-  return fail("extensions.commandFailed");
 }
 
 /**
@@ -231,7 +237,7 @@ export async function runExtensionCommand(
 
   const result = await hostActions.invokeLuaCommand(request);
   if (!result.ok) {
-    throw describeInvokeFailure(result.error);
+    throw describeInvokeFailure(result.failureKind);
   }
 
   // Validate the entire Bun DTO before any host side effect (fail closed).
@@ -328,7 +334,10 @@ export async function runExtensionCommand(
   }
 
   if (result.editor?.replaceSelection !== undefined) {
-    if (!editorSnapshotIsCurrent(editorSnapshot!, liveSeam?.getApplyContext() ?? null)) {
+    if (!editorSnapshot) {
+      throw fail("extensions.editorStale");
+    }
+    if (!editorSnapshotIsCurrent(editorSnapshot, liveSeam?.getApplyContext() ?? null)) {
       throw fail("extensions.editorStale");
     }
     if (
@@ -341,8 +350,11 @@ export async function runExtensionCommand(
 
   if (result.reveal !== undefined) {
     // Stamp was checked before mutations; after replace only identity must match.
+    if (!documentSnapshot) {
+      throw fail("extensions.editorStale");
+    }
     const liveDoc = liveSeam?.getDocumentContext() ?? null;
-    if (!liveDoc || liveDoc.documentId !== documentSnapshot!.documentId) {
+    if (!liveDoc || liveDoc.documentId !== documentSnapshot.documentId) {
       throw fail("extensions.editorStale");
     }
     if (

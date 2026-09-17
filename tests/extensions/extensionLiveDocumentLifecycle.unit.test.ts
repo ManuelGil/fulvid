@@ -4,6 +4,7 @@
  * Keep one registration/currency seam and one mutate/stale/isolation lifecycle.
  */
 import { afterEach, describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
 import { cp, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -39,6 +40,8 @@ const MDX_PACK = join(
   "../../../fulvid-extensions/extensions/imgildev.mdx-comments",
 );
 
+const OFFICIAL_PACKS_AVAILABLE = existsSync(TODO_PACK) && existsSync(MDX_PACK);
+
 const TODO_REFRESH = "imgildev.todo-decorator.todoRefresh";
 const MDX_REFRESH = "imgildev.mdx-comments.mdxCommentsRefresh";
 
@@ -51,6 +54,9 @@ afterEach(() => {
 });
 
 async function loadBothPacks(): Promise<void> {
+  if (!OFFICIAL_PACKS_AVAILABLE) {
+    throw new Error("official packs unavailable; test should have been skipped");
+  }
   const userData = join(tmpdir(), `fulvid-live-doc-${crypto.randomUUID()}`);
   const root = join(userData, "extensions");
   await mkdir(root, { recursive: true });
@@ -109,7 +115,7 @@ function bump(state: LiveState, text: string): void {
 }
 
 describe("live Monaco document and extension lifecycle", () => {
-  test("snapshot currency rejects drift; both packs register as document-activation", async () => {
+  test("snapshot currency rejects drift", () => {
     expect(
       documentSnapshotIsCurrent(
         { documentId: "a", alternativeVersionId: 1 },
@@ -131,172 +137,180 @@ describe("live Monaco document and extension lifecycle", () => {
     expect(documentSnapshotIsCurrent({ documentId: "a", alternativeVersionId: 1 }, null)).toBe(
       false,
     );
-
-    await loadBothPacks();
-    expect(
-      listDocumentActivationCommands()
-        .map((a) => a.namespacedId)
-        .sort(),
-    ).toEqual([MDX_REFRESH, TODO_REFRESH]);
   });
 
-  test("live insert/decorate, doc-switch isolation, stale version reject, concurrent reentrancy", async () => {
-    await loadBothPacks();
-    const state: LiveState = {
-      text: "# Note\n",
-      documentId: "doc-todo",
-      version: 1,
-      byExtension: new Map(),
-    };
-    installLiveSeam(state);
+  test.skipIf(!OFFICIAL_PACKS_AVAILABLE)(
+    "official packs register as document-activation",
+    async () => {
+      await loadBothPacks();
+      expect(
+        listDocumentActivationCommands()
+          .map((a) => a.namespacedId)
+          .sort(),
+      ).toEqual([MDX_REFRESH, TODO_REFRESH]);
+    },
+  );
 
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
+  test.skipIf(!OFFICIAL_PACKS_AVAILABLE)(
+    "live insert/decorate, doc-switch isolation, stale version reject, concurrent reentrancy",
+    async () => {
+      await loadBothPacks();
+      const state: LiveState = {
+        text: "# Note\n",
+        documentId: "doc-todo",
+        version: 1,
+        byExtension: new Map(),
+      };
+      installLiveSeam(state);
 
-    bump(state, "# Note\nTODO: one\n");
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    const applied = rangesOf(state, "imgildev.todo-decorator");
-    expect(applied).toHaveLength(1);
-    expect(applied[0]).toMatchObject({
-      startLine: 2,
-      startColumn: 1,
-      endColumn: 6,
-      appearance: { backgroundColor: "#d29922" },
-    });
+      await runExtensionCommand(TODO_REFRESH, { silent: true });
+      expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
 
-    // Fence removal clears TODO decorations (inertness smoke).
-    bump(state, "preface\n\n```\nTODO: one\n```\n");
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
+      bump(state, "# Note\nTODO: one\n");
+      await runExtensionCommand(TODO_REFRESH, { silent: true });
+      const applied = rangesOf(state, "imgildev.todo-decorator");
+      expect(applied).toHaveLength(1);
+      expect(applied[0]).toMatchObject({
+        startLine: 2,
+        startColumn: 1,
+        endColumn: 6,
+        appearance: { backgroundColor: "#d29922" },
+      });
 
-    // Short MDX assertion for tagged-comment inertness vs plain.
-    bump(state, "# MDX\n{/* ! critical */}\n");
-    await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.mdx-comments")).toHaveLength(1);
-    expect(rangesOf(state, "imgildev.mdx-comments")[0]).toMatchObject({
-      appearance: { backgroundColor: "#ff7b72" },
-    });
-    bump(state, "# MDX\n{/* plain ignored */}\n");
-    await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.mdx-comments")).toEqual([]);
+      // Fence removal clears TODO decorations (inertness smoke).
+      bump(state, "preface\n\n```\nTODO: one\n```\n");
+      await runExtensionCommand(TODO_REFRESH, { silent: true });
+      expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
 
-    // Document switch isolates decorations across identities.
-    state.byExtension.clear();
-    state.documentId = "doc-b";
-    state.version = 1;
-    state.text = "FIXME: beta\n";
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(1);
-    expect(rangesOf(state, "imgildev.todo-decorator")[0]?.appearance?.backgroundColor).toBe(
-      "#ff7b72",
-    );
-    expect(rangesOf(state, "imgildev.mdx-comments")).toEqual([]);
+      // Short MDX assertion for tagged-comment inertness vs plain.
+      bump(state, "# MDX\n{/* ! critical */}\n");
+      await runExtensionCommand(MDX_REFRESH, { silent: true });
+      expect(rangesOf(state, "imgildev.mdx-comments")).toHaveLength(1);
+      expect(rangesOf(state, "imgildev.mdx-comments")[0]).toMatchObject({
+        appearance: { backgroundColor: "#ff7b72" },
+      });
+      bump(state, "# MDX\n{/* plain ignored */}\n");
+      await runExtensionCommand(MDX_REFRESH, { silent: true });
+      expect(rangesOf(state, "imgildev.mdx-comments")).toEqual([]);
 
-    state.byExtension.clear();
-    state.documentId = "doc-c";
-    state.version = 1;
-    state.text = "{/* ? only-mdx */}\n";
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    await runExtensionCommand(MDX_REFRESH, { silent: true });
-    expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
-    expect(rangesOf(state, "imgildev.mdx-comments")).toHaveLength(1);
-    expect(rangesOf(state, "imgildev.mdx-comments")[0]?.style).toBeUndefined();
+      // Document switch isolates decorations across identities.
+      state.byExtension.clear();
+      state.documentId = "doc-b";
+      state.version = 1;
+      state.text = "FIXME: beta\n";
+      await runExtensionCommand(TODO_REFRESH, { silent: true });
+      await runExtensionCommand(MDX_REFRESH, { silent: true });
+      expect(rangesOf(state, "imgildev.todo-decorator")).toHaveLength(1);
+      expect(rangesOf(state, "imgildev.todo-decorator")[0]?.appearance?.backgroundColor).toBe(
+        "#ff7b72",
+      );
+      expect(rangesOf(state, "imgildev.mdx-comments")).toEqual([]);
 
-    // Stale live version rejects decoration apply without mutating the model.
-    let text = "TODO: stale\n";
-    let liveVersion = 1;
-    const staleApplied: ExtensionDecorationRange[] = [];
-    registerEditorExtensionSeam({
-      getApplyContext: () => null,
-      getDocumentContext: () => ({
-        text,
-        documentId: "doc-stale",
-        alternativeVersionId: liveVersion,
-        cursorLine: 1,
-        cursorColumn: 1,
-      }),
-      replaceSelection: () => false,
-      reveal: () => false,
-      setExtensionDecorations: (_id, ranges) => {
-        staleApplied.splice(0, staleApplied.length, ...ranges);
-        return true;
-      },
-      clearExtensionDecorations: () => {
-        staleApplied.length = 0;
-        return true;
-      },
-      hasActiveEditor: () => true,
-    });
+      state.byExtension.clear();
+      state.documentId = "doc-c";
+      state.version = 1;
+      state.text = "{/* ? only-mdx */}\n";
+      await runExtensionCommand(TODO_REFRESH, { silent: true });
+      await runExtensionCommand(MDX_REFRESH, { silent: true });
+      expect(rangesOf(state, "imgildev.todo-decorator")).toEqual([]);
+      expect(rangesOf(state, "imgildev.mdx-comments")).toHaveLength(1);
+      expect(rangesOf(state, "imgildev.mdx-comments")[0]?.style).toBeUndefined();
 
-    let invokeCount = 0;
-    configureExtensionHostActions({
-      notify: () => undefined,
-      createUntitled: () => undefined,
-      invokeLuaCommand: async (request) => {
-        invokeCount += 1;
-        if (invokeCount === 1) {
-          liveVersion = 2;
-          text = "TODO: stale\nextra\n";
-        }
-        return import("../../src/bun/extensions/lua/luaExtensionRuntime.ts").then((m) =>
-          m.invokeLuaExtensionCommand(request),
-        );
-      },
-    });
+      // Stale live version rejects decoration apply without mutating the model.
+      let text = "TODO: stale\n";
+      let liveVersion = 1;
+      const staleApplied: ExtensionDecorationRange[] = [];
+      registerEditorExtensionSeam({
+        getApplyContext: () => null,
+        getDocumentContext: () => ({
+          text,
+          documentId: "doc-stale",
+          alternativeVersionId: liveVersion,
+          cursorLine: 1,
+          cursorColumn: 1,
+        }),
+        replaceSelection: () => false,
+        reveal: () => false,
+        setExtensionDecorations: (_id, ranges) => {
+          staleApplied.splice(0, staleApplied.length, ...ranges);
+          return true;
+        },
+        clearExtensionDecorations: () => {
+          staleApplied.length = 0;
+          return true;
+        },
+        hasActiveEditor: () => true,
+      });
 
-    liveVersion = 1;
-    await expect(runExtensionCommand(TODO_REFRESH, { silent: true })).rejects.toBeInstanceOf(
-      LocalizedError,
-    );
-    expect(staleApplied).toEqual([]);
-    await runExtensionCommand(TODO_REFRESH, { silent: true });
-    expect(staleApplied).toHaveLength(1);
+      let invokeCount = 0;
+      configureExtensionHostActions({
+        notify: () => undefined,
+        createUntitled: () => undefined,
+        invokeLuaCommand: async (request) => {
+          invokeCount += 1;
+          if (invokeCount === 1) {
+            liveVersion = 2;
+            text = "TODO: stale\nextra\n";
+          }
+          return import("../../src/bun/extensions/lua/luaExtensionRuntime.ts").then((m) =>
+            m.invokeLuaExtensionCommand(request),
+          );
+        },
+      });
 
-    // Concurrent document-pack invokes hit Lua reentrancy; sequential applies both.
-    const appliedByExt = new Map<string, ExtensionDecorationRange[]>();
-    registerEditorExtensionSeam({
-      getApplyContext: () => null,
-      getDocumentContext: () => ({
-        text: "TODO: one\n{/* TODO: mdx */}\n",
-        documentId: "doc-concurrent",
-        alternativeVersionId: 1,
-        cursorLine: 1,
-        cursorColumn: 1,
-      }),
-      replaceSelection: () => false,
-      reveal: () => false,
-      setExtensionDecorations: (extensionId, ranges) => {
-        appliedByExt.set(extensionId, [...ranges]);
-        return true;
-      },
-      clearExtensionDecorations: (extensionId) => {
-        appliedByExt.set(extensionId, []);
-        return true;
-      },
-      hasActiveEditor: () => true,
-    });
-    configureExtensionHostActions({
-      notify: () => undefined,
-      createUntitled: () => undefined,
-      invokeLuaCommand: (request) =>
-        import("../../src/bun/extensions/lua/luaExtensionRuntime.ts").then((m) =>
-          m.invokeLuaExtensionCommand(request),
-        ),
-    });
+      liveVersion = 1;
+      await expect(runExtensionCommand(TODO_REFRESH, { silent: true })).rejects.toBeInstanceOf(
+        LocalizedError,
+      );
+      expect(staleApplied).toEqual([]);
+      await runExtensionCommand(TODO_REFRESH, { silent: true });
+      expect(staleApplied).toHaveLength(1);
 
-    const commands = listDocumentActivationCommands();
-    expect(commands.length).toBeGreaterThanOrEqual(2);
-    const parallel = await Promise.allSettled(
-      commands.map((command) => runExtensionCommand(command.namespacedId, { silent: true })),
-    );
-    expect(parallel.some((entry) => entry.status === "rejected")).toBe(true);
+      // Concurrent document-pack invokes hit Lua reentrancy; sequential applies both.
+      const appliedByExt = new Map<string, ExtensionDecorationRange[]>();
+      registerEditorExtensionSeam({
+        getApplyContext: () => null,
+        getDocumentContext: () => ({
+          text: "TODO: one\n{/* TODO: mdx */}\n",
+          documentId: "doc-concurrent",
+          alternativeVersionId: 1,
+          cursorLine: 1,
+          cursorColumn: 1,
+        }),
+        replaceSelection: () => false,
+        reveal: () => false,
+        setExtensionDecorations: (extensionId, ranges) => {
+          appliedByExt.set(extensionId, [...ranges]);
+          return true;
+        },
+        clearExtensionDecorations: (extensionId) => {
+          appliedByExt.set(extensionId, []);
+          return true;
+        },
+        hasActiveEditor: () => true,
+      });
+      configureExtensionHostActions({
+        notify: () => undefined,
+        createUntitled: () => undefined,
+        invokeLuaCommand: (request) =>
+          import("../../src/bun/extensions/lua/luaExtensionRuntime.ts").then((m) =>
+            m.invokeLuaExtensionCommand(request),
+          ),
+      });
 
-    appliedByExt.clear();
-    for (const command of commands) {
-      await runExtensionCommand(command.namespacedId, { silent: true });
-    }
-    expect((appliedByExt.get("imgildev.todo-decorator") ?? []).length).toBeGreaterThan(0);
-    expect((appliedByExt.get("imgildev.mdx-comments") ?? []).length).toBeGreaterThan(0);
-  });
+      const commands = listDocumentActivationCommands();
+      expect(commands.length).toBeGreaterThanOrEqual(2);
+      const parallel = await Promise.allSettled(
+        commands.map((command) => runExtensionCommand(command.namespacedId, { silent: true })),
+      );
+      expect(parallel.some((entry) => entry.status === "rejected")).toBe(true);
+
+      appliedByExt.clear();
+      for (const command of commands) {
+        await runExtensionCommand(command.namespacedId, { silent: true });
+      }
+      expect((appliedByExt.get("imgildev.todo-decorator") ?? []).length).toBeGreaterThan(0);
+      expect((appliedByExt.get("imgildev.mdx-comments") ?? []).length).toBeGreaterThan(0);
+    },
+  );
 });

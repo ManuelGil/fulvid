@@ -202,14 +202,13 @@ commands.register({ id = "a", title = "A", run = function() ui.notify("a") end }
 commands.register({ id = "b", title = "B", run = function() ui.notify("b") end })
 `,
     });
-    let rejectedLoads = 0;
-    for (let attempt = 0; attempt < 5 && rejectedLoads === 0; attempt += 1) {
-      resetLuaCommandStore();
-      resetLuaFactoryForTests();
-      const loadOutcomes = await Promise.allSettled([loadPack(a), loadPack(b)]);
-      rejectedLoads = loadOutcomes.filter((entry) => entry.status === "rejected").length;
-    }
+    // Concurrent loads: claim is sync before awaits, so one must fail closed.
+    resetLuaCommandStore();
+    resetLuaFactoryForTests();
+    const loadOutcomes = await Promise.allSettled([loadPack(a), loadPack(b)]);
+    const rejectedLoads = loadOutcomes.filter((entry) => entry.status === "rejected").length;
     expect(rejectedLoads).toBeGreaterThanOrEqual(1);
+    expect(loadOutcomes.some((entry) => entry.status === "fulfilled")).toBe(true);
     resetLuaCommandStore();
     resetLuaFactoryForTests();
     await loadPack(a);
@@ -265,18 +264,27 @@ commands.register({
           endOffset: 1,
         },
       }),
-    ).toEqual({ ok: false, error: "editor capability not granted" });
+    ).toEqual({
+      ok: false,
+      error: "editor capability not granted",
+      failureKind: "commandFailed",
+    });
 
     expect(await invokeLuaExtensionCommand({ namespacedId: "" } as never)).toEqual({
       ok: false,
       error: "invalid invoke request",
+      failureKind: "commandFailed",
     });
     expect(
       await invokeLuaExtensionCommand({
         namespacedId: "test.missing.x",
         editor: { selection: 1 } as never,
       }),
-    ).toEqual({ ok: false, error: "invalid editor snapshot" });
+    ).toEqual({
+      ok: false,
+      error: "invalid editor snapshot",
+      failureKind: "commandFailed",
+    });
   });
 });
 
@@ -295,7 +303,7 @@ describe("adversarial renderer apply boundary", () => {
           api: 1,
           description: "Test extension",
           capabilities: ["lua", "commands", "ui", "document"],
-          location: "/tmp/test-extension",
+          location: join(tmpdir(), "test-extension"),
           state: "loaded" as const,
           activation: "command" as const,
           commands: [{ id: "go", namespacedId: "test.adv-reg.go", title: "Go" }],
@@ -336,7 +344,7 @@ describe("adversarial renderer apply boundary", () => {
           api: 1,
           description: "Test extension",
           capabilities: ["lua", "commands", "ui", "document"],
-          location: "/tmp/test-extension",
+          location: join(tmpdir(), "test-extension"),
           state: "loaded" as const,
           activation: "command" as const,
           commands: [{ id: "go", namespacedId: "test.adv-reg2.go", title: "Go" }],
@@ -393,7 +401,7 @@ describe("adversarial renderer apply boundary", () => {
           api: 1,
           description: "Test extension",
           capabilities: ["lua", "commands", "ui", "decorations"],
-          location: "/tmp/test-extension",
+          location: join(tmpdir(), "test-extension"),
           state: "loaded" as const,
           activation: "command" as const,
           commands: [{ id: "go", namespacedId: "test.adv-deco.go", title: "Go" }],

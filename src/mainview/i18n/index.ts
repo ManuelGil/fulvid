@@ -5,16 +5,26 @@ import { createI18n } from "vue-i18n";
 import { watch } from "vue";
 
 import { settings } from "../modules/settings/settingsStore";
+import de from "./de";
 import en from "./en";
 import es from "./es";
+import fr from "./fr";
+import it from "./it";
+import nl from "./nl";
+import pt from "./pt";
 
 export const i18n = createI18n({
   legacy: false,
   locale: settings.value.locale,
   fallbackLocale: "en",
   messages: {
+    de,
     en,
     es,
+    fr,
+    it,
+    nl,
+    pt,
   },
 });
 

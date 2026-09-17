@@ -91,7 +91,7 @@ The first operand is the enablement gate. GitHub does not allow workflow `env` i
 
 Pull requests and pushes to `main` never publish. Who can create or move `v*` tags is a GitHub repository permission.
 
-A public tag can be attached by hand from workflow artifacts or a local Linux set, using the matching file under [releases/](./releases/) as the body (`v0.10.0.md` for the current published notes; use `vX.Y.Z.md` for the version you are shipping). Do not flip the gate just to finish a documentation pass.
+A public tag can be attached by hand from workflow artifacts or a local Linux set, using the matching file under [releases/](./releases/) as the body (`v0.11.0.md` for the current published notes; use `vX.Y.Z.md` for the version you are shipping). Do not flip the gate just to finish a documentation pass.
 
 ## Verification
 

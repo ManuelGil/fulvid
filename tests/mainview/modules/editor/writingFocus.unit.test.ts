@@ -9,6 +9,7 @@ import {
   toggleWritingFocus,
   writingFocusActive,
   writingFocusHidesEditorChrome,
+  writingFocusKeepsFocusTarget,
   writingFocusLeaveEditorTarget,
   writingFocusMonacoOptions,
 } from "../../../../src/mainview/modules/editor/writingFocus.ts";
@@ -43,6 +44,9 @@ describe("writing focus", () => {
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain("[data-application-menu]");
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".toast-host");
     expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".dialog-host");
+    // Bun has no Element; kept-target filtering for real nodes stays GUI evidence.
+    expect(writingFocusKeepsFocusTarget(null)).toBe(false);
+    expect(writingFocusKeepsFocusTarget({} as EventTarget)).toBe(false);
 
     const monaco = writingFocusMonacoOptions(false, true);
     expect(monaco.minimap).toEqual({ enabled: false });

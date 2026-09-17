@@ -76,5 +76,9 @@ export const desktopRpc = new Electroview({
 });
 
 export function desktopRequest(): NonNullable<typeof desktopRpc.rpc>["request"] {
-  return desktopRpc.rpc!.request;
+  const rpc = desktopRpc.rpc;
+  if (!rpc) {
+    throw new Error("Electrobun RPC is not available");
+  }
+  return rpc.request;
 }

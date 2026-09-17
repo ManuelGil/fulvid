@@ -55,9 +55,17 @@ describe("document location", () => {
 
     expect(
       documentLocationFromBuffer(
-        buffer({ id: "file:/tmp/note.md", title: "note.md", absolutePath: "/tmp/note.md" }),
+        buffer({
+          id: "file:/fixture/standalone/note.md",
+          title: "note.md",
+          absolutePath: "/fixture/standalone/note.md",
+        }),
       ),
-    ).toEqual({ kind: "standalone", label: "note.md", full: "/tmp/note.md" });
+    ).toEqual({
+      kind: "standalone",
+      label: "note.md",
+      full: "/fixture/standalone/note.md",
+    });
 
     const unicode = documentLocationFromBuffer(
       buffer({

@@ -24,9 +24,12 @@ import {
   containedPath,
   WorkspaceBoundaryError,
 } from "../../filesystem/security/workspacePaths";
+import type { ExtensionInvokeFailureKind } from "../../../mainview/desktop/desktopRpc";
 import {
   createHardenedLuaEngine,
   describeLuaRuntimeFailure,
+  isLuaMemoryError,
+  isLuaTimeoutError,
   runLuaSourceWithBudget,
 } from "./luaEngine";
 import { LUA_EXTENSION_LIMITS } from "./luaLimits";
@@ -38,6 +41,56 @@ export class LuaExtensionLoadError extends Error {
     super(reason);
     this.name = "LuaExtensionLoadError";
   }
+}
+
+/** Host size-budget rejection; classified as sizeLimitExceeded without reading message text. */
+class LuaSizeLimitError extends Error {
+  readonly failureKind = "sizeLimitExceeded" as const;
+  constructor(message: string) {
+    super(message);
+    this.name = "LuaSizeLimitError";
+  }
+}
+
+type LuaInvokeFailure = {
+  ok: false;
+  error: string;
+  failureKind: ExtensionInvokeFailureKind;
+};
+
+function invokeFailure(failureKind: ExtensionInvokeFailureKind, error: string): LuaInvokeFailure {
+  return { ok: false, error, failureKind };
+}
+
+/**
+ * Bridge helpers return authored English diagnostics. Size-budget messages are a
+ * closed set so classification stays contract-based rather than locale/OS matching.
+ */
+function throwBridgeValidationError(message: string): never {
+  if (
+    message === "decorations.set exceeds range limit" ||
+    message === "template variable count exceeds limit" ||
+    message === "template variable value exceeds size limit" ||
+    message === "template source exceeds size limit" ||
+    message === "template output exceeds size limit"
+  ) {
+    throw new LuaSizeLimitError(message);
+  }
+  throw new Error(message);
+}
+
+/** Map a caught guest/host error to the narrow invoke failure contract. */
+function failureFromCaughtError(error: unknown): LuaInvokeFailure {
+  if (error instanceof LuaSizeLimitError) {
+    return invokeFailure("sizeLimitExceeded", error.message);
+  }
+  if (isLuaTimeoutError(error)) {
+    return invokeFailure("executionTimeout", describeLuaRuntimeFailure(error));
+  }
+  if (isLuaMemoryError(error)) {
+    return invokeFailure("memoryExceeded", describeLuaRuntimeFailure(error));
+  }
+  return invokeFailure("commandFailed", describeLuaRuntimeFailure(error));
 }
 
 export type LuaRegisteredCommand = {
@@ -63,7 +116,7 @@ export type LuaInvokeResult =
       createUntitled?: string;
       reveal?: { lineNumber: number; column: number };
     }
-  | { ok: false; error: string };
+  | LuaInvokeFailure;
 
 const engines = new Map<string, { engine: LuaEngine; capabilities: readonly string[] }>();
 const commands = new Map<string, LuaRegisteredCommand>();
@@ -98,6 +151,33 @@ function closeEngine(engine: LuaEngine | null): void {
   } catch {
     // best-effort
   }
+}
+
+/**
+ * Lua may pass a 1-based array as a table with numeric string keys.
+ * Normalize to a dense JS array, or null when the value is not a list.
+ */
+function luaListArgument(value: unknown): unknown[] | null {
+  if (Array.isArray(value)) {
+    const list: unknown[] = [];
+    for (const entry of value) {
+      list.push(entry);
+    }
+    return list;
+  }
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const indexes = Object.keys(record)
+    .filter((key) => /^\d+$/.test(key))
+    .map((key) => Number(key))
+    .sort((left, right) => left - right);
+  const list: unknown[] = [];
+  for (const index of indexes) {
+    list.push(record[String(index)]);
+  }
+  return list;
 }
 
 /** Drop a pack's engine and commands (failed load cleanup and uninstall). */
@@ -170,7 +250,7 @@ async function installBridge(
         throw new Error("invalid Lua command title");
       }
       if (title.length > LUA_EXTENSION_LIMITS.maxCommandTitleChars.value) {
-        throw new Error("command title exceeds size limit");
+        throw new LuaSizeLimitError("command title exceeds size limit");
       }
       if (typeof run !== "function") {
         throw new Error("commands.register requires a run function");
@@ -201,7 +281,7 @@ async function installBridge(
         throw new Error("ui.notify requires a string");
       }
       if (message.length > LUA_EXTENSION_LIMITS.maxNotifyMessageChars.value) {
-        throw new Error("ui.notify message exceeds size limit");
+        throw new LuaSizeLimitError("ui.notify message exceeds size limit");
       }
       bridge.onNotify(message);
     },
@@ -216,7 +296,7 @@ async function installBridge(
           throw new Error("editor.replaceSelection requires a string");
         }
         if (text.length > LUA_EXTENSION_LIMITS.maxEditorSelectionChars.value) {
-          throw new Error("editor.replaceSelection exceeds size limit");
+          throw new LuaSizeLimitError("editor.replaceSelection exceeds size limit");
         }
         mutations.replaceSelection = text;
       },
@@ -249,7 +329,7 @@ async function installBridge(
           throw new Error("document.createUntitled requires a string");
         }
         if (markdown.length > LUA_EXTENSION_LIMITS.maxCreateUntitledChars.value) {
-          throw new Error("document.createUntitled exceeds size limit");
+          throw new LuaSizeLimitError("document.createUntitled exceeds size limit");
         }
         setUntitled(markdown);
       },
@@ -260,15 +340,7 @@ async function installBridge(
     const mutations = bridge.decorations;
     engine.global.set("decorations", {
       set(ranges: unknown): void {
-        const list = Array.isArray(ranges)
-          ? ranges
-          : typeof ranges === "object" && ranges !== null
-            ? Object.keys(ranges)
-                .filter((key) => /^\d+$/.test(key))
-                .map((key) => Number(key))
-                .sort((a, b) => a - b)
-                .map((index) => (ranges as Record<string, unknown>)[String(index)])
-            : null;
+        const list = luaListArgument(ranges);
         if (!list) {
           throw new Error("decorations.set requires an array");
         }
@@ -289,7 +361,7 @@ async function installBridge(
           }),
         );
         if (!parsed.ok) {
-          throw new Error(parsed.error);
+          throwBridgeValidationError(parsed.error);
         }
         mutations.set = parsed.ranges;
         mutations.clear = undefined;
@@ -306,7 +378,7 @@ async function installBridge(
       render(source: unknown, variables: unknown): string {
         const rendered = renderExtensionTemplate(source, variables);
         if (!rendered.ok) {
-          throw new Error(rendered.error);
+          throwBridgeValidationError(rendered.error);
         }
         return rendered.text;
       },
@@ -330,80 +402,85 @@ export async function loadLuaExtensionPack(
     throw new LuaExtensionLoadError("lua packs require lua capability and entry");
   }
 
-  const relativeEntry = manifest.entry.replace(/\\/g, "/");
-  if (!relativeEntry.endsWith(".lua") || relativeEntry.includes("\0")) {
-    throw new LuaExtensionLoadError("invalid entry path");
-  }
-
-  let entryPath: string;
-  try {
-    entryPath = containedPath(packRoot, relativeEntry);
-    await assertCanonicallyContained(packRoot, relativeEntry);
-  } catch (error) {
-    throw new LuaExtensionLoadError(
-      error instanceof WorkspaceBoundaryError
-        ? "entry path outside extension"
-        : "invalid entry path",
-    );
-  }
-
-  let entryStat;
-  try {
-    entryStat = await stat(entryPath);
-  } catch {
-    throw new LuaExtensionLoadError(`missing entry file: ${manifest.entry}`);
-  }
-  if (!entryStat.isFile() || entryStat.size > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
-    throw new LuaExtensionLoadError(
-      entryStat.isFile()
-        ? "entry.lua exceeds size limit"
-        : `entry is not a file: ${manifest.entry}`,
-    );
-  }
-
-  const source = await readFile(entryPath, "utf8");
-  if (
-    Buffer.byteLength(source, "utf8") > LUA_EXTENSION_LIMITS.maxSourceBytes.value ||
-    source.startsWith("\u001bLua") ||
-    source.includes("\0")
-  ) {
-    throw new LuaExtensionLoadError(
-      source.startsWith("\u001bLua") || source.includes("\0")
-        ? "bytecode entry is not allowed"
-        : "entry.lua exceeds size limit",
-    );
-  }
-
+  // Claim before any await so concurrent loads cannot both pass the gate.
   if (loadTxn || invoking) {
     throw new LuaExtensionLoadError("Lua registration reentrancy is not allowed");
   }
   loadTxn = { extensionId: manifest.id, pending: [] };
 
-  let engine: LuaEngine | null = null;
   try {
-    engine = await createHardenedLuaEngine();
-    await installBridge(engine, manifest.id, {
-      allowRegister: true,
-      onNotify: null,
-      templates: manifest.capabilities.includes("templates"),
-    });
-    await runLuaSourceWithBudget(engine, source);
+    const relativeEntry = manifest.entry.replace(/\\/g, "/");
+    if (!relativeEntry.endsWith(".lua") || relativeEntry.includes("\0")) {
+      throw new LuaExtensionLoadError("invalid entry path");
+    }
 
-    const committed = loadTxn.pending;
-    unloadLuaExtensionPack(manifest.id);
-    engines.set(manifest.id, { engine, capabilities: [...manifest.capabilities] });
-    for (const command of committed) {
-      commands.set(command.namespacedId, command);
+    let entryPath: string;
+    try {
+      entryPath = containedPath(packRoot, relativeEntry);
+      await assertCanonicallyContained(packRoot, relativeEntry);
+    } catch (error) {
+      throw new LuaExtensionLoadError(
+        error instanceof WorkspaceBoundaryError
+          ? "entry path outside extension"
+          : "invalid entry path",
+      );
     }
-    loadTxn = null;
-    return committed;
+
+    let entryStat;
+    try {
+      entryStat = await stat(entryPath);
+    } catch {
+      throw new LuaExtensionLoadError(`missing entry file: ${manifest.entry}`);
+    }
+    if (!entryStat.isFile() || entryStat.size > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
+      throw new LuaExtensionLoadError(
+        entryStat.isFile()
+          ? "entry.lua exceeds size limit"
+          : `entry is not a file: ${manifest.entry}`,
+      );
+    }
+
+    const source = await readFile(entryPath, "utf8");
+    if (
+      Buffer.byteLength(source, "utf8") > LUA_EXTENSION_LIMITS.maxSourceBytes.value ||
+      source.startsWith("\u001bLua") ||
+      source.includes("\0")
+    ) {
+      throw new LuaExtensionLoadError(
+        source.startsWith("\u001bLua") || source.includes("\0")
+          ? "bytecode entry is not allowed"
+          : "entry.lua exceeds size limit",
+      );
+    }
+
+    let engine: LuaEngine | null = null;
+    try {
+      engine = await createHardenedLuaEngine();
+      await installBridge(engine, manifest.id, {
+        allowRegister: true,
+        onNotify: null,
+        templates: manifest.capabilities.includes("templates"),
+      });
+      await runLuaSourceWithBudget(engine, source);
+
+      const committed = loadTxn.pending;
+      unloadLuaExtensionPack(manifest.id);
+      engines.set(manifest.id, { engine, capabilities: [...manifest.capabilities] });
+      for (const command of committed) {
+        commands.set(command.namespacedId, command);
+      }
+      loadTxn = null;
+      return committed;
+    } catch (error) {
+      closeEngine(engine);
+      if (error instanceof LuaExtensionLoadError) {
+        throw error;
+      }
+      throw new LuaExtensionLoadError(describeLuaRuntimeFailure(error));
+    }
   } catch (error) {
-    closeEngine(engine);
     loadTxn = null;
-    if (error instanceof LuaExtensionLoadError) {
-      throw error;
-    }
-    throw new LuaExtensionLoadError(describeLuaRuntimeFailure(error));
+    throw error;
   }
 }
 
@@ -412,7 +489,7 @@ export async function invokeLuaExtensionCommand(
 ): Promise<LuaInvokeResult> {
   const namespacedId = typeof request === "string" ? request : request?.namespacedId;
   if (typeof namespacedId !== "string" || namespacedId.length === 0 || namespacedId.length > 256) {
-    return { ok: false, error: "invalid invoke request" };
+    return invokeFailure("commandFailed", "invalid invoke request");
   }
   const editorSnapshot = typeof request === "string" ? undefined : request.editor;
   const documentSnapshot = typeof request === "string" ? undefined : request.document;
@@ -427,7 +504,7 @@ export async function invokeLuaExtensionCommand(
       typeof editorSnapshot.startOffset !== "number" ||
       typeof editorSnapshot.endOffset !== "number"
     ) {
-      return { ok: false, error: "invalid editor snapshot" };
+      return invokeFailure("commandFailed", "invalid editor snapshot");
     }
   }
   if (documentSnapshot !== undefined) {
@@ -440,18 +517,18 @@ export async function invokeLuaExtensionCommand(
       typeof documentSnapshot.cursorLine !== "number" ||
       typeof documentSnapshot.cursorColumn !== "number"
     ) {
-      return { ok: false, error: "invalid document snapshot" };
+      return invokeFailure("commandFailed", "invalid document snapshot");
     }
   }
 
   const command = commands.get(namespacedId);
   const record = command ? engines.get(command.extensionId) : undefined;
   if (!command || !record) {
-    return { ok: false, error: command ? "lua session missing" : "unknown lua command" };
+    return invokeFailure("commandFailed", command ? "lua session missing" : "unknown lua command");
   }
 
   if (invoking || loadTxn) {
-    return { ok: false, error: "lua invocation reentrancy is not allowed" };
+    return invokeFailure("commandFailed", "lua invocation reentrancy is not allowed");
   }
 
   const caps = record.capabilities;
@@ -461,23 +538,23 @@ export async function invokeLuaExtensionCommand(
   const allowTemplates = caps.includes("templates");
 
   if (editorSnapshot && !allowEditor) {
-    return { ok: false, error: "editor capability not granted" };
+    return invokeFailure("commandFailed", "editor capability not granted");
   }
   if (documentSnapshot && !allowDocument && !allowDecorations) {
-    return { ok: false, error: "document capability not granted" };
+    return invokeFailure("commandFailed", "document capability not granted");
   }
   if (
     editorSnapshot &&
     editorSnapshot.selection.length > LUA_EXTENSION_LIMITS.maxEditorSelectionChars.value
   ) {
-    return { ok: false, error: "editor selection exceeds size limit" };
+    return invokeFailure("sizeLimitExceeded", "editor selection exceeds size limit");
   }
   if (
     documentSnapshot &&
     allowDocument &&
     documentSnapshot.text.length > LUA_EXTENSION_LIMITS.maxDocumentTextChars.value
   ) {
-    return { ok: false, error: "document text exceeds size limit" };
+    return invokeFailure("sizeLimitExceeded", "document text exceeds size limit");
   }
 
   const notifications: string[] = [];
@@ -492,7 +569,7 @@ export async function invokeLuaExtensionCommand(
       allowRegister: false,
       onNotify: (message) => {
         if (notifications.length >= LUA_EXTENSION_LIMITS.maxNotificationsPerInvoke.value) {
-          throw new Error("ui.notify count exceeds size limit");
+          throw new LuaSizeLimitError("ui.notify count exceeds size limit");
         }
         notifications.push(message);
       },
@@ -522,7 +599,7 @@ export async function invokeLuaExtensionCommand(
       (typeof runOutcome === "object" || typeof runOutcome === "function") &&
       typeof (runOutcome as { then?: unknown }).then === "function"
     ) {
-      return { ok: false, error: "async command results are not allowed" };
+      return invokeFailure("commandFailed", "async command results are not allowed");
     }
 
     const result: Extract<LuaInvokeResult, { ok: true }> = { ok: true, notifications };
@@ -543,7 +620,7 @@ export async function invokeLuaExtensionCommand(
     }
     return result;
   } catch (error) {
-    return { ok: false, error: describeLuaRuntimeFailure(error) };
+    return failureFromCaughtError(error);
   } finally {
     invoking = false;
   }

@@ -42,6 +42,9 @@ describe("folder path containment", () => {
       // Drive-relative forms (no slash) are not POSIX-absolute; still refused.
       expect(() => containedPath(root, "C:foo")).toThrow(OUTSIDE);
       expect(() => containedPath(root, "C:note.md")).toThrow(OUTSIDE);
+      // UNC / host-share forms must not be treated as folder-relative targets.
+      expect(() => containedPath(root, "\\\\server\\share\\file.md")).toThrow(OUTSIDE);
+      expect(() => containedPath(root, "//server/share/file.md")).toThrow(OUTSIDE);
       expect(() => containedPath(root, "notes/\0x.md")).toThrow(INVALID);
       expect(() => containedPath(root, "notes/\n.md")).toThrow(INVALID);
       expect(() => containedPath(root, `${"a".repeat(256)}.md`)).toThrow(INVALID);

@@ -19,6 +19,8 @@ $resize-hit-width: var(--resize-hit-width);
 
 $page-max-width: 760px;
 $scroll-inline-padding: 4px;
+/* Keep in sync with NARROW_VIEWPORT_MAX_PX in layoutStore.ts */
+$narrow-viewport-max: 900px;
 
 $space-1: var(--space-1);
 $space-2: var(--space-2);

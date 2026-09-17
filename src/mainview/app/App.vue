@@ -79,6 +79,7 @@ import {
   toggleLeftSidebar,
   toggleRightSidebar,
   type RightSidebar,
+  NARROW_VIEWPORT_MEDIA_QUERY,
 } from "./layoutStore";
 import AppIcon from "../shell/AppIcon.vue";
 import ApplicationMenu from "../shell/ApplicationMenu.vue";
@@ -145,7 +146,7 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const narrowViewport = ref(
-  typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches,
+  typeof window !== "undefined" && window.matchMedia(NARROW_VIEWPORT_MEDIA_QUERY).matches,
 );
 let narrowViewportMedia: MediaQueryList | null = null;
 
@@ -317,11 +318,17 @@ function syncRoutePanel(routeName: unknown): void {
     } else {
       openRightSidebar("search");
     }
-  } else if (routeName === APP_ROUTE_NAMES.editor && rightSidebar.value === "search") {
+    return;
+  }
+  if (routeName === APP_ROUTE_NAMES.editor && rightSidebar.value === "search") {
     closeRightSidebar();
-  } else if (routeName === APP_ROUTE_NAMES.graph && rightSidebar.value !== "context") {
+    return;
+  }
+  if (routeName === APP_ROUTE_NAMES.graph && rightSidebar.value !== "context") {
     closeRightSidebar();
-  } else if (routeName !== APP_ROUTE_NAMES.editor && routeName !== APP_ROUTE_NAMES.graph) {
+    return;
+  }
+  if (routeName !== APP_ROUTE_NAMES.editor && routeName !== APP_ROUTE_NAMES.graph) {
     closeRightSidebar();
   }
 }
@@ -673,7 +680,7 @@ onMounted(() => {
   window.addEventListener("dragover", preventDragDropNavigation);
   window.addEventListener("drop", preventDragDropNavigation);
   window.addEventListener("keydown", onAppKeydown);
-  narrowViewportMedia = window.matchMedia("(max-width: 900px)");
+  narrowViewportMedia = window.matchMedia(NARROW_VIEWPORT_MEDIA_QUERY);
   narrowViewport.value = narrowViewportMedia.matches;
   narrowViewportMedia.addEventListener("change", onNarrowViewportChange);
 });
@@ -694,20 +701,24 @@ const routeLabel = computed(() => {
   return t("nav.editor");
 });
 
+function documentAnnouncementLabel(): string {
+  const location = documentLocationFromBuffer(activeBuffer.value);
+  if (location) {
+    const unsaved =
+      activeBuffer.value && isDocumentDirty(activeBuffer.value)
+        ? `, ${t("tabs.unsavedChanges")}`
+        : "";
+    return `${location.full}${unsaved}`;
+  }
+  if (validatedFocus.value) {
+    return noteTitle(validatedFocus.value.path, workspace.value?.scannedNotes ?? []);
+  }
+  return "";
+}
+
 const routeAnnouncement = computed(() => {
   const workspaceLabel = workspace.value ? workspaceName(workspace.value.path) : "";
-  const location = documentLocationFromBuffer(activeBuffer.value);
-  const documentLabel = location
-    ? `${location.full}${
-        activeBuffer.value && isDocumentDirty(activeBuffer.value)
-          ? `, ${t("tabs.unsavedChanges")}`
-          : ""
-      }`
-    : validatedFocus.value
-      ? noteTitle(validatedFocus.value.path, workspace.value?.scannedNotes ?? [])
-      : "";
-
-  return [documentLabel, routeLabel.value, workspaceLabel].filter(Boolean).join(", ");
+  return [documentAnnouncementLabel(), routeLabel.value, workspaceLabel].filter(Boolean).join(", ");
 });
 
 const writingFocusAnnouncement = ref("");
@@ -847,10 +858,13 @@ async function openFileDocument(): Promise<void> {
       workspace.value && snapshot.absolutePath
         ? relativeDocumentPath(workspace.value.path, snapshot.absolutePath)
         : null;
+    const openWorkspace = workspace.value;
     await openOrActivate({
       kind: "granted",
       snapshot,
-      ...(attachment ? { attachment: { rootPath: workspace.value!.path, path: attachment } } : {}),
+      ...(attachment && openWorkspace
+        ? { attachment: { rootPath: openWorkspace.path, path: attachment } }
+        : {}),
     });
     closeRightSidebar();
     await router.push({ name: APP_ROUTE_NAMES.editor });
@@ -1546,7 +1560,7 @@ onBeforeUnmount(() => {
   color: $text-muted;
 }
 
-@media (max-width: 900px) {
+@media (max-width: $narrow-viewport-max) {
   .app-shell__panel {
     position: absolute;
     top: 0;

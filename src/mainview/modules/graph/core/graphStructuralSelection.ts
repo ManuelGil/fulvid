@@ -28,8 +28,14 @@ export function buildDepthMap(
   depths.set(focusId, 0);
 
   while (queue.length > 0) {
-    const currentId = queue.shift()!;
-    const currentDepth = depths.get(currentId)!;
+    const currentId = queue.shift();
+    if (!currentId) {
+      break;
+    }
+    const currentDepth = depths.get(currentId);
+    if (currentDepth === undefined) {
+      continue;
+    }
 
     for (const neighborId of adjacency.get(currentId) ?? []) {
       if (depths.has(neighborId)) {
