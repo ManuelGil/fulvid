@@ -6,7 +6,7 @@ import { useRouter } from "vue-router";
 import AppIcon from "../../../shell/AppIcon.vue";
 import ContextMenu, { type ContextMenuAction } from "../../../shell/ContextMenu.vue";
 import { notify } from "../../../app/notify";
-import { confirmDialog, promptFilename } from "../../../app/dialogs";
+import { confirmDialog, promptFilename, promptPick } from "../../../app/dialogs";
 import {
   closeDocument,
   getDocumentBuffer,
@@ -39,9 +39,11 @@ import { APP_ROUTE_NAMES } from "../../../app/router";
 import {
   isMarkdownFile,
   isSafeDocumentBasename,
+  isSafeFolderBasename,
   type FileSystemEntry,
 } from "../filesystem/workspaceTypes";
 import {
+  createDirectory,
   deleteDocument,
   describeFilesystemError,
   listDirectory,
@@ -134,6 +136,9 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
       if (id === "rename") {
         return { id, label: t("files.rename") };
       }
+      if (id === "move") {
+        return { id, label: t("files.move") };
+      }
       if (id === "reveal") {
         return { id, label: t(explorerPathActionLabelKeys.reveal) };
       }
@@ -151,6 +156,7 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
       children: [
         { id: "newDocument", label: t("files.newDocument") },
         { id: "newDocumentFromReadme", label: t("files.newDocumentFromReadme") },
+        { id: "newFolder", label: t("files.newFolder") },
       ],
     },
     ...explorerFolderContextActionIds().map((id) => {
@@ -372,32 +378,83 @@ function createNewDocumentFromReadme(preferredParent?: FileSystemEntry | null): 
   return createExplorerDocument("readme", preferredParent);
 }
 
-async function renameDocumentEntry(entry: FileSystemEntry): Promise<void> {
+async function createNewFolder(preferredParent?: FileSystemEntry | null): Promise<void> {
   const rootPath = workspaceRoot.value;
-  if (!rootPath || entry.kind !== "file") {
+  if (!rootPath) {
     return;
   }
 
-  const sourcePath = entry.path;
-  const nextName = await promptFilename({
-    title: t("files.rename"),
-    label: t("files.renameName"),
-    initialValue: entry.name,
+  const parentDirectory = targetDirectory(preferredParent);
+  const name = await promptFilename({
+    title: t("files.newFolder"),
+    label: t("files.newFolderName"),
+    initialValue: "",
   });
-  if (!nextName || nextName === entry.name || !isMarkdownFile(nextName)) {
+  if (!name) {
     return;
   }
-  if (!isSafeDocumentBasename(nextName)) {
+  if (!isSafeFolderBasename(name)) {
     notify(t("filesystemErrors.unsafeName"));
     return;
   }
-
-  // Workspace may have closed while the dialog was open.
   if (workspaceRoot.value !== rootPath) {
     return;
   }
 
-  const nextPath = [explorerParentPath(sourcePath), nextName].filter(Boolean).join("/");
+  const relativePath = [parentDirectory, name].filter(Boolean).join("/");
+  try {
+    await createDirectory(rootPath, relativePath);
+    if (workspaceRoot.value !== rootPath) {
+      return;
+    }
+    await loadDirectory(parentDirectory);
+    if (parentDirectory) {
+      expandedDirectories.value = new Set(expandedDirectories.value).add(parentDirectory);
+    }
+    selectedPath.value = relativePath;
+  } catch (error) {
+    notifyFilesystemError(error, "files.newFolderError", notify);
+  }
+}
+
+async function listMoveDestinations(rootPath: string, sourcePath: string): Promise<string[]> {
+  const currentParent = explorerParentPath(sourcePath);
+  const destinations: string[] = [];
+  const queue = [""];
+  const seen = new Set<string>();
+
+  while (queue.length > 0) {
+    const directory = queue.shift() ?? "";
+    if (seen.has(directory)) {
+      continue;
+    }
+    seen.add(directory);
+    if (directory !== currentParent) {
+      destinations.push(directory);
+    }
+    let entries: FileSystemEntry[];
+    try {
+      entries = await listDirectory(rootPath, directory, settings.value.workspace.showHiddenFiles);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (entry.kind === "directory") {
+        queue.push(entry.path);
+      }
+    }
+  }
+
+  return destinations.sort((left, right) => left.localeCompare(right));
+}
+
+async function relocateDocumentEntry(entry: FileSystemEntry, nextPath: string): Promise<void> {
+  const rootPath = workspaceRoot.value;
+  if (!rootPath || entry.kind !== "file" || nextPath === entry.path) {
+    return;
+  }
+
+  const sourcePath = entry.path;
   const buffer = getDocumentBuffer(rootPath, sourcePath);
   const linkMode = settings.value.links.linkMode;
   const contentByPath = new Map<string, string>();
@@ -473,6 +530,69 @@ async function renameDocumentEntry(entry: FileSystemEntry): Promise<void> {
   }
 }
 
+async function renameDocumentEntry(entry: FileSystemEntry): Promise<void> {
+  const rootPath = workspaceRoot.value;
+  if (!rootPath || entry.kind !== "file") {
+    return;
+  }
+
+  const sourcePath = entry.path;
+  const nextName = await promptFilename({
+    title: t("files.rename"),
+    label: t("files.renameName"),
+    initialValue: entry.name,
+  });
+  if (!nextName || nextName === entry.name || !isMarkdownFile(nextName)) {
+    return;
+  }
+  if (!isSafeDocumentBasename(nextName)) {
+    notify(t("filesystemErrors.unsafeName"));
+    return;
+  }
+
+  // Workspace may have closed while the dialog was open.
+  if (workspaceRoot.value !== rootPath) {
+    return;
+  }
+
+  const nextPath = [explorerParentPath(sourcePath), nextName].filter(Boolean).join("/");
+  await relocateDocumentEntry(entry, nextPath);
+}
+
+async function moveDocumentEntry(entry: FileSystemEntry): Promise<void> {
+  const rootPath = workspaceRoot.value;
+  if (!rootPath || entry.kind !== "file") {
+    return;
+  }
+
+  const destinations = await listMoveDestinations(rootPath, entry.path);
+  if (destinations.length === 0) {
+    notify(t("files.moveNoDestinations"));
+    return;
+  }
+  if (workspaceRoot.value !== rootPath) {
+    return;
+  }
+
+  const picked = await promptPick({
+    title: t("files.move"),
+    items: destinations.map((path) => ({
+      id: path,
+      label: path || t("files.folderRoot"),
+      detail: path || workspaceName(rootPath),
+    })),
+  });
+  if (picked === null) {
+    return;
+  }
+  if (workspaceRoot.value !== rootPath) {
+    return;
+  }
+
+  const nextPath = [picked, entry.name].filter(Boolean).join("/");
+  await relocateDocumentEntry(entry, nextPath);
+}
+
 async function deleteDocumentEntry(entry: FileSystemEntry): Promise<void> {
   const rootPath = workspaceRoot.value;
   if (!rootPath || entry.kind !== "file") {
@@ -532,8 +652,12 @@ async function runContextAction(id: string): Promise<void> {
     await createNewDocument(entry);
   } else if (id === "newDocumentFromReadme") {
     await createNewDocumentFromReadme(entry);
+  } else if (id === "newFolder") {
+    await createNewFolder(entry);
   } else if (id === "rename") {
     await renameDocumentEntry(entry);
+  } else if (id === "move") {
+    await moveDocumentEntry(entry);
   } else if (id === "delete") {
     await deleteDocumentEntry(entry);
   } else if (id === "reveal") {
@@ -688,6 +812,15 @@ onBeforeUnmount(() => {
           @click="() => createNewDocumentFromReadme()"
         >
           <AppIcon name="document" :size="14" />
+        </button>
+        <button
+          type="button"
+          :title="t('files.newFolder')"
+          :aria-label="t('files.newFolder')"
+          :disabled="!workspaceRoot"
+          @click="() => createNewFolder()"
+        >
+          <AppIcon name="folder" :size="14" />
         </button>
         <button
           type="button"

@@ -17,6 +17,7 @@ import {
   scanWorkspace as scanWorkspaceOnDisk,
 } from "../scanning/scanDirectory";
 import {
+  createDirectory as createDirectoryOnDisk,
   createDocument as createDocumentOnDisk,
   deleteDocument as deleteDocumentOnDisk,
   readDocument as readDocumentOnDisk,
@@ -211,6 +212,12 @@ export const filesystemRpcHandlers = {
       requireString(params, "relativePath"),
       requireDocumentContent(params),
       requireLinkMode(params),
+    ),
+  ),
+  createDirectory: containHostError("createDirectory", async (params: unknown) =>
+    createDirectoryOnDisk(
+      await authorizedWorkspaceRoot(requireString(params, "rootPath")),
+      requireString(params, "relativePath"),
     ),
   ),
   renameDocument: containHostError("renameDocument", async (params: unknown) =>

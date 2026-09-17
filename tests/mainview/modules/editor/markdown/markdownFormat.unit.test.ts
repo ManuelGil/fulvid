@@ -38,4 +38,13 @@ describe("markdown formatting", () => {
     expect(applyTextEdits(text, result.edits)).toBe("**one** **two**");
     expect(result.edits).toHaveLength(2);
   });
+
+  test("toggles task checkboxes without changing non-task lines", () => {
+    const mixed = "- [ ] open\n- [x] done\nplain\n* [X] star";
+    const toggled = apply(mixed, 0, mixed.length, "toggleTask");
+    expect(toggled.text).toBe("- [x] open\n- [ ] done\nplain\n* [ ] star");
+    const again = apply(toggled.text, 0, toggled.text.length, "toggleTask");
+    expect(again.text).toBe("- [ ] open\n- [x] done\nplain\n* [x] star");
+    expect(apply("hello", 0, 5, "toggleTask").text).toBe("hello");
+  });
 });

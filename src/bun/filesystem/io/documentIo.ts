@@ -28,6 +28,7 @@ import {
   containedPath,
   hasControlCharacters,
   isUnsafePathSegment,
+  normalizeWorkspaceRelativePath,
   RESERVED_DEVICE_NAMES,
   WorkspaceBoundaryError,
 } from "../security/workspacePaths";
@@ -335,6 +336,43 @@ export async function createDocument(
   }
 
   return { note, absolutePath: targetPath, mtimeMs };
+}
+
+/**
+ * Create one empty directory inside the open folder.
+ *
+ * Parent must already exist (`recursive: false`). Refuses when any entry
+ * already occupies the path. Not a recursive mkdir tree builder.
+ */
+export async function createDirectory(
+  rootPath: string,
+  relativePath: string,
+): Promise<{ path: string }> {
+  const normalized = normalizeWorkspaceRelativePath(relativePath);
+  if (!normalized) {
+    throw new WorkspaceBoundaryError("invalidTarget");
+  }
+  const targetPath = containedPath(rootPath, normalized);
+  await assertCanonicallyContained(rootPath, normalized);
+
+  try {
+    await stat(targetPath);
+    throw new Error(filesystemErrorMessage("documentExists"));
+  } catch (error) {
+    if (error instanceof Error && error.message === filesystemErrorMessage("documentExists")) {
+      throw error;
+    }
+    if (!(
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    )) {
+      throw error;
+    }
+  }
+
+  await mkdir(targetPath, { recursive: false });
+  return { path: normalized };
 }
 
 export async function renameDocument(

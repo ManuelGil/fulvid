@@ -9,6 +9,28 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+### Added
+
+- **New Folder**: create an empty folder in the open Folder from Explorer (toolbar and folder New menu). The parent listing refreshes after creation.
+- **Move**: move a document to another folder in the open Folder from the Explorer document menu. Link updates follow the same path as Rename.
+- **Toggle task**: flip `[ ]` / `[x]` on Markdown task lines in the editor (Format menu and toolbar). Undoable; non-task lines stay unchanged. Preview stays inert.
+- Cmd/Ctrl-click soft-open: follow an unresolved document link when it has exactly one near-match, without changing the source text. Zero or several candidates stay non-navigable on that gesture (Go to Definition and Inspector soft-open unchanged).
+
+### Changed
+
+- Preview shows non-document URLs (including `https` and `mailto`) as plain text, not links. Folder document links stay clickable.
+- Menus and Quick Actions use consistent Writing Focus, Full Screen, and Status bar wording.
+
+### Fixed
+
+- Closing the window uses the same unsaved-changes confirmation as Quit, and in-flight saves finish before exit. Closing, renaming, or deleting a document no longer lets a late save recreate an obsolete path.
+- Explorer context menus act on the row that opened the menu. ArrowRight enters an already expanded folder. Rename and delete wait for pending saves and do not steal the active editor tab when another document is focused.
+- Global Search refuses known expensive regular-expression patterns and bounds regex runtime so a bad pattern is less likely to hang the interface.
+- Graph reports document open failures instead of failing silently, and graph layout recovers when the active document changes during computation.
+- Corrupt Settings storage is rewritten to defaults on reload instead of remaining broken across launches.
+- Reopen explains when a recent folder is no longer authorized. Approving another folder no longer drops peer approvals already on disk. Unsafe or reserved document names are refused rather than rewritten, and rename cannot silently overwrite an existing path.
+- Status messages remain available while a dialog is open. Settings keyboard help uses readable key names (`Cmd`, `Left`, `Right`, `Up`, `Down`) instead of symbols. Graph can be focused from the keyboard without being treated as a static image.
+
 ## [0.9.0] - 2026-09-15
 
 ### Added

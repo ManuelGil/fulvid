@@ -565,6 +565,28 @@ export function uniqueLinkCandidate(link: string, notes: ScannedNote[]): LinkCan
 }
 
 /**
+ * Path to open for navigation: resolved target, else a unique near-match.
+ * Soft-open only - never rewrites source, never creates a file, never picks
+ * among multiple candidates. Already-resolved collisions stay first-wins.
+ */
+export function documentLinkNavigationPath(
+  link: DocumentLink,
+  notes: ScannedNote[],
+  sourcePath?: string,
+): string | null {
+  const resolved = resolveDocumentPath(
+    link.target,
+    notes,
+    activeDocumentLinkSettings.resolution,
+    sourcePath,
+  );
+  if (resolved.path) {
+    return resolved.path;
+  }
+  return uniqueLinkCandidate(link.target, notes)?.path ?? null;
+}
+
+/**
  * Active-mode outbound links that resolve while other notes share the key.
  * First-wins still applies; this only surfaces the collision.
  */

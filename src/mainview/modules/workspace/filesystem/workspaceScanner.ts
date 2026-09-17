@@ -210,6 +210,16 @@ export async function createDocument(
   });
 }
 
+export async function createDirectory(
+  rootPath: string,
+  relativePath: string,
+): Promise<{ path: string }> {
+  return desktopRequest().createDirectory({
+    rootPath,
+    relativePath,
+  });
+}
+
 export async function renameDocument(
   rootPath: string,
   relativePath: string,

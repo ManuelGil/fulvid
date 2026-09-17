@@ -19,8 +19,8 @@ import { watch } from "vue";
 
 import {
   candidateNotesForLink,
+  documentLinkNavigationPath,
   resolveDocumentPath,
-  uniqueLinkCandidate,
 } from "../../document/links/linkSemantics";
 import {
   parseDocumentLinks,
@@ -1085,24 +1085,23 @@ function createProviders(api: typeof monaco): monaco.IDisposable[] {
         return {
           links: documentLinksForModel(model)
             .map((link) => {
-              const resolved = resolveDocumentLink(
+              const targetPath = documentLinkNavigationPath(
                 link,
                 context.notes,
-                undefined,
                 sourcePath ?? undefined,
               );
-              if (!resolved.path) {
+              if (!targetPath) {
                 return null;
               }
               return {
                 range: rangeForLink(model, link),
                 url: link.anchor
-                  ? api.Uri.file(absolutePath(context.rootPath, resolved.path)).with({
+                  ? api.Uri.file(absolutePath(context.rootPath, targetPath)).with({
                       fragment: link.anchor,
                     })
-                  : api.Uri.file(absolutePath(context.rootPath, resolved.path)),
+                  : api.Uri.file(absolutePath(context.rootPath, targetPath)),
                 tooltip: i18n.global.t("links.open", {
-                  path: resolved.path,
+                  path: targetPath,
                 }),
               };
             })
@@ -1166,8 +1165,7 @@ function createProviders(api: typeof monaco): monaco.IDisposable[] {
           undefined,
           sourcePath ?? undefined,
         );
-        const targetPath =
-          resolved.path ?? uniqueLinkCandidate(link.target, context.notes)?.path ?? null;
+        const targetPath = documentLinkNavigationPath(link, context.notes, sourcePath ?? undefined);
         if (!targetPath) {
           return undefined;
         }

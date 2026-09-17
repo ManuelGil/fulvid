@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  createDirectory,
   createDocument,
   deleteDocument,
   readDocument,
@@ -118,6 +119,24 @@ describe("document I/O", () => {
       await expect(readDocument(root, "notes/renamed.md")).rejects.toThrow(
         filesystemErrorMessage("documentMissing"),
       );
+
+      const folder = await createDirectory(root, "notes/inbox");
+      expect(folder.path).toBe("notes/inbox");
+      expect(await readdir(join(root, "notes"))).toContain("inbox");
+      await expect(createDirectory(root, "notes/inbox")).rejects.toThrow(
+        filesystemErrorMessage("documentExists"),
+      );
+      await expect(createDirectory(root, "../outside")).rejects.toThrow(outsideFolder);
+      await expect(createDirectory(root, "notes/../escape")).rejects.toThrow(outsideFolder);
+      const moved = await createDocument(root, "notes/inbox/moved.mdx", "# Moved\n");
+      const relocated = await renameDocument(
+        root,
+        "notes/inbox/moved.mdx",
+        "notes/moved.mdx",
+        moved.mtimeMs,
+      );
+      expect(relocated.note.path).toBe("notes/moved.mdx");
+      expect(await readdir(join(root, "notes", "inbox"))).toEqual([]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -202,6 +221,7 @@ describe("folder containment for document I/O", () => {
         outsideFolder,
       );
       await expect(createDocument(root, "link/new.md", "x")).rejects.toThrow(outsideFolder);
+      await expect(createDirectory(root, "link/escape")).rejects.toThrow(outsideFolder);
       await expect(renameDocument(root, "link/secret.md", "link/renamed.md")).rejects.toThrow(
         outsideFolder,
       );

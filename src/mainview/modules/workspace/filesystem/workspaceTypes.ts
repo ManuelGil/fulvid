@@ -38,11 +38,11 @@ export function isMarkdownFile(path: string): boolean {
 }
 
 /**
- * Explorer create/rename names must be basenames only - same refusal class as
- * host `requireSafeBasename` (no separators, traversal, reserved names, or
- * Windows-illegal characters).
+ * Shared basename refusals for Explorer create/rename (documents and folders):
+ * no separators, traversal, reserved device names, or Windows-illegal characters.
+ * Same refusal class as host `requireSafeBasename` / `isUnsafePathSegment`.
  */
-export function isSafeDocumentBasename(name: string): boolean {
+function isSafePathBasename(name: string): boolean {
   const basenameValue = name.trim();
   if (
     !basenameValue ||
@@ -60,10 +60,26 @@ export function isSafeDocumentBasename(name: string): boolean {
   ) {
     return false;
   }
-  if (!isMarkdownFile(basenameValue)) {
+  return true;
+}
+
+/** Explorer New Folder names: basename only, not a document extension check. */
+export function isSafeFolderBasename(name: string): boolean {
+  if (!isSafePathBasename(name)) {
     return false;
   }
-  const stem = basenameValue.replace(/\.[^.]+$/, "");
+  return !RESERVED_DEVICE_NAMES.has(name.toLowerCase());
+}
+
+/**
+ * Explorer create/rename document names must be basenames with a supported
+ * Markdown/MDX extension.
+ */
+export function isSafeDocumentBasename(name: string): boolean {
+  if (!isSafePathBasename(name) || !isMarkdownFile(name)) {
+    return false;
+  }
+  const stem = name.replace(/\.[^.]+$/, "");
   return stem !== "" && !RESERVED_DEVICE_NAMES.has(stem.toLowerCase());
 }
 

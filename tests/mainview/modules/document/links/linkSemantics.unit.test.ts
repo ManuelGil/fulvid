@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   ambiguousOutboundLinks,
   buildFocusGraph,
+  documentLinkNavigationPath,
   noteConnections,
   resolveDocumentPath,
   resolveWorkspaceEdges,
@@ -11,6 +12,7 @@ import {
   setDocumentLinkSettings,
 } from "../../../../../src/mainview/modules/document/links/linkSemantics";
 
+import type { DocumentLink } from "../../../../../src/mainview/modules/document/links/documentLink.ts";
 import type { ScannedNote } from "../../../../../src/mainview/modules/workspace/filesystem/workspaceTypes.ts";
 
 function note(
@@ -166,5 +168,17 @@ describe("link semantics", () => {
     });
     expect(uniqueLinkCandidate("Note", candidates)).toBeNull();
     expect(uniqueLinkCandidate("missing", candidates)).toBeNull();
+
+    const link = (target: string): DocumentLink => ({
+      syntax: "markdown",
+      raw: `[x](${target})`,
+      target,
+      range: { start: 0, end: target.length + 5 },
+    });
+    // Soft-open navigation: unique near-match opens; zero/multi stay non-navigable.
+    expect(documentLinkNavigationPath(link("Alpha Note"), candidates)).toBe("alpha.md");
+    expect(documentLinkNavigationPath(link("Note"), candidates)).toBeNull();
+    expect(documentLinkNavigationPath(link("missing"), candidates)).toBeNull();
+    expect(documentLinkNavigationPath(link("alpha.md"), candidates)).toBe("alpha.md");
   });
 });
