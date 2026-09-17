@@ -675,8 +675,13 @@ async function onResetSettings(): Promise<void> {
                   setLocale(($event.target as HTMLSelectElement).value as FulvidSettings['locale'])
                 "
               >
+                <option value="de">{{ t("settings.german") }}</option>
                 <option value="en">{{ t("settings.english") }}</option>
                 <option value="es">{{ t("settings.spanish") }}</option>
+                <option value="fr">{{ t("settings.french") }}</option>
+                <option value="it">{{ t("settings.italian") }}</option>
+                <option value="nl">{{ t("settings.dutch") }}</option>
+                <option value="pt">{{ t("settings.portuguese") }}</option>
               </select>
             </label>
 
@@ -1166,7 +1171,7 @@ async function onResetSettings(): Promise<void> {
                           </div>
                           <div class="settings-theme-preview__body">
                             <div class="settings-theme-preview__sidebar">
-                              <span class="settings-theme-preview__brand">Workspace</span>
+                              <span class="settings-theme-preview__brand">Folder</span>
                               <span
                                 class="settings-theme-preview__sidebar-item settings-theme-preview__sidebar-item--active"
                               >

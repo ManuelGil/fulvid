@@ -73,7 +73,7 @@ describe("settings sanitize", () => {
     expect(next).not.toHaveProperty("templates");
     expect(next).not.toHaveProperty("contextRoot");
     expect(next).not.toHaveProperty("contextRoots");
-    expect(sanitizeSettings({ locale: "fr" }).locale).toBe("en");
+    expect(sanitizeSettings({ locale: "ja" }).locale).toBe("en");
     expect(sanitizeSettings({ appearance: { theme: "constructor" } }).appearance.theme).toBe(
       "system",
     );

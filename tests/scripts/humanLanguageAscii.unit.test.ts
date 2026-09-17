@@ -3,9 +3,9 @@
  *
  * Ambiguous Unicode symbols (arrows, math relations, typographic dashes,
  * decorative status marks) must not appear in product/docs/scripts source.
- * Spanish letters and inverted punctuation stay in the Spanish catalog and
- * i18n policy docs. Unicode letters may appear in tests that exercise paths
- * or localization.
+ * Latin letters with diacritics stay in locale catalogs under
+ * `src/mainview/i18n/` and in i18n policy docs. Unicode letters may appear in
+ * tests that exercise paths or localization.
  *
  * This file stays ASCII aside from \\u escapes that name the forbidden set.
  */
@@ -134,10 +134,17 @@ async function listFiles(directory: string): Promise<string[]> {
 }
 
 function allowNonAscii(relativePath: string, ch: string): boolean {
-  if (!SPANISH_LETTER.test(ch)) {
+  const code = ch.codePointAt(0) ?? 0;
+  // Latin letters with diacritics used by Fulvid locale catalogs (and ¿ ¡).
+  const latinCatalogLetter =
+    (code >= 0x00c0 && code <= 0x00ff) ||
+    (code >= 0x0100 && code <= 0x017f) ||
+    code === 0x00bf ||
+    code === 0x00a1;
+  if (!latinCatalogLetter && !SPANISH_LETTER.test(ch)) {
     return false;
   }
-  if (relativePath === "src/mainview/i18n/es.ts") {
+  if (relativePath.startsWith("src/mainview/i18n/") && relativePath.endsWith(".ts")) {
     return true;
   }
   if (relativePath === "docs/I18N.md") {
