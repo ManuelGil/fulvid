@@ -22,6 +22,10 @@ const PREVIEW_MIN = 0.25;
 const PREVIEW_MAX = 0.65;
 const PREVIEW_DEFAULT = 0.42;
 
+/** Shell collapses sidebars/overlays at this width. Keep CSS `@media` in sync. */
+export const NARROW_VIEWPORT_MAX_PX = 900;
+export const NARROW_VIEWPORT_MEDIA_QUERY = `(max-width: ${NARROW_VIEWPORT_MAX_PX}px)`;
+
 export interface LayoutIntent {
   sidebarWidth: number;
   inspectorWidth: number;

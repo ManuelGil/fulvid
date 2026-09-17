@@ -100,8 +100,9 @@ export function cycleDocumentEol(buffer: DocumentBuffer): void {
  * Persisted identity is `absolutePath` (`id` is `file:${absolutePath}`).
  * Virtual documents use `untitled:N` until Save As. The model is the text
  * source of truth. `savedVersionId` is the last written
- * `alternativeVersionId`, or `-1` to force dirty (seeded untitled, Save As
- * race, rename while dirty) until a successful write aligns the ids.
+ * `alternativeVersionId`, or `FORCE_DIRTY_SAVED_VERSION_ID` to force dirty
+ * (seeded untitled, Save As race, rename while dirty) until a successful write
+ * aligns the ids.
  * `rootPath`+`path` attach the buffer to a folder; `grantToken` on a
  * persisted buffer is orthogonal and means later saves use the standalone
  * grant instead of folder RPC.
@@ -127,6 +128,13 @@ const pendingOpens = new Map<string, Promise<DocumentBuffer>>();
 const saveQueues = new WeakMap<DocumentBuffer, Promise<unknown>>();
 /** Buffers closed while a write may still be queued - skip starting new disk writes. */
 const abandonedWrites = new WeakSet<DocumentBuffer>();
+/**
+ * Sentinel `savedVersionId` that cannot match Monaco's alternativeVersionId,
+ * so the buffer stays dirty until a successful write records a real stamp.
+ */
+const FORCE_DIRTY_SAVED_VERSION_ID = -1;
+/** Composite key separator for open-buffer dedup; must not appear in normalized paths. */
+const BUFFER_OPEN_KEY_SEP = "\0";
 let openGeneration = 0;
 let activationGeneration = 0;
 
@@ -164,7 +172,7 @@ export const activeBuffer = computed(() => {
 });
 
 function bufferKey(rootPath: string, path: string): string {
-  return `${rootPath.replace(/\\/g, "/")}\0${path.replace(/\\/g, "/")}`;
+  return `${rootPath.replace(/\\/g, "/")}${BUFFER_OPEN_KEY_SEP}${path.replace(/\\/g, "/")}`;
 }
 
 function workspaceAbsolutePath(rootPath: string, path: string): string {
@@ -263,7 +271,7 @@ export function createUntitledDocument(content = ""): DocumentBuffer {
     grantToken: null,
     title: i18n.global.t("tabs.untitled"),
     model,
-    savedVersionId: content ? -1 : model.getAlternativeVersionId(),
+    savedVersionId: content ? FORCE_DIRTY_SAVED_VERSION_ID : model.getAlternativeVersionId(),
     mtimeMs: 0,
     changeVersion,
     contentDisposable: model.onDidChangeContent(() => {
@@ -557,18 +565,25 @@ function reidentifyAsPersisted(
   absolutePath: string,
   mtimeMs: number,
   grantToken: string,
-  versionWritten: number | null,
+  /**
+   * Monaco alternativeVersionId known to match disk after Save As, or null to
+   * force dirty when the model moved after the last write.
+   */
+  monacoVersionKnownOnDisk: number | null,
 ): DocumentBuffer {
   const existing = getDocumentBufferByAbsolutePath(absolutePath);
   const isCurrentVersionSaved =
-    versionWritten !== null && buffer.model.getAlternativeVersionId() === versionWritten;
+    monacoVersionKnownOnDisk !== null &&
+    buffer.model.getAlternativeVersionId() === monacoVersionKnownOnDisk;
   if (existing === buffer) {
     buffer.kind = "persisted";
     buffer.absolutePath = absolutePath;
     buffer.grantToken = buffer.rootPath && buffer.path ? null : grantToken;
     buffer.title = documentTitle(absolutePath);
     buffer.mtimeMs = mtimeMs;
-    buffer.savedVersionId = isCurrentVersionSaved ? buffer.model.getAlternativeVersionId() : -1;
+    buffer.savedVersionId = isCurrentVersionSaved
+      ? buffer.model.getAlternativeVersionId()
+      : FORCE_DIRTY_SAVED_VERSION_ID;
     return buffer;
   }
   if (existing && existing !== buffer) {
@@ -577,7 +592,9 @@ function reidentifyAsPersisted(
     }
     existing.model.setValue(buffer.model.getValue());
     preserveModelEol(existing.model, buffer.model.getEndOfLineSequence());
-    existing.savedVersionId = isCurrentVersionSaved ? existing.model.getAlternativeVersionId() : -1;
+    existing.savedVersionId = isCurrentVersionSaved
+      ? existing.model.getAlternativeVersionId()
+      : FORCE_DIRTY_SAVED_VERSION_ID;
     existing.mtimeMs = mtimeMs;
     existing.grantToken = grantToken;
     buffer.contentDisposable.dispose();
@@ -610,7 +627,9 @@ function reidentifyAsPersisted(
     grantToken,
     title: documentTitle(absolutePath),
     model,
-    savedVersionId: isCurrentVersionSaved ? model.getAlternativeVersionId() : -1,
+    savedVersionId: isCurrentVersionSaved
+      ? model.getAlternativeVersionId()
+      : FORCE_DIRTY_SAVED_VERSION_ID,
     mtimeMs,
     changeVersion,
     contentDisposable,
@@ -640,6 +659,19 @@ export function saveAsDocument(
   );
 }
 
+/**
+ * Monaco alternativeVersionId known to match the last successful disk write,
+ * or null when the model moved again and the buffer must stay dirty.
+ */
+function monacoVersionStillOnDisk(
+  buffer: DocumentBuffer,
+  versionCapturedForWrite: number,
+): number | null {
+  return buffer.model.getAlternativeVersionId() === versionCapturedForWrite
+    ? versionCapturedForWrite
+    : null;
+}
+
 async function saveAsDocumentNow(
   buffer: DocumentBuffer,
   basename: string,
@@ -649,7 +681,9 @@ async function saveAsDocumentNow(
   if (isAbandonedBuffer(buffer)) {
     throw new LocalizedError(i18n.global.t("workspace.saveError"));
   }
-  const initialVersionId = buffer.model.getAlternativeVersionId();
+
+  // Stamp before the dialog: the native write captures this model version's text.
+  const versionAtDialogOpen = buffer.model.getAlternativeVersionId();
   const saveAsOutcome = await pickAndSaveDocument(
     basename,
     buffer.model.getValue(),
@@ -664,10 +698,15 @@ async function saveAsDocumentNow(
   if (isAbandonedBuffer(buffer)) {
     return { result: saveAsOutcome, buffer };
   }
+
   let savedMtimeMs = saveAsOutcome.mtimeMs;
-  let versionWritten: number | null = initialVersionId;
-  if (buffer.model.getAlternativeVersionId() !== initialVersionId) {
-    const versionWrittenDuringRewrite = buffer.model.getAlternativeVersionId();
+  // Monaco version whose text the last successful write intended to persist.
+  let versionCapturedOnDisk = versionAtDialogOpen;
+
+  // Edits during the dialog mean the first write is stale; rewrite through the
+  // new grant with the current model before reidentifying the buffer.
+  if (buffer.model.getAlternativeVersionId() !== versionAtDialogOpen) {
+    const versionAtRewrite = buffer.model.getAlternativeVersionId();
     const rewritten = await writeGrantedDocument(
       saveAsOutcome.grantToken,
       buffer.model.getValue(),
@@ -677,23 +716,19 @@ async function saveAsDocumentNow(
       return { result: saveAsOutcome, buffer };
     }
     savedMtimeMs = rewritten.mtimeMs;
-    versionWritten =
-      buffer.model.getAlternativeVersionId() === versionWrittenDuringRewrite
-        ? versionWrittenDuringRewrite
-        : null;
+    versionCapturedOnDisk = versionAtRewrite;
   }
-  if (versionWritten !== null && buffer.model.getAlternativeVersionId() !== versionWritten) {
-    versionWritten = null;
-  }
+
   if (isAbandonedBuffer(buffer)) {
     return { result: saveAsOutcome, buffer };
   }
+
   const nextBuffer = reidentifyAsPersisted(
     buffer,
     saveAsOutcome.absolutePath,
     savedMtimeMs,
     saveAsOutcome.grantToken,
-    versionWritten,
+    monacoVersionStillOnDisk(buffer, versionCapturedOnDisk),
   );
   return { result: saveAsOutcome, buffer: nextBuffer };
 }
@@ -747,7 +782,7 @@ export function attachDocumentBuffer(
  * File rename of an open folder buffer. Changes document identity to
  * `file:${absolutePath}`. Not heading/fragment rename (`F2`).
  *
- * Dirty text stays dirty (`savedVersionId` `-1`); a clean buffer stays clean
+ * Dirty text stays dirty (`FORCE_DIRTY_SAVED_VERSION_ID`); a clean buffer stays clean
  * against the new model's version id.
  */
 export function renameDocumentBuffer(
@@ -790,7 +825,7 @@ export function renameDocumentBuffer(
     path: nextPath,
     title: documentTitle(nextPath),
     model,
-    savedVersionId: wasDirty ? -1 : model.getAlternativeVersionId(),
+    savedVersionId: wasDirty ? FORCE_DIRTY_SAVED_VERSION_ID : model.getAlternativeVersionId(),
     mtimeMs,
     changeVersion,
     contentDisposable,

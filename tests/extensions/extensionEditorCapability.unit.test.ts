@@ -110,7 +110,7 @@ function registerEditorFixture(): void {
         api: 1,
         description: "Test editor extension",
         capabilities: ["lua", "commands", "ui", "editor"],
-        location: "/tmp/test-extension",
+        location: join(tmpdir(), "test-extension"),
         state: "loaded" as const,
         activation: "command" as const,
         commands: [
@@ -346,7 +346,11 @@ commands.register({
         namespacedId: "test.contract-lua-noed.ping",
         editor: editorSnap("secret"),
       }),
-    ).toEqual({ ok: false, error: "editor capability not granted" });
+    ).toEqual({
+      ok: false,
+      error: "editor capability not granted",
+      failureKind: "commandFailed",
+    });
     expect(await invokeLuaExtensionCommand("test.contract-lua-noed.ping")).toEqual({
       ok: true,
       notifications: ["ok"],

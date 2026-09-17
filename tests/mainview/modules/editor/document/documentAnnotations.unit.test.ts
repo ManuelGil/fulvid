@@ -11,6 +11,7 @@ import {
   previousDocumentAnnotationIndex,
   upsertDocumentAnnotationOnLine,
   DOCUMENT_ANNOTATION_TEXT_MAX,
+  DOCUMENT_ANNOTATION_MAX,
   type DocumentAnnotation,
   type DocumentAnnotationPosition,
 } from "../../../../../src/mainview/modules/editor/document/documentAnnotations.ts";
@@ -136,5 +137,37 @@ describe("document annotations", () => {
 
     clearDocumentAnnotations(model as never);
     expect(listDocumentAnnotations(api, model as never)).toHaveLength(0);
+
+    for (let line = 1; line <= DOCUMENT_ANNOTATION_MAX; line += 1) {
+      const result = upsertDocumentAnnotationOnLine(
+        api,
+        model as never,
+        line,
+        1,
+        `cap-${line}`,
+        true,
+      );
+      expect(result?.action).toBe("added");
+    }
+    expect(listDocumentAnnotations(api, model as never)).toHaveLength(DOCUMENT_ANNOTATION_MAX);
+    const capped = upsertDocumentAnnotationOnLine(
+      api,
+      model as never,
+      DOCUMENT_ANNOTATION_MAX + 1,
+      1,
+      "overflow",
+      true,
+    );
+    expect(capped).toEqual({
+      action: "capped",
+      position: { lineNumber: DOCUMENT_ANNOTATION_MAX + 1, column: 1 },
+      count: DOCUMENT_ANNOTATION_MAX,
+    });
+    expect(listDocumentAnnotations(api, model as never)).toHaveLength(DOCUMENT_ANNOTATION_MAX);
+    expect(
+      listDocumentAnnotations(api, model as never).some(
+        (annotation) => annotation.text === "overflow",
+      ),
+    ).toBe(false);
   });
 });

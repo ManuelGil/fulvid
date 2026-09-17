@@ -52,6 +52,13 @@ type ExternalOpenRequests = {
   };
 };
 
+/**
+ * Host-authored invoke failure category for renderer i18n selection.
+ * Not derived from OS/locale error text; unknown kinds fall through to commandFailed.
+ */
+export type ExtensionInvokeFailureKind =
+  "executionTimeout" | "memoryExceeded" | "sizeLimitExceeded" | "commandFailed";
+
 type ExtensionDiscoveryRequests = {
   listDiscoveredExtensions: {
     params: Record<string, never>;
@@ -122,7 +129,7 @@ type ExtensionDiscoveryRequests = {
           createUntitled?: string;
           reveal?: { lineNumber: number; column: number };
         }
-      | { ok: false; error: string };
+      | { ok: false; error: string; failureKind: ExtensionInvokeFailureKind };
   };
 };
 

@@ -96,6 +96,7 @@ import {
   openRightSidebar,
   setPreviewRatio,
   PREVIEW_RATIO_LIMITS,
+  NARROW_VIEWPORT_MEDIA_QUERY,
 } from "../../app/layoutStore";
 import { editorCommandState } from "../../modules/editor/editorCommandState";
 import {
@@ -1211,7 +1212,7 @@ onMounted(() => {
       monacoHostRef.value?.clearExtensionDecorations(extensionId) ?? false,
     hasActiveEditor: () => Boolean(monacoHostRef.value && activeBuffer.value),
   });
-  previewMedia = window.matchMedia("(max-width: 900px)");
+  previewMedia = window.matchMedia(NARROW_VIEWPORT_MEDIA_QUERY);
   previewStacked.value = previewMedia.matches;
   previewMedia.addEventListener("change", onPreviewMediaChange);
   void nextTick(() => {
@@ -1527,7 +1528,7 @@ onBeforeUnmount(() => {
   @include error-text;
 }
 
-@media (max-width: 900px) {
+@media (max-width: $narrow-viewport-max) {
   .editor-page__document-split--preview {
     flex-direction: column;
   }

@@ -141,8 +141,11 @@ function assertDocumentPath(rootPath: string, relativePath: string): string {
 /**
  * The filesystem target for a folder document: supported extension, lexically
  * contained, and canonically contained once symlinks are resolved.
+ *
+ * Named apart from linkSemantics `resolveDocumentPath` (note identity), which
+ * resolves a link target against scanned notes rather than the disk tree.
  */
-async function resolveDocumentPath(rootPath: string, relativePath: string): Promise<string> {
+async function resolveWorkspaceFileTarget(rootPath: string, relativePath: string): Promise<string> {
   const targetPath = assertDocumentPath(rootPath, relativePath);
   await assertCanonicallyContained(rootPath, relativePath);
   return targetPath;
@@ -272,7 +275,7 @@ export async function readDocument(
   rootPath: string,
   relativePath: string,
 ): Promise<DocumentSnapshot> {
-  const targetPath = await resolveDocumentPath(rootPath, relativePath);
+  const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
   const { content, mtimeMs } = await readFileContentWithMtimeCheck(targetPath);
 
   return {
@@ -297,7 +300,7 @@ export async function writeDocument(
   expectedMtimeMs?: number,
   linkMode: LinkSyntax = "markdown",
 ): Promise<DocumentWriteResult> {
-  const targetPath = await resolveDocumentPath(rootPath, relativePath);
+  const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
   const currentMtimeMs = await assertExpectedMtime(targetPath, relativePath, expectedMtimeMs);
   if (currentMtimeMs === null) {
     throw new Error(filesystemErrorMessage("documentMissing"));
@@ -319,7 +322,7 @@ export async function createDocument(
   content: string,
   linkMode: LinkSyntax = "markdown",
 ): Promise<DocumentWriteResult> {
-  const targetPath = await resolveDocumentPath(rootPath, relativePath);
+  const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
   const currentMtimeMs = await fileMtimeOrNull(targetPath);
   if (currentMtimeMs !== null) {
     throw new Error(filesystemErrorMessage("documentExists"));
@@ -382,8 +385,8 @@ export async function renameDocument(
   expectedMtimeMs?: number,
   linkMode: LinkSyntax = "markdown",
 ): Promise<DocumentWriteResult> {
-  const targetPath = await resolveDocumentPath(rootPath, relativePath);
-  const nextTargetPath = await resolveDocumentPath(rootPath, nextRelativePath);
+  const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
+  const nextTargetPath = await resolveWorkspaceFileTarget(rootPath, nextRelativePath);
   const currentMtimeMs = await assertExpectedMtime(targetPath, relativePath, expectedMtimeMs);
   if (currentMtimeMs === null) {
     throw new Error(filesystemErrorMessage("documentMissing"));
@@ -529,7 +532,7 @@ export async function grantDetachedWorkspaceDocument(
   rootPath: string,
   relativePath: string,
 ): Promise<{ absolutePath: string; mtimeMs: number }> {
-  const targetPath = await resolveDocumentPath(rootPath, relativePath);
+  const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
   const mtimeMs = await fileMtimeOrNull(targetPath);
   if (mtimeMs === null) {
     throw new Error(filesystemErrorMessage("documentMissing"));
@@ -542,7 +545,7 @@ export async function deleteDocument(
   relativePath: string,
   expectedMtimeMs?: number,
 ): Promise<boolean> {
-  const targetPath = await resolveDocumentPath(rootPath, relativePath);
+  const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
   const currentMtimeMs = await assertExpectedMtime(targetPath, relativePath, expectedMtimeMs);
   if (currentMtimeMs === null) {
     throw new Error(filesystemErrorMessage("documentMissing"));

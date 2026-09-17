@@ -68,7 +68,8 @@ describe("the editing loop", () => {
       );
       a = await readDocument(root, "a.md");
       expect(a.content).toContain(`round ${round}`);
-      expect(a.mtimeMs).toBe(writtenA.mtimeMs);
+      // Coarse filesystems may round mtime; keep within 2s of the write stamp.
+      expect(Math.abs(a.mtimeMs - writtenA.mtimeMs)).toBeLessThanOrEqual(2000);
 
       const writtenB = await writeDocument(
         root,
@@ -79,7 +80,7 @@ describe("the editing loop", () => {
       );
       b = await readDocument(root, "b.md");
       expect(b.content).toContain(`round ${round}`);
-      expect(b.mtimeMs).toBe(writtenB.mtimeMs);
+      expect(Math.abs(b.mtimeMs - writtenB.mtimeMs)).toBeLessThanOrEqual(2000);
     }
 
     // The folder still describes exactly the two documents, with their links.

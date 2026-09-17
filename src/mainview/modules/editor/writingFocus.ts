@@ -50,7 +50,7 @@ export const WRITING_FOCUS_KEPT_SELECTORS = [
 const WRITING_FOCUS_KEPT_SELECTOR = WRITING_FOCUS_KEPT_SELECTORS.join(", ");
 
 export function writingFocusKeepsFocusTarget(element: EventTarget | null): boolean {
-  if (!(element instanceof Element)) {
+  if (typeof Element === "undefined" || !(element instanceof Element)) {
     return false;
   }
   return Boolean(element.closest(WRITING_FOCUS_KEPT_SELECTOR));

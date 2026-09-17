@@ -32,17 +32,17 @@ let activeDocumentLinkSettings: DocumentLinkSettings = {
  * `settingsStore`. Settings writes here; tests inject the same way. Not a
  * second settings source of truth - only a seam for the semantic module.
  */
-export function setDocumentLinkSettings(settings: Partial<DocumentLinkSettings>): void {
+export function setDocumentLinkSettings(linkSettings: Partial<DocumentLinkSettings>): void {
   activeDocumentLinkSettings = {
     linkMode:
-      settings.linkMode === "markdown" || settings.linkMode === "wikilink"
-        ? settings.linkMode
+      linkSettings.linkMode === "markdown" || linkSettings.linkMode === "wikilink"
+        ? linkSettings.linkMode
         : activeDocumentLinkSettings.linkMode,
     resolution:
-      settings.resolution === "stem" ||
-      settings.resolution === "path" ||
-      settings.resolution === "both"
-        ? settings.resolution
+      linkSettings.resolution === "stem" ||
+      linkSettings.resolution === "path" ||
+      linkSettings.resolution === "both"
+        ? linkSettings.resolution
         : activeDocumentLinkSettings.resolution,
   };
 }
@@ -335,7 +335,10 @@ export function buildFocusGraph(
   ];
 
   while (queue.length > 0) {
-    const current = queue.shift()!;
+    const current = queue.shift();
+    if (!current) {
+      break;
+    }
     const note = notesByPath.get(current.path);
     if (!note) {
       continue;
