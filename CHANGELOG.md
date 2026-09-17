@@ -9,6 +9,8 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-16
+
 ### Added
 
 - **New Folder**: create an empty folder in the open Folder from Explorer (toolbar and folder New menu). The parent listing refreshes after creation.
@@ -147,7 +149,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.10.0
 [0.9.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.9.0
 [0.8.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.8.0
 [0.7.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.7.0

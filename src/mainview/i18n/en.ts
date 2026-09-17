@@ -267,7 +267,7 @@ export default {
     newFolderError: "Couldn't create this folder.",
     rename: "Rename",
     renameName: "New file name",
-    move: "Move…",
+    move: "Move...",
     moveNoDestinations: "No other folders to move into.",
     folderRoot: "Folder root",
     delete: "Delete",

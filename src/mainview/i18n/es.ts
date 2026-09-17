@@ -269,7 +269,7 @@ export default {
     newFolderError: "No se pudo crear esta carpeta.",
     rename: "Renombrar",
     renameName: "Nuevo nombre del archivo",
-    move: "Mover…",
+    move: "Mover...",
     moveNoDestinations: "No hay otras carpetas a las que mover.",
     folderRoot: "Raíz de la carpeta",
     delete: "Eliminar",

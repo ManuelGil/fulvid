@@ -22,7 +22,7 @@ It waits for all three platforms. If any fails, nothing is published.
 It downloads `fulvid-linux/`, `fulvid-windows/`, and `fulvid-macos/`, renames shared metadata (`SHA256SUMS`, `release-manifest.json`, `build.log`) with a platform suffix, and calls `softprops/action-gh-release` with `GITHUB_TOKEN`. That job is the only one with `contents: write`.
 
 - If no Release exists for the tag, one is created (`Fulvid <tag>`).
-- The action sets `generate_release_notes: true` (GitHub's commit list). When attaching a Release by hand, use the matching file under [releases/](./releases/) (`v0.9.0.md` for the current published notes; use `vX.Y.Z.md` for the version you are shipping).
+- The action sets `generate_release_notes: true` (GitHub's commit list). When attaching a Release by hand, use the matching file under [releases/](./releases/) (`v0.10.0.md` for the current published notes; use `vX.Y.Z.md` for the version you are shipping).
 - If a Release already exists, new assets are uploaded. `overwrite_files: false`, so a name already on the Release fails the upload.
 - A re-run does not replace existing assets.
 
