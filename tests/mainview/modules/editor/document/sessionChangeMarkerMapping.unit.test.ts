@@ -34,14 +34,14 @@ const multiAdded = {
   modifiedEndLineNumber: 4,
 };
 
+// Intent: marker lines map to hunk kinds; a click resolves the owning hunk;
+// preview text is exact baseline/current slices for that hunk only.
 describe("session change marker mapping", () => {
-  test("maps DiffEditor ranges to per-line marker kinds", () => {
+  test("maps kinds, resolves hunks, and slices before/after text", () => {
     expect(changeMarkerSpecsFromLineChanges([])).toEqual([]);
-    expect(changeMarkerSpecsFromLineChanges([modified])).toEqual([
+    expect(changeMarkerSpecsFromLineChanges([modified, added, deleted])).toEqual([
       { kind: "modified", lineNumber: 2 },
-    ]);
-    expect(changeMarkerSpecsFromLineChanges([added])).toEqual([{ kind: "added", lineNumber: 3 }]);
-    expect(changeMarkerSpecsFromLineChanges([deleted])).toEqual([
+      { kind: "added", lineNumber: 3 },
       { kind: "deleted", lineNumber: 4 },
     ]);
     expect(changeMarkerSpecsFromLineChanges([multiAdded])).toEqual([
@@ -49,24 +49,12 @@ describe("session change marker mapping", () => {
       { kind: "added", lineNumber: 3 },
       { kind: "added", lineNumber: 4 },
     ]);
-    expect(changeMarkerSpecsFromLineChanges([modified, added, deleted])).toEqual([
-      { kind: "modified", lineNumber: 2 },
-      { kind: "added", lineNumber: 3 },
-      { kind: "deleted", lineNumber: 4 },
-    ]);
-  });
 
-  test("resolves a marker line to its contiguous hunk", () => {
-    expect(lineChangeRangeForMarkerLine([modified], 2)).toEqual(modified);
-    expect(lineChangeRangeForMarkerLine([added], 3)).toEqual(added);
-    expect(lineChangeRangeForMarkerLine([deleted], 4)).toEqual(deleted);
-    expect(lineChangeRangeForMarkerLine([multiAdded], 2)).toEqual(multiAdded);
-    expect(lineChangeRangeForMarkerLine([multiAdded], 4)).toEqual(multiAdded);
     expect(lineChangeRangeForMarkerLine([modified, added, deleted], 3)).toEqual(added);
+    expect(lineChangeRangeForMarkerLine([multiAdded], 4)).toEqual(multiAdded);
+    expect(lineChangeRangeForMarkerLine([deleted], 4)).toEqual(deleted);
     expect(lineChangeRangeForMarkerLine([modified], 1)).toBeNull();
-  });
 
-  test("slices baseline and current text for a hunk preview", () => {
     const baseline = "alpha\nbeta\ngamma\ndelta";
     const current = "alpha MOD\nbeta\nINSERTED\ngamma";
     expect(

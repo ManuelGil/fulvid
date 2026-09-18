@@ -20,7 +20,7 @@ function file(path: string): FileSystemEntry {
 // Intent: Explorer list/refresh must not apply stale async results, and a
 // parent re-list must drop expansion/cache for directories that disappeared.
 describe("explorer list session", () => {
-  test("session validity requires matching generation and workspace root", () => {
+  test("stale sessions ignored; reconciliation prunes vanished dirs and preserves unrelated expansion", () => {
     expect(isCurrentExplorerListSession(1, 1, "/ws", "/ws")).toBe(true);
     expect(isCurrentExplorerListSession(1, 2, "/ws", "/ws")).toBe(false);
     expect(isCurrentExplorerListSession(1, 1, "/ws-a", "/ws-b")).toBe(false);
@@ -29,9 +29,7 @@ describe("explorer list session", () => {
     expect(explorerParentPath("notes/a.md")).toBe("notes");
     expect(explorerParentPath("a.md")).toBe("");
     expect(explorerParentPath("notes/deep/a.md")).toBe("notes/deep");
-  });
 
-  test("reconciliation removes expansion and cache for vanished child directories", () => {
     const previous = {
       "": [directory("keep"), directory("gone"), file("root.md")],
       keep: [file("keep/a.md")],
@@ -40,36 +38,39 @@ describe("explorer list session", () => {
     };
     const expanded = new Set(["keep", "gone", "gone/nested"]);
 
-    const next = reconcileExplorerDirectoryState(
+    const pruned = reconcileExplorerDirectoryState(
       "",
       [directory("keep"), file("root.md")],
       previous,
       expanded,
     );
 
-    expect(next.entriesByDirectory[""]?.map((entry) => entry.path)).toEqual(["keep", "root.md"]);
-    expect(next.entriesByDirectory.keep).toEqual([file("keep/a.md")]);
-    expect(next.entriesByDirectory.gone).toBeUndefined();
-    expect(next.entriesByDirectory["gone/nested"]).toBeUndefined();
-    expect([...next.expandedDirectories].sort()).toEqual(["keep"]);
-  });
+    expect(pruned.entriesByDirectory[""]?.map((entry) => entry.path)).toEqual(["keep", "root.md"]);
+    expect(pruned.entriesByDirectory.keep).toEqual([file("keep/a.md")]);
+    expect(pruned.entriesByDirectory.gone).toBeUndefined();
+    expect(pruned.entriesByDirectory["gone/nested"]).toBeUndefined();
+    expect([...pruned.expandedDirectories].sort()).toEqual(["keep"]);
 
-  test("reconciliation keeps unrelated expansion when a nested listing updates", () => {
-    const previous = {
+    const nestedPrevious = {
       "": [directory("alpha"), directory("beta")],
       alpha: [directory("alpha/child"), file("alpha/a.md")],
       "alpha/child": [file("alpha/child/c.md")],
       beta: [file("beta/b.md")],
     };
-    const expanded = new Set(["alpha", "alpha/child", "beta"]);
+    const nestedExpanded = new Set(["alpha", "alpha/child", "beta"]);
 
-    const next = reconcileExplorerDirectoryState("alpha", [file("alpha/a.md")], previous, expanded);
+    const nested = reconcileExplorerDirectoryState(
+      "alpha",
+      [file("alpha/a.md")],
+      nestedPrevious,
+      nestedExpanded,
+    );
 
-    expect(next.entriesByDirectory.alpha?.map((entry) => entry.path)).toEqual(["alpha/a.md"]);
-    expect(next.entriesByDirectory["alpha/child"]).toBeUndefined();
-    expect(next.expandedDirectories.has("alpha")).toBe(true);
-    expect(next.expandedDirectories.has("alpha/child")).toBe(false);
-    expect(next.expandedDirectories.has("beta")).toBe(true);
-    expect(next.entriesByDirectory.beta).toEqual([file("beta/b.md")]);
+    expect(nested.entriesByDirectory.alpha?.map((entry) => entry.path)).toEqual(["alpha/a.md"]);
+    expect(nested.entriesByDirectory["alpha/child"]).toBeUndefined();
+    expect(nested.expandedDirectories.has("alpha")).toBe(true);
+    expect(nested.expandedDirectories.has("alpha/child")).toBe(false);
+    expect(nested.expandedDirectories.has("beta")).toBe(true);
+    expect(nested.entriesByDirectory.beta).toEqual([file("beta/b.md")]);
   });
 });

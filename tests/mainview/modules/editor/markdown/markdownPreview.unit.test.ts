@@ -28,7 +28,7 @@ function note(path: string, documentLinks: DocumentLink[] = []): ScannedNote {
 // attributes, and folder escapes must not become active behavior. Density is
 // bounded so a crafted document cannot freeze the renderer. Export matches Preview.
 describe("markdown preview", () => {
-  test("hostile HTML, MDX, schemes, and folder escapes stay inert", () => {
+  test("preview and export stay inert under hostile input, density, and parity", () => {
     const html = renderMarkdownPreview(
       [
         "<script>alert('x')</script>",
@@ -105,9 +105,7 @@ describe("markdown preview", () => {
     expect(escape.html).not.toContain("data-document-path");
     expect(escape.html).not.toContain("/etc/passwd");
     expect(escape.html).not.toContain("secret.md");
-  });
 
-  test("HTML export reuses the same inert Preview representation", () => {
     const source =
       "# Start\n\nA **strong** paragraph.\n\n<Component value={x} />\n\n<script>alert(1)</script>";
     const preview = renderMarkdownPreview(
@@ -128,29 +126,27 @@ describe("markdown preview", () => {
     expect(exported.html).not.toContain("<script>");
     expect(exported.html).toContain("&lt;script&gt;");
     expect(exported.preview.hasUnsupportedMdx).toBe(true);
-  });
 
-  test("dense inline markup renders inert instead of blocking Preview or Export", () => {
     // Historical: marked's inline lexer is quadratic; a document under the
     // character cap could still freeze the UI for over a minute.
     const notes = [note("n0.md")];
-    const source = "[l](n0.md) ".repeat(
+    const denseSource = "[l](n0.md) ".repeat(
       Math.floor(PREVIEW_RENDER_CHAR_LIMIT / "[l](n0.md) ".length),
     );
 
     const started = performance.now();
-    const result = renderMarkdownPreview(source, notes, "markdown", undefined, "cur.md");
-    expect(result.dense).toBe(true);
-    expect(result.html.startsWith("<pre>")).toBe(true);
-    expect(result.html).not.toContain("<a ");
+    const dense = renderMarkdownPreview(denseSource, notes, "markdown", undefined, "cur.md");
+    expect(dense.dense).toBe(true);
+    expect(dense.html.startsWith("<pre>")).toBe(true);
+    expect(dense.html).not.toContain("<a ");
     // Soft upper bound against a return to minute-long freezes; behavioral asserts above are primary.
     expect(performance.now() - started).toBeLessThan(5_000);
 
-    const exported = exportMarkdownPreviewDocument(source, notes, "markdown", {
+    const denseExport = exportMarkdownPreviewDocument(denseSource, notes, "markdown", {
       title: "dense",
       sourcePath: "cur.md",
     });
-    expect(exported.preview.dense).toBe(true);
-    expect(exported.html).toContain("<pre>");
+    expect(denseExport.preview.dense).toBe(true);
+    expect(denseExport.html).toContain("<pre>");
   });
 });

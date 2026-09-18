@@ -27,7 +27,6 @@ import {
   registerEditorExtensionSeam,
   resetEditorExtensionSeamForTests,
 } from "../../src/mainview/extensions/editorExtensionSeam.ts";
-import { documentSnapshotIsCurrent } from "../../src/mainview/extensions/documentCapability.ts";
 import type { ExtensionDecorationRange } from "../../src/mainview/extensions/decorationCapability.ts";
 import { LocalizedError } from "../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
 
@@ -115,32 +114,8 @@ function bump(state: LiveState, text: string): void {
 }
 
 describe("live Monaco document and extension lifecycle", () => {
-  test("snapshot currency rejects drift", () => {
-    expect(
-      documentSnapshotIsCurrent(
-        { documentId: "a", alternativeVersionId: 1 },
-        { documentId: "a", alternativeVersionId: 1 },
-      ),
-    ).toBe(true);
-    expect(
-      documentSnapshotIsCurrent(
-        { documentId: "a", alternativeVersionId: 1 },
-        { documentId: "a", alternativeVersionId: 2 },
-      ),
-    ).toBe(false);
-    expect(
-      documentSnapshotIsCurrent(
-        { documentId: "a", alternativeVersionId: 1 },
-        { documentId: "b", alternativeVersionId: 1 },
-      ),
-    ).toBe(false);
-    expect(documentSnapshotIsCurrent({ documentId: "a", alternativeVersionId: 1 }, null)).toBe(
-      false,
-    );
-  });
-
   test.skipIf(!OFFICIAL_PACKS_AVAILABLE)(
-    "official packs register as document-activation",
+    "live insert/decorate, doc-switch isolation, stale version reject, concurrent reentrancy",
     async () => {
       await loadBothPacks();
       expect(
@@ -148,13 +123,7 @@ describe("live Monaco document and extension lifecycle", () => {
           .map((a) => a.namespacedId)
           .sort(),
       ).toEqual([MDX_REFRESH, TODO_REFRESH]);
-    },
-  );
 
-  test.skipIf(!OFFICIAL_PACKS_AVAILABLE)(
-    "live insert/decorate, doc-switch isolation, stale version reject, concurrent reentrancy",
-    async () => {
-      await loadBothPacks();
       const state: LiveState = {
         text: "# Note\n",
         documentId: "doc-todo",

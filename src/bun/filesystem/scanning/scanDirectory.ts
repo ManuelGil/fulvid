@@ -160,9 +160,14 @@ async function walkForMarkdownPaths(
 
     const entryPath = join(directory, entry.name);
 
-    // Dirent file/directory checks do not follow symlinks. Linked notes are
-    // invisible to scan/list; document I/O still resolves them through
-    // `assertCanonicallyContained` so a link cannot escape the folder.
+    // Dirent directory/file checks do not follow POSIX symlinks, but Windows
+    // junctions often report as directories. Skip every reparse/symlink entry so
+    // scan never walks outside the opened folder. Document I/O still resolves
+    // through `assertCanonicallyContained`.
+    if (entry.isSymbolicLink()) {
+      continue;
+    }
+
     if (entry.isDirectory()) {
       await walkForMarkdownPaths(
         entryPath,
@@ -260,6 +265,12 @@ export async function listWorkspaceEntries(
 
   for (const entry of entries) {
     if (isExcludedEntry(entry.name, includeHidden)) {
+      continue;
+    }
+
+    // Same junction/symlink rule as the scan walk: never surface linked
+    // directories or files as Explorer entries.
+    if (entry.isSymbolicLink()) {
       continue;
     }
 

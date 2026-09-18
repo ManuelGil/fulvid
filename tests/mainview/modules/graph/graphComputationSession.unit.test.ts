@@ -53,47 +53,13 @@ function syncFallback(graph: ReferenceGraph): ComposedGraph {
 // Intent: terminate/supersede must settle Promises so GraphPage cannot hang
 // with isDeriving stuck after worker.terminate().
 describe("graph computation session", () => {
-  test("superseding a silent worker settles the prior Promise without hanging", async () => {
-    const workers: Array<ReturnType<typeof silentWorker>> = [];
-    const session = createGraphComputationSession({
-      createWorker: () => {
-        const worker = silentWorker();
-        workers.push(worker);
-        return worker;
-      },
-      runSync: syncFallback,
-    });
-
-    const first = session.compute(reference("a.md"));
-    expect(session.hasActive()).toBe(true);
-
-    const second = session.compute(reference("b.md"));
-    // First worker was terminated when superseded.
-    expect(workers[0]?.terminated).toBe(true);
-
-    const firstResult = await first;
-    // Discarded composition stays empty while preserving focusPath.
-    expect(firstResult).toEqual({
-      focusPath: "a.md",
-      nodes: [],
-      edges: [],
-    });
-    expect(firstResult).toEqual(discardedComposedGraph(reference("a.md")));
-
-    session.terminate();
-    const secondResult = await second;
-    expect(secondResult).toEqual(discardedComposedGraph(reference("b.md")));
-    expect(session.hasActive()).toBe(false);
-    expect(workers[1]?.terminated).toBe(true);
-  });
-
-  test("successful worker message settles with composed data", async () => {
+  test("compute settles on success, error fallback, supersede, and terminate", async () => {
     const composed: ComposedGraph = {
       focusPath: "ok.md",
       nodes: [{ id: "ok.md", label: "ok", title: "ok", x: 1, y: 2, depth: 0 }],
       edges: [],
     };
-    const session = createGraphComputationSession({
+    const successSession = createGraphComputationSession({
       createWorker: () => {
         const handle: GraphWorkerHandle = {
           onmessage: null,
@@ -109,13 +75,10 @@ describe("graph computation session", () => {
       },
       runSync: syncFallback,
     });
+    await expect(successSession.compute(reference("ok.md"))).resolves.toEqual(composed);
+    expect(successSession.hasActive()).toBe(false);
 
-    await expect(session.compute(reference("ok.md"))).resolves.toEqual(composed);
-    expect(session.hasActive()).toBe(false);
-  });
-
-  test("worker error falls back to sync layout", async () => {
-    const session = createGraphComputationSession({
+    const errorSession = createGraphComputationSession({
       createWorker: () => {
         const handle: GraphWorkerHandle = {
           onmessage: null,
@@ -131,9 +94,40 @@ describe("graph computation session", () => {
       },
       runSync: syncFallback,
     });
-
-    await expect(session.compute(reference("err.md"))).resolves.toEqual(
+    await expect(errorSession.compute(reference("err.md"))).resolves.toEqual(
       syncFallback(reference("err.md")),
     );
+
+    const workers: Array<ReturnType<typeof silentWorker>> = [];
+    const supersedeSession = createGraphComputationSession({
+      createWorker: () => {
+        const worker = silentWorker();
+        workers.push(worker);
+        return worker;
+      },
+      runSync: syncFallback,
+    });
+
+    const first = supersedeSession.compute(reference("a.md"));
+    expect(supersedeSession.hasActive()).toBe(true);
+
+    const second = supersedeSession.compute(reference("b.md"));
+    // First worker was terminated when superseded.
+    expect(workers[0]?.terminated).toBe(true);
+
+    const firstResult = await first;
+    // Discarded composition stays empty while preserving focusPath.
+    expect(firstResult).toEqual({
+      focusPath: "a.md",
+      nodes: [],
+      edges: [],
+    });
+    expect(firstResult).toEqual(discardedComposedGraph(reference("a.md")));
+
+    supersedeSession.terminate();
+    const secondResult = await second;
+    expect(secondResult).toEqual(discardedComposedGraph(reference("b.md")));
+    expect(supersedeSession.hasActive()).toBe(false);
+    expect(workers[1]?.terminated).toBe(true);
   });
 });

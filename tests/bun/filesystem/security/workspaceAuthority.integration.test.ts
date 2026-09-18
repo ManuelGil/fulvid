@@ -57,6 +57,7 @@ describe("workspace authority", () => {
     await expect(authorizedWorkspaceRoot(root)).rejects.toThrow(NOT_OPEN);
     await expect(reauthorizeWorkspaceRoot(root)).resolves.toBeTruthy();
     await expect(authorizedWorkspaceRoot(root)).resolves.toBeTruthy();
+    await expect(reauthorizeWorkspaceRoot(outside)).rejects.toThrow(NOT_OPEN);
   });
 
   test("desktop paths allow inside an authorized root and refuse everything else", async () => {

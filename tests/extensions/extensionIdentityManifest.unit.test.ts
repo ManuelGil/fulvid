@@ -7,7 +7,7 @@ import {
 import { luaManifest } from "./manifestTestHelpers.ts";
 
 describe("publisher.name extension identity contract", () => {
-  test("accepts publisher.name identities and namespaces commands", () => {
+  test("manifest identity accepts valid publisher.name and rejects reserved, mismatched, and invalid presentation", () => {
     expect(
       validateExtensionManifest(
         luaManifest("imgildev.todo-decorator", ["lua", "commands", "ui", "document"], {
@@ -45,9 +45,7 @@ describe("publisher.name extension identity contract", () => {
     expect(namespacedExtensionCommandId("imgildev.todo-decorator", "todoNext")).toBe(
       "imgildev.todo-decorator.todoNext",
     );
-  });
 
-  test("rejects reserved local, mismatches, unknown caps, and invalid presentation", () => {
     expect(
       validateExtensionManifest({
         ...luaManifest("imgildev.todo-decorator"),

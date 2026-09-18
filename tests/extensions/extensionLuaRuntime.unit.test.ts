@@ -159,7 +159,7 @@ commands.register({
 });
 
 describe("lua execution and memory budgets", () => {
-  test("glue.wasm resolves; loop load/invoke interrupt and leave neighbors usable", async () => {
+  test("execution and memory budgets interrupt bad packs and leave neighbors usable", async () => {
     const path = resolveWasmoonGlueWasmPath();
     expect(existsSync(path)).toBe(true);
     expect(path.endsWith("glue.wasm")).toBe(true);
@@ -231,10 +231,7 @@ commands.register({
       ok: true,
       notifications: ["ok"],
     });
-  });
 
-  test("discovery isolates infinite-loop and OOM packs from healthy neighbors", async () => {
-    setLuaExecutionBudgetForTests(100);
     const userData = join(await tempExtensionsRoot("loop-iso"), "userData");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });

@@ -61,6 +61,9 @@ describe("filesystem Explorer listing and scan", () => {
       await expect(listWorkspaceEntries(linkedRoot, "link")).rejects.toThrow(
         filesystemErrorMessage("outsideFolder"),
       );
+      // Walk must also refuse to follow the link into outside notes.
+      const linkedScan = await scanWorkspace(linkedRoot);
+      expect(linkedScan.scannedNotes).toEqual([]);
     } finally {
       await rm(base, { recursive: true, force: true });
     }

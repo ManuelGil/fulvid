@@ -96,18 +96,16 @@ describe("resolving an external open", () => {
     expect(
       await resolveOne({ kind: "file", path: join(outside, "gone.md"), source: "shell" }),
     ).toEqual({ kind: "rejected", source: "shell", reason: "documentMissing" });
-  });
 
-  test("symlink folders authorize the real land; unreadable files refuse without path leak", async () => {
     await linkDirectory(outside, join(folder, "link"));
-    const resolved = await resolveOne({
+    const linked = await resolveOne({
       kind: "folder",
       path: join(folder, "link"),
       source: "shell",
     });
-    expect(resolved.kind).toBe("folder");
-    if (resolved.kind !== "folder") return;
-    expect(resolved.rootPath).not.toContain("link");
+    expect(linked.kind).toBe("folder");
+    if (linked.kind !== "folder") return;
+    expect(linked.rootPath).not.toContain("link");
     await expect(authorizedWorkspaceRoot(base)).rejects.toThrow(
       filesystemErrorMessage("folderNotOpen"),
     );

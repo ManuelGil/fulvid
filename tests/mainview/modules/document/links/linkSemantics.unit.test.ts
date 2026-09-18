@@ -72,7 +72,7 @@ describe("link semantics", () => {
     setDocumentLinkSettings({ linkMode: "markdown", resolution: "both" });
   });
 
-  test("resolves edges by linkMode, depth, and de-duplication without self or missing links", () => {
+  test("link graph and indexing resolve consistently under mode, depth, and ambiguity", () => {
     const notes = [note("a.md", ["b"]), note("b.md", ["c"]), note("c.md")];
     expect(buildFocusGraph("a.md", notes, 1)).toEqual({
       focusPath: "a.md",
@@ -111,21 +111,18 @@ describe("link semantics", () => {
       referencedBy: ["a.md"],
     });
     expect(unresolvedDocumentLinks(noisy[0], noisy)).toEqual(["missing"]);
-  });
 
-  test("indexing resolves the same note a scan would, with first-wins duplicates and unique candidates", () => {
-    const notes = linkedNotes(50, 1);
-
-    expect(resolveDocumentPath("n7.md", notes, "both").path).toBe("n7.md");
-    expect(resolveDocumentPath("n7.md", notes, "both").reason).toBe("exact-path");
-    expect(resolveDocumentPath("n7", notes, "both").reason).toBe("stem");
-    expect(resolveDocumentPath("alias-9", notes, "both").path).toBe("n9.md");
-    expect(resolveDocumentPath("Title 11", notes, "both").path).toBe("n11.md");
-    expect(resolveDocumentPath("nothing-here", notes, "both").path).toBeNull();
+    const indexed = linkedNotes(50, 1);
+    expect(resolveDocumentPath("n7.md", indexed, "both").path).toBe("n7.md");
+    expect(resolveDocumentPath("n7.md", indexed, "both").reason).toBe("exact-path");
+    expect(resolveDocumentPath("n7", indexed, "both").reason).toBe("stem");
+    expect(resolveDocumentPath("alias-9", indexed, "both").path).toBe("n9.md");
+    expect(resolveDocumentPath("Title 11", indexed, "both").path).toBe("n11.md");
+    expect(resolveDocumentPath("nothing-here", indexed, "both").path).toBeNull();
 
     const duplicated: ScannedNote[] = [
-      { ...notes[0], path: "first.md", name: "first.md", title: "Shared", aliases: ["dup"] },
-      { ...notes[1], path: "second.md", name: "second.md", title: "Shared", aliases: ["dup"] },
+      { ...indexed[0], path: "first.md", name: "first.md", title: "Shared", aliases: ["dup"] },
+      { ...indexed[1], path: "second.md", name: "second.md", title: "Shared", aliases: ["dup"] },
     ];
     expect(resolveDocumentPath("Shared", duplicated, "both").path).toBe("first.md");
     expect(resolveDocumentPath("dup", duplicated, "both").path).toBe("first.md");

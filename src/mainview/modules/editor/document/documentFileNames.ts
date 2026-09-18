@@ -7,16 +7,19 @@ import { isMarkdownFile, isSafeDocumentBasename } from "../../workspace/filesyst
 /**
  * Attach the default extension when missing; refuse unsupported or unsafe names.
  * Returns null when the name must not be written.
+ *
+ * Do not trim before safety checks: Windows treats trailing spaces/dots as
+ * aliases of the unpadded name, and host I/O refuses padded basenames rather
+ * than repairing them.
  */
 export function resolveNewDocumentFileName(
   requestedName: string,
   defaultExtension: string,
 ): string | null {
-  const trimmed = requestedName.trim();
-  if (!trimmed) {
+  if (!requestedName) {
     return null;
   }
-  const name = trimmed.includes(".") ? trimmed : `${trimmed}.${defaultExtension}`;
+  const name = requestedName.includes(".") ? requestedName : `${requestedName}.${defaultExtension}`;
   if (!isMarkdownFile(name) || !isSafeDocumentBasename(name)) {
     return null;
   }
