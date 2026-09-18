@@ -414,19 +414,36 @@ export default {
   },
   settings: {
     title: "Einstellungen",
-    question: "Darstellung, Editor und Ordner",
+    question: "Einstellungen, Tastenkürzel und Info",
     searchLabel: "Einstellung suchen",
     searchPlaceholder: "Einstellungen durchsuchen",
     searchClear: "Leeren",
     searchResults: "Suchergebnisse für Einstellungen",
     searchNoResults: 'Keine Einstellung passt zu "{query}".',
+    navApplication: "Anwendung",
+    navEditor: "Editor",
+    navAppearance: "Darstellung",
+    navFolder: "Ordner",
+    navMarkdown: "Markdown",
+    navExtensions: "Erweiterungen",
+    navInformation: "Informationen",
+    language: "Sprache",
+    editorText: "Editortext",
+    editing: "Bearbeitung",
+    files: "Dateien",
+    writing: "Schreiben",
+    themeCategory: "Thema",
+    interface: "Oberfläche",
+    folder: "Ordner",
+    links: "Links",
+    context: "Dokumentkontext",
     general: "Allgemein",
     editor: "Editor",
     editorTypography: "Typografie",
     editorEditing: "Bearbeitung",
     editorFontSize: "Editor-Schriftgröße",
     editorFontSizeHint:
-      "Von 10 bis 24. Menüs und Einstellungen haben ihre eigene Größe unter Darstellung.",
+      "Von 10 bis 24. Menüs und Einstellungen haben ihre eigene Größe unter Oberfläche.",
     editorFontFamily: "Editor-Schriftart",
     editorFontFamilyHint:
       "Schriftart nur für das Dokument. Monospace hilft bei Tabellen und Code; System-Sans passt zum Computer; Serif eignet sich für langes Lesen.",
@@ -459,7 +476,8 @@ export default {
     editorWordWrapOn: "Ansichtsbereich",
     editorWordWrapBounded: "Bei 100 Spalten",
     editorWordWrapOff: "Aus",
-    editorDisplay: "Anzeige",
+    editorDisplay: "Editoranzeige",
+    editorWriting: "Schreiben",
     editorLineNumbers: "Zeilennummern",
     editorLineNumbersHint:
       "Zeigt Zeilennummern neben dem Dokument an. Die Gliederung kann zu ihnen springen.",
@@ -515,7 +533,7 @@ export default {
       "Menüs und Seitenleisten vergrößern oder verkleinern, ohne die Dokumentschrift zu ändern.",
     interfaceTextSize: "Textgröße der Oberfläche",
     interfaceTextSizeHint:
-      "Beschriftungen und Hilfetexte vergrößern oder verkleinern. Die Dokumentschrift bleibt wie im Editor eingestellt.",
+      "Beschriftungen und Hilfetexte vergrößern oder verkleinern. Die Dokumentschrift bleibt wie unter Editortext eingestellt.",
     interfaceTextSmall: "Klein",
     interfaceTextNormal: "Normal",
     interfaceTextLarge: "Groß",
@@ -605,6 +623,8 @@ export default {
     confirmCloseHint:
       "Vor dem Schließen des Ordners und vor dem Schließen von Tabs mit ungespeicherten Änderungen fragen.\n\nBereits gespeicherte Dokumente werden ohne Nachfrage geschlossen.",
     markdown: "Markdown",
+    markdownPreview: "Markdown & Vorschau",
+    markdownContext: "Dokumentkontext",
     linkMode: "Linkmodus",
     linkModeHint:
       "Wähle eine Syntax. Fulvid liest entweder Markdown-Links oder Wikilinks, nicht beides gleichzeitig. Deine Dateien werden durch die Änderung nicht umgeschrieben.",
@@ -633,10 +653,12 @@ export default {
     showPreview: "Markdown-Vorschau anzeigen",
     showPreviewHint:
       "Eine formatierte Vorschau neben dem Editor anzeigen. MDX erscheint als Text und wird nie ausgeführt. Bilder sind Platzhalter und werden nicht heruntergeladen.\n\nDies ist dieselbe Vorschau, die Datei > HTML exportieren verwendet. Du kannst sie auch über das Ansicht-Menü umschalten. Die Vorschau speichert die Datei nicht.",
-    keyboard: "Tastatur",
+    keyboard: "Tastenkürzel",
+    help: "Hilfe & Info",
     extensions: "Erweiterungen",
     extensionsHint:
       "Erweiterungen aus einem Ordner installieren. Ihre Befehle erscheinen in Menüs; einige aktualisieren das aktive Dokument während der Eingabe.",
+    extensionsInstalled: "Installierte Erweiterungen",
     extensionsEmpty: "Noch keine Erweiterungen installiert.",
     extensionInstall: "Aus Ordner installieren...",
     extensionRediscover: "Neu laden",
@@ -694,6 +716,11 @@ export default {
     shortcutLocate:
       "Dieses Dokument im Graph zentrieren (C). Mit (+) hinein- oder mit (-) herauszoomen.",
     about: "Über",
+    aboutInformation: "Anwendungsinformationen",
+    aboutSupport: "Unterstützung",
+    aboutSupportDescription:
+      "Wenn Fulvid deine Arbeit unterstützt, kannst du seine Weiterentwicklung fördern.",
+    aboutMaintenance: "Wartung",
     aboutDescription: "Ein eigenständiger Desktop-Editor für Markdown und MDX.",
     aboutPurpose:
       "Ein einfacher Ort zum Schreiben, Bearbeiten und Wechseln zwischen Dokumenten, ohne dich zu behindern.",
@@ -702,6 +729,8 @@ export default {
     version: "Version",
     license: "Lizenz",
     author: "Autor",
+    sponsor: "Fulvid über GitHub Sponsors unterstützen",
+    sponsorHint: "Öffnet die GitHub-Sponsors-Seite in deinem Browser.",
     locale: "Sprache",
     localeHint:
       "Ändert Menüs, Einstellungen und Meldungen in Fulvid sofort. Deine Dokumente bleiben in der Sprache, in der du sie geschrieben hast.",

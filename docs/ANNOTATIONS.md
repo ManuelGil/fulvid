@@ -49,7 +49,7 @@ At most one annotation per line. Soft limit: 32 annotations per open document.
 **Show document annotations** / **Hide document annotations** control presentation only. They do not create, edit, or delete notes.
 
 - **View** menu: session Show / Hide
-- **Settings -> Editor**: preferred default for whether glyphs start visible
+- **Settings -> Editor display**: preferred default for whether glyphs start visible
 
 Hiding removes glyphs and glyph hover. Notes remain until you clear them, close the tab, or quit. Next / Previous still move the cursor to annotated lines while hidden. Quick Actions stay on Add/Edit for the current line.
 
@@ -76,7 +76,7 @@ Hiding removes glyphs and glyph hover. Notes remain until you clear them, close 
 | Soft cap | 32 annotations per open document |
 | Show is not delete | Hide is presentation only |
 
-**Show document annotations** under Settings -> Editor is the preferred default when Fulvid starts or when you change/reset that setting. A session Show/Hide (View) can differ until you change the setting, reset settings, or restart. Resetting settings does **not** delete existing session annotations.
+**Show document annotations** under Settings -> Editor display is the preferred default when Fulvid starts or when you change/reset that setting. A session Show/Hide (View) can differ until you change the setting, reset settings, or restart. Resetting settings does **not** delete existing session annotations.
 
 ## What annotations are not
 

@@ -158,7 +158,7 @@ const DEFAULT_SETTINGS: FulvidSettings = {
     stickyScroll: true,
     renderWhitespace: "selection",
     trimTrailingWhitespaceOnSave: false,
-    showMarkdownFormatBar: false,
+    showMarkdownFormatBar: true,
     showDocumentAnnotations: true,
     showSessionChanges: true,
     readingStatistics: "wordsAndTime",

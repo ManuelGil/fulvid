@@ -1135,7 +1135,7 @@ const unregisterCommands = [
     void router.push({ name: APP_ROUTE_NAMES.settings, query: { section: "keyboard" } });
   }),
   registerCommandHandler("openAbout", () => {
-    void router.push({ name: APP_ROUTE_NAMES.settings, query: { section: "general" } });
+    void router.push({ name: APP_ROUTE_NAMES.settings, query: { section: "about" } });
   }),
   registerCommandHandler("toggleFullscreen", toggleFullscreen),
   registerCommandHandler("quit", () => {

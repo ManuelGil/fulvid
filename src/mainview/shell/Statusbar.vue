@@ -139,7 +139,7 @@ const showContextGroup = computed(() =>
           type="button"
           :title="t('status.openLinkSettings')"
           :aria-label="t('status.linkMode', { mode: linkModeLabel })"
-          @click="router.push({ name: APP_ROUTE_NAMES.settings, query: { section: 'markdown' } })"
+          @click="router.push({ name: APP_ROUTE_NAMES.settings, query: { section: 'links' } })"
         >
           {{ t("status.linkMode", { mode: linkModeLabel }) }}
         </button>

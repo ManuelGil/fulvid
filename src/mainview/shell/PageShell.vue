@@ -221,6 +221,10 @@ const titleId = useId();
 
 .page-shell--fill {
   padding-bottom: 0;
+
+  .page-shell__header {
+    padding-bottom: $space-compact;
+  }
 }
 
 .page-shell--embedded {
@@ -261,6 +265,13 @@ const titleId = useId();
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
+
+  /* Fill pages own their scroll regions; the slot child must shrink. */
+  > :deep(*) {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+  }
 }
 
 .page-shell__continue--fill {

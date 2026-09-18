@@ -31,35 +31,59 @@ import {
   author as APP_AUTHOR,
   license as APP_LICENSE,
   version as APP_VERSION,
+  sponsor as APP_SPONSOR,
 } from "../../../../package.json";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
 type SettingsCategory =
-  | "general"
-  | "editor"
-  | "appearance"
-  | "markdown"
-  | "preview"
-  | "workspace"
-  | "extensions"
+  | "language"
+  | "editorText"
+  | "editing"
+  | "files"
+  | "editorDisplay"
+  | "writing"
+  | "theme"
+  | "interface"
   | "accessibility"
-  | "keyboard";
+  | "statusbar"
+  | "folder"
+  | "links"
+  | "context"
+  | "preview"
+  | "extensions"
+  | "keyboard"
+  | "about";
 
-const SETTINGS_CATEGORIES: readonly {
-  id: SettingsCategory;
-  label: string;
-}[] = [
-  { id: "general", label: "settings.general" },
-  { id: "editor", label: "settings.editor" },
-  { id: "appearance", label: "settings.appearance" },
-  { id: "markdown", label: "settings.markdown" },
-  { id: "preview", label: "settings.preview" },
-  { id: "workspace", label: "settings.workspace" },
-  { id: "extensions", label: "settings.extensions" },
+const SETTINGS_CATEGORIES = [
+  { id: "language", label: "settings.language" },
+  { id: "editorText", label: "settings.editorText" },
+  { id: "editing", label: "settings.editing" },
+  { id: "files", label: "settings.files" },
+  { id: "editorDisplay", label: "settings.editorDisplay" },
+  { id: "writing", label: "settings.writing" },
+  { id: "theme", label: "settings.themeCategory" },
+  { id: "interface", label: "settings.interface" },
   { id: "accessibility", label: "settings.accessibility" },
+  { id: "statusbar", label: "settings.statusbar" },
+  { id: "folder", label: "settings.folder" },
+  { id: "links", label: "settings.links" },
+  { id: "context", label: "settings.context" },
+  { id: "preview", label: "settings.preview" },
+  { id: "extensions", label: "settings.extensions" },
   { id: "keyboard", label: "settings.keyboard" },
-];
+  { id: "about", label: "settings.about" },
+] as const;
+
+const SETTINGS_NAV_GROUPS = [
+  { label: "settings.navApplication", categories: SETTINGS_CATEGORIES.slice(0, 1) },
+  { label: "settings.navEditor", categories: SETTINGS_CATEGORIES.slice(1, 6) },
+  { label: "settings.navAppearance", categories: SETTINGS_CATEGORIES.slice(6, 10) },
+  { label: "settings.navFolder", categories: SETTINGS_CATEGORIES.slice(10, 11) },
+  { label: "settings.navMarkdown", categories: SETTINGS_CATEGORIES.slice(11, 14) },
+  { label: "settings.navExtensions", categories: SETTINGS_CATEGORIES.slice(14, 15) },
+  { label: "settings.navInformation", categories: SETTINGS_CATEGORIES.slice(15, 17) },
+] as const;
 
 const STATUSBAR_INDICATORS: readonly {
   key: StatusbarIndicator;
@@ -118,10 +142,27 @@ const DENSITY_OPTIONS: readonly {
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+
+const SECTION_ALIASES: Record<string, SettingsCategory> = {
+  general: "language",
+  editor: "editorText",
+  appearance: "theme",
+  workspace: "folder",
+  markdown: "links",
+  help: "keyboard",
+};
+
 function categoryFromRoute(value: unknown): SettingsCategory {
-  return SETTINGS_CATEGORIES.some((category) => category.id === value)
-    ? (value as SettingsCategory)
-    : "general";
+  if (typeof value === "string") {
+    const aliased = SECTION_ALIASES[value];
+    if (aliased) {
+      return aliased;
+    }
+    if (SETTINGS_CATEGORIES.some((category) => category.id === value)) {
+      return value as SettingsCategory;
+    }
+  }
+  return "language";
 }
 
 const selectedCategory = ref<SettingsCategory>(categoryFromRoute(route.query.section));
@@ -156,7 +197,13 @@ watch(searchResults, (results) => {
 watch(
   () => route.query.section,
   (section) => {
-    selectedCategory.value = categoryFromRoute(section);
+    const category = categoryFromRoute(section);
+    selectedCategory.value = category;
+    void nextTick(() => {
+      document
+        .querySelector<HTMLElement>(`[data-settings-category="${category}"]`)
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
   },
 );
 
@@ -174,6 +221,19 @@ function selectCategory(category: SettingsCategory): void {
       section: category,
     },
   });
+  void nextTick(() => {
+    document
+      .querySelector<HTMLElement>(`[data-settings-category="${category}"]`)
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const content = document.querySelector<HTMLElement>(".settings-page__content");
+    if (content) {
+      content.scrollTop = 0;
+    }
+  });
+}
+
+function categoryIndex(category: SettingsCategory): number {
+  return SETTINGS_CATEGORIES.findIndex((item) => item.id === category);
 }
 
 const installedExtensions = computed(() => discoveredExtensions.value.installed);
@@ -429,7 +489,11 @@ function onCategoryKeydown(event: KeyboardEvent, index: number): void {
   }
   selectCategory(nextCategory.id);
   void nextTick(() => {
-    document.querySelector<HTMLElement>(`[data-settings-category="${nextCategory.id}"]`)?.focus();
+    const item = document.querySelector<HTMLElement>(
+      `[data-settings-category="${nextCategory.id}"]`,
+    );
+    item?.focus({ preventScroll: true });
+    item?.scrollIntoView({ block: "nearest", inline: "nearest" });
   });
 }
 
@@ -545,10 +609,18 @@ async function onResetSettings(): Promise<void> {
   syncDocumentAnnotationsVisibleFromPreference(settings.value.editor.showDocumentAnnotations);
   notify(t("settings.resetToDefaultsDone"));
 }
+
+async function onOpenSponsorPage(): Promise<void> {
+  try {
+    await desktopRequest().openSponsorPage({});
+  } catch {
+    // Host unavailable; keep the href for copy or OS handling.
+  }
+}
 </script>
 
 <template>
-  <PageShell :title="t('settings.title')" wide>
+  <PageShell :title="t('settings.title')" wide fill>
     <div class="settings-layout">
       <nav
         class="settings-category-nav"
@@ -556,23 +628,30 @@ async function onResetSettings(): Promise<void> {
         :aria-orientation="categoryTabOrientation"
         :aria-label="t('settings.title')"
       >
-        <button
-          v-for="(category, index) in SETTINGS_CATEGORIES"
-          :id="`settings-category-${category.id}`"
-          :key="category.id"
-          type="button"
-          role="tab"
-          :data-settings-category="category.id"
-          class="settings-category-nav__item"
-          :class="{ 'is-active': selectedCategory === category.id }"
-          :aria-selected="selectedCategory === category.id"
-          :aria-controls="'settings-panel'"
-          :tabindex="selectedCategory === category.id ? 0 : -1"
-          @click="selectCategory(category.id)"
-          @keydown="onCategoryKeydown($event, index)"
+        <div
+          v-for="group in SETTINGS_NAV_GROUPS"
+          :key="group.label"
+          class="settings-category-nav__group"
         >
-          {{ t(category.label) }}
-        </button>
+          <h2 class="settings-category-nav__group-label">{{ t(group.label) }}</h2>
+          <button
+            v-for="category in group.categories"
+            :id="`settings-category-${category.id}`"
+            :key="category.id"
+            type="button"
+            role="tab"
+            :data-settings-category="category.id"
+            class="settings-category-nav__item"
+            :class="{ 'is-active': selectedCategory === category.id }"
+            :aria-selected="selectedCategory === category.id"
+            :aria-controls="'settings-panel'"
+            :tabindex="selectedCategory === category.id ? 0 : -1"
+            @click="selectCategory(category.id)"
+            @keydown="onCategoryKeydown($event, categoryIndex(category.id))"
+          >
+            {{ t(category.label) }}
+          </button>
+        </div>
       </nav>
 
       <div class="settings-page__content">
@@ -653,12 +732,12 @@ async function onResetSettings(): Promise<void> {
           :aria-labelledby="`settings-category-${selectedCategory}`"
         >
           <section
-            v-if="selectedCategory === 'general'"
+            v-if="selectedCategory === 'language'"
             class="settings-section"
-            aria-labelledby="settings-general"
+            aria-labelledby="settings-language"
           >
-            <h2 id="settings-general" class="settings-section__title">
-              {{ t("settings.general") }}
+            <h2 id="settings-language" class="settings-section__title">
+              {{ t("settings.language") }}
             </h2>
             <label class="settings-option" data-settings-id="general.locale">
               <span class="settings-option__copy">
@@ -684,40 +763,16 @@ async function onResetSettings(): Promise<void> {
                 <option value="pt">{{ t("settings.portuguese") }}</option>
               </select>
             </label>
-
-            <div
-              class="settings-reset"
-              data-settings-id="general.reset"
-              aria-labelledby="settings-reset-heading"
-            >
-              <div class="settings-reset__copy">
-                <p id="settings-reset-heading" class="settings-option__name">
-                  {{ t("settings.resetToDefaults") }}
-                </p>
-                <p id="settings-reset-hint" class="settings-option__hint">
-                  {{ t("settings.resetToDefaultsHint") }}
-                </p>
-              </div>
-              <button
-                type="button"
-                class="settings-reset__button"
-                aria-describedby="settings-reset-hint"
-                @click="onResetSettings"
-              >
-                {{ t("settings.resetToDefaultsAction") }}
-              </button>
-            </div>
           </section>
 
           <section
-            v-if="selectedCategory === 'editor'"
+            v-if="selectedCategory === 'editorText'"
             class="settings-section"
-            aria-labelledby="settings-editor"
+            aria-labelledby="settings-editorText"
           >
-            <h2 id="settings-editor" class="settings-section__title">
-              {{ t("settings.editor") }}
+            <h2 id="settings-editorText" class="settings-section__title">
+              {{ t("settings.editorText") }}
             </h2>
-
             <fieldset class="settings-field">
               <legend class="settings-field__label">{{ t("settings.editorTypography") }}</legend>
               <label class="settings-option" data-settings-id="editor.fontSize">
@@ -792,9 +847,19 @@ async function onResetSettings(): Promise<void> {
                 </select>
               </label>
             </fieldset>
+          </section>
 
+          <section
+            v-if="selectedCategory === 'editing'"
+            class="settings-section"
+            aria-labelledby="settings-editing"
+          >
+            <h2 id="settings-editing" class="settings-section__title">
+              {{ t("settings.editing") }}
+            </h2>
             <fieldset class="settings-field">
-              <legend class="settings-field__label">{{ t("settings.editorEditing") }}</legend>
+              <legend class="sr-only">{{ t("settings.editing") }}</legend>
+
               <label class="settings-option" data-settings-id="editor.tabSize">
                 <span class="settings-option__copy">
                   <span class="settings-option__name">{{ t("settings.editorTabSize") }}</span>
@@ -818,30 +883,6 @@ async function onResetSettings(): Promise<void> {
                   <option value="2">2</option>
                   <option value="4">4</option>
                   <option value="8">8</option>
-                </select>
-              </label>
-
-              <label class="settings-option" data-settings-id="editor.defaultEol">
-                <span class="settings-option__copy">
-                  <span class="settings-option__name">{{ t("settings.editorDefaultEol") }}</span>
-                  <span id="settings-editor-default-eol-hint" class="settings-option__hint">
-                    {{ t("settings.editorDefaultEolHint") }}
-                  </span>
-                </span>
-                <select
-                  :value="settings.editor.defaultEol"
-                  :aria-label="t('settings.editorDefaultEol')"
-                  aria-describedby="settings-editor-default-eol-hint"
-                  @change="
-                    setEditor(
-                      'defaultEol',
-                      ($event.target as HTMLSelectElement)
-                        .value as FulvidSettings['editor']['defaultEol'],
-                    )
-                  "
-                >
-                  <option value="lf">{{ t("settings.editorDefaultEolLf") }}</option>
-                  <option value="crlf">{{ t("settings.editorDefaultEolCrlf") }}</option>
                 </select>
               </label>
 
@@ -902,9 +943,105 @@ async function onResetSettings(): Promise<void> {
                 </select>
               </label>
             </fieldset>
+          </section>
 
+          <section
+            v-if="selectedCategory === 'files'"
+            class="settings-section"
+            aria-labelledby="settings-files"
+          >
+            <h2 id="settings-files" class="settings-section__title">
+              {{ t("settings.files") }}
+            </h2>
             <fieldset class="settings-field">
-              <legend class="settings-field__label">{{ t("settings.editorDisplay") }}</legend>
+              <legend class="sr-only">{{ t("settings.files") }}</legend>
+
+              <label class="settings-option" data-settings-id="editor.defaultEol">
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{ t("settings.editorDefaultEol") }}</span>
+                  <span id="settings-editor-default-eol-hint" class="settings-option__hint">
+                    {{ t("settings.editorDefaultEolHint") }}
+                  </span>
+                </span>
+                <select
+                  :value="settings.editor.defaultEol"
+                  :aria-label="t('settings.editorDefaultEol')"
+                  aria-describedby="settings-editor-default-eol-hint"
+                  @change="
+                    setEditor(
+                      'defaultEol',
+                      ($event.target as HTMLSelectElement)
+                        .value as FulvidSettings['editor']['defaultEol'],
+                    )
+                  "
+                >
+                  <option value="lf">{{ t("settings.editorDefaultEolLf") }}</option>
+                  <option value="crlf">{{ t("settings.editorDefaultEolCrlf") }}</option>
+                </select>
+              </label>
+
+              <label class="settings-option" data-settings-id="editor.trimTrailingWhitespaceOnSave">
+                <input
+                  class="settings-option__control"
+                  type="checkbox"
+                  :checked="settings.editor.trimTrailingWhitespaceOnSave"
+                  :aria-label="t('settings.trimTrailingWhitespaceOnSave')"
+                  aria-describedby="settings-editor-trim-trailing-hint"
+                  @change="
+                    setEditor(
+                      'trimTrailingWhitespaceOnSave',
+                      ($event.target as HTMLInputElement).checked,
+                    )
+                  "
+                />
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{
+                    t("settings.trimTrailingWhitespaceOnSave")
+                  }}</span>
+                  <span id="settings-editor-trim-trailing-hint" class="settings-option__hint">
+                    {{ t("settings.trimTrailingWhitespaceOnSaveHint") }}
+                  </span>
+                </span>
+              </label>
+
+              <label class="settings-option" data-settings-id="markdown.defaultExtension">
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{ t("settings.defaultExtension") }}</span>
+                  <span id="settings-default-extension-hint" class="settings-option__hint">
+                    {{ t("settings.defaultExtensionHint") }}
+                  </span>
+                </span>
+                <select
+                  :value="settings.links.defaultExtension"
+                  :aria-label="t('settings.defaultExtension')"
+                  aria-describedby="settings-default-extension-hint"
+                  @change="
+                    setLinkPref(
+                      'defaultExtension',
+                      ($event.target as HTMLSelectElement)
+                        .value as FulvidSettings['links']['defaultExtension'],
+                    )
+                  "
+                >
+                  <option value="md">.md</option>
+                  <option value="markdown">.markdown</option>
+                  <option value="mdx">.mdx</option>
+                </select>
+              </label>
+            </fieldset>
+          </section>
+
+          <section
+            v-if="selectedCategory === 'editorDisplay'"
+            class="settings-section"
+            aria-labelledby="settings-editorDisplay"
+          >
+            <h2 id="settings-editorDisplay" class="settings-section__title">
+              {{ t("settings.editorDisplay") }}
+            </h2>
+            <fieldset class="settings-field">
+              <legend class="sr-only">{{ t("settings.editorDisplay") }}</legend>
+
               <label class="settings-option" data-settings-id="editor.lineNumbers">
                 <input
                   class="settings-option__control"
@@ -917,6 +1054,45 @@ async function onResetSettings(): Promise<void> {
                   <span class="settings-option__name">{{ t("settings.editorLineNumbers") }}</span>
                   <span id="settings-editor-line-numbers-hint" class="settings-option__hint">
                     {{ t("settings.editorLineNumbersHint") }}
+                  </span>
+                </span>
+              </label>
+
+              <label class="settings-option" data-settings-id="editor.showSessionChanges">
+                <input
+                  class="settings-option__control"
+                  type="checkbox"
+                  :checked="settings.editor.showSessionChanges"
+                  @change="
+                    setEditor('showSessionChanges', ($event.target as HTMLInputElement).checked)
+                  "
+                />
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{ t("settings.showSessionChanges") }}</span>
+                  <span class="settings-option__hint">
+                    {{ t("settings.showSessionChangesHint") }}
+                  </span>
+                </span>
+              </label>
+
+              <label class="settings-option" data-settings-id="editor.showDocumentAnnotations">
+                <input
+                  class="settings-option__control"
+                  type="checkbox"
+                  :checked="settings.editor.showDocumentAnnotations"
+                  @change="
+                    setEditor(
+                      'showDocumentAnnotations',
+                      ($event.target as HTMLInputElement).checked,
+                    )
+                  "
+                />
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{
+                    t("settings.showDocumentAnnotations")
+                  }}</span>
+                  <span class="settings-option__hint">
+                    {{ t("settings.showDocumentAnnotationsHint") }}
                   </span>
                 </span>
               </label>
@@ -977,165 +1153,65 @@ async function onResetSettings(): Promise<void> {
                   <option value="all">{{ t("settings.editorWhitespaceAll") }}</option>
                 </select>
               </label>
+            </fieldset>
+          </section>
 
-              <label class="settings-option" data-settings-id="editor.trimTrailingWhitespaceOnSave">
+          <section
+            v-if="selectedCategory === 'writing'"
+            class="settings-section"
+            aria-labelledby="settings-writing"
+          >
+            <h2 id="settings-writing" class="settings-section__title">
+              {{ t("settings.writing") }}
+            </h2>
+            <fieldset class="settings-field">
+              <legend class="sr-only">{{ t("settings.writing") }}</legend>
+
+              <label class="settings-option" data-settings-id="editor.typewriterScrolling">
                 <input
                   class="settings-option__control"
                   type="checkbox"
-                  :checked="settings.editor.trimTrailingWhitespaceOnSave"
-                  :aria-label="t('settings.trimTrailingWhitespaceOnSave')"
-                  aria-describedby="settings-editor-trim-trailing-hint"
+                  :checked="settings.editor.typewriterScrolling"
+                  aria-describedby="settings-editor-typewriter-hint"
                   @change="
-                    setEditor(
-                      'trimTrailingWhitespaceOnSave',
-                      ($event.target as HTMLInputElement).checked,
-                    )
+                    setEditor('typewriterScrolling', ($event.target as HTMLInputElement).checked)
                   "
                 />
                 <span class="settings-option__copy">
-                  <span class="settings-option__name">{{
-                    t("settings.trimTrailingWhitespaceOnSave")
-                  }}</span>
-                  <span id="settings-editor-trim-trailing-hint" class="settings-option__hint">
-                    {{ t("settings.trimTrailingWhitespaceOnSaveHint") }}
+                  <span class="settings-option__name">{{ t("settings.typewriterScrolling") }}</span>
+                  <span id="settings-editor-typewriter-hint" class="settings-option__hint">
+                    {{ t("settings.typewriterScrollingHint") }}
+                  </span>
+                </span>
+              </label>
+
+              <label class="settings-option" data-settings-id="editor.markdownFormatBar">
+                <input
+                  class="settings-option__control"
+                  type="checkbox"
+                  :checked="settings.editor.showMarkdownFormatBar"
+                  @change="
+                    setEditor('showMarkdownFormatBar', ($event.target as HTMLInputElement).checked)
+                  "
+                />
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{ t("settings.markdownFormatBar") }}</span>
+                  <span class="settings-option__hint">
+                    {{ t("settings.markdownFormatBarHint") }}
                   </span>
                 </span>
               </label>
             </fieldset>
-
-            <label class="settings-option" data-settings-id="editor.readingStatistics">
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.readingStatistics") }}</span>
-                <span id="settings-editor-reading-statistics-hint" class="settings-option__hint">
-                  {{ t("settings.readingStatisticsHint") }}
-                </span>
-              </span>
-              <select
-                :value="settings.editor.readingStatistics"
-                :aria-label="t('settings.readingStatistics')"
-                aria-describedby="settings-editor-reading-statistics-hint"
-                @change="
-                  setEditor(
-                    'readingStatistics',
-                    ($event.target as HTMLSelectElement)
-                      .value as FulvidSettings['editor']['readingStatistics'],
-                  )
-                "
-              >
-                <option value="off">{{ t("settings.readingStatisticsOff") }}</option>
-                <option value="words">{{ t("settings.readingStatisticsWords") }}</option>
-                <option value="wordsAndTime">
-                  {{ t("settings.readingStatisticsWordsAndTime") }}
-                </option>
-              </select>
-            </label>
-
-            <label class="settings-option" data-settings-id="editor.typewriterScrolling">
-              <input
-                class="settings-option__control"
-                type="checkbox"
-                :checked="settings.editor.typewriterScrolling"
-                aria-describedby="settings-editor-typewriter-hint"
-                @change="
-                  setEditor('typewriterScrolling', ($event.target as HTMLInputElement).checked)
-                "
-              />
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.typewriterScrolling") }}</span>
-                <span id="settings-editor-typewriter-hint" class="settings-option__hint">
-                  {{ t("settings.typewriterScrollingHint") }}
-                </span>
-              </span>
-            </label>
-
-            <label class="settings-option" data-settings-id="editor.documentLocation">
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.documentLocation") }}</span>
-                <span class="settings-option__hint">{{ t("settings.documentLocationHint") }}</span>
-              </span>
-              <select
-                class="settings-option__control"
-                :value="settings.editor.documentLocation"
-                :aria-label="t('settings.documentLocation')"
-                @change="
-                  setEditor(
-                    'documentLocation',
-                    ($event.target as HTMLSelectElement)
-                      .value as FulvidSettings['editor']['documentLocation'],
-                  )
-                "
-              >
-                <option value="main-panel">{{ t("settings.documentLocationMainPanel") }}</option>
-                <option value="window-title">
-                  {{ t("settings.documentLocationWindowTitle") }}
-                </option>
-                <option value="hidden">{{ t("settings.documentLocationHidden") }}</option>
-              </select>
-            </label>
-
-            <label class="settings-option" data-settings-id="editor.markdownFormatBar">
-              <input
-                class="settings-option__control"
-                type="checkbox"
-                :checked="settings.editor.showMarkdownFormatBar"
-                @change="
-                  setEditor('showMarkdownFormatBar', ($event.target as HTMLInputElement).checked)
-                "
-              />
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.markdownFormatBar") }}</span>
-                <span class="settings-option__hint">
-                  {{ t("settings.markdownFormatBarHint") }}
-                </span>
-              </span>
-            </label>
-
-            <label class="settings-option" data-settings-id="editor.showDocumentAnnotations">
-              <input
-                class="settings-option__control"
-                type="checkbox"
-                :checked="settings.editor.showDocumentAnnotations"
-                @change="
-                  setEditor('showDocumentAnnotations', ($event.target as HTMLInputElement).checked)
-                "
-              />
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{
-                  t("settings.showDocumentAnnotations")
-                }}</span>
-                <span class="settings-option__hint">
-                  {{ t("settings.showDocumentAnnotationsHint") }}
-                </span>
-              </span>
-            </label>
-
-            <label class="settings-option" data-settings-id="editor.showSessionChanges">
-              <input
-                class="settings-option__control"
-                type="checkbox"
-                :checked="settings.editor.showSessionChanges"
-                @change="
-                  setEditor('showSessionChanges', ($event.target as HTMLInputElement).checked)
-                "
-              />
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.showSessionChanges") }}</span>
-                <span class="settings-option__hint">
-                  {{ t("settings.showSessionChangesHint") }}
-                </span>
-              </span>
-            </label>
           </section>
 
           <section
-            v-if="selectedCategory === 'appearance'"
+            v-if="selectedCategory === 'theme'"
             class="settings-section"
-            aria-labelledby="settings-appearance"
+            aria-labelledby="settings-theme"
           >
-            <h2 id="settings-appearance" class="settings-section__title">
-              {{ t("settings.appearance") }}
+            <h2 id="settings-theme" class="settings-section__title">
+              {{ t("settings.themeCategory") }}
             </h2>
-
             <fieldset
               class="settings-field settings-field--themes"
               data-settings-id="appearance.theme"
@@ -1250,9 +1326,19 @@ async function onResetSettings(): Promise<void> {
                 </section>
               </div>
             </fieldset>
+          </section>
 
+          <section
+            v-if="selectedCategory === 'interface'"
+            class="settings-section"
+            aria-labelledby="settings-interface"
+          >
+            <h2 id="settings-interface" class="settings-section__title">
+              {{ t("settings.interface") }}
+            </h2>
             <fieldset class="settings-field settings-field--interface">
               <legend class="settings-field__label">{{ t("settings.interfaceScale") }}</legend>
+
               <p class="settings-field__hint">{{ t("settings.interfaceScaleHint") }}</p>
 
               <label class="settings-option" data-settings-id="appearance.interfaceTextSize">
@@ -1357,10 +1443,72 @@ async function onResetSettings(): Promise<void> {
                   </label>
                 </div>
               </div>
-            </fieldset>
 
+              <label class="settings-option" data-settings-id="editor.documentLocation">
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{ t("settings.documentLocation") }}</span>
+                  <span class="settings-option__hint">{{
+                    t("settings.documentLocationHint")
+                  }}</span>
+                </span>
+                <select
+                  class="settings-option__control"
+                  :value="settings.editor.documentLocation"
+                  :aria-label="t('settings.documentLocation')"
+                  @change="
+                    setEditor(
+                      'documentLocation',
+                      ($event.target as HTMLSelectElement)
+                        .value as FulvidSettings['editor']['documentLocation'],
+                    )
+                  "
+                >
+                  <option value="main-panel">{{ t("settings.documentLocationMainPanel") }}</option>
+                  <option value="window-title">
+                    {{ t("settings.documentLocationWindowTitle") }}
+                  </option>
+                  <option value="hidden">{{ t("settings.documentLocationHidden") }}</option>
+                </select>
+              </label>
+            </fieldset>
+          </section>
+
+          <section
+            v-if="selectedCategory === 'accessibility'"
+            class="settings-section"
+            aria-labelledby="settings-accessibility"
+          >
+            <h2 id="settings-accessibility" class="settings-section__title">
+              {{ t("settings.accessibility") }}
+            </h2>
+            <label class="settings-option" data-settings-id="accessibility.reducedMotion">
+              <input
+                class="settings-option__control"
+                type="checkbox"
+                :checked="settings.appearance.reducedMotion"
+                @change="
+                  setAppearance('reducedMotion', ($event.target as HTMLInputElement).checked)
+                "
+              />
+              <span class="settings-option__copy">
+                <span class="settings-option__name">{{ t("settings.reducedMotion") }}</span>
+                <span class="settings-option__hint">
+                  {{ t("settings.reducedMotionHint") }}
+                </span>
+              </span>
+            </label>
+          </section>
+
+          <section
+            v-if="selectedCategory === 'statusbar'"
+            class="settings-section"
+            aria-labelledby="settings-statusbar"
+          >
+            <h2 id="settings-statusbar" class="settings-section__title">
+              {{ t("settings.statusbar") }}
+            </h2>
             <fieldset class="settings-field">
-              <legend class="settings-field__label">{{ t("settings.statusbar") }}</legend>
+              <legend class="sr-only">{{ t("settings.statusbar") }}</legend>
               <label class="settings-option" data-settings-id="appearance.statusbarEnabled">
                 <input
                   class="settings-option__control"
@@ -1398,52 +1546,42 @@ async function onResetSettings(): Promise<void> {
                 </span>
               </label>
             </fieldset>
+            <label class="settings-option" data-settings-id="editor.readingStatistics">
+              <span class="settings-option__copy">
+                <span class="settings-option__name">{{ t("settings.readingStatistics") }}</span>
+                <span id="settings-editor-reading-statistics-hint" class="settings-option__hint">
+                  {{ t("settings.readingStatisticsHint") }}
+                </span>
+              </span>
+              <select
+                :value="settings.editor.readingStatistics"
+                :aria-label="t('settings.readingStatistics')"
+                aria-describedby="settings-editor-reading-statistics-hint"
+                @change="
+                  setEditor(
+                    'readingStatistics',
+                    ($event.target as HTMLSelectElement)
+                      .value as FulvidSettings['editor']['readingStatistics'],
+                  )
+                "
+              >
+                <option value="off">{{ t("settings.readingStatisticsOff") }}</option>
+                <option value="words">{{ t("settings.readingStatisticsWords") }}</option>
+                <option value="wordsAndTime">
+                  {{ t("settings.readingStatisticsWordsAndTime") }}
+                </option>
+              </select>
+            </label>
           </section>
 
           <section
-            v-if="selectedCategory === 'workspace'"
+            v-if="selectedCategory === 'folder'"
             class="settings-section"
-            aria-labelledby="settings-workspace"
+            aria-labelledby="settings-folder"
           >
-            <h2 id="settings-workspace" class="settings-section__title">
-              {{ t("settings.workspace") }}
+            <h2 id="settings-folder" class="settings-section__title">
+              {{ t("settings.folder") }}
             </h2>
-
-            <label class="settings-option" data-settings-id="workspace.showHidden">
-              <input
-                class="settings-option__control"
-                type="checkbox"
-                :checked="settings.workspace.showHiddenFiles"
-                @change="
-                  setWorkspacePref('showHiddenFiles', ($event.target as HTMLInputElement).checked)
-                "
-              />
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.showHidden") }}</span>
-                <span class="settings-option__hint">
-                  {{ t("settings.showHiddenHint") }}
-                </span>
-              </span>
-            </label>
-
-            <label class="settings-option" data-settings-id="workspace.confirmClose">
-              <input
-                class="settings-option__control"
-                type="checkbox"
-                :checked="settings.workspace.confirmClose"
-                aria-describedby="settings-confirm-close-hint"
-                @change="
-                  setWorkspacePref('confirmClose', ($event.target as HTMLInputElement).checked)
-                "
-              />
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.confirmClose") }}</span>
-                <span id="settings-confirm-close-hint" class="settings-option__hint">
-                  {{ t("settings.confirmCloseHint") }}
-                </span>
-              </span>
-            </label>
-
             <fieldset data-settings-id="workspace.startup" class="settings-field">
               <legend class="settings-field__label">{{ t("settings.workspaceStartup") }}</legend>
               <label class="settings-option">
@@ -1481,44 +1619,49 @@ async function onResetSettings(): Promise<void> {
                 </span>
               </label>
             </fieldset>
-          </section>
-
-          <section
-            v-if="selectedCategory === 'accessibility'"
-            class="settings-section"
-            aria-labelledby="settings-accessibility"
-          >
-            <h2 id="settings-accessibility" class="settings-section__title">
-              {{ t("settings.accessibility") }}
-            </h2>
-
-            <label class="settings-option" data-settings-id="accessibility.reducedMotion">
+            <label class="settings-option" data-settings-id="workspace.confirmClose">
               <input
                 class="settings-option__control"
                 type="checkbox"
-                :checked="settings.appearance.reducedMotion"
+                :checked="settings.workspace.confirmClose"
+                aria-describedby="settings-confirm-close-hint"
                 @change="
-                  setAppearance('reducedMotion', ($event.target as HTMLInputElement).checked)
+                  setWorkspacePref('confirmClose', ($event.target as HTMLInputElement).checked)
                 "
               />
               <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.reducedMotion") }}</span>
+                <span class="settings-option__name">{{ t("settings.confirmClose") }}</span>
+                <span id="settings-confirm-close-hint" class="settings-option__hint">
+                  {{ t("settings.confirmCloseHint") }}
+                </span>
+              </span>
+            </label>
+            <label class="settings-option" data-settings-id="workspace.showHidden">
+              <input
+                class="settings-option__control"
+                type="checkbox"
+                :checked="settings.workspace.showHiddenFiles"
+                @change="
+                  setWorkspacePref('showHiddenFiles', ($event.target as HTMLInputElement).checked)
+                "
+              />
+              <span class="settings-option__copy">
+                <span class="settings-option__name">{{ t("settings.showHidden") }}</span>
                 <span class="settings-option__hint">
-                  {{ t("settings.reducedMotionHint") }}
+                  {{ t("settings.showHiddenHint") }}
                 </span>
               </span>
             </label>
           </section>
 
           <section
-            v-if="selectedCategory === 'markdown'"
+            v-if="selectedCategory === 'links'"
             class="settings-section"
-            aria-labelledby="settings-markdown"
+            aria-labelledby="settings-links"
           >
-            <h2 id="settings-markdown" class="settings-section__title">
-              {{ t("settings.markdown") }}
+            <h2 id="settings-links" class="settings-section__title">
+              {{ t("settings.links") }}
             </h2>
-
             <fieldset data-settings-id="markdown.linkMode" class="settings-field">
               <legend class="settings-field__label">{{ t("settings.linkMode") }}</legend>
               <p class="settings-field__hint">{{ t("settings.linkModeHint") }}</p>
@@ -1553,7 +1696,6 @@ async function onResetSettings(): Promise<void> {
                 </span>
               </label>
             </fieldset>
-
             <label class="settings-option" data-settings-id="markdown.resolution">
               <span class="settings-option__copy">
                 <span class="settings-option__name">{{ t("settings.resolution") }}</span>
@@ -1578,67 +1720,54 @@ async function onResetSettings(): Promise<void> {
                 <option value="both">{{ t("settings.resolutionBoth") }}</option>
               </select>
             </label>
+          </section>
 
-            <label class="settings-option" data-settings-id="markdown.defaultExtension">
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.defaultExtension") }}</span>
-                <span id="settings-default-extension-hint" class="settings-option__hint">
-                  {{ t("settings.defaultExtensionHint") }}
+          <section
+            v-if="selectedCategory === 'context'"
+            class="settings-section"
+            aria-labelledby="settings-context"
+          >
+            <h2 id="settings-context" class="settings-section__title">
+              {{ t("settings.context") }}
+            </h2>
+            <fieldset class="settings-field">
+              <legend class="settings-field__label">{{ t("settings.markdownContext") }}</legend>
+              <label class="settings-option" data-settings-id="markdown.showOutgoingLinks">
+                <input
+                  class="settings-option__control"
+                  type="checkbox"
+                  :checked="settings.links.showOutgoingLinks"
+                  aria-describedby="settings-show-outgoing-hint"
+                  @change="
+                    setLinkPref('showOutgoingLinks', ($event.target as HTMLInputElement).checked)
+                  "
+                />
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{ t("settings.showOutgoingLinks") }}</span>
+                  <span id="settings-show-outgoing-hint" class="settings-option__hint">
+                    {{ t("settings.showOutgoingLinksHint") }}
+                  </span>
                 </span>
-              </span>
-              <select
-                :value="settings.links.defaultExtension"
-                :aria-label="t('settings.defaultExtension')"
-                aria-describedby="settings-default-extension-hint"
-                @change="
-                  setLinkPref(
-                    'defaultExtension',
-                    ($event.target as HTMLSelectElement)
-                      .value as FulvidSettings['links']['defaultExtension'],
-                  )
-                "
-              >
-                <option value="md">.md</option>
-                <option value="markdown">.markdown</option>
-                <option value="mdx">.mdx</option>
-              </select>
-            </label>
+              </label>
 
-            <label class="settings-option" data-settings-id="markdown.showOutgoingLinks">
-              <input
-                class="settings-option__control"
-                type="checkbox"
-                :checked="settings.links.showOutgoingLinks"
-                aria-describedby="settings-show-outgoing-hint"
-                @change="
-                  setLinkPref('showOutgoingLinks', ($event.target as HTMLInputElement).checked)
-                "
-              />
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.showOutgoingLinks") }}</span>
-                <span id="settings-show-outgoing-hint" class="settings-option__hint">
-                  {{ t("settings.showOutgoingLinksHint") }}
+              <label class="settings-option" data-settings-id="markdown.showIncomingLinks">
+                <input
+                  class="settings-option__control"
+                  type="checkbox"
+                  :checked="settings.links.showIncomingLinks"
+                  aria-describedby="settings-show-incoming-hint"
+                  @change="
+                    setLinkPref('showIncomingLinks', ($event.target as HTMLInputElement).checked)
+                  "
+                />
+                <span class="settings-option__copy">
+                  <span class="settings-option__name">{{ t("settings.showIncomingLinks") }}</span>
+                  <span id="settings-show-incoming-hint" class="settings-option__hint">
+                    {{ t("settings.showIncomingLinksHint") }}
+                  </span>
                 </span>
-              </span>
-            </label>
-
-            <label class="settings-option" data-settings-id="markdown.showIncomingLinks">
-              <input
-                class="settings-option__control"
-                type="checkbox"
-                :checked="settings.links.showIncomingLinks"
-                aria-describedby="settings-show-incoming-hint"
-                @change="
-                  setLinkPref('showIncomingLinks', ($event.target as HTMLInputElement).checked)
-                "
-              />
-              <span class="settings-option__copy">
-                <span class="settings-option__name">{{ t("settings.showIncomingLinks") }}</span>
-                <span id="settings-show-incoming-hint" class="settings-option__hint">
-                  {{ t("settings.showIncomingLinksHint") }}
-                </span>
-              </span>
-            </label>
+              </label>
+            </fieldset>
           </section>
 
           <section
@@ -1649,7 +1778,6 @@ async function onResetSettings(): Promise<void> {
             <h2 id="settings-preview" class="settings-section__title">
               {{ t("settings.preview") }}
             </h2>
-
             <label class="settings-option" data-settings-id="preview.enabled">
               <input
                 class="settings-option__control"
@@ -1664,6 +1792,117 @@ async function onResetSettings(): Promise<void> {
                 </span>
               </span>
             </label>
+          </section>
+
+          <section
+            v-if="selectedCategory === 'extensions'"
+            class="settings-section"
+            aria-labelledby="settings-extensions"
+          >
+            <h2
+              id="settings-extensions"
+              class="settings-section__title"
+              data-settings-id="extensions.section"
+              tabindex="-1"
+            >
+              {{ t("settings.extensions") }}
+            </h2>
+            <p class="settings-option__hint" data-settings-id="extensions.intro">
+              {{ t("settings.extensionsHint") }}
+            </p>
+            <div class="settings-extension-toolbar" data-settings-id="extensions.toolbar">
+              <button
+                type="button"
+                class="settings-reset__button"
+                :disabled="extensionsBusy"
+                @click="installExtensionPack"
+              >
+                {{ t("settings.extensionInstall") }}
+              </button>
+              <button
+                type="button"
+                class="settings-reset__button"
+                :disabled="extensionsBusy"
+                @click="rediscoverExtensions"
+              >
+                {{ t("settings.extensionRediscover") }}
+              </button>
+            </div>
+            <p
+              v-if="installedExtensions.length === 0"
+              class="settings-option__hint"
+              data-settings-id="extensions.empty"
+            >
+              {{ t("settings.extensionsEmpty") }}
+            </p>
+            <ul v-else class="settings-extension-list" data-settings-id="extensions.list">
+              <li
+                v-for="pack in installedExtensions"
+                :key="pack.id"
+                class="settings-extension-card"
+                :data-settings-id="`extensions.pack.${pack.id}`"
+                :data-state="pack.state"
+              >
+                <div class="settings-extension-card__header">
+                  <div class="settings-extension-card__titles">
+                    <h3 class="settings-extension-card__name">{{ pack.displayName }}</h3>
+                    <p class="settings-extension-card__identity">
+                      <code>{{ pack.id }}</code>
+                      <span aria-hidden="true"> - </span>
+                      <span>{{ pack.publisher }}</span>
+                      <span aria-hidden="true"> - </span>
+                      <span>{{ pack.version }}</span>
+                    </p>
+                  </div>
+                  <span class="settings-extension-card__state" :data-state="pack.state">
+                    {{ extensionStateLabel(pack.state) }}
+                  </span>
+                </div>
+                <p v-if="pack.description" class="settings-extension-card__description">
+                  {{ pack.description }}
+                </p>
+                <p class="settings-extension-card__meta-line">
+                  {{ extensionMetaLine(pack) }}
+                </p>
+                <p class="settings-extension-card__capabilities">
+                  {{
+                    pack.capabilities.length > 0
+                      ? pack.capabilities.join(", ")
+                      : t("settings.extensionCapabilitiesNone")
+                  }}
+                </p>
+                <p v-if="pack.reason" class="settings-extension-card__reason">
+                  {{ pack.reason }}
+                </p>
+                <div class="settings-extension-card__actions">
+                  <button
+                    type="button"
+                    class="settings-reset__button"
+                    :disabled="extensionsBusy"
+                    @click="openExtensionFolder(pack.id)"
+                  >
+                    {{ t("settings.extensionOpenFolder") }}
+                  </button>
+                  <button
+                    v-if="pack.state === 'blocked' || pack.state === 'failed'"
+                    type="button"
+                    class="settings-reset__button"
+                    :disabled="extensionsBusy"
+                    @click="reviewBlockedExtension(pack.id)"
+                  >
+                    {{ t("settings.extensionReviewBlocked") }}
+                  </button>
+                  <button
+                    type="button"
+                    class="settings-reset__button settings-reset__button--danger"
+                    :disabled="extensionsBusy"
+                    @click="uninstallExtensionPack(pack.id)"
+                  >
+                    {{ t("settings.extensionUninstall") }}
+                  </button>
+                </div>
+              </li>
+            </ul>
           </section>
 
           <section
@@ -1868,126 +2107,15 @@ async function onResetSettings(): Promise<void> {
           </section>
 
           <section
-            v-if="selectedCategory === 'extensions'"
-            class="settings-section"
-            aria-labelledby="settings-extensions"
-          >
-            <h2
-              id="settings-extensions"
-              class="settings-section__title"
-              data-settings-id="extensions.section"
-              tabindex="-1"
-            >
-              {{ t("settings.extensions") }}
-            </h2>
-            <p class="settings-option__hint" data-settings-id="extensions.intro">
-              {{ t("settings.extensionsHint") }}
-            </p>
-            <div class="settings-extension-toolbar" data-settings-id="extensions.toolbar">
-              <button
-                type="button"
-                class="settings-reset__button"
-                :disabled="extensionsBusy"
-                @click="installExtensionPack"
-              >
-                {{ t("settings.extensionInstall") }}
-              </button>
-              <button
-                type="button"
-                class="settings-reset__button"
-                :disabled="extensionsBusy"
-                @click="rediscoverExtensions"
-              >
-                {{ t("settings.extensionRediscover") }}
-              </button>
-            </div>
-            <p
-              v-if="installedExtensions.length === 0"
-              class="settings-option__hint"
-              data-settings-id="extensions.empty"
-            >
-              {{ t("settings.extensionsEmpty") }}
-            </p>
-            <ul v-else class="settings-extension-list" data-settings-id="extensions.list">
-              <li
-                v-for="pack in installedExtensions"
-                :key="pack.id"
-                class="settings-extension-card"
-                :data-settings-id="`extensions.pack.${pack.id}`"
-                :data-state="pack.state"
-              >
-                <div class="settings-extension-card__header">
-                  <div class="settings-extension-card__titles">
-                    <h3 class="settings-extension-card__name">{{ pack.displayName }}</h3>
-                    <p class="settings-extension-card__identity">
-                      <code>{{ pack.id }}</code>
-                      <span aria-hidden="true"> - </span>
-                      <span>{{ pack.publisher }}</span>
-                      <span aria-hidden="true"> - </span>
-                      <span>{{ pack.version }}</span>
-                    </p>
-                  </div>
-                  <span class="settings-extension-card__state" :data-state="pack.state">
-                    {{ extensionStateLabel(pack.state) }}
-                  </span>
-                </div>
-                <p v-if="pack.description" class="settings-extension-card__description">
-                  {{ pack.description }}
-                </p>
-                <p class="settings-extension-card__meta-line">
-                  {{ extensionMetaLine(pack) }}
-                </p>
-                <p class="settings-extension-card__capabilities">
-                  {{
-                    pack.capabilities.length > 0
-                      ? pack.capabilities.join(", ")
-                      : t("settings.extensionCapabilitiesNone")
-                  }}
-                </p>
-                <p v-if="pack.reason" class="settings-extension-card__reason">
-                  {{ pack.reason }}
-                </p>
-                <div class="settings-extension-card__actions">
-                  <button
-                    type="button"
-                    class="settings-reset__button"
-                    :disabled="extensionsBusy"
-                    @click="openExtensionFolder(pack.id)"
-                  >
-                    {{ t("settings.extensionOpenFolder") }}
-                  </button>
-                  <button
-                    v-if="pack.state === 'blocked' || pack.state === 'failed'"
-                    type="button"
-                    class="settings-reset__button"
-                    :disabled="extensionsBusy"
-                    @click="reviewBlockedExtension(pack.id)"
-                  >
-                    {{ t("settings.extensionReviewBlocked") }}
-                  </button>
-                  <button
-                    type="button"
-                    class="settings-reset__button settings-reset__button--danger"
-                    :disabled="extensionsBusy"
-                    @click="uninstallExtensionPack(pack.id)"
-                  >
-                    {{ t("settings.extensionUninstall") }}
-                  </button>
-                </div>
-              </li>
-            </ul>
-          </section>
-
-          <section
-            v-if="selectedCategory === 'general'"
+            v-if="selectedCategory === 'about'"
             class="settings-section"
             aria-labelledby="settings-about"
           >
             <h2 id="settings-about" class="settings-section__title">
               {{ t("settings.about") }}
             </h2>
-
             <div class="settings-about" data-settings-id="general.about" tabindex="-1">
+              <h3 class="settings-about__heading">{{ t("settings.aboutInformation") }}</h3>
               <div class="settings-about__intro">
                 <p class="settings-about__product">{{ t("app.product") }}</p>
                 <p class="settings-about__lead">{{ t("settings.aboutDescription") }}</p>
@@ -2013,6 +2141,49 @@ async function onResetSettings(): Promise<void> {
                   <dd>{{ APP_VERSION }}</dd>
                 </div>
               </dl>
+
+              <div class="settings-about__support">
+                <h3 class="settings-about__heading">{{ t("settings.aboutSupport") }}</h3>
+                <p class="settings-about__text">{{ t("settings.aboutSupportDescription") }}</p>
+                <p class="settings-about__support-action">
+                  <a
+                    class="settings-about__sponsor"
+                    data-settings-id="general.sponsor"
+                    :href="APP_SPONSOR.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    @click.prevent="onOpenSponsorPage"
+                  >
+                    {{ t("settings.sponsor") }}
+                  </a>
+                  <span id="settings-sponsor-hint" class="settings-option__hint">
+                    {{ t("settings.sponsorHint") }}
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div
+              class="settings-reset"
+              data-settings-id="general.reset"
+              aria-labelledby="settings-reset-heading"
+            >
+              <div class="settings-reset__copy">
+                <h3 id="settings-reset-heading" class="settings-about__heading">
+                  {{ t("settings.aboutMaintenance") }}
+                </h3>
+                <p class="settings-option__name">{{ t("settings.resetToDefaults") }}</p>
+                <p id="settings-reset-hint" class="settings-option__hint">
+                  {{ t("settings.resetToDefaultsHint") }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="settings-reset__button"
+                aria-describedby="settings-reset-hint"
+                @click="onResetSettings"
+              >
+                {{ t("settings.resetToDefaultsAction") }}
+              </button>
             </div>
           </section>
         </div>
@@ -2029,27 +2200,60 @@ async function onResetSettings(): Promise<void> {
 @use "../../styles/page-layout" as *;
 
 .settings-layout {
-  display: grid;
-  grid-template-columns: minmax(152px, 176px) minmax(0, 1fr);
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  align-self: stretch;
   gap: $space-group;
-  align-items: start;
+  flex: 1 1 auto;
   width: 100%;
-  max-width: 1040px;
-  padding-bottom: $space-page;
+  height: 100%;
+  max-width: 52rem;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .settings-category-nav {
-  position: sticky;
-  top: 0;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: $space-compact;
+  width: clamp(168px, 28vw, 196px);
+  min-width: 0;
+  min-height: 0;
+  padding-inline-end: $space-compact;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-inline-end: 1px solid $border-subtle;
+  scrollbar-gutter: stable;
+}
+
+.settings-category-nav__group {
   display: flex;
   flex-direction: column;
-  gap: $space-tight;
-  padding-inline-end: $space-group;
-  border-inline-end: 1px solid $border-subtle;
+  gap: 1px;
+}
+
+.settings-category-nav__group + .settings-category-nav__group {
+  padding-block-start: $space-compact;
+  border-block-start: 1px solid $border-subtle;
+}
+
+.settings-category-nav__group-label {
+  margin: 0 0 2px;
+  padding-inline: $space-compact;
+  color: $text-muted;
+  font-size: $font-micro;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .settings-category-nav__item {
-  min-height: $control-height;
+  min-height: calc(#{$control-height-small} - 2px);
   padding: 0 $space-compact;
   border: 0;
   border-radius: $radius;
@@ -2078,10 +2282,17 @@ async function onResetSettings(): Promise<void> {
 }
 
 .settings-page__content {
+  flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: $space-block;
+  gap: $space-compact;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-bottom: $space-page;
 }
 
 .settings-search {
@@ -2089,10 +2300,8 @@ async function onResetSettings(): Promise<void> {
   flex-wrap: wrap;
   align-items: center;
   gap: $space-tight;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding-block: $space-tight;
+  max-width: 40rem;
+  padding-block: 0;
   background: $background;
 }
 
@@ -2104,6 +2313,7 @@ async function onResetSettings(): Promise<void> {
 .settings-search__input {
   @include control-field;
   width: 100%;
+  min-height: $control-height;
 }
 
 .settings-search__clear {
@@ -2177,8 +2387,9 @@ async function onResetSettings(): Promise<void> {
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: $space-block;
+  gap: $space-compact;
   min-width: 0;
+  max-width: 40rem;
 }
 
 .settings-page__sections {
@@ -2188,29 +2399,31 @@ async function onResetSettings(): Promise<void> {
 }
 
 .settings-section__title {
-  margin: 0 0 $space-related;
+  margin: 0;
   color: $text-primary;
   font-size: $font-section;
-  font-weight: 600;
+  font-weight: 650;
   letter-spacing: -0.02em;
+  scroll-margin-top: $space-page;
 }
 
 .settings-field {
   display: flex;
   flex-direction: column;
-  gap: $space-related;
+  gap: 2px;
   margin: 0;
-  padding: 0;
-  border: none;
+  padding: $space-compact 0 0;
+  border: 0;
+  border-block-start: 1px solid $border-subtle;
   min-width: 0;
 }
 
 .settings-field__label {
-  margin: $space-compact 0 0;
+  margin: 0 0 $space-tight;
   color: $text-muted;
   font-size: $font-caption;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 0;
 }
@@ -2603,8 +2816,11 @@ async function onResetSettings(): Promise<void> {
 
 .settings-option {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  align-self: start;
   gap: $space-compact;
+  width: fit-content;
+  max-width: 100%;
   min-height: $settings-option-height;
   padding: $space-compact;
   border: 1px solid transparent;
@@ -2615,32 +2831,41 @@ async function onResetSettings(): Promise<void> {
   &:hover {
     background: $surface-hover;
   }
+}
 
-  &:has(input:checked) {
-    border-color: $border-subtle;
-    background: color-mix(in srgb, $selection 34%, transparent);
-  }
+.settings-option:has(input[type="checkbox"]),
+.settings-option:has(input[type="radio"]) {
+  align-self: stretch;
+  width: 100%;
+  max-width: 40rem;
 }
 
 .settings-reset {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
   gap: $space-compact;
-  margin-top: $space-related;
-  padding: $space-compact;
-  border: 1px solid $border-subtle;
-  border-radius: $radius;
+  margin-top: 0;
+  padding: $space-block 0 0;
+  border: 0;
+  border-block-start: 1px solid $border-subtle;
+  border-radius: 0;
+  max-width: 40rem;
 }
 
 .settings-reset__copy {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $space-tight;
 }
 
 .settings-reset__button {
   @include quiet-button;
   flex: 0 0 auto;
-  margin-inline-start: auto;
+  margin-block-start: $space-tight;
+  margin-inline-start: 0;
   white-space: nowrap;
 }
 
@@ -2651,16 +2876,18 @@ async function onResetSettings(): Promise<void> {
 
 .settings-option__number {
   @include control-field;
+  align-self: center;
   width: 4.5rem;
-  margin-inline-start: auto;
+  margin-inline-start: $space-block;
 }
 
 .settings-option select {
   @include control-select;
   flex: 0 0 auto;
-  width: min(14rem, 48%);
-  min-width: 8rem;
-  margin-inline-start: auto;
+  align-self: center;
+  width: min(12rem, 42%);
+  min-width: 7.5rem;
+  margin-inline-start: $space-block;
 }
 
 // All boolean radios/checkboxes in option rows share control-checkbox,
@@ -2691,10 +2918,11 @@ async function onResetSettings(): Promise<void> {
 
 .settings-option__copy {
   display: flex;
-  flex: 1;
+  flex: 0 1 auto;
   flex-direction: column;
   gap: $space-tight;
   min-width: 0;
+  max-width: 22rem;
 }
 
 .settings-option__name {
@@ -2712,15 +2940,25 @@ async function onResetSettings(): Promise<void> {
 .settings-about {
   display: flex;
   flex-direction: column;
-  gap: $space-group;
+  gap: $space-related;
   margin: 0;
+  max-width: 40rem;
+}
+
+.settings-about__heading {
+  margin: 0;
+  color: $text-muted;
+  font-size: $font-caption;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .settings-about__intro,
 .settings-about__details {
   display: flex;
   flex-direction: column;
-  gap: $space-related;
+  gap: $space-compact;
 }
 
 .settings-about__product {
@@ -2746,16 +2984,48 @@ async function onResetSettings(): Promise<void> {
 }
 
 .settings-about__metadata {
-  display: flex;
-  flex-direction: column;
-  gap: $space-related;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: $space-group;
+  row-gap: $space-compact;
   margin: 0;
-  padding-block-start: $space-group;
+  padding-block-start: $space-block;
   border-block-start: 1px solid $border-subtle;
 }
 
 .settings-about__item {
   @include object-metric-item;
+}
+
+.settings-about__support {
+  display: flex;
+  flex-direction: column;
+  gap: $space-compact;
+  margin: 0;
+  padding-block-start: $space-block;
+  border-block-start: 1px solid $border-subtle;
+}
+
+.settings-about__support-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin: 0;
+}
+
+.settings-about__sponsor {
+  color: $text-link;
+  font-size: $font-body;
+  line-height: 1.5;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.settings-about__sponsor:focus-visible {
+  outline: 2px solid $accent;
+  outline-offset: 2px;
+  border-radius: $radius;
 }
 
 .settings-extension-toolbar {
@@ -2850,21 +3120,23 @@ async function onResetSettings(): Promise<void> {
 .settings-shortcuts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: $space-related;
+  column-gap: $space-group;
+  row-gap: 0;
   margin: 0;
-  max-width: none;
+  max-width: 48rem;
 }
 
 .settings-shortcuts__row {
   display: grid;
-  grid-template-columns: minmax(6.5rem, auto) minmax(0, 1fr);
+  grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr);
   gap: $space-related;
   align-items: baseline;
-  min-height: $settings-option-height;
-  padding: $space-compact;
-  border: 1px solid $border-subtle;
-  border-radius: $radius;
-  background: color-mix(in srgb, $surface 78%, transparent);
+  min-height: 0;
+  padding: $space-related 0;
+  border: 0;
+  border-block-end: 1px solid $border-subtle;
+  border-radius: 0;
+  background: transparent;
 
   dt {
     margin: 0;
@@ -2886,12 +3158,13 @@ async function onResetSettings(): Promise<void> {
 
 @media (max-width: 760px) {
   .settings-layout {
-    grid-template-columns: 144px minmax(0, 1fr);
     gap: $space-block;
+    max-width: none;
   }
 
   .settings-category-nav {
-    padding-inline-end: $space-related;
+    width: 156px;
+    padding-inline-end: $space-compact;
   }
 
   .settings-category-nav__item {
@@ -2899,8 +3172,17 @@ async function onResetSettings(): Promise<void> {
     font-size: $font-label;
   }
 
+  .settings-section {
+    max-width: none;
+  }
+
+  .settings-about__metadata {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .settings-shortcuts {
     grid-template-columns: minmax(0, 1fr);
+    max-width: none;
   }
 }
 
@@ -2919,16 +3201,37 @@ async function onResetSettings(): Promise<void> {
   }
 
   .settings-category-nav {
-    position: static;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex: 0 1 auto;
+    max-height: min(42vh, 18rem);
     border-inline-end: 0;
     border-block-end: 1px solid $border-subtle;
     padding: 0 0 $space-related;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .settings-category-nav__group {
+    display: contents;
+  }
+
+  .settings-category-nav__group + .settings-category-nav__group {
+    padding-block-start: 0;
+    border-block-start: 0;
+  }
+
+  .settings-category-nav__group-label {
+    grid-column: 1 / -1;
+    margin-block-start: $space-related;
   }
 
   .settings-category-nav__item {
     min-height: $control-height-small;
+  }
+
+  .settings-page__content {
+    flex: 1 1 auto;
   }
 
   .settings-option {

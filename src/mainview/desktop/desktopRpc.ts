@@ -157,6 +157,14 @@ type WindowRequests = {
     params: { title: string };
     response: boolean;
   };
+  /**
+   * Open the project Sponsors page in the system browser.
+   * Host-owned fixed URL - not a generic external-link channel.
+   */
+  openSponsorPage: {
+    params: Record<string, never>;
+    response: boolean;
+  };
 };
 
 export type DesktopRPC = {

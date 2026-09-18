@@ -8,14 +8,11 @@ import {
 import { defaultSettings } from "../../../../src/mainview/modules/settings/settingsStore";
 
 const EN: Record<string, string> = {
-  "settings.general": "General",
-  "settings.editor": "Editor",
-  "settings.appearance": "Appearance",
-  "settings.markdown": "Markdown",
+  "settings.editorDisplay": "Editor display",
+  "settings.themeCategory": "Theme",
   "settings.preview": "Preview",
-  "settings.workspace": "Folder",
   "settings.accessibility": "Accessibility",
-  "settings.keyboard": "Keyboard",
+  "settings.keyboard": "Keyboard shortcuts",
   "settings.editorMinimap": "Minimap",
   "settings.editorMinimapHint":
     "A miniature map of the file beside the editor. Hidden automatically while Writing Focus is on.",
@@ -50,9 +47,9 @@ describe("settings search", () => {
     const byLabel = matchSettingsSearch("minimap", translateWith(EN));
     expect(byLabel.map((hit) => hit.id)).toEqual(["editor.minimap"]);
     expect(byLabel[0]).toMatchObject({
-      category: "editor",
+      category: "editorDisplay",
       label: "Minimap",
-      categoryLabel: "Editor",
+      categoryLabel: "Editor display",
     });
     expect(matchSettingsSearch("minimapa", translateWith(ES)).map((hit) => hit.id)).toEqual([
       "editor.minimap",
@@ -61,13 +58,13 @@ describe("settings search", () => {
     const rankingEntries: SettingsSearchEntry[] = [
       {
         id: "hint-only",
-        category: "appearance",
+        category: "theme",
         labelKey: "settings.theme",
         hintKey: "settings.editorMinimapHint",
       },
       {
         id: "label-hit",
-        category: "editor",
+        category: "editorDisplay",
         labelKey: "settings.editorMinimap",
         hintKey: "settings.themeHint",
       },

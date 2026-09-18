@@ -28,6 +28,7 @@ import { invokeLuaExtensionCommand } from "./extensions/lua/luaExtensionRuntime"
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
 import { canPersistWindowFrame, toggleNativeFullScreen } from "./windowFullScreen";
 import { setNativeWindowTitle } from "./windowTitle";
+import { sponsor as APP_SPONSOR } from "../../package.json";
 
 async function pickExtensionSourceDirectory(): Promise<string | null> {
   const chosenPaths = await Utils.openFileDialog({
@@ -119,6 +120,7 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
       toggleWindowFullScreen: () =>
         mainWindowHolder.window ? toggleNativeFullScreen(mainWindowHolder.window) : false,
       setWindowTitle: ({ title }) => setNativeWindowTitle(mainWindowHolder.window, title),
+      openSponsorPage: () => Utils.openExternal(APP_SPONSOR.url),
     },
     messages: {},
   },
