@@ -251,6 +251,7 @@ export default {
     openDocuments: "Documentos abiertos",
     unsavedChanges: "Cambios sin guardar",
     untitled: "Sin título",
+    untitledNumbered: "Sin título {n}",
     close: "Cerrar {name}",
     closeOthers: "Cerrar las demás pestañas",
     closeAll: "Cerrar todas las pestañas",
@@ -493,6 +494,9 @@ export default {
     showDocumentAnnotations: "Mostrar anotaciones del documento",
     showDocumentAnnotationsHint:
       "Preferencia inicial para glifos de anotación en el margen. Mostrar/Ocultar en Vista puede diferir hasta que cambies este ajuste, restablezcas o reinicies. Las notas no se guardan.",
+    showSessionChanges: "Mostrar cambios de sesión",
+    showSessionChangesHint:
+      "Muestra marcadores de cambio y la comparación temporal Antes -> Ahora de los cambios de sesión no guardados.",
     shortcutBold: "Aplicar negrita a la selección",
     shortcutItalic: "Aplicar cursiva a la selección",
     shortcutInlineCode: "Envolver la selección en código en línea",
@@ -746,6 +750,15 @@ export default {
     shown: "Anotaciones visibles",
     hidden: "Anotaciones ocultas",
   },
+  sessionChangePreview: {
+    title: "Cambio de sesión",
+    subtitle: "Antes -> ahora de este cambio (no es historial guardado)",
+    before: "Antes",
+    after: "Ahora",
+    diff: "Comparación del cambio de sesión",
+    close: "Cerrar",
+  },
+
   status: {
     label: "Estado del documento",
     document: "Documento {status}",

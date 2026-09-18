@@ -184,6 +184,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     hintKey: "settings.showDocumentAnnotationsHint",
   },
   {
+    id: "editor.showSessionChanges",
+    category: "editor",
+    labelKey: "settings.showSessionChanges",
+    hintKey: "settings.showSessionChangesHint",
+    terms: ["session change", "marker", "before", "preview"],
+  },
+  {
     id: "appearance.theme",
     category: "appearance",
     labelKey: "settings.theme",

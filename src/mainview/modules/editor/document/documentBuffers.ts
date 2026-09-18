@@ -30,10 +30,27 @@ import {
   registerDocument,
   replaceDocumentId,
   unregisterDocument,
+  untitledNumberFromId,
   type DocumentId,
   type DocumentKind,
   type DocumentRevealPosition,
 } from "./documentSession";
+import {
+  cancelPendingUntitledDraftWrite,
+  createUntitledDraftRecoveryId,
+  deleteUntitledDraft,
+  flushUntitledDraftWrites,
+  listUntitledDrafts,
+  scheduleUntitledDraftPersist,
+  type UntitledDraftRecord,
+} from "./untitledDraftStore";
+import {
+  bindSessionChangeMarkers,
+  disposeSessionChangeMarkers,
+  resetSessionChangeBaseline,
+  scheduleSessionChangeMarkers,
+  transferSessionChangeMarkers,
+} from "./sessionChangeMarkers";
 import {
   grantDetachedWorkspaceDocument,
   pickAndSaveDocument,
@@ -158,7 +175,36 @@ export async function awaitBufferWrites(buffer: DocumentBuffer): Promise<void> {
 
 /** Drain every open buffer's save queue before quit or workspace teardown. */
 export async function awaitAllBufferWrites(): Promise<void> {
+  await flushUntitledDraftWrites();
   await Promise.all(buffers.value.map((buffer) => awaitBufferWrites(buffer)));
+}
+
+/** Opaque IndexedDB recovery keys for open Untitled buffers (not presentation numbers). */
+const untitledDraftRecoveryIds = new Map<DocumentId, string>();
+
+function untitledTitleForId(id: DocumentId): string {
+  const number = untitledNumberFromId(id);
+  if (number === null) {
+    return i18n.global.t("tabs.untitled");
+  }
+  return i18n.global.t("tabs.untitledNumbered", { n: number });
+}
+
+function forgetUntitledDraft(documentId: DocumentId, options?: { deleteStored?: boolean }): void {
+  const recoveryId = untitledDraftRecoveryIds.get(documentId);
+  untitledDraftRecoveryIds.delete(documentId);
+  if (!recoveryId) {
+    return;
+  }
+  cancelPendingUntitledDraftWrite(recoveryId);
+  if (options?.deleteStored !== false) {
+    void deleteUntitledDraft(recoveryId);
+  }
+}
+
+function rememberUntitledDraft(buffer: DocumentBuffer, recoveryId: string): void {
+  untitledDraftRecoveryIds.set(buffer.id, recoveryId);
+  scheduleUntitledDraftPersist(recoveryId, buffer.model.getValue());
 }
 
 export const openBuffers = computed(() => buffers.value);
@@ -246,19 +292,28 @@ function createPersistedBuffer(options: {
     changeVersion,
     contentDisposable: model.onDidChangeContent(() => {
       changeVersion.value += 1;
+      scheduleSessionChangeMarkers(model);
     }),
   };
+  // Baseline matches the live model after silent EOL setup so LF/CRLF alone
+  // cannot look like a content change.
+  bindSessionChangeMarkers(model, model.getValue());
 
   return buffer;
 }
 
 /**
  * Create a virtual `untitled:N` buffer. It has no path until Save As; closing
- * it discards the text unless the caller saved first.
+ * it discards the text unless the caller saved first. Content is also kept in
+ * ephemeral IndexedDB recovery until Save As or confirmed discard.
  */
-export function createUntitledDocument(content = ""): DocumentBuffer {
+export function createUntitledDocument(
+  content = "",
+  options?: { recoveryId?: string; select?: boolean },
+): DocumentBuffer {
   const api = initializeMonaco();
   const id = nextUntitledId();
+  const recoveryId = options?.recoveryId ?? createUntitledDraftRecoveryId();
   const model = api.editor.createModel(content, languageForPath("untitled.mdx"), api.Uri.parse(id));
   applyConfiguredDefaultEol(model);
   const changeVersion = ref(0);
@@ -269,19 +324,51 @@ export function createUntitledDocument(content = ""): DocumentBuffer {
     rootPath: null,
     path: null,
     grantToken: null,
-    title: i18n.global.t("tabs.untitled"),
+    title: untitledTitleForId(id),
     model,
     savedVersionId: content ? FORCE_DIRTY_SAVED_VERSION_ID : model.getAlternativeVersionId(),
     mtimeMs: 0,
     changeVersion,
     contentDisposable: model.onDidChangeContent(() => {
       changeVersion.value += 1;
+      scheduleSessionChangeMarkers(model);
+      const currentRecoveryId = untitledDraftRecoveryIds.get(id);
+      if (currentRecoveryId) {
+        scheduleUntitledDraftPersist(currentRecoveryId, model.getValue());
+      }
     }),
   };
   buffers.value = [...buffers.value, buffer];
   registerDocument(buffer.id);
-  selectDocument(buffer.id);
+  // Recovered drafts use restored content as baseline so they are not marked
+  // as entirely "added" merely because IndexedDB restored them. Use the live
+  // model value after silent EOL setup.
+  bindSessionChangeMarkers(model, model.getValue());
+  rememberUntitledDraft(buffer, recoveryId);
+  if (options?.select !== false) {
+    selectDocument(buffer.id);
+  }
   return buffer;
+}
+
+/**
+ * Restore Untitled drafts from IndexedDB, then ensure at least one buffer exists.
+ * Malformed or missing storage must not fail startup.
+ */
+export async function restoreUntitledDrafts(): Promise<void> {
+  const drafts = await listUntitledDrafts().catch((): UntitledDraftRecord[] => []);
+  for (const draft of drafts) {
+    createUntitledDocument(draft.content, {
+      recoveryId: draft.recoveryId,
+      select: false,
+    });
+  }
+  if (buffers.value.length > 0) {
+    const last = buffers.value[buffers.value.length - 1];
+    if (last) {
+      selectDocument(last.id);
+    }
+  }
 }
 
 export function ensureUntitledDocument(): DocumentBuffer | null {
@@ -516,6 +603,11 @@ async function saveDocumentNow(
     buffer.absolutePath = writeOutcome.absolutePath;
   }
   buffer.changeVersion.value += 1;
+  // Successful save establishes a new session baseline; failed saves never reach here.
+  resetSessionChangeBaseline(buffer.model, contentToWrite);
+  if (buffer.model.getValue() !== contentToWrite) {
+    scheduleSessionChangeMarkers(buffer.model);
+  }
   return writeOutcome;
 }
 
@@ -570,7 +662,21 @@ function reidentifyAsPersisted(
    * force dirty when the model moved after the last write.
    */
   monacoVersionKnownOnDisk: number | null,
+  /** Exact text last written successfully; becomes the session change baseline. */
+  contentOnDisk: string,
 ): DocumentBuffer {
+  const draftDocumentId = buffer.kind === "virtual" ? buffer.id : null;
+  const clearDraft = (): void => {
+    if (draftDocumentId) {
+      forgetUntitledDraft(draftDocumentId);
+    }
+  };
+  const settleMarkers = (model: DocumentBuffer["model"]): void => {
+    resetSessionChangeBaseline(model, contentOnDisk);
+    if (model.getValue() !== contentOnDisk) {
+      scheduleSessionChangeMarkers(model);
+    }
+  };
   const existing = getDocumentBufferByAbsolutePath(absolutePath);
   const isCurrentVersionSaved =
     monacoVersionKnownOnDisk !== null &&
@@ -584,6 +690,8 @@ function reidentifyAsPersisted(
     buffer.savedVersionId = isCurrentVersionSaved
       ? buffer.model.getAlternativeVersionId()
       : FORCE_DIRTY_SAVED_VERSION_ID;
+    clearDraft();
+    settleMarkers(buffer.model);
     return buffer;
   }
   if (existing && existing !== buffer) {
@@ -597,10 +705,13 @@ function reidentifyAsPersisted(
       : FORCE_DIRTY_SAVED_VERSION_ID;
     existing.mtimeMs = mtimeMs;
     existing.grantToken = grantToken;
+    disposeSessionChangeMarkers(buffer.model);
     buffer.contentDisposable.dispose();
     buffer.model.dispose();
     buffers.value = buffers.value.filter((candidate) => candidate !== buffer);
     unregisterDocument(buffer.id);
+    clearDraft();
+    settleMarkers(existing.model);
     selectDocument(existing.id);
     return existing;
   }
@@ -616,6 +727,7 @@ function reidentifyAsPersisted(
   const changeVersion = buffer.changeVersion;
   const contentDisposable = model.onDidChangeContent(() => {
     changeVersion.value += 1;
+    scheduleSessionChangeMarkers(model);
   });
   const nextBuffer: DocumentBuffer = {
     ...buffer,
@@ -634,10 +746,13 @@ function reidentifyAsPersisted(
     changeVersion,
     contentDisposable,
   };
+  disposeSessionChangeMarkers(buffer.model);
   buffer.contentDisposable.dispose();
   buffer.model.dispose();
   buffers.value = buffers.value.map((candidate) => (candidate === buffer ? nextBuffer : candidate));
   replaceDocumentId(buffer.id, nextBuffer.id);
+  clearDraft();
+  settleMarkers(model);
   selectDocument(nextBuffer.id);
   return nextBuffer;
 }
@@ -684,9 +799,10 @@ async function saveAsDocumentNow(
 
   // Stamp before the dialog: the native write captures this model version's text.
   const versionAtDialogOpen = buffer.model.getAlternativeVersionId();
+  const contentAtDialogOpen = buffer.model.getValue();
   const saveAsOutcome = await pickAndSaveDocument(
     basename,
-    buffer.model.getValue(),
+    contentAtDialogOpen,
     defaultExtension,
     overwrite,
   );
@@ -702,14 +818,16 @@ async function saveAsDocumentNow(
   let savedMtimeMs = saveAsOutcome.mtimeMs;
   // Monaco version whose text the last successful write intended to persist.
   let versionCapturedOnDisk = versionAtDialogOpen;
+  let contentOnDisk = contentAtDialogOpen;
 
   // Edits during the dialog mean the first write is stale; rewrite through the
   // new grant with the current model before reidentifying the buffer.
   if (buffer.model.getAlternativeVersionId() !== versionAtDialogOpen) {
     const versionAtRewrite = buffer.model.getAlternativeVersionId();
+    contentOnDisk = buffer.model.getValue();
     const rewritten = await writeGrantedDocument(
       saveAsOutcome.grantToken,
-      buffer.model.getValue(),
+      contentOnDisk,
       saveAsOutcome.mtimeMs,
     );
     if (isAbandonedBuffer(buffer)) {
@@ -729,6 +847,7 @@ async function saveAsDocumentNow(
     savedMtimeMs,
     saveAsOutcome.grantToken,
     monacoVersionStillOnDisk(buffer, versionCapturedOnDisk),
+    contentOnDisk,
   );
   return { result: saveAsOutcome, buffer: nextBuffer };
 }
@@ -811,11 +930,13 @@ export function renameDocumentBuffer(
   const changeVersion = buffer.changeVersion;
   const contentDisposable = model.onDidChangeContent(() => {
     changeVersion.value += 1;
+    scheduleSessionChangeMarkers(model);
   });
 
   // Old buffer object leaves the open set; abandon it so a queued save cannot
   // write the previous path after identity moves to renamedBuffer.
   abandonedWrites.add(buffer);
+  transferSessionChangeMarkers(buffer.model, model);
   buffer.contentDisposable.dispose();
   buffer.model.dispose();
   const renamedBuffer: DocumentBuffer = {
@@ -865,6 +986,11 @@ function closeDocumentBuffer(buffer: DocumentBuffer | null, force: boolean): boo
   // Stop queued saves that have not started; in-flight writes still finish but
   // must not mutate this disposed buffer afterward.
   abandonedWrites.add(buffer);
+  if (buffer.kind === "virtual") {
+    // Confirmed discard (or forced close): drop ephemeral recovery.
+    forgetUntitledDraft(buffer.id);
+  }
+  disposeSessionChangeMarkers(buffer.model);
   buffer.contentDisposable.dispose();
   buffer.model.dispose();
   const currentIndex = buffers.value.indexOf(buffer);
@@ -891,6 +1017,10 @@ export function closeAllDocuments(force = false): boolean {
   for (const buffer of buffers.value) {
     // Same as single close: stop queued saves and ignore in-flight buffer updates.
     abandonedWrites.add(buffer);
+    if (buffer.kind === "virtual") {
+      forgetUntitledDraft(buffer.id);
+    }
+    disposeSessionChangeMarkers(buffer.model);
     buffer.contentDisposable.dispose();
     buffer.model.dispose();
     if (buffer.path) {

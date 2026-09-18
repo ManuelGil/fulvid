@@ -253,6 +253,7 @@ export default {
     openDocuments: "Documentos abertos",
     unsavedChanges: "Alterações não guardadas",
     untitled: "Sem título",
+    untitledNumbered: "Sem título {n}",
     close: "Fechar {name}",
     closeOthers: "Fechar os outros separadores",
     closeAll: "Fechar todos os separadores",
@@ -496,6 +497,9 @@ export default {
     showDocumentAnnotations: "Mostrar anotações do documento",
     showDocumentAnnotationsHint:
       "Predefinição para símbolos de anotação na margem do editor. Mostrar/Ocultar pode divergir até alterar esta definição, a repor ou reiniciar. As notas nunca são guardadas.",
+    showSessionChanges: "Mostrar alterações de sessão",
+    showSessionChangesHint:
+      "Mostrar marcadores de alteração e a comparação temporária Antes -> Agora para alterações de sessão não guardadas.",
     shortcutBold: "Aplicar negrito à seleção atual",
     shortcutItalic: "Aplicar itálico à seleção atual",
     shortcutInlineCode: "Envolver a seleção atual em código em linha",
@@ -748,6 +752,15 @@ export default {
     shown: "Anotações mostradas",
     hidden: "Anotações ocultas",
   },
+  sessionChangePreview: {
+    title: "Alteração da sessão",
+    subtitle: "Antes -> agora desta alteração (não é histórico guardado)",
+    before: "Antes",
+    after: "Agora",
+    diff: "Comparação da alteração da sessão",
+    close: "Fechar",
+  },
+
   status: {
     label: "Estado do documento",
     document: "Documento {status}",

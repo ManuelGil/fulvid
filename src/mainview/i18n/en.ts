@@ -249,6 +249,7 @@ export default {
     openDocuments: "Open documents",
     unsavedChanges: "Unsaved changes",
     untitled: "Untitled",
+    untitledNumbered: "Untitled {n}",
     close: "Close {name}",
     closeOthers: "Close other tabs",
     closeAll: "Close all tabs",
@@ -488,6 +489,9 @@ export default {
     showDocumentAnnotations: "Show document annotations",
     showDocumentAnnotationsHint:
       "Default for annotation glyphs in the editor margin. View Show/Hide can diverge until you change this setting, reset, or restart. Notes themselves are never saved.",
+    showSessionChanges: "Show session changes",
+    showSessionChangesHint:
+      "Show change markers and the temporary Before -> Now comparison for unsaved session changes.",
     shortcutBold: "Bold the current selection",
     shortcutItalic: "Italicize the current selection",
     shortcutInlineCode: "Wrap the current selection in inline code",
@@ -732,6 +736,14 @@ export default {
     capped: "Annotation limit reached ({max})",
     shown: "Annotations shown",
     hidden: "Annotations hidden",
+  },
+  sessionChangePreview: {
+    title: "Session change",
+    subtitle: "Before -> now for this change (not saved history)",
+    before: "Before",
+    after: "Now",
+    diff: "Session change comparison",
+    close: "Close",
   },
   status: {
     label: "Document status",

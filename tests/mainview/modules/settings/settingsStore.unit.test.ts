@@ -93,6 +93,34 @@ describe("settings sanitize", () => {
     ).toBe("wikilink");
     expect(appearanceDatasetFor(defaultSettings().appearance).theme).toBe("system");
     expect(sanitizeSettings({ editor: { defaultEol: "crlf" } }).editor.defaultEol).toBe("crlf");
+    expect(defaultSettings().editor.showSessionChanges).toBe(true);
+    expect(sanitizeSettings({}).editor.showSessionChanges).toBe(true);
+    expect(
+      sanitizeSettings({ editor: { showSessionChanges: false } }).editor.showSessionChanges,
+    ).toBe(false);
+    expect(
+      sanitizeSettings({ editor: { showSessionChanges: true } }).editor.showSessionChanges,
+    ).toBe(true);
+    expect(
+      sanitizeSettings({
+        editor: { showSessionChangePreview: false },
+      }).editor.showSessionChanges,
+    ).toBe(false);
+    expect(
+      sanitizeSettings({
+        editor: { showSessionChangePreview: true },
+      }).editor.showSessionChanges,
+    ).toBe(true);
+    expect(
+      sanitizeSettings({
+        editor: { showSessionChanges: true, showSessionChangePreview: false },
+      }).editor.showSessionChanges,
+    ).toBe(true);
+    expect(
+      sanitizeSettings({
+        editor: { showSessionChangePreview: false },
+      }).editor,
+    ).not.toHaveProperty("showSessionChangePreview");
 
     const beforeJson = JSON.stringify(settings.value);
     try {

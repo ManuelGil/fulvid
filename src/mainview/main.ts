@@ -5,7 +5,10 @@ import { createAppRouter } from "./app/router";
 import { applyPendingExternalOpens } from "./app/externalOpen";
 import { bootstrapWorkspace } from "./app/workspaceState";
 import { installNativeContextMenuSuppression } from "./app/suppressNativeContextMenu";
-import { ensureUntitledDocument } from "./modules/editor/document/documentBuffers";
+import {
+  ensureUntitledDocument,
+  restoreUntitledDrafts,
+} from "./modules/editor/document/documentBuffers";
 
 import "./styles/index.scss";
 import { i18n } from "./i18n";
@@ -17,12 +20,15 @@ const router = createAppRouter();
 createApp(App).use(router).use(i18n).mount("#app");
 // Let the shell paint before Monaco/model setup and optional folder restore.
 requestAnimationFrame(() => {
-  ensureUntitledDocument();
-  // An external request outranks the remembered folder: someone asked for this
-  // one now. Only restore the last folder when nothing external opened one.
-  void applyPendingExternalOpens().then(({ openedFolder }) => {
-    if (!openedFolder) {
-      bootstrapWorkspace();
-    }
-  });
+  void (async () => {
+    await restoreUntitledDrafts();
+    ensureUntitledDocument();
+    // An external request outranks the remembered folder: someone asked for this
+    // one now. Only restore the last folder when nothing external opened one.
+    void applyPendingExternalOpens().then(({ openedFolder }) => {
+      if (!openedFolder) {
+        bootstrapWorkspace();
+      }
+    });
+  })();
 });

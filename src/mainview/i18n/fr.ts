@@ -257,6 +257,7 @@ export default {
     openDocuments: "Documents ouverts",
     unsavedChanges: "Modifications non enregistrées",
     untitled: "Sans titre",
+    untitledNumbered: "Sans titre {n}",
     close: "Fermer {name}",
     closeOthers: "Fermer les autres onglets",
     closeAll: "Fermer tous les onglets",
@@ -500,6 +501,9 @@ export default {
     showDocumentAnnotations: "Afficher les annotations du document",
     showDocumentAnnotationsHint:
       "Valeur par défaut des glyphes d'annotation dans la marge de l'éditeur. Afficher/Masquer peut diverger jusqu'à ce que vous changiez ce paramètre, le réinitialisiez ou redémarriez. Les notes elles-mêmes ne sont jamais enregistrées.",
+    showSessionChanges: "Afficher les changements de session",
+    showSessionChangesHint:
+      "Afficher les marqueurs de changement et la comparaison temporaire Avant -> Maintenant pour les changements de session non enregistrés.",
     shortcutBold: "Mettre la sélection actuelle en gras",
     shortcutItalic: "Mettre la sélection actuelle en italique",
     shortcutInlineCode: "Entourer la sélection actuelle de code en ligne",
@@ -756,6 +760,15 @@ export default {
     shown: "Annotations affichées",
     hidden: "Annotations masquées",
   },
+  sessionChangePreview: {
+    title: "Changement de session",
+    subtitle: "Avant -> maintenant pour ce changement (pas un historique enregistré)",
+    before: "Avant",
+    after: "Maintenant",
+    diff: "Comparaison du changement de session",
+    close: "Fermer",
+  },
+
   status: {
     label: "État du document",
     document: "{status} document",

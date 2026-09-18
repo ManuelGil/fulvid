@@ -253,6 +253,7 @@ export default {
     openDocuments: "Documenti aperti",
     unsavedChanges: "Modifiche non salvate",
     untitled: "Senza titolo",
+    untitledNumbered: "Senza titolo {n}",
     close: "Chiudi {name}",
     closeOthers: "Chiudi le altre schede",
     closeAll: "Chiudi tutte le schede",
@@ -496,6 +497,9 @@ export default {
     showDocumentAnnotations: "Mostra annotazioni del documento",
     showDocumentAnnotationsHint:
       "Impostazione predefinita per i simboli delle annotazioni nel margine dell'editor. Mostra/Nascondi può divergere finché non modifichi questa impostazione, la reimposti o riavvii. Le note non vengono mai salvate.",
+    showSessionChanges: "Mostra modifiche di sessione",
+    showSessionChangesHint:
+      "Mostra i marcatori di modifica e il confronto temporaneo Prima -> Ora per le modifiche di sessione non salvate.",
     shortcutBold: "Metti in grassetto la selezione corrente",
     shortcutItalic: "Metti in corsivo la selezione corrente",
     shortcutInlineCode: "Racchiudi la selezione corrente nel codice in linea",
@@ -747,6 +751,15 @@ export default {
     shown: "Annotazioni mostrate",
     hidden: "Annotazioni nascoste",
   },
+  sessionChangePreview: {
+    title: "Modifica di sessione",
+    subtitle: "Prima -> ora per questa modifica (non è cronologia salvata)",
+    before: "Prima",
+    after: "Ora",
+    diff: "Confronto della modifica di sessione",
+    close: "Chiudi",
+  },
+
   status: {
     label: "Stato documento",
     document: "Documento {status}",

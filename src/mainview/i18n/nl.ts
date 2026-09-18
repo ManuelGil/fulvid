@@ -253,6 +253,7 @@ export default {
     openDocuments: "Geopende documenten",
     unsavedChanges: "Niet-opgeslagen wijzigingen",
     untitled: "Naamloos",
+    untitledNumbered: "Naamloos {n}",
     close: "{name} sluiten",
     closeOthers: "Andere tabbladen sluiten",
     closeAll: "Alle tabbladen sluiten",
@@ -497,6 +498,9 @@ export default {
     showDocumentAnnotations: "Documentaantekeningen tonen",
     showDocumentAnnotationsHint:
       "Standaard voor aantekeningsglyphs in de editorrand. Tonen/verbergen kan afwijken totdat je deze instelling wijzigt, reset of opnieuw start. Notities zelf worden nooit opgeslagen.",
+    showSessionChanges: "Sessiewijzigingen tonen",
+    showSessionChangesHint:
+      "Toon wijzigingsmarkeringen en de tijdelijke vergelijking Voor -> Nu voor niet-opgeslagen sessiewijzigingen.",
     shortcutBold: "Huidige selectie vet maken",
     shortcutItalic: "Huidige selectie cursief maken",
     shortcutInlineCode: "Huidige selectie omgeven met inline-code",
@@ -747,6 +751,15 @@ export default {
     shown: "Aantekeningen getoond",
     hidden: "Aantekeningen verborgen",
   },
+  sessionChangePreview: {
+    title: "Sessiewijziging",
+    subtitle: "Voorheen -> nu voor deze wijziging (geen opgeslagen geschiedenis)",
+    before: "Voorheen",
+    after: "Nu",
+    diff: "Vergelijking van sessiewijziging",
+    close: "Sluiten",
+  },
+
   status: {
     label: "Documentstatus",
     document: "{status} document",

@@ -126,6 +126,12 @@ import {
   DOCUMENT_ANNOTATION_TEXT_MAX,
 } from "../../modules/editor/document/documentAnnotations";
 import {
+  resolveSessionChangePreviewAtLine,
+  syncSessionChangeMarkerPresentation,
+  type SessionChangePreviewPayload,
+} from "../../modules/editor/document/sessionChangeMarkers";
+import SessionChangePreviewPanel from "../../modules/editor/sessionChangePreview/SessionChangePreviewPanel.vue";
+import {
   documentLocationFromBuffer,
   showsMainPanelDocumentLocation,
 } from "../../modules/editor/document/documentLocation";
@@ -205,6 +211,7 @@ const editorTabsRef = ref<InstanceType<typeof EditorTabs> | null>(null);
 const monacoHostRef = ref<MonacoHostHandle | null>(null);
 const previewPaneRef = ref<PreviewPaneHandle | null>(null);
 const previewStacked = ref(false);
+const sessionChangePreview = ref<SessionChangePreviewPayload | null>(null);
 let previewMedia: MediaQueryList | null = null;
 let previewResizeCleanup: (() => void) | null = null;
 
@@ -344,6 +351,7 @@ async function saveEditorDocument(): Promise<void> {
       applyScannedNote(result.note);
     }
     editorError.value = null;
+    closeSessionChangePreview();
     notify(t("workspace.saved"));
   } catch (error) {
     editorError.value = describeFilesystemError(error, "workspace.saveError");
@@ -399,6 +407,7 @@ async function saveAsEditorDocument(): Promise<void> {
         }
       }
       editorError.value = null;
+      closeSessionChangePreview();
       notify(t("workspace.saved"));
     }
   } catch (error) {
@@ -466,7 +475,51 @@ async function exportEditorDocumentHtml(): Promise<void> {
   }
 }
 
+function closeSessionChangePreview(): void {
+  sessionChangePreview.value = null;
+}
+
+async function onSessionChangeMarkerClick(lineNumber: number): Promise<void> {
+  if (!settings.value.editor.showSessionChanges) {
+    return;
+  }
+  const buffer = activeBuffer.value;
+  if (!buffer) {
+    return;
+  }
+  const payload = await resolveSessionChangePreviewAtLine(buffer.model, lineNumber);
+  if (!payload) {
+    return;
+  }
+  if (sessionChangePreview.value?.hunkKey === payload.hunkKey) {
+    closeSessionChangePreview();
+    return;
+  }
+  sessionChangePreview.value = payload;
+}
+
+watch(
+  () => settings.value.editor.showSessionChanges,
+  (enabled) => {
+    if (!enabled) {
+      closeSessionChangePreview();
+    }
+    for (const buffer of openBuffers.value) {
+      syncSessionChangeMarkerPresentation(buffer.model);
+    }
+  },
+);
+
+function onEditorContentChange(): void {
+  closeSessionChangePreview();
+  scheduleDocumentActivationRefresh();
+}
+
 function leaveEditor(): void {
+  if (sessionChangePreview.value) {
+    closeSessionChangePreview();
+    return;
+  }
   const target = writingFocusLeaveEditorTarget(openBuffers.value.length > 0);
   if (target === "monaco") {
     monacoHostRef.value?.focus();
@@ -1137,6 +1190,7 @@ function scheduleDocumentActivationRefresh(): void {
 watch(
   () => activeBuffer.value?.id ?? null,
   () => {
+    closeSessionChangePreview();
     scheduleDocumentActivationRefresh();
   },
   { flush: "post" },
@@ -1241,6 +1295,7 @@ onBeforeUnmount(() => {
   previewResizeCleanup?.();
   previewResizeCleanup = null;
   previewMedia?.removeEventListener("change", onPreviewMediaChange);
+  closeSessionChangePreview();
 });
 </script>
 
@@ -1384,9 +1439,18 @@ onBeforeUnmount(() => {
               @scroll="syncPreviewScroll"
               @command-state="onCommandState"
               @annotate-line="(lineNumber) => void annotateAtLine(lineNumber, 1)"
-              @content-change="scheduleDocumentActivationRefresh"
+              @session-change-marker-click="
+                (lineNumber) => void onSessionChangeMarkerClick(lineNumber)
+              "
+              @content-change="onEditorContentChange"
             />
-            <p v-else class="editor-page__empty-editor">
+            <SessionChangePreviewPanel
+              v-if="sessionChangePreview"
+              class="editor-page__session-change-preview"
+              :payload="sessionChangePreview"
+              @close="closeSessionChangePreview"
+            />
+            <p v-else-if="!activeBuffer" class="editor-page__empty-editor">
               {{ t("workspace.chooseDocument") }}
             </p>
           </section>
@@ -1482,9 +1546,11 @@ onBeforeUnmount(() => {
 
 .editor-page__editor-column {
   display: flex;
+  flex-direction: column;
   flex: 1;
   min-width: 0;
   min-height: 0;
+  gap: $space-related;
 }
 
 .editor-page__preview-resize {
@@ -1504,6 +1570,10 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 12rem;
   background: $background;
+}
+
+.editor-page__session-change-preview {
+  flex: 0 0 auto;
 }
 
 .editor-page__empty-editor {
