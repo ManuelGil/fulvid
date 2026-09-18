@@ -18,7 +18,10 @@ import {
   luaGlobalType,
   resetLuaFactoryForTests,
 } from "../../src/bun/extensions/lua/luaEngine.ts";
-import { LUA_EXTENSION_LIMITS } from "../../src/bun/extensions/lua/luaLimits.ts";
+import {
+  LUA_EXTENSION_LIMITS,
+  setLuaExecutionBudgetForTests,
+} from "../../src/bun/extensions/lua/luaLimits.ts";
 import { parseExtensionDecorationRanges } from "../../src/mainview/extensions/decorationCapability.ts";
 import { validateExtensionManifest } from "../../src/mainview/extensions/extensionManifest.ts";
 import { luaManifest } from "./manifestTestHelpers.ts";
@@ -88,6 +91,10 @@ describe("adversarial lua sandbox", () => {
         "loadfile",
         "load",
         "loadstring",
+        // No error handling: the execution budget arrives as an ordinary Lua
+        // error, so a guest that could catch one could outlive its budget.
+        "pcall",
+        "xpcall",
       ]) {
         expect(await luaGlobalType(engine, name)).toBe("nil");
       }
@@ -433,4 +440,30 @@ describe("adversarial renderer apply boundary", () => {
     await expect(runExtensionCommand("test.adv-deco.go")).rejects.toBeDefined();
     expect(applied).toBe(false);
   });
+});
+
+// Intent: the execution budget is a ceiling the guest cannot argue with.
+// Growth boundary: add a case only for a new way to survive a runtime error.
+describe("adversarial execution budget", () => {
+  test("guest cannot catch the budget interrupt and keep running", async () => {
+    setLuaExecutionBudgetForTests(300);
+    try {
+      const root = await tempRoot("budget");
+      const pack = await writePack(root, "test.adv-budget", luaManifest("test.adv-budget"), {
+        "entry.lua": "while true do pcall(function() while true do end end) end",
+      });
+      const started = Date.now();
+      await expect(loadPack(pack)).rejects.toBeInstanceOf(Error);
+      expect(Date.now() - started).toBeLessThan(5_000);
+
+      const looping = await writePack(root, "test.adv-loop", luaManifest("test.adv-loop"), {
+        "entry.lua": "while true do end",
+      });
+      await expect(loadPack(looping)).rejects.toMatchObject({
+        reason: "execution limit exceeded",
+      });
+    } finally {
+      setLuaExecutionBudgetForTests(null);
+    }
+  }, 30_000);
 });

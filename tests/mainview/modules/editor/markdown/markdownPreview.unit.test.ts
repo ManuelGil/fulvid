@@ -150,3 +150,49 @@ describe("markdown preview", () => {
     expect(denseExport.html).toContain("<pre>");
   });
 });
+
+// Intent: heading identity in Preview comes from the heading's own source, and
+// block-level ambiguity is bounded before marked runs.
+// Growth boundary: add a case only for a new source of heading/marker ambiguity.
+describe("markdown preview heading identity and block density", () => {
+  test("annotates each heading from its own source line, never a neighbour's", () => {
+    const html = renderMarkdownPreview(
+      "> # Quoted\n\n- # Listed\n\n## After\n",
+      [],
+      "markdown",
+    ).html;
+
+    // Headings nested in a quote or a list are not in the line-based outline, so
+    // they carry no anchor - and must not consume the next heading's identity.
+    expect(html).toContain("<h1>Quoted</h1>");
+    expect(html).toContain("<h1>Listed</h1>");
+    expect(html).toContain('id="after"');
+    expect(html).toContain('data-source-line="5"');
+  });
+
+  test("offsets heading source lines past omitted frontmatter", () => {
+    const html = renderMarkdownPreview("---\ntitle: x\n---\n\n# H\n", [], "markdown").html;
+
+    expect(html).toContain('data-source-line="5"');
+  });
+
+  test("falls back to inert source when bare list markers make blocks ambiguous", () => {
+    // "a\n-\n" repeated is ambiguous between a setext underline and a list item;
+    // resolving it upstream is superlinear and froze the renderer.
+    const pathological = renderMarkdownPreview("a\n-\n".repeat(4_000), [], "markdown");
+    expect(pathological.dense).toBe(true);
+    expect(pathological.html.startsWith("<pre>")).toBe(true);
+
+    // Real bullets and real setext underlines keep rendering.
+    expect(
+      renderMarkdownPreview("- item one\n- item two\n".repeat(2_000), [], "markdown").dense,
+    ).toBe(false);
+    expect(
+      renderMarkdownPreview("Heading\n---\n\nbody\n\n".repeat(2_000), [], "markdown").dense,
+    ).toBe(false);
+    // Fenced content is never ambiguous upstream, so it must not trip the bound.
+    expect(
+      renderMarkdownPreview("```\n" + "a\n-\n".repeat(4_000) + "```\n", [], "markdown").dense,
+    ).toBe(false);
+  });
+});

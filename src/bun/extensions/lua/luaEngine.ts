@@ -16,6 +16,14 @@ let sharedFactory: LuaFactory | null = null;
 
 /**
  * Strip io/os/package/load/require and string.dump after standard libs open.
+ *
+ * `pcall` and `xpcall` go with them. The execution budget is delivered as an
+ * ordinary Lua error by wasmoon's instruction hook, so guest code that can
+ * catch errors can catch the budget too: `while true do pcall(function() while
+ * true do end end) end` never returns, and because `resume` runs synchronously
+ * inside Wasm it pins the host process with no timer able to preempt it. With
+ * no way to catch the interrupt, the budget is the ceiling it claims to be.
+ * A command that fails still reports through the invoke failure contract.
  */
 export async function reduceLuaGuestEnvironment(engine: LuaEngine): Promise<void> {
   await engine.doString(`
@@ -28,6 +36,8 @@ export async function reduceLuaGuestEnvironment(engine: LuaEngine): Promise<void
     load = nil
     loadstring = nil
     require = nil
+    pcall = nil
+    xpcall = nil
     if type(string) == "table" then
       string.dump = nil
     end

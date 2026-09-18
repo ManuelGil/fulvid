@@ -17,6 +17,20 @@ export const RESERVED_DEVICE_NAMES = new Set([
   ...Array.from({ length: 9 }, (_, index) => `lpt${index + 1}`),
 ]);
 
+/**
+ * True when a path segment names a Windows device.
+ *
+ * Windows reads the device name from the text before the *first* dot, so
+ * `CON.tar.md` reaches the console exactly as `CON.md` does. Measuring from the
+ * last dot let every multi-suffix form of a reserved name through. A leading
+ * dot means there is no stem (`.con` is an ordinary hidden file).
+ */
+export function isReservedDeviceName(segment: string): boolean {
+  const firstDot = segment.indexOf(".");
+  const stem = firstDot === -1 ? segment : segment.slice(0, firstDot);
+  return stem !== "" && RESERVED_DEVICE_NAMES.has(stem.toLowerCase());
+}
+
 /** Which supported document extension a path uses, if any. */
 export function documentFileType(path: string): MarkdownFileType | null {
   const lower = path.toLowerCase();
@@ -68,7 +82,7 @@ export function isSafeFolderBasename(name: string): boolean {
   if (!isSafePathBasename(name)) {
     return false;
   }
-  return !RESERVED_DEVICE_NAMES.has(name.toLowerCase());
+  return !isReservedDeviceName(name);
 }
 
 /**
@@ -80,7 +94,7 @@ export function isSafeDocumentBasename(name: string): boolean {
     return false;
   }
   const stem = name.replace(/\.[^.]+$/, "");
-  return stem !== "" && !RESERVED_DEVICE_NAMES.has(stem.toLowerCase());
+  return stem !== "" && !isReservedDeviceName(name);
 }
 
 export interface ScannedNote {

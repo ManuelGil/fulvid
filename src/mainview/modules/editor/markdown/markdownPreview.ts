@@ -13,7 +13,11 @@ import {
   type LinkSyntax,
 } from "../../document/links/documentLink";
 import type { ScannedNote } from "../../workspace/filesystem/workspaceTypes";
-import { parseMarkdownStructure } from "./markdownStructure";
+import {
+  parseMarkdownStructure,
+  type MarkdownFence,
+  type MarkdownHeading,
+} from "./markdownStructure";
 
 export type PreviewFrontmatterState = "none" | "omitted" | "unclosed";
 
@@ -23,7 +27,7 @@ export type MarkdownPreviewResult = {
   frontmatter: PreviewFrontmatterState;
   hasUnsupportedMdx: boolean;
   failed: boolean;
-  /** True when inline markup density forced the inert fallback. */
+  /** True when inline or block markup density forced the inert fallback. */
   dense: boolean;
 };
 
@@ -65,6 +69,57 @@ export function countInlineMarkup(source: string): number {
   return count;
 }
 
+/**
+ * Ceiling on block constructs that are ambiguous between a setext underline
+ * and a list item.
+ *
+ * A line holding nothing but `-`, `*` or `+` directly under paragraph text can
+ * be read either way, and resolving it costs marked superlinear time: 4,000
+ * such lines - 16 kB, well inside the character cap, with no inline markup at
+ * all - take over twenty seconds and freeze the single-threaded renderer.
+ *
+ * Writing does not produce this shape. A real setext underline is a run
+ * (`---`), and a real list item has content after its marker; both are far
+ * below this ceiling. Over it, Preview and Export show the source inert, the
+ * same way the character and inline-markup caps degrade.
+ */
+export const PREVIEW_BLOCK_MARKER_LIMIT = 500;
+
+const BARE_LIST_MARKER_RE = /^ {0,3}[-*+]$/;
+
+/**
+ * Count bare list markers that sit directly under a non-blank line, outside
+ * fenced code. One linear pass; fenced content is free because marked never
+ * resolves the ambiguity there.
+ */
+export function countAmbiguousBlockMarkers(
+  lines: readonly string[],
+  fences: readonly MarkdownFence[],
+): number {
+  let fenceIndex = 0;
+  let count = 0;
+  for (let index = 1; index < lines.length; index += 1) {
+    const lineNumber = index + 1;
+    while (fenceIndex < fences.length && fences[fenceIndex].endLine <= lineNumber) {
+      fenceIndex += 1;
+    }
+    const fence = fences[fenceIndex];
+    if (fence && lineNumber > fence.startLine && lineNumber < fence.endLine) {
+      continue;
+    }
+    if ((lines[index - 1] ?? "").trim() === "") {
+      continue;
+    }
+    if (BARE_LIST_MARKER_RE.test(lines[index] ?? "")) {
+      count += 1;
+      if (count > PREVIEW_BLOCK_MARKER_LIMIT) {
+        return count;
+      }
+    }
+  }
+  return count;
+}
+
 export type MarkdownPreviewDocument = {
   html: string;
   preview: MarkdownPreviewResult;
@@ -97,29 +152,29 @@ function stripFrontmatter(content: string): PreviewSource {
   return { text: content, lineOffset: 0, frontmatter: "none" };
 }
 
-function hasUnsupportedMdx(content: string): boolean {
-  const fences = parseMarkdownStructure(content).fences;
-  return content.split(/\r?\n/).some((line, index) => {
+/**
+ * True when a line outside fenced code looks like JSX.
+ *
+ * Fences are walked with a cursor rather than searched per line: scanning the
+ * whole fence list for every line is quadratic, and a document of code blocks
+ * reaches the character cap long before it reaches a readable length.
+ */
+function hasUnsupportedMdx(lines: readonly string[], fences: readonly MarkdownFence[]): boolean {
+  let fenceIndex = 0;
+  for (let index = 0; index < lines.length; index += 1) {
     const lineNumber = index + 1;
-    if (fences.some((fence) => lineNumber > fence.startLine && lineNumber < fence.endLine)) {
-      return false;
+    while (fenceIndex < fences.length && fences[fenceIndex].endLine <= lineNumber) {
+      fenceIndex += 1;
     }
-    return JSX_TAG_RE.test(line);
-  });
-}
-
-function addHeadingSourceLines(content: string, html: string, lineOffset: number): string {
-  const headings = parseMarkdownStructure(content).headings;
-  let headingIndex = 0;
-  return html.replace(/<h([1-6])([^>]*)>/g, (full, depth, attributes) => {
-    const heading = headings[headingIndex++];
-    if (!heading) {
-      return full;
+    const fence = fences[fenceIndex];
+    if (fence && lineNumber > fence.startLine && lineNumber < fence.endLine) {
+      continue;
     }
-    return `<h${depth}${attributes} id="${escapeAttribute(heading.anchor)}" role="button" tabindex="0" data-source-line="${
-      heading.lineNumber + lineOffset
-    }">`;
-  });
+    if (JSX_TAG_RE.test(lines[index] ?? "")) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function escapeHtml(value: string): string {
@@ -200,12 +255,17 @@ export function renderMarkdownPreview(
 ): MarkdownPreviewResult {
   const previewSource = stripFrontmatter(content);
   const source = previewSource.text;
-  const unsupportedMdx = hasUnsupportedMdx(source);
+  const structure = parseMarkdownStructure(source);
+  const sourceLines = source.split(/\r?\n/);
+  const unsupportedMdx = hasUnsupportedMdx(sourceLines, structure.fences);
   if (source.trim().length === 0) {
     return emptyResult(previewSource.frontmatter, unsupportedMdx);
   }
 
-  if (countInlineMarkup(source) > PREVIEW_INLINE_MARKUP_LIMIT) {
+  if (
+    countInlineMarkup(source) > PREVIEW_INLINE_MARKUP_LIMIT ||
+    countAmbiguousBlockMarkers(sourceLines, structure.fences) > PREVIEW_BLOCK_MARKER_LIMIT
+  ) {
     // Show the document rather than blocking on it. Escaped, so the inert
     // fallback is exactly as safe as the rendered path.
     return {
@@ -226,6 +286,37 @@ export function renderMarkdownPreview(
     return JSX_TAG_RE.test(text)
       ? `<span class="markdown-preview__inert">${escaped}</span>`
       : escaped;
+  };
+  // Heading identity comes from the token's own source text, not from the
+  // order headings happen to appear in the output. marked also emits headings
+  // the line-based structure does not claim - one nested in a list or a block
+  // quote - and counting positions handed those a neighbour's anchor and sent
+  // a click to an unrelated line.
+  let headingCursor = 0;
+  const takeStructureHeading = (raw: string, depth: number): MarkdownHeading | null => {
+    const firstRawLine = raw.split("\n", 1)[0]?.trim() ?? "";
+    for (let index = headingCursor; index < structure.headings.length; index += 1) {
+      const heading = structure.headings[index];
+      if (heading.depth !== depth) {
+        continue;
+      }
+      if ((sourceLines[heading.lineNumber - 1] ?? "").trim() !== firstRawLine) {
+        continue;
+      }
+      headingCursor = index + 1;
+      return heading;
+    }
+    return null;
+  };
+  renderer.heading = function ({ tokens, depth, raw }) {
+    const label = this.parser.parseInline(tokens);
+    const heading = takeStructureHeading(raw, depth);
+    if (!heading) {
+      return `<h${depth}>${label}</h${depth}>\n`;
+    }
+    return `<h${depth} id="${escapeAttribute(heading.anchor)}" role="button" tabindex="0" data-source-line="${
+      heading.lineNumber + previewSource.lineOffset
+    }">${label}</h${depth}>\n`;
   };
   renderer.image = ({ text }) => `<span class="markdown-preview__image">${imageLabel(text)}</span>`;
   renderer.checkbox = ({ checked }) =>
@@ -292,15 +383,11 @@ export function renderMarkdownPreview(
 
   try {
     return {
-      html: addHeadingSourceLines(
-        source,
-        parser.parse(source, {
-          async: false,
-          gfm: true,
-          renderer,
-        }),
-        previewSource.lineOffset,
-      ),
+      html: parser.parse(source, {
+        async: false,
+        gfm: true,
+        renderer,
+      }),
       empty: false,
       frontmatter: previewSource.frontmatter,
       hasUnsupportedMdx: unsupportedMdx,

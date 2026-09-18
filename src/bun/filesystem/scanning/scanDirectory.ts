@@ -5,6 +5,7 @@ import { analyzeMarkdownFile } from "./noteAnalyzer";
 import {
   assertCanonicallyContained,
   containedPath,
+  isUnsafePathSegment,
   normalizeWorkspaceRelativePath,
 } from "../security/workspacePaths";
 
@@ -32,6 +33,13 @@ function isExcludedEntry(name: string, includeHidden: boolean): boolean {
   }
 
   if (!includeHidden && isHiddenName(name)) {
+    return true;
+  }
+
+  // Containment refuses these names for every document operation, so listing
+  // them offers a document that can only fail to open. Same rule as the
+  // symlink skip below: never surface what document I/O cannot reach.
+  if (isUnsafePathSegment(name)) {
     return true;
   }
 
