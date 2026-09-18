@@ -9,10 +9,12 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-18
+
 ### Added
 
 - **Untitled draft recovery**: unsaved Untitled documents can return after a normal Fulvid restart (ephemeral IndexedDB recovery). Empty or whitespace-only Untitled tabs are not retained as recoverable drafts. Save As or confirmed discard removes the draft. Not filesystem autosave; clearing WebView/site data can remove recoverable drafts. Real files stay on the filesystem.
-- **Session change markers**: gutter markers show lines changed since the current editor session baseline (modified / added / deleted). Clicking a marker opens a temporary read-only before/after view for that change only (Settings -> Editor -> Show session changes; markers and preview share that switch). Markers and the preview are ephemeral - not Git, not history, not persisted. Save resets the baseline and clears them.
+- **Session change markers**: gutter markers show lines changed since the current editor session baseline (modified / added / deleted). Clicking a marker opens a temporary read-only Before -> Now comparison for that change only. Settings -> Editor -> Show session changes (on by default) shows or hides markers and that preview together; turning it off hides presentation only and does not stop baseline tracking. Markers and the preview are ephemeral - not Git, not history, not persisted. Save resets the baseline and clears them.
 
 ### Changed
 
@@ -168,7 +170,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.12.0
 [0.11.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.11.0
 [0.10.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.10.0
 [0.9.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.9.0
