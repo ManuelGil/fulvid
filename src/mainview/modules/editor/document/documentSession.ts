@@ -29,7 +29,33 @@ export const pendingReveal = ref<(DocumentRevealPosition & { documentId: Documen
   null,
 );
 
-let untitledSequence = 0;
+/**
+ * Presentation number for `untitled:N`. Not a recovery identity and not
+ * persisted across restarts - only the smallest unused positive integer among
+ * currently open Untitled tabs.
+ */
+export function smallestAvailableUntitledNumber(usedNumbers: Iterable<number>): number {
+  const used = new Set<number>();
+  for (const value of usedNumbers) {
+    if (Number.isInteger(value) && value > 0) {
+      used.add(value);
+    }
+  }
+  let candidate = 1;
+  while (used.has(candidate)) {
+    candidate += 1;
+  }
+  return candidate;
+}
+
+export function untitledNumberFromId(id: DocumentId): number | null {
+  const match = /^untitled:(\d+)$/.exec(id);
+  if (!match) {
+    return null;
+  }
+  const value = Number(match[1]);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
 
 /**
  * Set the editor's active tab only. Does not change Focus.
@@ -128,8 +154,14 @@ export function consumePendingReveal(documentId: DocumentId): DocumentRevealPosi
   };
 }
 
-/** Allocate the next `untitled:N` identity. Virtual until Save As. */
+/** Allocate `untitled:N` with the smallest available N among open tabs. */
 export function nextUntitledId(): DocumentId {
-  untitledSequence += 1;
-  return `untitled:${untitledSequence}`;
+  const used: number[] = [];
+  for (const id of openIds.value) {
+    const number = untitledNumberFromId(id);
+    if (number !== null) {
+      used.push(number);
+    }
+  }
+  return `untitled:${smallestAvailableUntitledNumber(used)}`;
 }

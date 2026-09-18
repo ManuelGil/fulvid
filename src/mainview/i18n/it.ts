@@ -253,6 +253,7 @@ export default {
     openDocuments: "Documenti aperti",
     unsavedChanges: "Modifiche non salvate",
     untitled: "Senza titolo",
+    untitledNumbered: "Senza titolo {n}",
     close: "Chiudi {name}",
     closeOthers: "Chiudi le altre schede",
     closeAll: "Chiudi tutte le schede",

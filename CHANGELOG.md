@@ -9,6 +9,14 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+### Added
+
+- **Untitled draft recovery**: unsaved Untitled documents can return after a normal Fulvid restart (ephemeral IndexedDB recovery). Save As or confirmed discard removes the draft. Not filesystem autosave; clearing WebView/site data can remove recoverable drafts. Real files stay on the filesystem.
+
+### Changed
+
+- Untitled tabs use numbered labels (`Untitled 1`, `Untitled 2`, ...) with the smallest available number among open Untitled tabs. The number is presentation only.
+
 ## [0.11.0] - 2026-09-17
 
 ### Added

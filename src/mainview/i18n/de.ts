@@ -254,6 +254,7 @@ export default {
     openDocuments: "Geöffnete Dokumente",
     unsavedChanges: "Ungespeicherte Änderungen",
     untitled: "Unbenannt",
+    untitledNumbered: "Unbenannt {n}",
     close: "{name} schließen",
     closeOthers: "Andere Tabs schließen",
     closeAll: "Alle Tabs schließen",

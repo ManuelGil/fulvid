@@ -157,6 +157,36 @@ mock.module("../../../../../src/mainview/modules/editor/monaco/monacoSetup.ts", 
   languageForPath: (path: string) => (path.toLowerCase().endsWith(".mdx") ? "mdx" : "markdown"),
 }));
 
+const draftPuts: Array<{ recoveryId: string; content: string }> = [];
+const draftDeletes: string[] = [];
+let draftIdSeq = 0;
+let listedDrafts: Array<{ recoveryId: string; content: string; updatedAt: number }> = [];
+let listDraftsShouldFail = false;
+
+mock.module("../../../../../src/mainview/modules/editor/document/untitledDraftStore.ts", () => ({
+  MAX_UNTITLED_DRAFT_CHARS: 8_000_000,
+  createUntitledDraftRecoveryId: () => {
+    draftIdSeq += 1;
+    return `recovery-${draftIdSeq}`;
+  },
+  scheduleUntitledDraftPersist: (recoveryId: string, content: string) => {
+    draftPuts.push({ recoveryId, content });
+  },
+  flushUntitledDraftWrites: async () => undefined,
+  deleteUntitledDraft: async (recoveryId: string) => {
+    draftDeletes.push(recoveryId);
+  },
+  cancelPendingUntitledDraftWrite: () => undefined,
+  listUntitledDrafts: async () => {
+    if (listDraftsShouldFail) {
+      throw new Error("indexedDB unavailable");
+    }
+    return listedDrafts;
+  },
+  putUntitledDraft: async () => undefined,
+  resetUntitledDraftStoreForTests: () => undefined,
+}));
+
 const {
   awaitAllBufferWrites,
   awaitBufferWrites,
@@ -174,6 +204,7 @@ const {
   openDocument,
   renameDocumentBuffer,
   selectDocument,
+  restoreUntitledDrafts,
 } = await import("../../../../../src/mainview/modules/editor/document/documentBuffers.ts");
 const { activeId, clearSessionDocuments } =
   await import("../../../../../src/mainview/modules/editor/document/documentSession.ts");
@@ -188,6 +219,11 @@ afterEach(() => {
   clearFocusState();
   bindFocusToWorkspace(null);
   models.length = 0;
+  draftPuts.length = 0;
+  draftDeletes.length = 0;
+  draftIdSeq = 0;
+  listedDrafts = [];
+  listDraftsShouldFail = false;
   nextSaveAsResult = {
     status: "saved",
     absolutePath: "/workspace/saved.md",
@@ -403,5 +439,73 @@ describe("document buffers", () => {
     expect(replacement.model.getValue()).toBe("# v2 edited");
     expect(lastWrittenPath).toBe("race.md");
     expect(lastWrittenContent).toBe("# v1");
+  });
+
+  test("untitled numbering reuses the smallest available presentation number", () => {
+    const first = createUntitledDocument();
+    const second = createUntitledDocument();
+    const third = createUntitledDocument();
+    expect(first.title).toBe("Untitled 1");
+    expect(second.title).toBe("Untitled 2");
+    expect(third.title).toBe("Untitled 3");
+
+    expect(closeDocumentById(second.id, true)).toBe(true);
+    const reused = createUntitledDocument();
+    expect(reused.title).toBe("Untitled 2");
+    expect(reused.id).toBe("untitled:2");
+  });
+
+  test("creating an untitled schedules draft recovery and discard removes it", () => {
+    const untitled = createUntitledDocument("# notes\n");
+    expect(draftPuts.some((entry) => entry.content === "# notes\n")).toBe(true);
+    const recoveryId = draftPuts[0]?.recoveryId;
+    expect(recoveryId).toBeTruthy();
+
+    expect(closeDocumentById(untitled.id, false)).toBe(false);
+    expect(draftDeletes).toEqual([]);
+    expect(openBuffers.value).toHaveLength(1);
+
+    expect(closeDocumentById(untitled.id, true)).toBe(true);
+    expect(draftDeletes).toEqual([recoveryId]);
+  });
+
+  test("successful Save As removes the untitled draft recovery entry", async () => {
+    const untitled = createUntitledDocument("# save me\n");
+    const recoveryId = draftPuts[0]?.recoveryId;
+    expect(recoveryId).toBeTruthy();
+
+    const outcome = await saveAsDocument(untitled, "saved.md", "md");
+    expect(outcome.result.status).toBe("saved");
+    expect(outcome.buffer.kind).toBe("persisted");
+    expect(draftDeletes).toContain(recoveryId);
+  });
+
+  test("restoreUntitledDrafts opens recovered content with numbered titles", async () => {
+    listedDrafts = [
+      { recoveryId: "keep-a", content: "# Alice\n", updatedAt: 1 },
+      { recoveryId: "keep-b", content: "# Bob\n", updatedAt: 2 },
+    ];
+    await restoreUntitledDrafts();
+    expect(openBuffers.value).toHaveLength(2);
+    expect(openBuffers.value[0]?.model.getValue()).toBe("# Alice\n");
+    expect(openBuffers.value[1]?.model.getValue()).toBe("# Bob\n");
+    expect(openBuffers.value[0]?.title).toBe("Untitled 1");
+    expect(openBuffers.value[1]?.title).toBe("Untitled 2");
+    expect(openBuffers.value.every((buffer) => buffer.kind === "virtual")).toBe(true);
+  });
+
+  test("restoreUntitledDrafts tolerates empty recovery storage", async () => {
+    listedDrafts = [];
+    await restoreUntitledDrafts();
+    expect(openBuffers.value).toHaveLength(0);
+  });
+
+  test("IndexedDB list failure does not break restore or untitled creation", async () => {
+    listDraftsShouldFail = true;
+    await restoreUntitledDrafts();
+    expect(openBuffers.value).toHaveLength(0);
+    const untitled = createUntitledDocument("# still works\n");
+    expect(untitled.model.getValue()).toBe("# still works\n");
+    expect(untitled.kind).toBe("virtual");
   });
 });

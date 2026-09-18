@@ -251,6 +251,7 @@ export default {
     openDocuments: "Documentos abiertos",
     unsavedChanges: "Cambios sin guardar",
     untitled: "Sin título",
+    untitledNumbered: "Sin título {n}",
     close: "Cerrar {name}",
     closeOthers: "Cerrar las demás pestañas",
     closeAll: "Cerrar todas las pestañas",

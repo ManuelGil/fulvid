@@ -253,6 +253,7 @@ export default {
     openDocuments: "Documentos abertos",
     unsavedChanges: "Alterações não guardadas",
     untitled: "Sem título",
+    untitledNumbered: "Sem título {n}",
     close: "Fechar {name}",
     closeOthers: "Fechar os outros separadores",
     closeAll: "Fechar todos os separadores",

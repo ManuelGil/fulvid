@@ -249,6 +249,7 @@ export default {
     openDocuments: "Open documents",
     unsavedChanges: "Unsaved changes",
     untitled: "Untitled",
+    untitledNumbered: "Untitled {n}",
     close: "Close {name}",
     closeOthers: "Close other tabs",
     closeAll: "Close all tabs",

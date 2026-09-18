@@ -257,6 +257,7 @@ export default {
     openDocuments: "Documents ouverts",
     unsavedChanges: "Modifications non enregistrées",
     untitled: "Sans titre",
+    untitledNumbered: "Sans titre {n}",
     close: "Fermer {name}",
     closeOthers: "Fermer les autres onglets",
     closeAll: "Fermer tous les onglets",

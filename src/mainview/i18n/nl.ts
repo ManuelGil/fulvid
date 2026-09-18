@@ -253,6 +253,7 @@ export default {
     openDocuments: "Geopende documenten",
     unsavedChanges: "Niet-opgeslagen wijzigingen",
     untitled: "Naamloos",
+    untitledNumbered: "Naamloos {n}",
     close: "{name} sluiten",
     closeOthers: "Andere tabbladen sluiten",
     closeAll: "Alle tabbladen sluiten",
