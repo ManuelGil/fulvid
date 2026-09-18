@@ -187,6 +187,41 @@ mock.module("../../../../../src/mainview/modules/editor/document/untitledDraftSt
   resetUntitledDraftStoreForTests: () => undefined,
 }));
 
+const changeMarkerCalls: {
+  bind: Array<{ content: string }>;
+  reset: Array<{ content: string }>;
+  dispose: number;
+  schedule: number;
+} = {
+  bind: [],
+  reset: [],
+  dispose: 0,
+  schedule: 0,
+};
+
+mock.module("../../../../../src/mainview/modules/editor/document/sessionChangeMarkers.ts", () => ({
+  CHANGE_MARKER_MODIFIED_CLASS: "fulvid-change-marker-modified",
+  CHANGE_MARKER_ADDED_CLASS: "fulvid-change-marker-added",
+  CHANGE_MARKER_DELETED_CLASS: "fulvid-change-marker-deleted",
+  changeMarkerSpecsFromLineChanges: () => [],
+  computeLineChangesWithTransientDiffEditor: async () => [],
+  bindSessionChangeMarkers: (_model: unknown, content: string) => {
+    changeMarkerCalls.bind.push({ content });
+  },
+  resetSessionChangeBaseline: (_model: unknown, content: string) => {
+    changeMarkerCalls.reset.push({ content });
+  },
+  transferSessionChangeMarkers: () => undefined,
+  disposeSessionChangeMarkers: () => {
+    changeMarkerCalls.dispose += 1;
+  },
+  scheduleSessionChangeMarkers: () => {
+    changeMarkerCalls.schedule += 1;
+  },
+  flushSessionChangeMarkersForTests: async () => undefined,
+  getSessionChangeBaselineForTests: () => null,
+}));
+
 const {
   awaitAllBufferWrites,
   awaitBufferWrites,
@@ -224,6 +259,10 @@ afterEach(() => {
   draftIdSeq = 0;
   listedDrafts = [];
   listDraftsShouldFail = false;
+  changeMarkerCalls.bind.length = 0;
+  changeMarkerCalls.reset.length = 0;
+  changeMarkerCalls.dispose = 0;
+  changeMarkerCalls.schedule = 0;
   nextSaveAsResult = {
     status: "saved",
     absolutePath: "/workspace/saved.md",
@@ -507,5 +546,35 @@ describe("document buffers", () => {
     const untitled = createUntitledDocument("# still works\n");
     expect(untitled.model.getValue()).toBe("# still works\n");
     expect(untitled.kind).toBe("virtual");
+  });
+
+  test("recovered untitled binds change-marker baseline to restored content", async () => {
+    listedDrafts = [{ recoveryId: "keep-a", content: "hello world", updatedAt: 1 }];
+    await restoreUntitledDrafts();
+    expect(changeMarkerCalls.bind.some((entry) => entry.content === "hello world")).toBe(true);
+  });
+
+  test("successful save resets change-marker baseline; failed save does not", async () => {
+    bindFocusToWorkspace("/workspace");
+    const buffer = await openDocument("/workspace", "note.md");
+    changeMarkerCalls.reset.length = 0;
+    buffer.model.setValue("# edited");
+    await saveDocument(buffer);
+    expect(changeMarkerCalls.reset).toEqual([{ content: "# edited" }]);
+
+    changeMarkerCalls.reset.length = 0;
+    buffer.model.setValue("# again");
+    writeHook = () => {
+      throw new Error("fulvid.fs:operationFailed");
+    };
+    await expect(saveDocument(buffer)).rejects.toThrow("operationFailed");
+    expect(changeMarkerCalls.reset).toEqual([]);
+  });
+
+  test("closing a document disposes change-marker state", () => {
+    const untitled = createUntitledDocument("# x\n");
+    const disposeBefore = changeMarkerCalls.dispose;
+    expect(closeDocumentById(untitled.id, true)).toBe(true);
+    expect(changeMarkerCalls.dispose).toBe(disposeBefore + 1);
   });
 });

@@ -734,6 +734,14 @@ export default {
     shown: "Annotations shown",
     hidden: "Annotations hidden",
   },
+  sessionChangePreview: {
+    title: "Session change",
+    subtitle: "Before -> now for this change (not saved history)",
+    before: "Before",
+    after: "Now",
+    diff: "Session change comparison",
+    close: "Close",
+  },
   status: {
     label: "Document status",
     document: "{status} document",

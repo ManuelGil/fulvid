@@ -752,6 +752,15 @@ export default {
     shown: "Anmerkungen angezeigt",
     hidden: "Anmerkungen ausgeblendet",
   },
+  sessionChangePreview: {
+    title: "Sitzungsänderung",
+    subtitle: "Vorher -> jetzt für diese Änderung (kein gespeicherter Verlauf)",
+    before: "Vorher",
+    after: "Jetzt",
+    diff: "Vergleich der Sitzungsänderung",
+    close: "Schließen",
+  },
+
   status: {
     label: "Dokumentstatus",
     document: "{status} Dokument",

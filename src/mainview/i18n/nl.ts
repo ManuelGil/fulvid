@@ -748,6 +748,15 @@ export default {
     shown: "Aantekeningen getoond",
     hidden: "Aantekeningen verborgen",
   },
+  sessionChangePreview: {
+    title: "Sessiewijziging",
+    subtitle: "Voorheen -> nu voor deze wijziging (geen opgeslagen geschiedenis)",
+    before: "Voorheen",
+    after: "Nu",
+    diff: "Vergelijking van sessiewijziging",
+    close: "Sluiten",
+  },
+
   status: {
     label: "Documentstatus",
     document: "{status} document",

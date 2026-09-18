@@ -748,6 +748,15 @@ export default {
     shown: "Annotazioni mostrate",
     hidden: "Annotazioni nascoste",
   },
+  sessionChangePreview: {
+    title: "Modifica di sessione",
+    subtitle: "Prima -> ora per questa modifica (non è cronologia salvata)",
+    before: "Prima",
+    after: "Ora",
+    diff: "Confronto della modifica di sessione",
+    close: "Chiudi",
+  },
+
   status: {
     label: "Stato documento",
     document: "Documento {status}",

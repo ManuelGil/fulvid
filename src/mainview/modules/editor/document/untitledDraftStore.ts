@@ -37,9 +37,16 @@ function isValidDraftRecord(value: unknown): value is UntitledDraftRecord {
     record.recoveryId.length <= 128 &&
     typeof record.content === "string" &&
     record.content.length <= MAX_UNTITLED_DRAFT_CHARS &&
+    // Empty / whitespace-only drafts are not recoverable notes.
+    record.content.trim().length > 0 &&
     typeof record.updatedAt === "number" &&
     Number.isFinite(record.updatedAt)
   );
+}
+
+/** Recovery treats whitespace-only text as empty (editor content is unchanged). */
+export function isEmptyUntitledDraftContent(content: string): boolean {
+  return content.trim() === "";
 }
 
 function memoryBackend(): DraftBackend {
@@ -160,6 +167,10 @@ export function resetUntitledDraftStoreForTests(options?: { memoryOnly?: boolean
 }
 
 export async function putUntitledDraft(record: UntitledDraftRecord): Promise<void> {
+  if (typeof record.recoveryId === "string" && isEmptyUntitledDraftContent(record.content)) {
+    await deleteUntitledDraft(record.recoveryId);
+    return;
+  }
   if (!isValidDraftRecord(record)) {
     return;
   }
@@ -232,6 +243,24 @@ async function writeDraftNow(
     return;
   }
   if (content.length > MAX_UNTITLED_DRAFT_CHARS) {
+    return;
+  }
+  // Empty / whitespace-only: remove any prior recovery row instead of storing "".
+  if (isEmptyUntitledDraftContent(content)) {
+    const work = (async () => {
+      try {
+        const store = await resolveBackend();
+        await store.remove(recoveryId);
+      } catch {
+        // Best-effort cleanup.
+      }
+    })().finally(() => {
+      if (inFlight.get(recoveryId) === work) {
+        inFlight.delete(recoveryId);
+      }
+    });
+    inFlight.set(recoveryId, work);
+    await work;
     return;
   }
   const work = putUntitledDraft({

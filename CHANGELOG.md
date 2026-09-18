@@ -11,7 +11,8 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ### Added
 
-- **Untitled draft recovery**: unsaved Untitled documents can return after a normal Fulvid restart (ephemeral IndexedDB recovery). Save As or confirmed discard removes the draft. Not filesystem autosave; clearing WebView/site data can remove recoverable drafts. Real files stay on the filesystem.
+- **Untitled draft recovery**: unsaved Untitled documents can return after a normal Fulvid restart (ephemeral IndexedDB recovery). Empty or whitespace-only Untitled tabs are not retained as recoverable drafts. Save As or confirmed discard removes the draft. Not filesystem autosave; clearing WebView/site data can remove recoverable drafts. Real files stay on the filesystem.
+- **Session change markers**: gutter markers show lines changed since the current editor session baseline (modified / added / deleted). Clicking a marker opens a temporary read-only before/after view for that change only. Markers and the preview are ephemeral - not Git, not history, not persisted. Save resets the baseline and clears them.
 
 ### Changed
 

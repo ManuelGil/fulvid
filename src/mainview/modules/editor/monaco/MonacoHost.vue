@@ -74,6 +74,8 @@ const emit = defineEmits<{
   scroll: [ratio: number];
   commandState: [state: EditorCommandState];
   annotateLine: [lineNumber: number];
+  /** Clicked a session change marker in the lines-decorations gutter lane. */
+  sessionChangeMarkerClick: [lineNumber: number];
   /** Live model text changed - host document extensions may reprocess. */
   contentChange: [];
 }>();
@@ -433,7 +435,10 @@ function mountEditor(): void {
     padding: { top: 18, bottom: 18 },
     roundedSelection: false,
     // Glyph margin hosts session document annotations.
+    // Change markers use linesDecorationsClassName (separate lane from glyphs).
     glyphMargin: true,
+    // Stable lane width so the 3px marker can be centered without stretching.
+    lineDecorationsWidth: 10,
     theme: monacoTheme,
     ariaLabel: t("documentLanguage.editing", { path: props.path }),
   });
@@ -463,15 +468,24 @@ function mountEditor(): void {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => replace());
   registerMarkdownActions();
   stopAnnotationMouseWatch = editor.onMouseDown((event) => {
-    if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
-      return;
-    }
-    // Left button only - do not open annotate on right/middle click.
     if (!event.event.leftButton) {
       return;
     }
     const lineNumber = event.target.position?.lineNumber;
     if (!lineNumber) {
+      return;
+    }
+    // Decorations lane is preferred; WebKitGTK may also report the nearby
+    // line-number gutter for the same strip. EditorPage no-ops when no hunk.
+    if (
+      event.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_DECORATIONS ||
+      event.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS
+    ) {
+      event.event.preventDefault();
+      emit("sessionChangeMarkerClick", lineNumber);
+      return;
+    }
+    if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
       return;
     }
     event.event.preventDefault();
@@ -1155,6 +1169,68 @@ onBeforeUnmount(() => {
   background: currentColor;
   content: "";
   opacity: 0.85;
+}
+
+/*
+ * Session change markers in the lines-decoration lane (not the glyph margin).
+ * Monaco .cldr nodes span the full decorations strip (lineDecorationsWidth plus
+ * folding space). Paint a 3px bar at the right of that strip so the marker stays
+ * clear of line numbers and keeps a 2px gap before editor text.
+ * Colors from theme tokens --change-marker-modified / --change-marker-added.
+ * Deleted keeps a short caret colored with the modified token.
+ */
+.fulvid-change-marker-modified,
+.fulvid-change-marker-added {
+  box-sizing: border-box !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+  background-color: transparent !important;
+  background-repeat: no-repeat !important;
+}
+
+.fulvid-change-marker-modified {
+  background-image: linear-gradient(
+    to left,
+    transparent 0,
+    transparent 2px,
+    var(--change-marker-modified) 2px,
+    var(--change-marker-modified) 5px,
+    transparent 5px
+  ) !important;
+}
+
+.fulvid-change-marker-added {
+  background-image: linear-gradient(
+    to left,
+    transparent 0,
+    transparent 2px,
+    var(--change-marker-added) 2px,
+    var(--change-marker-added) 5px,
+    transparent 5px
+  ) !important;
+}
+
+.fulvid-change-marker-deleted {
+  box-sizing: border-box !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+  background-color: transparent !important;
+  /* Short right-aligned tick (same lane edge as add/modify; not a new visual system). */
+  background-image: linear-gradient(
+    to left,
+    transparent 0,
+    transparent 2px,
+    var(--change-marker-modified) 2px,
+    var(--change-marker-modified) 5px,
+    transparent 5px
+  ) !important;
+  background-size: 100% 4px !important;
+  background-position: right 0.4em !important;
+  background-repeat: no-repeat !important;
 }
 
 /*

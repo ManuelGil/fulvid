@@ -757,6 +757,15 @@ export default {
     shown: "Annotations affichées",
     hidden: "Annotations masquées",
   },
+  sessionChangePreview: {
+    title: "Changement de session",
+    subtitle: "Avant -> maintenant pour ce changement (pas un historique enregistré)",
+    before: "Avant",
+    after: "Maintenant",
+    diff: "Comparaison du changement de session",
+    close: "Fermer",
+  },
+
   status: {
     label: "État du document",
     document: "{status} document",

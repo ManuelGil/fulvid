@@ -8,7 +8,9 @@ Ownership: [ARCHITECTURE.md](./ARCHITECTURE.md). Rules: [INVARIANTS.md](./INVARI
 
 Open a document, edit, save, open another. Writing comes first. Folder browsing, Search, Context, and Graph are optional. The editor works without a folder. Graph and Document Context need an open folder and a focused in-folder document.
 
-**Untitled drafts:** unsaved Untitled tabs can be recovered after a normal application restart via ephemeral browser/WebView storage (IndexedDB). This is not filesystem autosave and not a guarantee against cleared site data. Save As moves a draft onto the filesystem and drops recovery; confirming discard removes recovery. Real folder files stay on disk as the source of truth.
+**Untitled drafts:** unsaved Untitled tabs can be recovered after a normal application restart via ephemeral browser/WebView storage (IndexedDB). Empty or whitespace-only Untitled tabs are not kept as recoverable drafts. This is not filesystem autosave and not a guarantee against cleared site data. Save As moves a draft onto the filesystem and drops recovery; confirming discard removes recovery. Real folder files stay on disk as the source of truth.
+
+**Session change markers:** while a document is open, the gutter can show lines that differ from that tab's in-memory session baseline (opened/saved/initial Untitled content). Modified and added use restrained amber and green theme tokens. Clicking a marker opens a temporary, read-only before/after view for that contiguous change only. The preview is derived from baseline vs current text, never owns the document, and is not persisted. Save clears markers by resetting the baseline and dismisses any open preview. Markers are not Git, not persistent history, and are not stored in IndexedDB draft recovery.
 
 Opening a folder looks recursively for `.md`, `.markdown`, and `.mdx`. If the scan finishes and finds none, Fulvid says so and does not load that folder. A partial scan never claims the folder is empty of documents. Finding an `.mdx` file does not run MDX.
 
