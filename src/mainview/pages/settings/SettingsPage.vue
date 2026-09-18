@@ -1108,6 +1108,23 @@ async function onResetSettings(): Promise<void> {
                 </span>
               </span>
             </label>
+
+            <label class="settings-option" data-settings-id="editor.showSessionChanges">
+              <input
+                class="settings-option__control"
+                type="checkbox"
+                :checked="settings.editor.showSessionChanges"
+                @change="
+                  setEditor('showSessionChanges', ($event.target as HTMLInputElement).checked)
+                "
+              />
+              <span class="settings-option__copy">
+                <span class="settings-option__name">{{ t("settings.showSessionChanges") }}</span>
+                <span class="settings-option__hint">
+                  {{ t("settings.showSessionChangesHint") }}
+                </span>
+              </span>
+            </label>
           </section>
 
           <section

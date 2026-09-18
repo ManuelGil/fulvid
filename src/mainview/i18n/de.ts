@@ -499,6 +499,9 @@ export default {
     showDocumentAnnotations: "Dokumentanmerkungen anzeigen",
     showDocumentAnnotationsHint:
       "Standard für Anmerkungssymbole am Rand des Editors. Anzeigen/Ausblenden kann abweichen, bis du diese Einstellung änderst, zurücksetzt oder neu startest. Die Notizen selbst werden nie gespeichert.",
+    showSessionChanges: "Sitzungsänderungen anzeigen",
+    showSessionChangesHint:
+      "Änderungsmarkierungen und den temporären Vergleich Vorher -> Jetzt für ungespeicherte Sitzungsänderungen anzeigen.",
     shortcutBold: "Aktuelle Auswahl fett formatieren",
     shortcutItalic: "Aktuelle Auswahl kursiv formatieren",
     shortcutInlineCode: "Aktuelle Auswahl als Inline-Code formatieren",

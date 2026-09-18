@@ -494,6 +494,9 @@ export default {
     showDocumentAnnotations: "Mostrar anotaciones del documento",
     showDocumentAnnotationsHint:
       "Preferencia inicial para glifos de anotación en el margen. Mostrar/Ocultar en Vista puede diferir hasta que cambies este ajuste, restablezcas o reinicies. Las notas no se guardan.",
+    showSessionChanges: "Mostrar cambios de sesión",
+    showSessionChangesHint:
+      "Muestra marcadores de cambio y la comparación temporal Antes -> Ahora de los cambios de sesión no guardados.",
     shortcutBold: "Aplicar negrita a la selección",
     shortcutItalic: "Aplicar cursiva a la selección",
     shortcutInlineCode: "Envolver la selección en código en línea",

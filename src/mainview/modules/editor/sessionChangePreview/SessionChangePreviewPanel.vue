@@ -7,6 +7,7 @@ import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type * as Monaco from "monaco-editor/editor";
 
+import AppIcon from "../../../shell/AppIcon.vue";
 import { initializeMonaco } from "../monaco/monacoSetup";
 import type { SessionChangePreviewPayload } from "../document/sessionChangeMarkers";
 
@@ -125,7 +126,7 @@ onBeforeUnmount(() => {
         :aria-label="t('sessionChangePreview.close')"
         @click="emit('close')"
       >
-        {{ t("sessionChangePreview.close") }}
+        <AppIcon name="close" :size="14" />
       </button>
     </header>
     <div
@@ -140,6 +141,7 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 @use "../../../styles/colors" as *;
 @use "../../../styles/variables" as *;
+@use "../../../styles/page-layout" as *;
 
 .session-change-preview {
   display: flex;
@@ -179,19 +181,13 @@ onBeforeUnmount(() => {
 }
 
 .session-change-preview__close {
+  @include quiet-button;
   grid-area: close;
+  flex-shrink: 0;
+  min-width: $hit-min;
+  min-height: $hit-min;
   margin: 0;
-  padding: 0.25rem 0.55rem;
-  border: 1px solid $border;
-  border-radius: $radius;
-  background: $background;
-  color: $text-primary;
-  cursor: pointer;
-}
-
-.session-change-preview__close:focus-visible {
-  outline: 2px solid $focus-ring;
-  outline-offset: 2px;
+  padding: 0;
 }
 
 .session-change-preview__diff {

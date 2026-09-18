@@ -7,6 +7,7 @@
  */
 import type * as Monaco from "monaco-editor/editor";
 
+import { settings } from "../../settings/settingsStore";
 import { initializeMonaco } from "../monaco/monacoSetup";
 import {
   changeMarkerSpecsFromLineChanges,
@@ -188,6 +189,11 @@ export async function computeLineChangesWithTransientDiffEditor(
 function clearDecorations(model: TextModel, state: MarkerState): void {
   state.lastChanges = [];
   state.changesVersionId = null;
+  clearPresentationDecorations(model, state);
+}
+
+/** Remove gutter decorations only; keep baseline and lastChanges for tracking. */
+function clearPresentationDecorations(model: TextModel, state: MarkerState): void {
   if (state.decorationIds.length === 0 || model.isDisposed()) {
     state.decorationIds = [];
     return;
@@ -292,10 +298,11 @@ async function recalculate(model: TextModel, generation: number): Promise<void> 
   }
   const api = initializeMonaco();
   const specs = changeMarkerSpecsFromLineChanges(changes);
-  latest.decorationIds = model.deltaDecorations(
-    latest.decorationIds,
-    decorationsFromSpecs(api, specs),
-  );
+  // Setting hides presentation only; lastChanges stay so re-enable can paint without reload.
+  const decorations = settings.value.editor.showSessionChanges
+    ? decorationsFromSpecs(api, specs)
+    : [];
+  latest.decorationIds = model.deltaDecorations(latest.decorationIds, decorations);
   latest.lastChanges = changes;
   latest.changesVersionId = versionId;
 }
@@ -324,6 +331,31 @@ export function scheduleSessionChangeMarkers(model: TextModel): void {
 }
 
 /**
+ * Apply or clear gutter decorations for the current showSessionChanges preference.
+ * Does not reset baseline or change tracking.
+ */
+export function syncSessionChangeMarkerPresentation(model: TextModel): void {
+  const state = stateByModel.get(model);
+  if (!state || model.isDisposed()) {
+    return;
+  }
+  if (!settings.value.editor.showSessionChanges) {
+    clearPresentationDecorations(model, state);
+    return;
+  }
+  if (state.changesVersionId === model.getVersionId()) {
+    const api = initializeMonaco();
+    const specs = changeMarkerSpecsFromLineChanges(state.lastChanges);
+    state.decorationIds = model.deltaDecorations(
+      state.decorationIds,
+      decorationsFromSpecs(api, specs),
+    );
+    return;
+  }
+  scheduleSessionChangeMarkers(model);
+}
+
+/**
  * Resolve a marker-line click to hunk-scoped before/after text.
  * Flushes pending marker work first; never runs a separate DiffEditor path.
  * Preview DiffEditors must use the returned strings, never the live model.
@@ -332,6 +364,9 @@ export async function resolveSessionChangePreviewAtLine(
   model: TextModel,
   lineNumber: number,
 ): Promise<SessionChangePreviewPayload | null> {
+  if (!settings.value.editor.showSessionChanges) {
+    return null;
+  }
   const state = stateByModel.get(model);
   if (!state || model.isDisposed()) {
     return null;

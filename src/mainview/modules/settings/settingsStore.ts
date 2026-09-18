@@ -72,6 +72,11 @@ export interface EditorSettings {
    * Does not persist annotation content or positions.
    */
   showDocumentAnnotations: boolean;
+  /**
+   * Presentation only: when false, hide Session Change Markers and Preview.
+   * Baseline and change tracking continue for document lifecycle.
+   */
+  showSessionChanges: boolean;
   readingStatistics: ReadingStatisticsMode;
   /** Writing Focus only. Ignored when Writing Focus is off. */
   typewriterScrolling: boolean;
@@ -155,6 +160,7 @@ const DEFAULT_SETTINGS: FulvidSettings = {
     trimTrailingWhitespaceOnSave: false,
     showMarkdownFormatBar: false,
     showDocumentAnnotations: true,
+    showSessionChanges: true,
     readingStatistics: "wordsAndTime",
     typewriterScrolling: true,
     documentLocation: "main-panel",
@@ -205,6 +211,25 @@ function themeFromPersistedAppearance(
   return VALID_THEMES.has(persistedTheme as ThemePreference)
     ? (persistedTheme as ThemePreference)
     : DEFAULT_THEME;
+}
+
+/**
+ * Current key `showSessionChanges`; accept legacy `showSessionChangePreview` so a
+ * previously disabled preference is not silently turned back on. loadSettings
+ * rewrites storage to the sanitized shape (legacy key dropped).
+ */
+function resolveShowSessionChanges(editor: object): boolean {
+  const record = editor as {
+    showSessionChanges?: unknown;
+    showSessionChangePreview?: unknown;
+  };
+  if (typeof record.showSessionChanges === "boolean") {
+    return record.showSessionChanges;
+  }
+  if (typeof record.showSessionChangePreview === "boolean") {
+    return record.showSessionChangePreview;
+  }
+  return DEFAULT_SETTINGS.editor.showSessionChanges;
 }
 
 export function sanitizeSettings(value: unknown): FulvidSettings {
@@ -347,6 +372,7 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
         "boolean"
           ? (editor as { showDocumentAnnotations: boolean }).showDocumentAnnotations
           : DEFAULT_SETTINGS.editor.showDocumentAnnotations,
+      showSessionChanges: resolveShowSessionChanges(editor),
       readingStatistics: VALID_READING_STATISTICS.has(
         editor.readingStatistics as ReadingStatisticsMode,
       )

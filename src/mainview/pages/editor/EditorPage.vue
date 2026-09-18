@@ -127,6 +127,7 @@ import {
 } from "../../modules/editor/document/documentAnnotations";
 import {
   resolveSessionChangePreviewAtLine,
+  syncSessionChangeMarkerPresentation,
   type SessionChangePreviewPayload,
 } from "../../modules/editor/document/sessionChangeMarkers";
 import SessionChangePreviewPanel from "../../modules/editor/sessionChangePreview/SessionChangePreviewPanel.vue";
@@ -479,6 +480,9 @@ function closeSessionChangePreview(): void {
 }
 
 async function onSessionChangeMarkerClick(lineNumber: number): Promise<void> {
+  if (!settings.value.editor.showSessionChanges) {
+    return;
+  }
   const buffer = activeBuffer.value;
   if (!buffer) {
     return;
@@ -493,6 +497,18 @@ async function onSessionChangeMarkerClick(lineNumber: number): Promise<void> {
   }
   sessionChangePreview.value = payload;
 }
+
+watch(
+  () => settings.value.editor.showSessionChanges,
+  (enabled) => {
+    if (!enabled) {
+      closeSessionChangePreview();
+    }
+    for (const buffer of openBuffers.value) {
+      syncSessionChangeMarkerPresentation(buffer.model);
+    }
+  },
+);
 
 function onEditorContentChange(): void {
   closeSessionChangePreview();

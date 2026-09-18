@@ -497,6 +497,9 @@ export default {
     showDocumentAnnotations: "Mostra annotazioni del documento",
     showDocumentAnnotationsHint:
       "Impostazione predefinita per i simboli delle annotazioni nel margine dell'editor. Mostra/Nascondi può divergere finché non modifichi questa impostazione, la reimposti o riavvii. Le note non vengono mai salvate.",
+    showSessionChanges: "Mostra modifiche di sessione",
+    showSessionChangesHint:
+      "Mostra i marcatori di modifica e il confronto temporaneo Prima -> Ora per le modifiche di sessione non salvate.",
     shortcutBold: "Metti in grassetto la selezione corrente",
     shortcutItalic: "Metti in corsivo la selezione corrente",
     shortcutInlineCode: "Racchiudi la selezione corrente nel codice in linea",

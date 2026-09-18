@@ -489,6 +489,9 @@ export default {
     showDocumentAnnotations: "Show document annotations",
     showDocumentAnnotationsHint:
       "Default for annotation glyphs in the editor margin. View Show/Hide can diverge until you change this setting, reset, or restart. Notes themselves are never saved.",
+    showSessionChanges: "Show session changes",
+    showSessionChangesHint:
+      "Show change markers and the temporary Before -> Now comparison for unsaved session changes.",
     shortcutBold: "Bold the current selection",
     shortcutItalic: "Italicize the current selection",
     shortcutInlineCode: "Wrap the current selection in inline code",

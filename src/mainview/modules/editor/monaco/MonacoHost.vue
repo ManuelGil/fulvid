@@ -476,10 +476,11 @@ function mountEditor(): void {
       return;
     }
     // Decorations lane is preferred; WebKitGTK may also report the nearby
-    // line-number gutter for the same strip. EditorPage no-ops when no hunk.
+    // line-number gutter for the same strip. Skip when Session Changes are hidden.
     if (
-      event.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_DECORATIONS ||
-      event.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS
+      settings.value.editor.showSessionChanges &&
+      (event.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_DECORATIONS ||
+        event.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS)
     ) {
       event.event.preventDefault();
       emit("sessionChangeMarkerClick", lineNumber);
@@ -1174,8 +1175,8 @@ onBeforeUnmount(() => {
 /*
  * Session change markers in the lines-decoration lane (not the glyph margin).
  * Monaco .cldr nodes span the full decorations strip (lineDecorationsWidth plus
- * folding space). Paint a 3px bar at the right of that strip so the marker stays
- * clear of line numbers and keeps a 2px gap before editor text.
+ * folding space). Paint a 3px bar near the right of that strip with ~4px clear
+ * space before editor text. Opacity softens weight without new color tokens.
  * Colors from theme tokens --change-marker-modified / --change-marker-added.
  * Deleted keeps a short caret colored with the modified token.
  */
@@ -1186,6 +1187,7 @@ onBeforeUnmount(() => {
   padding: 0 !important;
   margin: 0 !important;
   transform: none !important;
+  opacity: 0.7;
   background-color: transparent !important;
   background-repeat: no-repeat !important;
 }
@@ -1194,10 +1196,10 @@ onBeforeUnmount(() => {
   background-image: linear-gradient(
     to left,
     transparent 0,
-    transparent 2px,
-    var(--change-marker-modified) 2px,
-    var(--change-marker-modified) 5px,
-    transparent 5px
+    transparent 4px,
+    var(--change-marker-modified) 4px,
+    var(--change-marker-modified) 7px,
+    transparent 7px
   ) !important;
 }
 
@@ -1205,10 +1207,10 @@ onBeforeUnmount(() => {
   background-image: linear-gradient(
     to left,
     transparent 0,
-    transparent 2px,
-    var(--change-marker-added) 2px,
-    var(--change-marker-added) 5px,
-    transparent 5px
+    transparent 4px,
+    var(--change-marker-added) 4px,
+    var(--change-marker-added) 7px,
+    transparent 7px
   ) !important;
 }
 
@@ -1218,15 +1220,16 @@ onBeforeUnmount(() => {
   padding: 0 !important;
   margin: 0 !important;
   transform: none !important;
+  opacity: 0.7;
   background-color: transparent !important;
   /* Short right-aligned tick (same lane edge as add/modify; not a new visual system). */
   background-image: linear-gradient(
     to left,
     transparent 0,
-    transparent 2px,
-    var(--change-marker-modified) 2px,
-    var(--change-marker-modified) 5px,
-    transparent 5px
+    transparent 4px,
+    var(--change-marker-modified) 4px,
+    var(--change-marker-modified) 7px,
+    transparent 7px
   ) !important;
   background-size: 100% 4px !important;
   background-position: right 0.4em !important;

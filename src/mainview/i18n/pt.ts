@@ -497,6 +497,9 @@ export default {
     showDocumentAnnotations: "Mostrar anotações do documento",
     showDocumentAnnotationsHint:
       "Predefinição para símbolos de anotação na margem do editor. Mostrar/Ocultar pode divergir até alterar esta definição, a repor ou reiniciar. As notas nunca são guardadas.",
+    showSessionChanges: "Mostrar alterações de sessão",
+    showSessionChangesHint:
+      "Mostrar marcadores de alteração e a comparação temporária Antes -> Agora para alterações de sessão não guardadas.",
     shortcutBold: "Aplicar negrito à seleção atual",
     shortcutItalic: "Aplicar itálico à seleção atual",
     shortcutInlineCode: "Envolver a seleção atual em código em linha",

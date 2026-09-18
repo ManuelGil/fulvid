@@ -498,6 +498,9 @@ export default {
     showDocumentAnnotations: "Documentaantekeningen tonen",
     showDocumentAnnotationsHint:
       "Standaard voor aantekeningsglyphs in de editorrand. Tonen/verbergen kan afwijken totdat je deze instelling wijzigt, reset of opnieuw start. Notities zelf worden nooit opgeslagen.",
+    showSessionChanges: "Sessiewijzigingen tonen",
+    showSessionChangesHint:
+      "Toon wijzigingsmarkeringen en de tijdelijke vergelijking Voor -> Nu voor niet-opgeslagen sessiewijzigingen.",
     shortcutBold: "Huidige selectie vet maken",
     shortcutItalic: "Huidige selectie cursief maken",
     shortcutInlineCode: "Huidige selectie omgeven met inline-code",
