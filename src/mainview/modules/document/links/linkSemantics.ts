@@ -18,13 +18,9 @@ export interface DocumentLinkSettings {
   resolution: LinkResolutionMode;
 }
 
-const DEFAULT_DOCUMENT_LINK_SETTINGS: DocumentLinkSettings = {
+let activeDocumentLinkSettings: DocumentLinkSettings = {
   linkMode: "markdown",
   resolution: "both",
-};
-
-let activeDocumentLinkSettings: DocumentLinkSettings = {
-  ...DEFAULT_DOCUMENT_LINK_SETTINGS,
 };
 
 /**
@@ -48,13 +44,8 @@ export function setDocumentLinkSettings(linkSettings: Partial<DocumentLinkSettin
 }
 
 export function getDocumentLinkSettings(): DocumentLinkSettings {
-  return {
-    linkMode: activeDocumentLinkSettings.linkMode,
-    resolution: activeDocumentLinkSettings.resolution,
-  };
+  return { ...activeDocumentLinkSettings };
 }
-
-type LinkLike = Pick<DocumentLink, "raw" | "syntax" | "target">;
 
 export interface GraphNode {
   id: string;
@@ -132,26 +123,15 @@ function resolveNotePath(
   const normalized = normalizeTarget(target);
   const stem = normalized.split("/").pop() ?? normalized;
   const candidates = notesByStem.get(stem.toLowerCase());
-
-  if (!candidates || candidates.length === 0) {
-    return null;
+  if (candidates && candidates.length > 1) {
+    const exact = candidates.find(
+      (note) => normalizeTarget(note.path).toLowerCase() === normalized.toLowerCase(),
+    );
+    if (exact) {
+      return { path: exact.path, alsoMatches: [] };
+    }
   }
-
-  if (candidates.length === 1) {
-    return { path: candidates[0].path, alsoMatches: [] };
-  }
-
-  const exact = candidates.find(
-    (note) => normalizeTarget(note.path).toLowerCase() === normalized.toLowerCase(),
-  );
-  if (exact) {
-    return { path: exact.path, alsoMatches: [] };
-  }
-
-  return {
-    path: candidates[0].path,
-    alsoMatches: candidates.slice(1).map((note) => note.path),
-  };
+  return firstWinsGroup(candidates);
 }
 
 function firstWinsGroup(group: ScannedNote[] | undefined): StemResolution | null {
@@ -316,7 +296,7 @@ export function resolveDocumentPath(
   return unresolved();
 }
 
-function linksForNote(note: ScannedNote): LinkLike[] {
+function linksForNote(note: ScannedNote): DocumentLink[] {
   return note.documentLinks.filter((link) => activeDocumentLinkSettings.linkMode === link.syntax);
 }
 

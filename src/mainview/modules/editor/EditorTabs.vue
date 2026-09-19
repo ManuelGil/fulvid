@@ -77,10 +77,7 @@ function onTabKeydown(event: KeyboardEvent, index: number): void {
     }
     event.preventDefault();
     const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    menuTarget.value = buffer.id;
-    menuX.value = bounds.left;
-    menuY.value = bounds.bottom;
-    menuOpen.value = true;
+    openTabMenu(buffer.id, bounds.left, bounds.bottom);
     return;
   }
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
@@ -108,9 +105,13 @@ function onTabKeydown(event: KeyboardEvent, index: number): void {
 function onTabContextMenu(event: MouseEvent, id: string): void {
   event.preventDefault();
   (event.currentTarget as HTMLElement).querySelector<HTMLButtonElement>('[role="tab"]')?.focus();
+  openTabMenu(id, event.clientX, event.clientY);
+}
+
+function openTabMenu(id: string, x: number, y: number): void {
   menuTarget.value = id;
-  menuX.value = event.clientX;
-  menuY.value = event.clientY;
+  menuX.value = x;
+  menuY.value = y;
   menuOpen.value = true;
 }
 

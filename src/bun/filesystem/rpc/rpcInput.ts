@@ -11,6 +11,7 @@ import {
   filesystemErrorMessage,
   type FilesystemErrorCode,
 } from "../../../mainview/modules/workspace/filesystem/workspaceErrors";
+import type { MarkdownFileType } from "../../../mainview/modules/workspace/filesystem/workspaceTypes";
 
 /** Largest document body accepted from, or returned to, the renderer. Scan/search use the smaller `MAX_ANALYZED_BYTES`. */
 export const MAX_DOCUMENT_BYTES = 32 * 1024 * 1024;
@@ -44,16 +45,12 @@ function record(params: unknown): Record<string, unknown> {
 
 export function requireString(params: unknown, field: string, maxLength = MAX_PATH_LENGTH): string {
   const value = record(params)[field];
-  if (typeof value !== "string") {
-    reject();
-  }
-  if (value.length === 0) {
-    reject();
-  }
-  if (value.length > maxLength) {
-    reject();
-  }
-  if (value.includes("\0")) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > maxLength ||
+    value.includes("\0")
+  ) {
     reject();
   }
   return value;
@@ -69,13 +66,7 @@ export function optionalString(
   if (value === undefined || value === null) {
     return fallback;
   }
-  if (typeof value !== "string") {
-    reject();
-  }
-  if (value.length > maxLength) {
-    reject();
-  }
-  if (value.includes("\0")) {
+  if (typeof value !== "string" || value.length > maxLength || value.includes("\0")) {
     reject();
   }
   return value;
@@ -132,14 +123,14 @@ export function requireLinkMode(params: unknown): LinkSyntax {
   return value as LinkSyntax;
 }
 
-const DOCUMENT_EXTENSIONS = new Set(["md", "markdown", "mdx"]);
+const DOCUMENT_EXTENSIONS = new Set<MarkdownFileType>(["md", "markdown", "mdx"]);
 
-export function requireDefaultExtension(params: unknown): "md" | "markdown" | "mdx" {
+export function requireDefaultExtension(params: unknown): MarkdownFileType {
   const value = record(params).defaultExtension;
-  if (typeof value !== "string" || !DOCUMENT_EXTENSIONS.has(value)) {
+  if (typeof value !== "string" || !DOCUMENT_EXTENSIONS.has(value as MarkdownFileType)) {
     reject();
   }
-  return value as "md" | "markdown" | "mdx";
+  return value as MarkdownFileType;
 }
 
 export function requireBasename(params: unknown): string {

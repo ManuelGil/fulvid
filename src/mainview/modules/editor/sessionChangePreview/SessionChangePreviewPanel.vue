@@ -7,6 +7,7 @@ import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type * as Monaco from "monaco-editor/editor";
 
+import { restoreUsableFocus } from "../../../app/usableFocusTarget";
 import AppIcon from "../../../shell/AppIcon.vue";
 import { initializeMonaco } from "../monaco/monacoSetup";
 import type { SessionChangePreviewPayload } from "../document/sessionChangeMarkers";
@@ -27,21 +28,16 @@ let diffEditor: Monaco.editor.IStandaloneDiffEditor | null = null;
 let originalModel: Monaco.editor.ITextModel | null = null;
 let modifiedModel: Monaco.editor.ITextModel | null = null;
 let disposed = false;
+let previousFocus: HTMLElement | null = null;
 
 function disposeDiff(): void {
-  if (diffEditor) {
-    diffEditor.setModel(null);
-    diffEditor.dispose();
-    diffEditor = null;
-  }
-  if (originalModel) {
-    originalModel.dispose();
-    originalModel = null;
-  }
-  if (modifiedModel) {
-    modifiedModel.dispose();
-    modifiedModel = null;
-  }
+  diffEditor?.setModel(null);
+  diffEditor?.dispose();
+  diffEditor = null;
+  originalModel?.dispose();
+  originalModel = null;
+  modifiedModel?.dispose();
+  modifiedModel = null;
 }
 
 function mountDiff(payload: SessionChangePreviewPayload): void {
@@ -90,6 +86,9 @@ function onKeydown(event: KeyboardEvent): void {
 watch(
   () => props.payload,
   async (payload) => {
+    if (!previousFocus) {
+      previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
     await nextTick();
     mountDiff(payload);
     await nextTick();
@@ -101,6 +100,8 @@ watch(
 onBeforeUnmount(() => {
   disposed = true;
   disposeDiff();
+  restoreUsableFocus(previousFocus);
+  previousFocus = null;
 });
 </script>
 
@@ -109,7 +110,7 @@ onBeforeUnmount(() => {
     class="session-change-preview"
     role="dialog"
     aria-modal="false"
-    :aria-label="t('sessionChangePreview.title')"
+    aria-labelledby="session-change-preview-title"
     @keydown="onKeydown"
   >
     <header class="session-change-preview__header">

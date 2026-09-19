@@ -7,7 +7,9 @@ import {
   assertCanonicallyContained,
   canonicalRoot,
   containedPath,
+  isUnsafePathSegment,
   normalizeWorkspaceRelativePath,
+  workspaceRelativeSegments,
 } from "../../../../src/bun/filesystem/security/workspacePaths";
 import { filesystemErrorMessage } from "../../../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
 import { linkDirectory } from "../../../support/platform";
@@ -82,6 +84,24 @@ describe("folder path containment", () => {
       );
     } finally {
       await rm(base, { recursive: true, force: true });
+    }
+  });
+});
+
+// Intent: a Windows device name is the text before the first dot, so every
+// multi-suffix form of it is refused too.
+// Growth boundary: add a case only for a new reserved-name shape.
+describe("reserved device names across suffixes", () => {
+  test("refuses a reserved stem regardless of how many suffixes follow", () => {
+    // Stem-before-first-dot: simple reserved + one multi-suffix form.
+    for (const segment of ["CON.md", "CON.tar.md"]) {
+      expect(isUnsafePathSegment(segment)).toBe(true);
+      expect(() => workspaceRelativeSegments(`notes/${segment}`)).toThrow("fulvid.fs:unsafeName");
+    }
+
+    // Reserved word not as leading stem, and lookalike stems, are fine.
+    for (const segment of ["notes.con.md", ".con.md", "console.md"]) {
+      expect(isUnsafePathSegment(segment)).toBe(false);
     }
   });
 });

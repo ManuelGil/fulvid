@@ -4,39 +4,34 @@
  */
 import { useId } from "vue";
 
-withDefaults(
-  defineProps<{
-    title: string;
-    /** Full identity for tooltip when `title` is compact or truncated. */
-    titleHint?: string;
-    question?: string;
-    /** Document under Focus, when any. */
-    regarding?: string;
-    /** Quiet workspace identity when the title is not already the workspace. */
-    within?: string;
-    wide?: boolean;
-    fill?: boolean;
-    embedded?: boolean;
-    /**
-     * Writing Focus: reclaim shell padding/gap for the editor surface.
-     * Owned here so rhythm styles cannot override from higher specificity.
-     */
-    writingFocus?: boolean;
-    /**
-     * Writing Focus + Document location main-panel: keep a compact identity
-     * line without the normal header spacing.
-     */
-    quietIdentity?: boolean;
-    /**
-     * Interaction rhythm - coherent differentiation across questions.
-     * calm: exists; browse: organize; immediate: recover; spatial: locate
-     */
-    rhythm?: "calm" | "browse" | "immediate" | "spatial";
-  }>(),
-  {
-    rhythm: undefined,
-  },
-);
+defineProps<{
+  title: string;
+  /** Full identity for tooltip when `title` is compact or truncated. */
+  titleHint?: string;
+  question?: string;
+  /** Document under Focus, when any. */
+  regarding?: string;
+  /** Quiet workspace identity when the title is not already the workspace. */
+  within?: string;
+  wide?: boolean;
+  fill?: boolean;
+  embedded?: boolean;
+  /**
+   * Writing Focus: reclaim shell padding/gap for the editor surface.
+   * Owned here so rhythm styles cannot override from higher specificity.
+   */
+  writingFocus?: boolean;
+  /**
+   * Writing Focus + Document location main-panel: keep a compact identity
+   * line without the normal header spacing.
+   */
+  quietIdentity?: boolean;
+  /**
+   * Interaction rhythm - coherent differentiation across questions.
+   * calm: exists; browse: organize; immediate: recover; spatial: locate
+   */
+  rhythm?: "calm" | "browse" | "immediate" | "spatial";
+}>();
 
 const titleId = useId();
 </script>
@@ -221,6 +216,10 @@ const titleId = useId();
 
 .page-shell--fill {
   padding-bottom: 0;
+
+  .page-shell__header {
+    padding-bottom: $space-compact;
+  }
 }
 
 .page-shell--embedded {
@@ -261,6 +260,13 @@ const titleId = useId();
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
+
+  /* Fill pages own their scroll regions; the slot child must shrink. */
+  > :deep(*) {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+  }
 }
 
 .page-shell__continue--fill {

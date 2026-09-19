@@ -140,9 +140,15 @@ function placeholders(value: string): readonly string[] {
     .flatMap(([name, count]) => Array.from({ length: count }, () => name));
 }
 
-function sortedDifferences(differences: CatalogDifference[]): CatalogDifference[] {
+function sortedDifferences<T extends CatalogDifference>(differences: T[]): T[] {
   return differences.sort(
     (left, right) => left.locale.localeCompare(right.locale) || left.key.localeCompare(right.key),
+  );
+}
+
+function sortedByLocation<T extends { file: string; line: number }>(entries: T[]): T[] {
+  return entries.sort(
+    (left, right) => left.file.localeCompare(right.file) || left.line - right.line,
   );
 }
 
@@ -246,12 +252,8 @@ export function auditCatalogs(
     referenceLocale,
     missingKeys: sortedDifferences(missingKeys),
     extraKeys: sortedDifferences(extraKeys),
-    typeMismatches: typeMismatches.sort(
-      (left, right) => left.locale.localeCompare(right.locale) || left.key.localeCompare(right.key),
-    ),
-    placeholderMismatches: placeholderMismatches.sort(
-      (left, right) => left.locale.localeCompare(right.locale) || left.key.localeCompare(right.key),
-    ),
+    typeMismatches: sortedDifferences(typeMismatches),
+    placeholderMismatches: sortedDifferences(placeholderMismatches),
     unescapedPipes: sortedDifferences(unescapedPipes),
   };
 }
@@ -463,15 +465,9 @@ function auditUsages(
   }
 
   return {
-    missingUsages: missingUsages.sort(
-      (left, right) => left.file.localeCompare(right.file) || left.line - right.line,
-    ),
-    dynamicUsages: dynamicUsages.sort(
-      (left, right) => left.file.localeCompare(right.file) || left.line - right.line,
-    ),
-    hardcodedUiStrings: hardcodedStrings.sort(
-      (left, right) => left.file.localeCompare(right.file) || left.line - right.line,
-    ),
+    missingUsages: sortedByLocation(missingUsages),
+    dynamicUsages: sortedByLocation(dynamicUsages),
+    hardcodedUiStrings: sortedByLocation(hardcodedStrings),
   };
 }
 
@@ -551,13 +547,15 @@ async function discoverSourceFiles(directory: string, root: string): Promise<Sou
   return files.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-function printEntries<T extends { file?: string; line?: number; key?: string }>(
-  entries: readonly T[],
-  format: (entry: T) => string,
-): void {
+function printSection<T>(title: string, entries: readonly T[], format: (entry: T) => string): void {
+  if (entries.length === 0) {
+    return;
+  }
+  console.log(`${title} (${entries.length})`);
   for (const entry of entries) {
     console.log(`  - ${format(entry)}`);
   }
+  console.log();
 }
 
 function printReport(report: I18nAuditReport): void {
@@ -565,62 +563,45 @@ function printReport(report: I18nAuditReport): void {
   console.log(`Locales: ${report.locales.join(", ")}`);
   console.log(`Reference structure: ${report.referenceLocale || "none"}\n`);
 
-  if (report.missingKeys.length > 0) {
-    console.log(`Missing catalog keys (${report.missingKeys.length})`);
-    printEntries(report.missingKeys, (entry) => `${entry.locale}: ${entry.key}`);
-    console.log();
-  }
-  if (report.extraKeys.length > 0) {
-    console.log(`Extra catalog keys (${report.extraKeys.length})`);
-    printEntries(report.extraKeys, (entry) => `${entry.locale}: ${entry.key}`);
-    console.log();
-  }
-  if (report.typeMismatches.length > 0) {
-    console.log(`Catalog type mismatches (${report.typeMismatches.length})`);
-    printEntries(
-      report.typeMismatches,
-      (entry) => `${entry.locale}: ${entry.key} (${entry.expected} -> ${entry.actual})`,
-    );
-    console.log();
-  }
-  if (report.placeholderMismatches.length > 0) {
-    console.log(`Placeholder mismatches (${report.placeholderMismatches.length})`);
-    printEntries(
-      report.placeholderMismatches,
-      (entry) =>
-        `${entry.locale}: ${entry.key} (${entry.expected.join(", ") || "none"} -> ${
-          entry.actual.join(", ") || "none"
-        })`,
-    );
-    console.log();
-  }
-  if (report.unescapedPipes.length > 0) {
-    console.log(`Unescaped | in messages (${report.unescapedPipes.length})`);
-    printEntries(
-      report.unescapedPipes,
-      (entry) => `${entry.locale}: ${entry.key} (use \\| so vue-i18n keeps a literal |)`,
-    );
-    console.log();
-  }
-  if (report.missingUsages.length > 0) {
-    console.log(`Missing keys used by source (${report.missingUsages.length})`);
-    printEntries(report.missingUsages, (entry) => `${entry.file}:${entry.line}: ${entry.key}`);
-    console.log();
-  }
-  if (report.hardcodedUiStrings.length > 0) {
-    console.log(`Hardcoded UI attributes (${report.hardcodedUiStrings.length})`);
-    printEntries(
-      report.hardcodedUiStrings,
-      (entry) => `${entry.file}:${entry.line}: ${entry.attribute}="${entry.value}"`,
-    );
-    console.log();
-  }
+  printSection(
+    "Missing catalog keys",
+    report.missingKeys,
+    (entry) => `${entry.locale}: ${entry.key}`,
+  );
+  printSection("Extra catalog keys", report.extraKeys, (entry) => `${entry.locale}: ${entry.key}`);
+  printSection(
+    "Catalog type mismatches",
+    report.typeMismatches,
+    (entry) => `${entry.locale}: ${entry.key} (${entry.expected} -> ${entry.actual})`,
+  );
+  printSection(
+    "Placeholder mismatches",
+    report.placeholderMismatches,
+    (entry) =>
+      `${entry.locale}: ${entry.key} (${entry.expected.join(", ") || "none"} -> ${
+        entry.actual.join(", ") || "none"
+      })`,
+  );
+  printSection(
+    "Unescaped | in messages",
+    report.unescapedPipes,
+    (entry) => `${entry.locale}: ${entry.key} (use \\| so vue-i18n keeps a literal |)`,
+  );
+  printSection(
+    "Missing keys used by source",
+    report.missingUsages,
+    (entry) => `${entry.file}:${entry.line}: ${entry.key}`,
+  );
+  printSection(
+    "Hardcoded UI attributes",
+    report.hardcodedUiStrings,
+    (entry) => `${entry.file}:${entry.line}: ${entry.attribute}="${entry.value}"`,
+  );
   if (report.dynamicUsages.length > 0) {
     console.log(`Dynamic translation keys skipped (${report.dynamicUsages.length})`);
-    printEntries(
-      report.dynamicUsages,
-      (entry) => `${entry.file}:${entry.line}: ${entry.expression}`,
-    );
+    for (const entry of report.dynamicUsages) {
+      console.log(`  - ${entry.file}:${entry.line}: ${entry.expression}`);
+    }
     console.log("  These require human review and are not treated as missing keys.\n");
   }
 

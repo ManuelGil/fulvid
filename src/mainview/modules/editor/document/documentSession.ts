@@ -69,11 +69,11 @@ export function activateDocument(id: DocumentId): void {
 
 const documentMru = ref<DocumentId[]>([]);
 
-export function touchDocumentMru(id: DocumentId): void {
+function touchDocumentMru(id: DocumentId): void {
   documentMru.value = [id, ...documentMru.value.filter((openId) => openId !== id)];
 }
 
-export function removeDocumentMru(id: DocumentId): void {
+function removeDocumentMru(id: DocumentId): void {
   documentMru.value = documentMru.value.filter((openId) => openId !== id);
 }
 

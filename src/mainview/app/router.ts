@@ -1,5 +1,5 @@
 import { createRouter, createWebHashHistory } from "vue-router";
-import type { RouteRecordRaw, RouterHistory } from "vue-router";
+import type { RouteRecordRaw } from "vue-router";
 
 export const APP_ROUTE_NAMES = {
   editor: "editor",
@@ -10,9 +10,7 @@ export const APP_ROUTE_NAMES = {
 
 export type AppRouteName = (typeof APP_ROUTE_NAMES)[keyof typeof APP_ROUTE_NAMES];
 
-export const loadGraphPage = () => import("../pages/graph/GraphPage.vue");
-
-export const APP_ROUTES: RouteRecordRaw[] = [
+const APP_ROUTES: RouteRecordRaw[] = [
   {
     path: "/",
     redirect: { name: APP_ROUTE_NAMES.editor },
@@ -36,7 +34,7 @@ export const APP_ROUTES: RouteRecordRaw[] = [
   {
     path: "/graph",
     name: APP_ROUTE_NAMES.graph,
-    component: loadGraphPage,
+    component: () => import("../pages/graph/GraphPage.vue"),
   },
 
   {
@@ -51,12 +49,6 @@ export const APP_ROUTES: RouteRecordRaw[] = [
   },
 ];
 
-export function createAppRouter(
-  history: RouterHistory = createWebHashHistory(),
-  routes: RouteRecordRaw[] = APP_ROUTES,
-) {
-  return createRouter({
-    history,
-    routes,
-  });
+export function createAppRouter() {
+  return createRouter({ history: createWebHashHistory(), routes: APP_ROUTES });
 }

@@ -2,14 +2,13 @@
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import * as monaco from "monaco-editor/editor";
-import "monaco-editor/features/register.all";
-import { installMonacoLucideIcons } from "./monacoLucideIcons";
-
 /**
  * Standalone Monaco does not load editor contributions automatically. Register
  * the supported feature entry point once; Fulvid's document and workspace
  * actions stay in the page and shell layers below.
  */
+import "monaco-editor/features/register.all";
+import { installMonacoLucideIcons } from "./monacoLucideIcons";
 import {
   applyTextEdits,
   formatMarkdown,
@@ -303,8 +302,17 @@ function applyEditorChrome(): void {
   });
 }
 
-function onColorSchemeChange(): void {
-  applyConfiguredMonacoTheme();
+/**
+ * Folder documents get the full language services; standalone and untitled
+ * ones only get frontmatter diagnostics.
+ */
+function attachLanguageServices(model: monaco.editor.ITextModel, rootPath: string | null): void {
+  languageRegistration?.dispose();
+  languageRegistration = rootPath
+    ? registerDocumentLanguage(initializeMonaco(), model, rootPath)
+    : null;
+  frontmatterRegistration?.dispose();
+  frontmatterRegistration = rootPath ? null : registerFrontmatterDiagnostics(model);
 }
 
 function isSuggestWidgetOpen(): boolean {
@@ -376,9 +384,8 @@ function mountEditor(): void {
 
   const api = initializeMonaco();
   ensureDocumentLanguageProviders(api);
-  applyMonacoTheme(settings.value.appearance.theme);
+  applyConfiguredMonacoTheme();
   const monacoTheme = currentMonacoTheme(settings.value.appearance.theme);
-  api.editor.setTheme(monacoTheme);
   editor = api.editor.create(hostRef.value, {
     model: props.model,
     ...monacoEditorPreferences(props.editorSettings),
@@ -449,10 +456,7 @@ function mountEditor(): void {
     queuedRevealPosition = null;
     revealPosition(queued.lineNumber, queued.column);
   }
-  languageRegistration = props.rootPath
-    ? registerDocumentLanguage(api, props.model, props.rootPath)
-    : null;
-  frontmatterRegistration = props.rootPath ? null : registerFrontmatterDiagnostics(props.model);
+  attachLanguageServices(props.model, props.rootPath);
 
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => emit("save"));
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS, () =>
@@ -536,7 +540,7 @@ function mountEditor(): void {
     () => queueMicrotask(applyConfiguredMonacoTheme),
   );
   colorScheme = window.matchMedia("(prefers-color-scheme: light)");
-  colorScheme.addEventListener("change", onColorSchemeChange);
+  colorScheme.addEventListener("change", applyConfiguredMonacoTheme);
 }
 
 watch(
@@ -545,12 +549,7 @@ watch(
     if (editor && editor.getModel() !== model) {
       clearAllExtensionDecorations();
       editor.setModel(model);
-      languageRegistration?.dispose();
-      languageRegistration = props.rootPath
-        ? registerDocumentLanguage(initializeMonaco(), model, props.rootPath)
-        : null;
-      frontmatterRegistration?.dispose();
-      frontmatterRegistration = props.rootPath ? null : registerFrontmatterDiagnostics(model);
+      attachLanguageServices(model, props.rootPath);
       syncAnnotationPresentation();
       queueCommandState();
     }
@@ -563,12 +562,7 @@ watch(
     if (!editor) {
       return;
     }
-    languageRegistration?.dispose();
-    languageRegistration = rootPath
-      ? registerDocumentLanguage(initializeMonaco(), props.model, rootPath)
-      : null;
-    frontmatterRegistration?.dispose();
-    frontmatterRegistration = rootPath ? null : registerFrontmatterDiagnostics(props.model);
+    attachLanguageServices(props.model, rootPath);
   },
 );
 
@@ -795,28 +789,9 @@ function runMarkdownAction(action: MarkdownFormatAction): void {
 
 /** Insert plain text at the primary cursor (or replace the primary selection). */
 function insertTextAtCursor(text: string): void {
-  if (!editor || !text) {
-    return;
+  if (text) {
+    replaceSelectionWith(text, "fulvid-insert-text");
   }
-  const model = editor.getModel();
-  if (!model) {
-    return;
-  }
-  const selection = editor.getSelection();
-  if (!selection) {
-    return;
-  }
-  editor.executeEdits("fulvid-insert-text", [
-    {
-      range: selection,
-      text,
-      forceMoveMarkers: true,
-    },
-  ]);
-  const end = model.getPositionAt(model.getOffsetAt(selection.getStartPosition()) + text.length);
-  editor.setSelection(monaco.Selection.fromPositions(end, end));
-  editor.focus();
-  queueCommandState();
 }
 
 function focus(): void {
@@ -829,16 +804,11 @@ async function runEditorAction(action: "undo" | "redo" | "fold" | "unfold"): Pro
     return;
   }
 
-  if (action === "undo") {
-    await model.undo();
-  } else if (action === "redo") {
-    await model.redo();
-  } else {
-    const monacoAction = editor.getAction(action === "fold" ? "editor.fold" : "editor.unfold");
-    if (monacoAction?.isSupported()) {
-      await monacoAction.run();
-    }
+  if (action === "fold" || action === "unfold") {
+    await runMonacoAction(`editor.${action}`);
+    return;
   }
+  await (action === "undo" ? model.undo() : model.redo());
   queueCommandState();
 }
 
@@ -921,6 +891,11 @@ function getExtensionDocumentContext(): {
  * Undoable Monaco edit - dirty state follows the model.
  */
 function replacePrimarySelection(text: string): boolean {
+  return replaceSelectionWith(text, "fulvid-extension-replace-selection");
+}
+
+/** Replace the primary selection as one undoable edit and leave the caret after it. */
+function replaceSelectionWith(text: string, source: string): boolean {
   if (!editor) {
     return false;
   }
@@ -929,7 +904,7 @@ function replacePrimarySelection(text: string): boolean {
   if (!model || !selection) {
     return false;
   }
-  editor.executeEdits("fulvid-extension-replace-selection", [
+  editor.executeEdits(source, [
     {
       range: selection,
       text,
@@ -1083,7 +1058,7 @@ onBeforeUnmount(() => {
   markdownActions = [];
   disposeBackToTopWidget();
   if (colorScheme) {
-    colorScheme.removeEventListener("change", onColorSchemeChange);
+    colorScheme.removeEventListener("change", applyConfiguredMonacoTheme);
     colorScheme = null;
   }
   resizeObserver?.disconnect();

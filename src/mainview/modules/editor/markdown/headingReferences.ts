@@ -6,15 +6,18 @@
  */
 
 import {
+  markdownDestination,
   parseDocumentLinks,
   resolveDocumentLink,
   type DocumentLink,
   type LinkSyntax,
 } from "../../document/links/documentLink";
 import type { ScannedNote } from "../../workspace/filesystem/workspaceTypes";
+import { offsetToPosition } from "./markdownFormat";
 import {
   findMarkdownHeading,
   headingAnchor,
+  headingMatchesAnchor,
   parseMarkdownStructure,
   type MarkdownHeading,
 } from "./markdownStructure";
@@ -71,7 +74,7 @@ function lineContent(content: string, lineNumber: number): string {
   return raw.endsWith("\r") ? raw.slice(0, -1) : raw;
 }
 
-export function headingTextRange(content: string, heading: MarkdownHeading): TextRange | null {
+function headingTextRange(content: string, heading: MarkdownHeading): TextRange | null {
   const start = lineStartOffset(content, heading.lineNumber);
   const line = lineContent(content, heading.lineNumber);
   const atx = line.match(/^( {0,3}#{1,6}\s+)(.*?)(\s*#*\s*)$/);
@@ -106,19 +109,6 @@ function headingAtLine(content: string, lineNumber: number): MarkdownHeading | n
     return null;
   }
   return headings.find((heading) => heading.lineNumber === lineNumber - 1) ?? null;
-}
-
-function markdownDestination(raw: string): { destStart: number; dest: string } | null {
-  const closeLabel = raw.indexOf("](");
-  if (closeLabel < 0) {
-    return null;
-  }
-  const destStart = closeLabel + 2;
-  const destEnd = raw.lastIndexOf(")");
-  if (destEnd <= destStart) {
-    return null;
-  }
-  return { destStart, dest: raw.slice(destStart, destEnd) };
 }
 
 export function fragmentAnchorRange(link: DocumentLink): TextRange | null {
@@ -206,16 +196,6 @@ export function linkPartAtOffset(
   return inner.trim() ? "document-target" : "other";
 }
 
-function anchorsMatch(heading: MarkdownHeading, anchor: string): boolean {
-  let target: string;
-  try {
-    target = decodeURIComponent(anchor).toLowerCase();
-  } catch {
-    target = anchor.toLowerCase();
-  }
-  return heading.anchor === target || heading.text.toLowerCase() === target;
-}
-
 function headingAnchorIsUnique(content: string, heading: MarkdownHeading): boolean {
   return (
     parseMarkdownStructure(content).headings.filter(
@@ -268,23 +248,12 @@ export function semanticEntityAt(
     return { kind: "fragment", heading, range, link };
   }
 
-  const heading = headingAtLine(content, offsetToLine(content, offset));
+  const heading = headingAtLine(content, offsetToPosition(content, offset).lineNumber);
   const range = heading ? headingTextRange(content, heading) : null;
   if (!heading || !range) {
     return null;
   }
   return { kind: "heading", heading, range };
-}
-
-function offsetToLine(content: string, offset: number): number {
-  let lineNumber = 1;
-  const limit = Math.max(0, Math.min(offset, content.length));
-  for (let index = 0; index < limit; index += 1) {
-    if (content[index] === "\n") {
-      lineNumber += 1;
-    }
-  }
-  return lineNumber;
 }
 
 export function headingForFragmentLink(
@@ -342,7 +311,7 @@ export function collectHeadingReferences(
 
   for (const document of documents) {
     for (const link of parseDocumentLinks(document.content, linkMode)) {
-      if (!link.anchor || !anchorsMatch(heading, link.anchor)) {
+      if (!link.anchor || !headingMatchesAnchor(heading, link.anchor)) {
         continue;
       }
       if (!linkResolvesToHeadingDocument(link, headingDocumentPath, document.path, notes)) {

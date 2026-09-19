@@ -31,11 +31,12 @@ export function isTextEntryTarget(target: EventTarget | null): boolean {
 /** Text fields plus inspector/buttons. Graph and Search keys use this so chrome does not steal them. */
 export function isTypingTarget(target: EventTarget | null): boolean {
   const element = elementLike(target);
-  if (!element || isTextEntryTarget(target)) {
-    return Boolean(element);
+  if (!element) {
+    return false;
   }
 
   return (
+    isTextEntryTarget(target) ||
     closest(element, ".inspector-panel") ||
     element.tagName === "BUTTON" ||
     closest(element, 'button, [role="button"], [role="slider"], [role="radio"], [role="option"]')

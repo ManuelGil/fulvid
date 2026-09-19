@@ -4,7 +4,7 @@
  */
 import { shallowRef } from "vue";
 
-export type FilenamePromptRequest = {
+type FilenamePromptRequest = {
   kind: "filename";
   title: string;
   label: string;
@@ -12,7 +12,7 @@ export type FilenamePromptRequest = {
   resolve: (value: string | null) => void;
 };
 
-export type TextPromptRequest = {
+type TextPromptRequest = {
   kind: "text";
   title: string;
   label: string;
@@ -21,7 +21,7 @@ export type TextPromptRequest = {
   resolve: (value: string | null) => void;
 };
 
-export type ConfirmPromptRequest = {
+type ConfirmPromptRequest = {
   kind: "confirm";
   title?: string;
   message: string;
@@ -32,13 +32,13 @@ export type ConfirmPromptRequest = {
   resolve: (value: boolean) => void;
 };
 
-export type ConfirmDialogOptions = {
+type ConfirmDialogOptions = {
   title?: string;
   confirmLabel?: string;
   initialFocus?: "confirm" | "cancel";
 };
 
-export type QuickOpenPromptRequest = {
+type QuickOpenPromptRequest = {
   kind: "quickOpen";
   resolve: (path: string | null) => void;
 };
@@ -49,14 +49,14 @@ export type PickListItem = {
   detail?: string;
 };
 
-export type PickPromptRequest = {
+type PickPromptRequest = {
   kind: "pick";
   title: string;
   items: readonly PickListItem[];
   resolve: (id: string | null) => void;
 };
 
-export type DialogRequest =
+type DialogRequest =
   | FilenamePromptRequest
   | TextPromptRequest
   | ConfirmPromptRequest
@@ -65,32 +65,19 @@ export type DialogRequest =
 
 export const activeDialog = shallowRef<DialogRequest | null>(null);
 
-function resolvesNullable(
-  dialog: DialogRequest,
-): dialog is
-  FilenamePromptRequest | TextPromptRequest | QuickOpenPromptRequest | PickPromptRequest {
-  return (
-    dialog.kind === "filename" ||
-    dialog.kind === "text" ||
-    dialog.kind === "quickOpen" ||
-    dialog.kind === "pick"
-  );
-}
-
-function dismissCurrentDialog(): void {
-  const current = activeDialog.value;
-  if (!current) {
-    return;
-  }
-  if (resolvesNullable(current)) {
-    current.resolve(null);
+/** Settle a dialog nobody answered: `false` for a confirmation, `null` for every prompt. */
+function resolveDismissed(dialog: DialogRequest): void {
+  if (dialog.kind === "confirm") {
+    dialog.resolve(false);
   } else {
-    current.resolve(false);
+    dialog.resolve(null);
   }
 }
 
 function replaceDialog(next: DialogRequest): void {
-  dismissCurrentDialog();
+  if (activeDialog.value) {
+    resolveDismissed(activeDialog.value);
+  }
   activeDialog.value = next;
 }
 
@@ -131,10 +118,8 @@ export function promptText(options: {
 
 export function confirmDialog(
   message: string,
-  titleOrOptions?: string | ConfirmDialogOptions,
+  options: ConfirmDialogOptions = {},
 ): Promise<boolean> {
-  const options =
-    typeof titleOrOptions === "string" ? { title: titleOrOptions } : (titleOrOptions ?? {});
   return new Promise((resolve) => {
     replaceDialog({
       kind: "confirm",
@@ -178,21 +163,13 @@ export function promptPick(options: {
   });
 }
 
-function closeDialog(): void {
-  activeDialog.value = null;
-}
-
 export function cancelDialog(): void {
   const current = activeDialog.value;
   if (!current) {
     return;
   }
-  closeDialog();
-  if (resolvesNullable(current)) {
-    current.resolve(null);
-  } else {
-    current.resolve(false);
-  }
+  activeDialog.value = null;
+  resolveDismissed(current);
 }
 
 export function submitFilename(value: string): void {
@@ -204,7 +181,7 @@ export function submitFilename(value: string): void {
   if (!trimmed) {
     return;
   }
-  closeDialog();
+  activeDialog.value = null;
   current.resolve(trimmed);
 }
 
@@ -218,7 +195,7 @@ export function submitText(value: string): void {
     return;
   }
   const limited = current.maxLength > 0 ? trimmed.slice(0, current.maxLength) : trimmed;
-  closeDialog();
+  activeDialog.value = null;
   current.resolve(limited);
 }
 
@@ -227,7 +204,7 @@ export function submitConfirm(confirmed: boolean): void {
   if (!current || current.kind !== "confirm") {
     return;
   }
-  closeDialog();
+  activeDialog.value = null;
   current.resolve(confirmed);
 }
 
@@ -240,7 +217,7 @@ export function submitQuickOpen(path: string): void {
   if (!current || current.kind !== "quickOpen" || !path) {
     return;
   }
-  closeDialog();
+  activeDialog.value = null;
   current.resolve(path);
 }
 
@@ -250,6 +227,6 @@ export function submitPick(id: string): void {
   if (!current || current.kind !== "pick") {
     return;
   }
-  closeDialog();
+  activeDialog.value = null;
   current.resolve(id);
 }

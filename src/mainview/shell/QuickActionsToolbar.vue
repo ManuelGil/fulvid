@@ -7,10 +7,7 @@ import ContextMenu, { type ContextMenuAction } from "./ContextMenu.vue";
 import { editorCommandState } from "../modules/editor/editorCommandState";
 import { activeBuffer } from "../modules/editor/document/documentBuffers";
 import { writingFocusActive } from "../modules/editor/writingFocus";
-import {
-  documentAnnotationQuickActionLabelKey,
-  documentAnnotationQuickActionMode,
-} from "../modules/editor/document/documentAnnotations";
+import { documentAnnotationQuickActionLabelKey } from "../modules/editor/document/documentAnnotations";
 import {
   orderQuickActionsInGroup,
   quickActionGroupOrder,
@@ -88,11 +85,7 @@ function localizedLabel(action: QuickActionDefinition): string {
     return t(settings.value.preview.enabled ? "actions.hidePreview" : "actions.preview");
   }
   if (action.id === "annotateDocument") {
-    return t(
-      documentAnnotationQuickActionLabelKey(
-        documentAnnotationQuickActionMode(editorCommandState.value.hasAnnotationAtCursor),
-      ),
-    );
+    return t(documentAnnotationQuickActionLabelKey(editorCommandState.value.hasAnnotationAtCursor));
   }
   if (action.id === "toggleWritingFocus") {
     return t(writingFocusActive.value ? "actions.exitWritingFocus" : "actions.writingFocus");
@@ -100,27 +93,26 @@ function localizedLabel(action: QuickActionDefinition): string {
   return t(action.label);
 }
 
+/** Quick Actions that only make sense with a document open. */
+const DOCUMENT_ACTIONS = new Set<string>([
+  "save",
+  "closeAll",
+  "cut",
+  "copy",
+  "paste",
+  "find",
+  "replace",
+  "annotateDocument",
+]);
+
 function isDisabled(action: QuickActionDefinition): boolean {
-  if (action.id === "save" || action.id === "closeAll") {
-    return !activeBuffer.value;
-  }
   if (action.id === "undo") {
     return !editorCommandState.value.canUndo;
   }
   if (action.id === "redo") {
     return !editorCommandState.value.canRedo;
   }
-  if (
-    action.id === "cut" ||
-    action.id === "copy" ||
-    action.id === "paste" ||
-    action.id === "find" ||
-    action.id === "replace" ||
-    action.id === "annotateDocument"
-  ) {
-    return !activeBuffer.value;
-  }
-  return false;
+  return DOCUMENT_ACTIONS.has(action.id) && !activeBuffer.value;
 }
 
 function ariaPressed(action: QuickActionDefinition): boolean | undefined {
@@ -178,7 +170,8 @@ function measureVisibleActions(): void {
     return;
   }
 
-  let nextCount = quickActions.length;
+  // The largest count that fits, and at least one button.
+  let nextCount = 1;
   for (let count = quickActions.length; count >= 1; count -= 1) {
     const visibleActionsForCount = selectQuickActionsForVisibleCount(quickActions, count);
     const groupActionCounts = quickActionGroupOrder.map(
@@ -203,9 +196,6 @@ function measureVisibleActions(): void {
     if (used <= width) {
       nextCount = count;
       break;
-    }
-    if (count === 1) {
-      nextCount = 1;
     }
   }
   visibleCount.value = Math.min(nextCount, quickActions.length);

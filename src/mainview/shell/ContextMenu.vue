@@ -82,22 +82,8 @@ function focusFirst(): void {
   });
 }
 
-function submenuTriggerBounds(id: string): MenuAnchor | null {
-  const button = itemRefs.get(id);
-  if (!button) {
-    return null;
-  }
-  const bounds = button.getBoundingClientRect();
-  return {
-    left: bounds.left,
-    top: bounds.top,
-    right: bounds.right,
-    bottom: bounds.bottom,
-  };
-}
-
 function openSubmenu(id: string, options?: { focus?: boolean }): void {
-  submenuAnchor.value = submenuTriggerBounds(id);
+  submenuAnchor.value = itemRefs.get(id)?.getBoundingClientRect() ?? null;
   openSubmenuId.value = id;
   submenuAutoFocus.value = options?.focus ?? false;
 }
@@ -210,22 +196,12 @@ function onKeydown(event: KeyboardEvent): void {
         ? lastIndex
         : event.key === "ArrowDown"
           ? Math.min(currentIndex + 1, lastIndex)
-          : Math.max(currentIndex <= 0 ? 0 : currentIndex - 1, 0);
+          : Math.max(currentIndex - 1, 0);
   itemRefs.get(selectable[nextIndex]?.id ?? "")?.focus();
 }
 
-function onPointerDown(event: PointerEvent): void {
-  if (!props.open || isEventInsideAnyMenu(event.target)) {
-    return;
-  }
-  if (event.target instanceof Element && event.target.closest('[role="menubar"]')) {
-    return;
-  }
-  restoreFocusOnClose = false;
-  emit("close");
-}
-
-function onFocusIn(event: FocusEvent): void {
+/** A pointer press or focus move outside every menu (and the menubar) closes this one. */
+function closeOnOutsideInteraction(event: Event): void {
   if (!props.open || isEventInsideAnyMenu(event.target)) {
     return;
   }
@@ -242,8 +218,8 @@ function addDocumentListeners(): void {
   }
   document.addEventListener("keydown", onKeydown);
   if (!props.nested) {
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("pointerdown", closeOnOutsideInteraction);
+    document.addEventListener("focusin", closeOnOutsideInteraction);
   }
   documentListenersActive = true;
 }
@@ -253,33 +229,35 @@ function removeDocumentListeners(): void {
     return;
   }
   document.removeEventListener("keydown", onKeydown);
-  document.removeEventListener("pointerdown", onPointerDown);
-  document.removeEventListener("focusin", onFocusIn);
+  document.removeEventListener("pointerdown", closeOnOutsideInteraction);
+  document.removeEventListener("focusin", closeOnOutsideInteraction);
   documentListenersActive = false;
+}
+
+/** Remember where focus came from, listen for dismissal, and place the menu. */
+function onOpened(): void {
+  restoreFocusOnClose = true;
+  addDocumentListeners();
+  previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  focusFirst();
+  void updateMenuPosition();
 }
 
 watch(
   () => props.open,
   (open) => {
-    if (!open) {
-      openSubmenuId.value = null;
-      submenuAnchor.value = null;
-      submenuAutoFocus.value = false;
-    }
     if (open) {
-      restoreFocusOnClose = true;
-      addDocumentListeners();
-      previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      focusFirst();
-      void updateMenuPosition();
-    } else if (restoreFocusOnClose) {
-      removeDocumentListeners();
-      restoreUsableFocus(previousFocus);
-      previousFocus = null;
-    } else {
-      removeDocumentListeners();
-      previousFocus = null;
+      onOpened();
+      return;
     }
+    openSubmenuId.value = null;
+    submenuAnchor.value = null;
+    submenuAutoFocus.value = false;
+    removeDocumentListeners();
+    if (restoreFocusOnClose) {
+      restoreUsableFocus(previousFocus);
+    }
+    previousFocus = null;
   },
 );
 
@@ -316,11 +294,7 @@ watch(
 
 onMounted(() => {
   if (props.open) {
-    restoreFocusOnClose = true;
-    previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    addDocumentListeners();
-    focusFirst();
-    void updateMenuPosition();
+    onOpened();
   }
 });
 

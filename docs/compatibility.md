@@ -108,4 +108,4 @@ Lua packaged smoke (after packaging on the current OS): `bun run smoke:lua-packa
 - GitHub Releases
 - Snap, AppImage, Flatpak
 - Signing
-- Changing `false && startsWith(github.ref, 'refs/tags/v')`
+- Changing the publish gate (`true`/`false` && `startsWith(github.ref, 'refs/tags/v')`) in `release.yml`

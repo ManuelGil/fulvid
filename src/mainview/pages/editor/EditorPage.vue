@@ -109,7 +109,6 @@ import {
   attachDocumentBuffer,
   activeBuffer,
   closeAllDocuments,
-  closeDocument,
   closeDocumentById,
   getDocumentBuffer,
   getDocumentBufferByAbsolutePath,
@@ -131,6 +130,7 @@ import {
   type SessionChangePreviewPayload,
 } from "../../modules/editor/document/sessionChangeMarkers";
 import SessionChangePreviewPanel from "../../modules/editor/sessionChangePreview/SessionChangePreviewPanel.vue";
+import { trackPointerDrag } from "../../app/pointerDrag";
 import {
   documentLocationFromBuffer,
   showsMainPanelDocumentLocation,
@@ -515,11 +515,8 @@ function onEditorContentChange(): void {
   scheduleDocumentActivationRefresh();
 }
 
-function leaveEditor(): void {
-  if (sessionChangePreview.value) {
-    closeSessionChangePreview();
-    return;
-  }
+/** Move keyboard focus out of Monaco to the editor chrome Writing Focus allows. */
+function focusEditorChrome(): void {
   const target = writingFocusLeaveEditorTarget(openBuffers.value.length > 0);
   if (target === "monaco") {
     monacoHostRef.value?.focus();
@@ -540,27 +537,16 @@ function leaveEditor(): void {
   }
 }
 
+function leaveEditor(): void {
+  if (sessionChangePreview.value) {
+    closeSessionChangePreview();
+    return;
+  }
+  focusEditorChrome();
+}
+
 function restoreEditorChromeFocus(): void {
-  void nextTick(() => {
-    const target = writingFocusLeaveEditorTarget(openBuffers.value.length > 0);
-    if (target === "monaco") {
-      monacoHostRef.value?.focus();
-      return;
-    }
-    if (target === "tabs") {
-      editorTabsRef.value?.focusActiveTab();
-      return;
-    }
-    const emptyAction = document.querySelector<HTMLElement>(".editor-empty-workspace button");
-    if (isUsableFocusTarget(emptyAction)) {
-      emptyAction.focus({ preventScroll: true });
-      return;
-    }
-    const main = document.getElementById("main-content");
-    if (isUsableFocusTarget(main)) {
-      main.focus({ preventScroll: true });
-    }
-  });
+  void nextTick(focusEditorChrome);
 }
 
 watch(writingFocusActive, (active) => {
@@ -728,10 +714,6 @@ function insertTableOfContents(): void {
   host.insertTextAtCursor(toc);
 }
 
-function findInEditor(): void {
-  monacoHostRef.value?.find();
-}
-
 async function annotateAtLine(lineNumber: number, column: number): Promise<void> {
   const host = monacoHostRef.value;
   if (!host) {
@@ -807,20 +789,8 @@ function clearDocumentAnnotationsInEditor(): void {
   notify(t("documentAnnotations.cleared", { count: cleared }));
 }
 
-function replaceInEditor(): void {
-  monacoHostRef.value?.replace();
-}
-
 function runMonacoEditorAction(actionId: string): void {
   void monacoHostRef.value?.runMonacoAction(actionId);
-}
-
-async function undoInEditor(): Promise<void> {
-  await monacoHostRef.value?.runEditorAction("undo");
-}
-
-async function redoInEditor(): Promise<void> {
-  await monacoHostRef.value?.runEditorAction("redo");
 }
 
 function onCommandState(state: EditorCommandState): void {
@@ -873,32 +843,16 @@ function startPreviewResize(event: PointerEvent): void {
   }
   const bounds = row.getBoundingClientRect();
   const vertical = getComputedStyle(row).flexDirection === "column";
-  let cleanup = (): void => {};
-  const onMove = (moveEvent: PointerEvent): void => {
-    const previewRatio = vertical
-      ? (bounds.bottom - moveEvent.clientY) / bounds.height
-      : (bounds.right - moveEvent.clientX) / bounds.width;
-    setPreviewRatio(previewRatio);
-  };
-  const onUp = (): void => {
-    cleanup();
-    if (previewResizeCleanup === cleanup) {
-      previewResizeCleanup = null;
-    }
-  };
-  cleanup = (): void => {
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
-    window.removeEventListener("pointercancel", onUp);
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-  };
-  document.body.style.cursor = previewStacked.value ? "row-resize" : "col-resize";
-  document.body.style.userSelect = "none";
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointercancel", onUp);
-  previewResizeCleanup = cleanup;
+  previewResizeCleanup = trackPointerDrag(
+    previewStacked.value ? "row-resize" : "col-resize",
+    (moveEvent) => {
+      setPreviewRatio(
+        vertical
+          ? (bounds.bottom - moveEvent.clientY) / bounds.height
+          : (bounds.right - moveEvent.clientX) / bounds.width,
+      );
+    },
+  );
 }
 
 function onPreviewResizeKeydown(event: KeyboardEvent): void {
@@ -949,11 +903,7 @@ async function closeEditorDocument(id: string): Promise<void> {
     return;
   }
 
-  const closed =
-    buffer.rootPath && buffer.path
-      ? closeDocument(buffer.rootPath, buffer.path, true)
-      : closeDocumentById(buffer.id, true);
-  if (!closed) {
+  if (!closeDocumentById(buffer.id, true)) {
     return;
   }
 
@@ -1013,8 +963,8 @@ const unregisterCommands = [
   registerCommandHandler("closeDocument", () => void closeEditorDocument(activeId.value ?? "")),
   registerCommandHandler("closeOthers", () => void closeOtherDocuments()),
   registerCommandHandler("closeAll", () => void closeAllEditorDocuments()),
-  registerCommandHandler("undo", undoInEditor),
-  registerCommandHandler("redo", redoInEditor),
+  registerCommandHandler("undo", () => monacoHostRef.value?.runEditorAction("undo")),
+  registerCommandHandler("redo", () => monacoHostRef.value?.runEditorAction("redo")),
   registerCommandHandler("cut", () => runMonacoEditorAction("editor.action.clipboardCutAction")),
   registerCommandHandler("copy", () => runMonacoEditorAction("editor.action.clipboardCopyAction")),
   registerCommandHandler("paste", () =>
@@ -1028,8 +978,8 @@ const unregisterCommands = [
     runMonacoEditorAction("editor.action.copyLinesDownAction"),
   ),
   registerCommandHandler("trimTrailingWhitespace", trimTrailingWhitespaceInEditor),
-  registerCommandHandler("find", findInEditor),
-  registerCommandHandler("replace", replaceInEditor),
+  registerCommandHandler("find", () => monacoHostRef.value?.find()),
+  registerCommandHandler("replace", () => monacoHostRef.value?.replace()),
   registerCommandHandler("findReferences", () =>
     runMonacoEditorAction("editor.action.goToReferences"),
   ),
@@ -1066,10 +1016,7 @@ function closeMenu(): void {
 
 function openMenu(event: MouseEvent, actions: MenuAction[]): void {
   event.preventDefault();
-  menuX.value = event.clientX;
-  menuY.value = event.clientY;
-  menuActions.value = actions;
-  menuOpen.value = true;
+  openMenuAt(event.clientX, event.clientY, actions);
 }
 
 function openMenuAt(x: number, y: number, actions: MenuAction[]): void {
@@ -1088,9 +1035,8 @@ async function runMenuAction(id: string): Promise<void> {
   await action.run();
 }
 
-function onRecentContextMenu(event: MouseEvent, path: string): void {
-  (event.currentTarget as HTMLElement).focus();
-  openMenu(event, [
+function recentWorkspaceActions(path: string): MenuAction[] {
+  return [
     {
       id: "open",
       label: t("actions.open"),
@@ -1106,7 +1052,12 @@ function onRecentContextMenu(event: MouseEvent, path: string): void {
       label: t("menu.copyPath"),
       run: () => copyPath(path),
     },
-  ]);
+  ];
+}
+
+function onRecentContextMenu(event: MouseEvent, path: string): void {
+  (event.currentTarget as HTMLElement).focus();
+  openMenu(event, recentWorkspaceActions(path));
 }
 
 function onRecentContextKeydown(event: KeyboardEvent, path: string): void {
@@ -1115,23 +1066,7 @@ function onRecentContextKeydown(event: KeyboardEvent, path: string): void {
   }
   event.preventDefault();
   const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
-  openMenuAt(bounds.left, bounds.bottom, [
-    {
-      id: "open",
-      label: t("actions.open"),
-      run: () => selectRecentWorkspace(path),
-    },
-    {
-      id: "reveal",
-      label: t("menu.revealInFolder"),
-      run: () => revealPath(path),
-    },
-    {
-      id: "copy",
-      label: t("menu.copyPath"),
-      run: () => copyPath(path),
-    },
-  ]);
+  openMenuAt(bounds.left, bounds.bottom, recentWorkspaceActions(path));
 }
 
 function onPreviewMediaChange(event: MediaQueryListEvent): void {

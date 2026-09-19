@@ -113,10 +113,6 @@ export const COMMAND_ICONS = [
 
 export type CommandIcon = (typeof COMMAND_ICONS)[number];
 
-export function isCommandIcon(value: string): value is CommandIcon {
-  return (COMMAND_ICONS as readonly string[]).includes(value);
-}
-
 export type CommandDefinition = {
   id: CommandId;
   label: string;
@@ -423,7 +419,7 @@ function subgroupRank(action: QuickActionDefinition): number {
 }
 
 /** Toolbar and More-menu order within a group: subgroup, then `order`. */
-export function compareQuickActionsByDisplay(
+function compareQuickActionsByDisplay(
   left: QuickActionDefinition,
   right: QuickActionDefinition,
 ): number {
@@ -438,7 +434,7 @@ export function compareQuickActionsByDisplay(
  * Keep ranking for a button budget: lower tier rank first, then higher
  * `overflowOrder` (sticky) before lower (leave first).
  */
-export function compareQuickActionsByKeepPriority(
+function compareQuickActionsByKeepPriority(
   left: QuickActionDefinition,
   right: QuickActionDefinition,
 ): number {
@@ -466,7 +462,6 @@ export function selectQuickActionsForVisibleCount(
   );
   return actions
     .filter((action) => visibleIds.has(action.id))
-    .slice()
     .sort((left, right) => {
       const groupDelta =
         quickActionGroupOrder.indexOf(left.group) - quickActionGroupOrder.indexOf(right.group);

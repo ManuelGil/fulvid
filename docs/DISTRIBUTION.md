@@ -81,17 +81,17 @@ Maintainer procedures: [github-distribution.md](./github-distribution.md), [linu
 Automatic publication is one boolean on the publish job in `.github/workflows/release.yml`:
 
 ```text
-if: ${{ false && startsWith(github.ref, 'refs/tags/v') }}
+if: ${{ true && startsWith(github.ref, 'refs/tags/v') }}
 ```
 
 The first operand is the enablement gate. GitHub does not allow workflow `env` in a job `if`, so the switch lives there.
 
+- `true`: a `v*` tag creates or updates a GitHub Release (current setting for 1.0.0).
 - `false`: platform jobs still build and upload workflow artifacts. Nothing is published.
-- `true`: a `v*` tag also creates or updates a GitHub Release.
 
 Pull requests and pushes to `main` never publish. Who can create or move `v*` tags is a GitHub repository permission.
 
-A public tag can be attached by hand from workflow artifacts or a local Linux set, using the matching file under [releases/](./releases/) as the body (`v0.12.0.md` for the current published notes; use `vX.Y.Z.md` for the version you are shipping). Do not flip the gate just to finish a documentation pass.
+A public tag can also be attached by hand from workflow artifacts or a local Linux set, using the matching file under [releases/](./releases/) as the body (`v1.0.0.md` for the current release notes; use `vX.Y.Z.md` for the version you are shipping). Do not flip the gate just to finish a documentation pass.
 
 ## Verification
 

@@ -21,7 +21,7 @@ function apply(
 
 // Intent: protect user-visible Markdown edits and multi-cursor undo sets.
 describe("markdown formatting", () => {
-  test("toggles markers without stealing nested emphasis, including multi-cursor edits", () => {
+  test("markdown format toggles emphasis and task lines without corrupting neighbors", () => {
     expect(apply("hello", 0, 5, "italic").text).toBe("*hello*");
     expect(apply("**hello**", 2, 7, "italic").text).toBe("***hello***");
     expect(apply("***hello***", 3, 8, "italic").text).toBe("**hello**");
@@ -37,9 +37,7 @@ describe("markdown formatting", () => {
     );
     expect(applyTextEdits(text, result.edits)).toBe("**one** **two**");
     expect(result.edits).toHaveLength(2);
-  });
 
-  test("toggles task checkboxes without changing non-task lines", () => {
     const mixed = "- [ ] open\n- [x] done\nplain\n* [X] star";
     const toggled = apply(mixed, 0, mixed.length, "toggleTask");
     expect(toggled.text).toBe("- [x] open\n- [ ] done\nplain\n* [ ] star");

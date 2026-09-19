@@ -159,11 +159,7 @@ function closeEngine(engine: LuaEngine | null): void {
  */
 function luaListArgument(value: unknown): unknown[] | null {
   if (Array.isArray(value)) {
-    const list: unknown[] = [];
-    for (const entry of value) {
-      list.push(entry);
-    }
-    return list;
+    return [...(value as unknown[])];
   }
   if (typeof value !== "object" || value === null) {
     return null;
@@ -432,25 +428,19 @@ export async function loadLuaExtensionPack(
     } catch {
       throw new LuaExtensionLoadError(`missing entry file: ${manifest.entry}`);
     }
-    if (!entryStat.isFile() || entryStat.size > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
-      throw new LuaExtensionLoadError(
-        entryStat.isFile()
-          ? "entry.lua exceeds size limit"
-          : `entry is not a file: ${manifest.entry}`,
-      );
+    if (!entryStat.isFile()) {
+      throw new LuaExtensionLoadError(`entry is not a file: ${manifest.entry}`);
+    }
+    if (entryStat.size > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
+      throw new LuaExtensionLoadError("entry.lua exceeds size limit");
     }
 
     const source = await readFile(entryPath, "utf8");
-    if (
-      Buffer.byteLength(source, "utf8") > LUA_EXTENSION_LIMITS.maxSourceBytes.value ||
-      source.startsWith("\u001bLua") ||
-      source.includes("\0")
-    ) {
-      throw new LuaExtensionLoadError(
-        source.startsWith("\u001bLua") || source.includes("\0")
-          ? "bytecode entry is not allowed"
-          : "entry.lua exceeds size limit",
-      );
+    if (source.startsWith("\u001bLua") || source.includes("\0")) {
+      throw new LuaExtensionLoadError("bytecode entry is not allowed");
+    }
+    if (Buffer.byteLength(source, "utf8") > LUA_EXTENSION_LIMITS.maxSourceBytes.value) {
+      throw new LuaExtensionLoadError("entry.lua exceeds size limit");
     }
 
     let engine: LuaEngine | null = null;

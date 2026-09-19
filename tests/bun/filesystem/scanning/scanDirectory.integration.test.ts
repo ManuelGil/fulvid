@@ -9,7 +9,7 @@ import {
   scanWorkspace,
 } from "../../../../src/bun/filesystem/scanning/scanDirectory";
 import { filesystemErrorMessage } from "../../../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
-import { linkDirectory } from "../../../support/platform";
+import { linkDirectory, reservedDeviceNamesAreCreatable } from "../../../support/platform";
 
 async function makeWorkspace(): Promise<string> {
   return mkdtemp(join(tmpdir(), "fulvid-explorer-"));
@@ -61,6 +61,9 @@ describe("filesystem Explorer listing and scan", () => {
       await expect(listWorkspaceEntries(linkedRoot, "link")).rejects.toThrow(
         filesystemErrorMessage("outsideFolder"),
       );
+      // Walk must also refuse to follow the link into outside notes.
+      const linkedScan = await scanWorkspace(linkedRoot);
+      expect(linkedScan.scannedNotes).toEqual([]);
     } finally {
       await rm(base, { recursive: true, force: true });
     }
@@ -163,4 +166,30 @@ describe("filesystem Explorer listing and scan", () => {
       await rm(skippedOnlyRoot, { recursive: true, force: true });
     }
   });
+});
+
+// Intent: the Explorer only offers documents that document I/O can actually open.
+// Growth boundary: add a case only for a new class of name containment refuses.
+describe("scan and containment agree on names", () => {
+  test.if(reservedDeviceNamesAreCreatable)(
+    "omits entries whose names every document operation refuses",
+    async () => {
+      const root = await makeWorkspace();
+      try {
+        await writeFile(join(root, "ok.md"), "# ok\n", "utf8");
+        await writeFile(join(root, "CON.md"), "# reserved\n", "utf8");
+        await writeFile(join(root, "CON.tar.md"), "# reserved too\n", "utf8");
+        await mkdir(join(root, "AUX"), { recursive: true });
+        await writeFile(join(root, "AUX", "inner.md"), "# unreachable\n", "utf8");
+
+        const scan = await scanWorkspace(root, { includeHidden: true, linkMode: "markdown" });
+        expect(scan.scannedNotes.map((note) => note.path)).toEqual(["ok.md"]);
+
+        const entries = await listWorkspaceEntries(root, "", { includeHidden: true });
+        expect(entries.map((entry) => entry.name)).toEqual(["ok.md"]);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
 });

@@ -8,8 +8,6 @@ import { computed } from "vue";
 
 import { APP_ICONS, type IconName } from "./appIcons";
 
-export type { IconName };
-
 const props = withDefaults(
   defineProps<{
     name: IconName;

@@ -94,11 +94,6 @@ function applyConfiguredDefaultEol(model: MonacoModel): void {
   setModelEol(model, configuredDefaultEol(initializeMonaco()));
 }
 
-/** Keep the live model's EOL when recreating a model (Save As / rename). */
-function preserveModelEol(model: MonacoModel, previous: MonacoEndOfLineSequence): void {
-  setModelEol(model, previous);
-}
-
 /**
  * Toggle LF and CRLF on the live model. Undoable, marks dirty, writes only on Save.
  */
@@ -259,6 +254,14 @@ async function createBuffer(
   return buffer;
 }
 
+/** Signal Vue and schedule change markers whenever the model's text changes. */
+function trackModelChanges(model: MonacoModel, changeVersion: Ref<number>): monaco.IDisposable {
+  return model.onDidChangeContent(() => {
+    changeVersion.value += 1;
+    scheduleSessionChangeMarkers(model);
+  });
+}
+
 function createPersistedBuffer(options: {
   absolutePath: string;
   content: string;
@@ -290,10 +293,7 @@ function createPersistedBuffer(options: {
     savedVersionId: model.getAlternativeVersionId(),
     mtimeMs: options.mtimeMs,
     changeVersion,
-    contentDisposable: model.onDidChangeContent(() => {
-      changeVersion.value += 1;
-      scheduleSessionChangeMarkers(model);
-    }),
+    contentDisposable: trackModelChanges(model, changeVersion),
   };
   // Baseline matches the live model after silent EOL setup so LF/CRLF alone
   // cannot look like a content change.
@@ -363,11 +363,9 @@ export async function restoreUntitledDrafts(): Promise<void> {
       select: false,
     });
   }
-  if (buffers.value.length > 0) {
-    const last = buffers.value[buffers.value.length - 1];
-    if (last) {
-      selectDocument(last.id);
-    }
+  const last = buffers.value.at(-1);
+  if (last) {
+    selectDocument(last.id);
   }
 }
 
@@ -408,7 +406,7 @@ export function selectDocument(id: DocumentId): boolean {
  * later writes use the grant token, not a folder-relative RPC.
  */
 export type DocumentOpenRequest =
-  | ({ kind: "virtual" } & { reveal?: DocumentRevealPosition; content?: string })
+  | { kind: "virtual"; reveal?: DocumentRevealPosition; content?: string }
   | {
       kind: "workspace";
       rootPath: string;
@@ -699,7 +697,7 @@ function reidentifyAsPersisted(
       throw new LocalizedError(i18n.global.t("workspace.saveConflict"));
     }
     existing.model.setValue(buffer.model.getValue());
-    preserveModelEol(existing.model, buffer.model.getEndOfLineSequence());
+    setModelEol(existing.model, buffer.model.getEndOfLineSequence());
     existing.savedVersionId = isCurrentVersionSaved
       ? existing.model.getAlternativeVersionId()
       : FORCE_DIRTY_SAVED_VERSION_ID;
@@ -723,12 +721,9 @@ function reidentifyAsPersisted(
     languageForPath(absolutePath),
     api.Uri.file(absolutePath),
   );
-  preserveModelEol(model, previousEol);
+  setModelEol(model, previousEol);
   const changeVersion = buffer.changeVersion;
-  const contentDisposable = model.onDidChangeContent(() => {
-    changeVersion.value += 1;
-    scheduleSessionChangeMarkers(model);
-  });
+  const contentDisposable = trackModelChanges(model, changeVersion);
   const nextBuffer: DocumentBuffer = {
     ...buffer,
     id: `file:${absolutePath}`,
@@ -830,9 +825,6 @@ async function saveAsDocumentNow(
       contentOnDisk,
       saveAsOutcome.mtimeMs,
     );
-    if (isAbandonedBuffer(buffer)) {
-      return { result: saveAsOutcome, buffer };
-    }
     savedMtimeMs = rewritten.mtimeMs;
     versionCapturedOnDisk = versionAtRewrite;
   }
@@ -913,25 +905,22 @@ export function renameDocumentBuffer(
     return;
   }
 
-  const api = initializeMonaco();
   if (!buffer.rootPath) {
     return;
   }
+  const api = initializeMonaco();
   const wasDirty = isDocumentDirty(buffer);
   const wasActive = activeId.value === buffer.id;
   const previousEol = buffer.model.getEndOfLineSequence();
-  const absolutePath = `${buffer.rootPath.replace(/[\\/]+$/, "")}/${nextPath.replace(/\\/g, "/")}`;
+  const absolutePath = workspaceAbsolutePath(buffer.rootPath, nextPath);
   const model = api.editor.createModel(
     buffer.model.getValue(),
     languageForPath(nextPath),
     api.Uri.file(absolutePath),
   );
-  preserveModelEol(model, previousEol);
+  setModelEol(model, previousEol);
   const changeVersion = buffer.changeVersion;
-  const contentDisposable = model.onDidChangeContent(() => {
-    changeVersion.value += 1;
-    scheduleSessionChangeMarkers(model);
-  });
+  const contentDisposable = trackModelChanges(model, changeVersion);
 
   // Old buffer object leaves the open set; abandon it so a queued save cannot
   // write the previous path after identity moves to renamedBuffer.
@@ -975,14 +964,8 @@ export function closeDocumentById(id: DocumentId, force = false): boolean {
   return closeDocumentBuffer(getDocumentBufferById(id), force);
 }
 
-function closeDocumentBuffer(buffer: DocumentBuffer | null, force: boolean): boolean {
-  if (!buffer) {
-    return true;
-  }
-  if (!force && isDocumentDirty(buffer)) {
-    return false;
-  }
-
+/** Release a closed tab's model and recovery draft. */
+function disposeClosedBuffer(buffer: DocumentBuffer): void {
   // Stop queued saves that have not started; in-flight writes still finish but
   // must not mutate this disposed buffer afterward.
   abandonedWrites.add(buffer);
@@ -993,6 +976,17 @@ function closeDocumentBuffer(buffer: DocumentBuffer | null, force: boolean): boo
   disposeSessionChangeMarkers(buffer.model);
   buffer.contentDisposable.dispose();
   buffer.model.dispose();
+}
+
+function closeDocumentBuffer(buffer: DocumentBuffer | null, force: boolean): boolean {
+  if (!buffer) {
+    return true;
+  }
+  if (!force && isDocumentDirty(buffer)) {
+    return false;
+  }
+
+  disposeClosedBuffer(buffer);
   const currentIndex = buffers.value.indexOf(buffer);
   const replacement =
     (currentIndex >= 0
@@ -1015,14 +1009,7 @@ export function closeAllDocuments(force = false): boolean {
 
   invalidatePendingWorkspaceOpens();
   for (const buffer of buffers.value) {
-    // Same as single close: stop queued saves and ignore in-flight buffer updates.
-    abandonedWrites.add(buffer);
-    if (buffer.kind === "virtual") {
-      forgetUntitledDraft(buffer.id);
-    }
-    disposeSessionChangeMarkers(buffer.model);
-    buffer.contentDisposable.dispose();
-    buffer.model.dispose();
+    disposeClosedBuffer(buffer);
     if (buffer.path) {
       clearFocusForDocument(buffer.path);
     }

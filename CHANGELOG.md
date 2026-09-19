@@ -9,6 +9,26 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-19
+
+First stable release of Fulvid.
+
+### Added
+
+- **Graph keyboard scope**: application shortcuts for Graph apply across the main content stage (`#main-content`), not only the canvas workbench, so keys still work after Context closes and focus returns to main.
+- **Settings category keyboard navigation**: arrow keys move between Settings categories while keeping focus management predictable.
+- **GitHub Sponsors**: Settings -> About can open the project Sponsors page in the system browser.
+
+### Changed
+
+- Focus restoration and keyboard focus-visible treatment for Inspector, Preview, and Session Change Preview when those surfaces open or close.
+- Settings category and search wording for clearer Editor and Interface navigation.
+
+### Fixed
+
+- Folder scan does not follow symbolic links or junctions out of the open Folder.
+- Document create/save names refuse trailing spaces and reserved device stems more consistently across platforms.
+
 ## [0.12.0] - 2026-09-18
 
 ### Added
@@ -170,7 +190,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/ManuelGil/fulvid/releases/tag/v1.0.0
 [0.12.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.12.0
 [0.11.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.11.0
 [0.10.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.10.0

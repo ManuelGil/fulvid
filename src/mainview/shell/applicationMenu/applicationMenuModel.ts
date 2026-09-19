@@ -50,6 +50,10 @@ export type ApplicationMenuState = {
   canRedo: boolean;
 };
 
+/** Which live state a checkable menu command reflects. */
+type MenuCheckedState =
+  "preview" | "leftSidebar" | "rightSidebar" | "statusbar" | "writingFocus" | "documentAnnotations";
+
 export type ApplicationMenuNode =
   | { type: "separator"; id: string }
   | {
@@ -59,13 +63,7 @@ export type ApplicationMenuNode =
       shortcut?: string;
       accelerator?: string;
       availability: MenuAvailability;
-      checked?:
-        | "preview"
-        | "leftSidebar"
-        | "rightSidebar"
-        | "statusbar"
-        | "writingFocus"
-        | "documentAnnotations";
+      checked?: MenuCheckedState;
     }
   | {
       type: "role";
@@ -157,35 +155,20 @@ export function menuItemEnabled(
 }
 
 function checkedFor(
-  key:
-    | "preview"
-    | "leftSidebar"
-    | "rightSidebar"
-    | "statusbar"
-    | "writingFocus"
-    | "documentAnnotations"
-    | undefined,
+  key: MenuCheckedState | undefined,
   state: ApplicationMenuState,
 ): boolean | undefined {
-  if (key === "preview") {
-    return state.previewEnabled;
+  if (!key) {
+    return undefined;
   }
-  if (key === "leftSidebar") {
-    return state.leftSidebarOpen;
-  }
-  if (key === "rightSidebar") {
-    return state.rightSidebarOpen;
-  }
-  if (key === "statusbar") {
-    return state.statusbarEnabled;
-  }
-  if (key === "writingFocus") {
-    return state.writingFocus;
-  }
-  if (key === "documentAnnotations") {
-    return state.documentAnnotationsVisible;
-  }
-  return undefined;
+  return {
+    preview: state.previewEnabled,
+    leftSidebar: state.leftSidebarOpen,
+    rightSidebar: state.rightSidebarOpen,
+    statusbar: state.statusbarEnabled,
+    writingFocus: state.writingFocus,
+    documentAnnotations: state.documentAnnotationsVisible,
+  }[key];
 }
 
 function commandLabel(id: CommandId, label: string, state: ApplicationMenuState): string {
@@ -761,6 +744,8 @@ export function presentedMenuAction(item: PresentedMenuItem): string | null {
   return null;
 }
 
+const APPENDED_MENU_TARGETS = new Set(["edit", "view", "navigate", "help"]);
+
 /**
  * Place loaded extension actions into existing Fulvid menus.
  * Presentation only - no Extensions top-level menu; invalid targets never appear.
@@ -778,7 +763,6 @@ export function integrateExtensionActionsIntoMenus(
   const byTarget = new Map<string, PresentedMenuItem[]>();
   const sortable = commands
     .filter((command) => command.menu && !command.documentAction)
-    .slice()
     .sort((a, b) => (a.order ?? 1000) - (b.order ?? 1000) || a.title.localeCompare(b.title));
 
   for (const command of sortable) {
@@ -811,47 +795,22 @@ export function integrateExtensionActionsIntoMenus(
         items: insertIntoSubmenu(menu.items, "new", additions),
       };
     }
-    if (menu.id === "edit") {
-      const additions = byTarget.get("edit");
-      if (!additions?.length) {
-        return menu;
-      }
-      return {
-        ...menu,
-        items: appendWithSeparator(menu.items, additions, "edit-extension-actions"),
-      };
+    // Every other target is a top-level menu of the same id.
+    if (!APPENDED_MENU_TARGETS.has(menu.id)) {
+      return menu;
     }
-    if (menu.id === "view") {
-      const additions = byTarget.get("view");
-      if (!additions?.length) {
-        return menu;
-      }
-      return {
-        ...menu,
-        items: appendWithSeparator(menu.items, additions, "view-extension-actions"),
-      };
+    const additions = byTarget.get(menu.id);
+    if (!additions?.length) {
+      return menu;
     }
-    if (menu.id === "navigate") {
-      const additions = byTarget.get("navigate");
-      if (!additions?.length) {
-        return menu;
-      }
-      return {
-        ...menu,
-        items: appendWithSeparator(menu.items, additions, "navigate-extension-actions"),
-      };
-    }
-    if (menu.id === "help") {
-      const additions = byTarget.get("help");
-      if (!additions?.length) {
-        return menu;
-      }
-      return {
-        ...menu,
-        items: appendWithSeparator(menu.items, additions, "help-extension-actions"),
-      };
-    }
-    return menu;
+    return {
+      ...menu,
+      items: [
+        ...menu.items,
+        { type: "separator", id: `${menu.id}-extension-actions` },
+        ...additions,
+      ],
+    };
   });
 }
 
@@ -873,12 +832,4 @@ function insertIntoSubmenu(
       ],
     };
   });
-}
-
-function appendWithSeparator(
-  items: readonly PresentedMenuItem[],
-  additions: readonly PresentedMenuItem[],
-  separatorId: string,
-): PresentedMenuItem[] {
-  return [...items, { type: "separator", id: separatorId }, ...additions];
 }

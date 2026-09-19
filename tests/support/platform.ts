@@ -29,3 +29,18 @@ export async function linkDirectory(target: string, linkPath: string): Promise<v
  * are skipped on Windows and say so.
  */
 export const posixModeBitsDenyAccess = process.platform !== "win32";
+
+/**
+ * Whether the filesystem will create entries Windows reserves for devices.
+ *
+ * `CON.md` and a directory named `AUX` cannot exist on Windows: the Win32 path
+ * parser resolves those names to the console and printer devices whatever the
+ * extension, so `mkdir`/`writeFile` never produce a directory entry. A test
+ * that needs such an entry on disk can only run where one can be created.
+ *
+ * The refusal itself is not Linux-only and is not skipped anywhere: the pure
+ * name rules are asserted on every platform in the workspacePaths suite. What
+ * this gates is the provocation - proving discovery and document I/O agree
+ * about an entry that, on Windows, the OS prevents from existing at all.
+ */
+export const reservedDeviceNamesAreCreatable = process.platform !== "win32";

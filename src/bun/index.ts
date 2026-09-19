@@ -28,6 +28,7 @@ import { invokeLuaExtensionCommand } from "./extensions/lua/luaExtensionRuntime"
 import { loadWindowFrame, saveWindowFrame } from "./windowBounds";
 import { canPersistWindowFrame, toggleNativeFullScreen } from "./windowFullScreen";
 import { setNativeWindowTitle } from "./windowTitle";
+import { sponsor as APP_SPONSOR } from "../../package.json";
 
 async function pickExtensionSourceDirectory(): Promise<string | null> {
   const chosenPaths = await Utils.openFileDialog({
@@ -69,6 +70,11 @@ const mainWindowHolder: {
   window?: InstanceType<typeof BrowserWindow>;
 } = {};
 
+/** Extension ids arrive from the renderer; bound them before any lookup. */
+function isExtensionIdParam(id: unknown): id is string {
+  return typeof id === "string" && id.length > 0 && id.length <= 256;
+}
+
 const mainRPC = BrowserView.defineRPC<DesktopRPC>({
   maxRequestTime: 50_000,
   handlers: {
@@ -85,7 +91,7 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
         return installExtensionFromDirectory(selectedPath);
       },
       uninstallExtensionPack: async ({ id }) => {
-        if (typeof id !== "string" || id.length === 0 || id.length > 256) {
+        if (!isExtensionIdParam(id)) {
           return {
             status: "error" as const,
             reason: "invalid extension id",
@@ -95,13 +101,13 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
         return uninstallExtensionPack(id);
       },
       allowBlockedExtension: async ({ id }) => {
-        if (typeof id !== "string" || id.length === 0 || id.length > 256) {
+        if (!isExtensionIdParam(id)) {
           return getDiscoveredExtensions();
         }
         return loadAllowedBlockedExtension(id);
       },
       revealExtensionPack: ({ id }) => {
-        if (typeof id !== "string" || id.length === 0 || id.length > 256) {
+        if (!isExtensionIdParam(id)) {
           return false;
         }
         const path = resolveInstalledExtensionPath(id);
@@ -119,6 +125,7 @@ const mainRPC = BrowserView.defineRPC<DesktopRPC>({
       toggleWindowFullScreen: () =>
         mainWindowHolder.window ? toggleNativeFullScreen(mainWindowHolder.window) : false,
       setWindowTitle: ({ title }) => setNativeWindowTitle(mainWindowHolder.window, title),
+      openSponsorPage: () => Utils.openExternal(APP_SPONSOR.url),
     },
     messages: {},
   },
@@ -136,12 +143,10 @@ const url = await getMainViewUrl();
 installNativeApplicationMenu((action) => {
   mainRPC.send.applicationMenuClicked({ action });
 });
-const frame = loadWindowFrame();
-
 mainWindowHolder.window = new BrowserWindow({
   title: "Fulvid",
   url,
-  frame,
+  frame: loadWindowFrame(),
   rpc: mainRPC,
 });
 

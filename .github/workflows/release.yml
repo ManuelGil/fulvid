@@ -480,10 +480,10 @@ jobs:
   publish:
     name: Publish GitHub Release
     needs: [linux, windows, macos]
-    # RELEASE_ENABLED: the first operand below. Default false (build, do not publish).
+    # RELEASE_ENABLED: the first operand below. true = publish on version tags.
     # GitHub does not allow workflow env in jobs.<id>.if, so the switch lives here.
-    # Enable automatic publication by changing false to true. Do not gate on version numbers.
-    if: ${{ false && startsWith(github.ref, 'refs/tags/v') }}
+    # Set to false to build without publishing. Do not gate on version numbers.
+    if: ${{ true && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

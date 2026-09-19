@@ -6,6 +6,7 @@
  */
 
 import type { LinkSyntax } from "../../document/links/documentLink";
+import { fenceMatches } from "./markdownStructure";
 
 export type MarkdownFormatAction =
   | "bold"
@@ -37,6 +38,9 @@ type TextEdit = OffsetRange & {
 type MarkdownFormatOptions = {
   linkMode?: LinkSyntax;
 };
+
+/** One selection's edit, with the new selection relative to the edit's start. */
+type FormattedSelection = { edit: TextEdit; selectStart: number; selectEnd: number };
 
 type MarkdownFormatResult = {
   edits: TextEdit[];
@@ -79,7 +83,7 @@ export function formatMarkdown(
 ): MarkdownFormatResult {
   const normalized = normalizeSelections(text, selections);
   const edits: TextEdit[] = [];
-  const formatted: { edit: TextEdit; selectStart: number; selectEnd: number }[] = [];
+  const formatted: FormattedSelection[] = [];
 
   for (const selection of normalized) {
     const next = formatOne(text, selection, action, options);
@@ -143,7 +147,7 @@ function formatOne(
   selection: OffsetRange,
   action: MarkdownFormatAction,
   options: MarkdownFormatOptions,
-): { edit: TextEdit; selectStart: number; selectEnd: number } {
+): FormattedSelection {
   switch (action) {
     case "bold":
       return wrapInline(text, selection, "**", false);
@@ -184,7 +188,7 @@ function wrapInline(
   selection: OffsetRange,
   marker: string,
   italic: boolean,
-): { edit: TextEdit; selectStart: number; selectEnd: number } {
+): FormattedSelection {
   const selected = text.slice(selection.start, selection.end);
   if (
     selected.startsWith(marker) &&
@@ -238,17 +242,21 @@ function isWrappedBy(
   return tripleWrapped || !boldWrapped;
 }
 
-function transformLines(
-  text: string,
-  selection: OffsetRange,
-  transform: (lines: string[]) => string[],
-): { edit: TextEdit; selectStart: number; selectEnd: number } {
-  const blockStart = lineStartOffset(text, selection.start);
+/** The whole lines a selection touches; a selection ending on a newline stops before it. */
+function selectedLineBlock(text: string, selection: OffsetRange): OffsetRange {
   const exclusiveEnd =
     selection.end > selection.start && text[selection.end - 1] === "\n"
       ? selection.end - 1
       : selection.end;
-  const blockEnd = lineEndOffset(text, exclusiveEnd);
+  return { start: lineStartOffset(text, selection.start), end: lineEndOffset(text, exclusiveEnd) };
+}
+
+function transformLines(
+  text: string,
+  selection: OffsetRange,
+  transform: (lines: string[]) => string[],
+): FormattedSelection {
+  const { start: blockStart, end: blockEnd } = selectedLineBlock(text, selection);
   const block = text.slice(blockStart, blockEnd);
   const next = transform(block.split("\n")).join("\n");
   return makeTextReplacement(blockStart, blockEnd, next, 0, next.length);
@@ -323,17 +331,11 @@ function listKind(line: string): "bullet" | "numbered" | "checklist" | null {
 }
 
 function parseListLine(line: string): { indent: string; body: string } {
-  const checklist = line.match(CHECKLIST_RE);
-  if (checklist) {
-    return { indent: checklist[1] ?? "", body: checklist[2] ?? "" };
-  }
-  const numbered = line.match(NUMBERED_RE);
-  if (numbered) {
-    return { indent: numbered[1] ?? "", body: numbered[2] ?? "" };
-  }
-  const bullet = line.match(BULLET_RE);
-  if (bullet) {
-    return { indent: bullet[1] ?? "", body: bullet[2] ?? "" };
+  for (const pattern of [CHECKLIST_RE, NUMBERED_RE, BULLET_RE]) {
+    const match = line.match(pattern);
+    if (match) {
+      return { indent: match[1] ?? "", body: match[2] ?? "" };
+    }
   }
   const indent = line.match(/^(\s*)/)?.[1] ?? "";
   return { indent, body: line.slice(indent.length) };
@@ -352,37 +354,23 @@ function outdentLine(line: string): string {
   return line;
 }
 
-function wrapFence(
-  text: string,
-  selection: OffsetRange,
-): { edit: TextEdit; selectStart: number; selectEnd: number } {
-  const blockStart = lineStartOffset(text, selection.start);
-  const exclusiveEnd =
-    selection.end > selection.start && text[selection.end - 1] === "\n"
-      ? selection.end - 1
-      : selection.end;
-  const blockEnd = lineEndOffset(text, exclusiveEnd);
+function wrapFence(text: string, selection: OffsetRange): FormattedSelection {
+  const { start: blockStart, end: blockEnd } = selectedLineBlock(text, selection);
   const block = text.slice(blockStart, blockEnd);
   const lines = block.split("\n");
   const first = lines[0] ?? "";
   const last = lines[lines.length - 1] ?? "";
   const open = first.match(FENCE_RE)?.[1];
   const close = last.match(FENCE_RE)?.[1];
-  if (lines.length >= 2 && open && close && open[0] === close[0] && close.length >= open.length) {
+  if (lines.length >= 2 && open && close && fenceMatches(open, close)) {
     const inner = lines.slice(1, -1).join("\n");
     return makeTextReplacement(blockStart, blockEnd, inner, 0, inner.length);
   }
-  const inner = block;
-  const next = `\`\`\`\n${inner}\n\`\`\``;
-  const selectStart = 4;
-  const selectEnd = 4 + inner.length;
-  return makeTextReplacement(blockStart, blockEnd, next, selectStart, selectEnd);
+  const next = `\`\`\`\n${block}\n\`\`\``;
+  return makeTextReplacement(blockStart, blockEnd, next, 4, 4 + block.length);
 }
 
-function insertHorizontalRule(
-  text: string,
-  selection: OffsetRange,
-): { edit: TextEdit; selectStart: number; selectEnd: number } {
+function insertHorizontalRule(text: string, selection: OffsetRange): FormattedSelection {
   const currentStart = lineStartOffset(text, selection.start);
   const currentEnd = lineEndOffset(text, selection.start);
   const line = text.slice(currentStart, currentEnd);
@@ -398,7 +386,7 @@ function insertReference(
   selection: OffsetRange,
   action: "link" | "image",
   linkMode: LinkSyntax,
-): { edit: TextEdit; selectStart: number; selectEnd: number } {
+): FormattedSelection {
   const selected = text.slice(selection.start, selection.end);
   if (linkMode === "wikilink") {
     const wrapped = action === "image" ? `![[${selected}]]` : `[[${selected}]]`;
@@ -435,7 +423,7 @@ function makeTextReplacement(
   text: string,
   selectStart: number,
   selectEnd: number,
-): { edit: TextEdit; selectStart: number; selectEnd: number } {
+): FormattedSelection {
   return {
     edit: { start, end, text },
     selectStart,

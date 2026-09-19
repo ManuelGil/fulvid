@@ -513,15 +513,17 @@ $monochrome-tokens: (
   --ui-text-scale: 1;
   --ui-icon-scale: 1;
   // Named chrome type ramp: Monaco's document typography stays independent.
-  --font-size-micro: calc(10px * var(--ui-text-scale));
-  --font-size-caption: calc(11px * var(--ui-text-scale));
-  --font-size-label: calc(12px * var(--ui-text-scale));
-  --font-size-control: calc(13px * var(--ui-text-scale));
-  --font-size-body: calc(14px * var(--ui-text-scale));
-  --font-size-lead: calc(15px * var(--ui-text-scale));
-  --font-size-section: calc(18px * var(--ui-text-scale));
-  --font-size-title: calc(20px * var(--ui-text-scale));
-  --font-size-display: calc(26px * var(--ui-text-scale));
+  // Recalibrated so normal interface scale reads comfortably; ~1-2px steps
+  // keep hierarchy without inflating desktop-editor density.
+  --font-size-micro: calc(11px * var(--ui-text-scale));
+  --font-size-caption: calc(13px * var(--ui-text-scale));
+  --font-size-label: calc(14px * var(--ui-text-scale));
+  --font-size-control: calc(15px * var(--ui-text-scale));
+  --font-size-body: calc(16px * var(--ui-text-scale));
+  --font-size-lead: calc(17px * var(--ui-text-scale));
+  --font-size-section: calc(20px * var(--ui-text-scale));
+  --font-size-title: calc(23px * var(--ui-text-scale));
+  --font-size-display: calc(30px * var(--ui-text-scale));
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;

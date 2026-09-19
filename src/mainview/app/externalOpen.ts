@@ -16,33 +16,9 @@
 import { desktopRequest } from "../desktop/electrobunClient";
 import type { ResolvedExternalOpen } from "../desktop/externalOpen";
 import { notify } from "./notify";
-import { relativeDocumentPath, selectRecentWorkspace, workspace } from "./workspaceState";
-import { openOrActivate } from "../modules/editor/document/documentBuffers";
+import { openGrantedSnapshot, selectRecentWorkspace } from "./workspaceState";
 import { describeFilesystemError } from "../modules/workspace/filesystem/workspaceScanner";
 import { filesystemErrorMessage } from "../modules/workspace/filesystem/workspaceErrors";
-
-async function applyFolder(resolved: Extract<ResolvedExternalOpen, { kind: "folder" }>) {
-  // The same path a recent folder takes: re-authorize, then load. The host
-  // approved this root a moment ago, so the re-authorization succeeds without
-  // the renderer ever being the authority for it.
-  await selectRecentWorkspace(resolved.rootPath);
-}
-
-async function applyFile(resolved: Extract<ResolvedExternalOpen, { kind: "file" }>) {
-  // Attach to the open folder when the document lives inside it, so it behaves
-  // like a folder document rather than a standalone one - exactly what the
-  // Open dialog does with its own snapshot.
-  const rootPath = workspace.value?.path ?? null;
-  const attachment =
-    rootPath && resolved.snapshot.absolutePath
-      ? relativeDocumentPath(rootPath, resolved.snapshot.absolutePath)
-      : null;
-  await openOrActivate({
-    kind: "granted",
-    snapshot: resolved.snapshot,
-    ...(attachment && rootPath ? { attachment: { rootPath, path: attachment } } : {}),
-  });
-}
 
 /**
  * Drain and apply everything the host is holding.
@@ -66,7 +42,10 @@ export async function applyPendingExternalOpens(): Promise<{ openedFolder: boole
   for (const resolved of resolvedRequests) {
     try {
       if (resolved.kind === "folder") {
-        await applyFolder(resolved);
+        // The same path a recent folder takes: re-authorize, then load. The host
+        // approved this root a moment ago, so the re-authorization succeeds
+        // without the renderer ever being the authority for it.
+        await selectRecentWorkspace(resolved.rootPath);
         openedFolder = true;
       }
     } catch (error) {
@@ -77,7 +56,8 @@ export async function applyPendingExternalOpens(): Promise<{ openedFolder: boole
   for (const resolved of resolvedRequests) {
     try {
       if (resolved.kind === "file") {
-        await applyFile(resolved);
+        // Exactly what the Open dialog does with its own snapshot.
+        await openGrantedSnapshot(resolved.snapshot);
       } else if (resolved.kind === "rejected") {
         // A request Fulvid refused is said out loud. Silently ignoring one
         // leaves the person watching an app that opened nothing.

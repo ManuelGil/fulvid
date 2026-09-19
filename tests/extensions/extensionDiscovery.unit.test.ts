@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
   configureExtensionDiscovery,
@@ -9,38 +8,15 @@ import {
   resetExtensionDiscoveryForTests,
 } from "../../src/bun/extensions/discoverExtensions.ts";
 import { namespacedExtensionCommandId } from "../../src/mainview/extensions/extensionManifest.ts";
-import { luaManifest } from "./manifestTestHelpers.ts";
+import { luaManifest, tempExtensionRoot, writeExtensionPack } from "./manifestTestHelpers.ts";
 import {
   configureExtensionHostActions,
-  discoveredExtensions,
   listExtensionCommands,
   resetExtensionRegistryForTests,
   runExtensionCommand,
   setDiscoveredExtensions,
 } from "../../src/mainview/extensions/extensionRegistry.ts";
 import { invokeLuaExtensionCommand } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
-
-async function tempExtensionsRoot(label: string): Promise<string> {
-  const root = join(tmpdir(), `fulvid-ext-${label}-${crypto.randomUUID()}`);
-  await mkdir(root, { recursive: true });
-  return root;
-}
-
-async function writePack(
-  root: string,
-  id: string,
-  manifest: unknown,
-  files: Record<string, string> = {},
-): Promise<void> {
-  const pack = join(root, id);
-  await mkdir(pack, { recursive: true });
-  await writeFile(join(pack, "manifest.json"), JSON.stringify(manifest, null, 2));
-  for (const [relative, content] of Object.entries(files)) {
-    const target = join(pack, relative);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, content);
-  }
-}
 
 const notifyLua = `
 commands.register({
@@ -59,25 +35,27 @@ afterEach(() => {
 
 describe("extension discovery", () => {
   test("empty root; loads valid packs and isolates id mismatch / malformed neighbors", async () => {
-    const emptyRoot = await tempExtensionsRoot("empty");
+    const emptyRoot = await tempExtensionRoot("empty");
     configureExtensionDiscovery(join(emptyRoot, "userData"));
     const empty = await discoverExtensions();
     expect(empty.loaded).toEqual([]);
     expect(empty.failed).toEqual([]);
 
-    const userData = join(await tempExtensionsRoot("iso"), "userData");
+    const userData = join(await tempExtensionRoot("iso"), "userData");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
-    await writePack(extensions, "test.good", luaManifest("test.good"), { "entry.lua": notifyLua });
-    await writePack(
+    await writeExtensionPack(extensions, "test.good", luaManifest("test.good"), {
+      "entry.lua": notifyLua,
+    });
+    await writeExtensionPack(
       extensions,
       "test.bad",
       luaManifest("test.bad", ["filesystem"], { entry: undefined }),
     );
-    await writePack(extensions, "test.also-good", luaManifest("test.also-good"), {
+    await writeExtensionPack(extensions, "test.also-good", luaManifest("test.also-good"), {
       "entry.lua": notifyLua.replace('"ok"', '"also"'),
     });
-    await writePack(
+    await writeExtensionPack(
       extensions,
       "test.second",
       luaManifest("test.first", ["lua", "commands", "ui"], { version: "2.0.0" }),
@@ -86,7 +64,9 @@ describe("extension discovery", () => {
     await mkdir(join(extensions, "test.missing"), { recursive: true });
     await mkdir(join(extensions, "test.malformed"), { recursive: true });
     await writeFile(join(extensions, "test.malformed", "manifest.json"), "{not-json");
-    await writePack(extensions, "test.ok", luaManifest("test.ok"), { "entry.lua": notifyLua });
+    await writeExtensionPack(extensions, "test.ok", luaManifest("test.ok"), {
+      "entry.lua": notifyLua,
+    });
 
     configureExtensionDiscovery(userData);
     const result = await discoverExtensions();
@@ -103,11 +83,11 @@ describe("extension discovery", () => {
   });
 
   test("rejects entry path traversal outside the pack", async () => {
-    const userData = join(await tempExtensionsRoot("escape"), "userData");
+    const userData = join(await tempExtensionRoot("escape"), "userData");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
     await writeFile(join(extensions, "secret.lua"), "print(1)\n");
-    await writePack(extensions, "test.escape", {
+    await writeExtensionPack(extensions, "test.escape", {
       ...luaManifest("test.escape", ["lua", "commands", "ui"], { entry: "../secret.lua" }),
     });
 
@@ -121,23 +101,14 @@ describe("extension discovery", () => {
 });
 
 describe("lua host actions", () => {
-  test("notify and createUntitled queue through host bridges without shipped packs", async () => {
-    const userData = join(await tempExtensionsRoot("bridge"), "userData");
+  // Notify-only host bridge is covered by editor capability tests; this keeps
+  // discovery -> runExtensionCommand -> createUntitled as one observable path.
+  test("createUntitled queues through the host after discovery", async () => {
+    const userData = join(await tempExtensionRoot("bridge"), "userData");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
 
-    await writePack(extensions, "test.bridge-notify", luaManifest("test.bridge-notify"), {
-      "entry.lua": `
-commands.register({
-  id = "ping",
-  title = "Ping",
-  run = function()
-    ui.notify("bridge ok")
-  end
-})
-`,
-    });
-    await writePack(
+    await writeExtensionPack(
       extensions,
       "test.bridge-untitled",
       luaManifest("test.bridge-untitled", ["lua", "commands", "ui", "document"]),
@@ -157,10 +128,7 @@ commands.register({
 
     configureExtensionDiscovery(userData);
     const discovered = await discoverExtensions();
-    expect(discovered.loaded.map((pack) => pack.id).sort()).toEqual([
-      "test.bridge-notify",
-      "test.bridge-untitled",
-    ]);
+    expect(discovered.loaded.map((pack) => pack.id)).toEqual(["test.bridge-untitled"]);
     setDiscoveredExtensions(discovered);
 
     const notifications: string[] = [];
@@ -174,18 +142,12 @@ commands.register({
     });
 
     expect(
-      await runExtensionCommand(namespacedExtensionCommandId("test.bridge-notify", "ping")),
-    ).toBe(true);
-    expect(notifications).toEqual(["bridge ok"]);
-
-    expect(
       await runExtensionCommand(namespacedExtensionCommandId("test.bridge-untitled", "note")),
     ).toBe(true);
     expect(untitledBodies).toEqual(["# Note\n"]);
-    expect(notifications).toEqual(["bridge ok", "created"]);
+    expect(notifications).toEqual(["created"]);
     expect(listExtensionCommands().every((command) => command.namespacedId.includes("."))).toBe(
       true,
     );
-    expect(discoveredExtensions.value.loaded).toHaveLength(2);
   });
 });

@@ -241,7 +241,7 @@ const {
   selectDocument,
   restoreUntitledDrafts,
 } = await import("../../../../../src/mainview/modules/editor/document/documentBuffers.ts");
-const { activeId, clearSessionDocuments } =
+const { activeId, clearSessionDocuments, smallestAvailableUntitledNumber, untitledNumberFromId } =
   await import("../../../../../src/mainview/modules/editor/document/documentSession.ts");
 const { bindFocusToWorkspace, clearFocusState, currentFocus } =
   await import("../../../../../src/mainview/modules/workspace/focus/focusState");
@@ -431,7 +431,7 @@ describe("document buffers", () => {
     await awaitAllBufferWrites();
   });
 
-  test("close during Save As dialog does not reidentify the abandoned buffer", async () => {
+  test("abandoned async save races cannot reidentify buffers or clear replacement dirty state", async () => {
     const untitled = createUntitledDocument("# draft\n");
     const untitledId = untitled.id;
 
@@ -440,20 +440,18 @@ describe("document buffers", () => {
       releaseDialog = resolve;
     });
 
-    const saving = saveAsDocument(untitled, "draft.md", "md");
+    const savingAs = saveAsDocument(untitled, "draft.md", "md");
     await Promise.resolve();
     expect(closeDocumentById(untitledId, true)).toBe(true);
     expect(openBuffers.value.find((buffer) => buffer.id === untitledId)).toBeUndefined();
 
     releaseDialog();
-    const outcome = await saving;
+    const outcome = await savingAs;
     expect(outcome.result.status).toBe("saved");
     // Abandoned buffer must not return as a reidentified open tab.
     expect(openBuffers.value).toHaveLength(0);
     expect(outcome.buffer.id).toBe(untitledId);
-  });
 
-  test("abandoned in-flight save cannot clear dirty state on a replacement buffer", async () => {
     bindFocusToWorkspace("/workspace");
     const original = await openDocument("/workspace", "race.md");
     original.model.setValue("# v1");
@@ -480,21 +478,7 @@ describe("document buffers", () => {
     expect(lastWrittenContent).toBe("# v1");
   });
 
-  test("untitled numbering reuses the smallest available presentation number", () => {
-    const first = createUntitledDocument();
-    const second = createUntitledDocument();
-    const third = createUntitledDocument();
-    expect(first.title).toBe("Untitled 1");
-    expect(second.title).toBe("Untitled 2");
-    expect(third.title).toBe("Untitled 3");
-
-    expect(closeDocumentById(second.id, true)).toBe(true);
-    const reused = createUntitledDocument();
-    expect(reused.title).toBe("Untitled 2");
-    expect(reused.id).toBe("untitled:2");
-  });
-
-  test("creating an untitled schedules draft recovery and discard removes it", () => {
+  test("draft recovery schedules, clears, restores numbered tabs, and fails closed on empty or broken storage", async () => {
     const untitled = createUntitledDocument("# notes\n");
     expect(draftPuts.some((entry) => entry.content === "# notes\n")).toBe(true);
     const recoveryId = draftPuts[0]?.recoveryId;
@@ -502,24 +486,20 @@ describe("document buffers", () => {
 
     expect(closeDocumentById(untitled.id, false)).toBe(false);
     expect(draftDeletes).toEqual([]);
-    expect(openBuffers.value).toHaveLength(1);
-
     expect(closeDocumentById(untitled.id, true)).toBe(true);
     expect(draftDeletes).toEqual([recoveryId]);
-  });
 
-  test("successful Save As removes the untitled draft recovery entry", async () => {
-    const untitled = createUntitledDocument("# save me\n");
-    const recoveryId = draftPuts[0]?.recoveryId;
-    expect(recoveryId).toBeTruthy();
-
-    const outcome = await saveAsDocument(untitled, "saved.md", "md");
+    draftPuts.length = 0;
+    draftDeletes.length = 0;
+    const toSave = createUntitledDocument("# save me\n");
+    const saveRecoveryId = draftPuts[0]?.recoveryId;
+    const outcome = await saveAsDocument(toSave, "saved.md", "md");
     expect(outcome.result.status).toBe("saved");
     expect(outcome.buffer.kind).toBe("persisted");
-    expect(draftDeletes).toContain(recoveryId);
-  });
+    expect(draftDeletes).toContain(saveRecoveryId);
 
-  test("restoreUntitledDrafts opens recovered content with numbered titles", async () => {
+    closeAllDocuments(true);
+    changeMarkerCalls.bind.length = 0;
     listedDrafts = [
       { recoveryId: "keep-a", content: "# Alice\n", updatedAt: 1 },
       { recoveryId: "keep-b", content: "# Bob\n", updatedAt: 2 },
@@ -527,34 +507,32 @@ describe("document buffers", () => {
     await restoreUntitledDrafts();
     expect(openBuffers.value).toHaveLength(2);
     expect(openBuffers.value[0]?.model.getValue()).toBe("# Alice\n");
-    expect(openBuffers.value[1]?.model.getValue()).toBe("# Bob\n");
-    expect(openBuffers.value[0]?.title).toBe("Untitled 1");
     expect(openBuffers.value[1]?.title).toBe("Untitled 2");
-    expect(openBuffers.value.every((buffer) => buffer.kind === "virtual")).toBe(true);
-  });
+    expect(changeMarkerCalls.bind.some((entry) => entry.content === "# Alice\n")).toBe(true);
 
-  test("restoreUntitledDrafts tolerates empty recovery storage", async () => {
+    closeAllDocuments(true);
     listedDrafts = [];
     await restoreUntitledDrafts();
     expect(openBuffers.value).toHaveLength(0);
-  });
 
-  test("IndexedDB list failure does not break restore or untitled creation", async () => {
     listDraftsShouldFail = true;
     await restoreUntitledDrafts();
     expect(openBuffers.value).toHaveLength(0);
-    const untitled = createUntitledDocument("# still works\n");
-    expect(untitled.model.getValue()).toBe("# still works\n");
-    expect(untitled.kind).toBe("virtual");
+    const stillWorks = createUntitledDocument("# still works\n");
+    expect(stillWorks.model.getValue()).toBe("# still works\n");
+    expect(stillWorks.kind).toBe("virtual");
   });
 
-  test("recovered untitled binds change-marker baseline to restored content", async () => {
-    listedDrafts = [{ recoveryId: "keep-a", content: "hello world", updatedAt: 1 }];
-    await restoreUntitledDrafts();
-    expect(changeMarkerCalls.bind.some((entry) => entry.content === "hello world")).toBe(true);
+  test("assigns smallest available Untitled numbers and parses untitled ids only", () => {
+    expect(smallestAvailableUntitledNumber([])).toBe(1);
+    expect(smallestAvailableUntitledNumber([1, 3])).toBe(2);
+    expect(smallestAvailableUntitledNumber([2, 3])).toBe(1);
+    expect(untitledNumberFromId("untitled:12")).toBe(12);
+    expect(untitledNumberFromId("file:/tmp/note.md")).toBeNull();
+    expect(untitledNumberFromId("untitled:0")).toBeNull();
   });
 
-  test("successful save resets change-marker baseline; failed save does not", async () => {
+  test("change markers reset on successful save and dispose on close", async () => {
     bindFocusToWorkspace("/workspace");
     const buffer = await openDocument("/workspace", "note.md");
     changeMarkerCalls.reset.length = 0;
@@ -569,9 +547,7 @@ describe("document buffers", () => {
     };
     await expect(saveDocument(buffer)).rejects.toThrow("operationFailed");
     expect(changeMarkerCalls.reset).toEqual([]);
-  });
 
-  test("closing a document disposes change-marker state", () => {
     const untitled = createUntitledDocument("# x\n");
     const disposeBefore = changeMarkerCalls.dispose;
     expect(closeDocumentById(untitled.id, true)).toBe(true);

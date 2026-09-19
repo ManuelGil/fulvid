@@ -5,12 +5,7 @@ export type MenuAnchor = {
   bottom: number;
 };
 
-export type MenuSize = {
-  width: number;
-  height: number;
-};
-
-export type ViewportBox = {
+type Size = {
   width: number;
   height: number;
 };
@@ -25,8 +20,8 @@ function clamp(value: number, min: number, max: number): number {
 
 export function placeContextMenu(
   anchor: MenuAnchor,
-  size: MenuSize,
-  viewport: ViewportBox,
+  size: Size,
+  viewport: Size,
   placement: MenuPlacement,
   margin = 8,
 ): { left: number; top: number } {

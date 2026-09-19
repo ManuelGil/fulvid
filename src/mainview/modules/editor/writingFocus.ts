@@ -35,7 +35,7 @@ export function writingFocusLeaveEditorTarget(
 export const WRITING_FOCUS_KEPT_SELECTORS = [
   ".monaco-editor",
   ".editor-empty-workspace",
-  ".markdown-preview",
+  ".preview-pane",
   "[data-application-menu]",
   ".quick-actions",
   ".app-sidebar",

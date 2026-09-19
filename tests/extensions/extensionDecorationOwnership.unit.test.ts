@@ -17,7 +17,7 @@ import {
 } from "../../src/mainview/extensions/decorationCapability.ts";
 
 describe("extension-owned decoration appearance", () => {
-  test("rejects CSS escapes; ranges require style XOR appearance", () => {
+  test("decoration parse rejects injection; apply maps closed styles and distinct appearance classes", () => {
     expect(parseDecorationColor("#d29922")).toEqual({ ok: true, color: "#d29922" });
     expect(parseDecorationColor("rgba(255, 123, 114, 0.35)").ok).toBe(true);
     expect(parseDecorationColor("url(https://evil)").ok).toBe(false);
@@ -60,9 +60,7 @@ describe("extension-owned decoration appearance", () => {
       parseExtensionDecorationRanges([{ startLine: 1, startColumn: 1, endLine: 1, endColumn: 4 }])
         .ok,
     ).toBe(false);
-  });
 
-  test("appearance and closed styles map to distinct host class names", () => {
     resetExtensionAppearanceStylesForTests();
     const gold = {
       startLine: 1,

@@ -19,7 +19,7 @@ import {
   filesystemErrorMessage,
   type FilesystemErrorCode,
 } from "../../../mainview/modules/workspace/filesystem/workspaceErrors";
-import { RESERVED_DEVICE_NAMES } from "../../../mainview/modules/workspace/filesystem/workspaceTypes";
+import { isReservedDeviceName } from "../../../mainview/modules/workspace/filesystem/workspaceTypes";
 
 /** Longest relative path accepted from the renderer. */
 const MAX_RELATIVE_PATH_LENGTH = 1024;
@@ -54,8 +54,6 @@ export function hasControlCharacters(value: string): boolean {
   return false;
 }
 
-export { RESERVED_DEVICE_NAMES };
-
 /** Characters illegal in Windows path segments (includes ADS `:`). */
 const WINDOWS_ILLEGAL_SEGMENT_CHARS = /[<>:"|?*]/;
 
@@ -70,8 +68,7 @@ export function isUnsafePathSegment(segment: string): boolean {
   if (WINDOWS_ILLEGAL_SEGMENT_CHARS.test(segment)) {
     return true;
   }
-  const stem = segment.includes(".") ? segment.slice(0, segment.lastIndexOf(".")) : segment;
-  return stem !== "" && RESERVED_DEVICE_NAMES.has(stem.toLowerCase());
+  return isReservedDeviceName(segment);
 }
 
 /**

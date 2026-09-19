@@ -22,7 +22,7 @@ export function trailingWhitespaceOnLine(
   lineContent: string,
 ): { startColumn: number; endColumn: number } | null {
   const match = TRAILING_RE.exec(lineContent);
-  if (!match || match.index === undefined) {
+  if (!match) {
     return null;
   }
   return {
@@ -42,14 +42,9 @@ export function collectTrailingWhitespaceSpans(
   const spans: TrailingWhitespaceSpan[] = [];
   for (let lineNumber = 1; lineNumber <= lineCount; lineNumber += 1) {
     const span = trailingWhitespaceOnLine(lineAt(lineNumber));
-    if (!span) {
-      continue;
+    if (span) {
+      spans.push({ lineNumber, ...span });
     }
-    spans.push({
-      lineNumber,
-      startColumn: span.startColumn,
-      endColumn: span.endColumn,
-    });
   }
   return spans;
 }
@@ -57,12 +52,9 @@ export function collectTrailingWhitespaceSpans(
 /** Delete trailing runs from a plain string (LF or CRLF). Pure helper for tests. */
 export function trimTrailingWhitespaceInText(text: string): string {
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
-  const endsWithEol = text.endsWith("\r\n") || text.endsWith("\n");
-  const lines = text.split(/\r?\n/);
-  const trimmed = lines.map((line) => line.replace(TRAILING_RE, ""));
-  const joined = trimmed.join(eol);
-  if (endsWithEol && !joined.endsWith(eol)) {
-    return `${joined}${eol}`;
-  }
-  return joined;
+  // A final line ending splits off an empty last line, so the join keeps it.
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.replace(TRAILING_RE, ""))
+    .join(eol);
 }

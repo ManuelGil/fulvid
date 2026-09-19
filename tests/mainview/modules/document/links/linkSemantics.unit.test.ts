@@ -41,28 +41,14 @@ function note(
   };
 }
 
-function linkedNotes(count: number, linksPerNote: number): ScannedNote[] {
-  return Array.from({ length: count }, (_, index) => ({
-    path: `n${index}.md`,
-    name: `n${index}.md`,
+function indexedNote(index: number): ScannedNote {
+  return note(`n${index}.md`, [], {
     title: `Title ${index}`,
     aliases: [`alias-${index}`],
-    documentLinks: Array.from({ length: linksPerNote }, (_, offset) => ({
-      syntax: "markdown" as const,
-      raw: `[x](n${(index + offset) % count}.md)`,
-      target: `n${(index + offset) % count}.md`,
-      range: { start: 0, end: 0 },
-    })),
-    tags: [],
-    categories: [],
-    projects: [],
-    summary: "",
-    words: 0,
-  }));
+  });
 }
 
 // Intent: protect resolved-edge and graph semantics at the pure-logic boundary.
-// Prefer index correctness over wall-clock scale when choosing coverage.
 describe("link semantics", () => {
   beforeEach(() => {
     setDocumentLinkSettings({ linkMode: "wikilink", resolution: "both" });
@@ -72,7 +58,7 @@ describe("link semantics", () => {
     setDocumentLinkSettings({ linkMode: "markdown", resolution: "both" });
   });
 
-  test("resolves edges by linkMode, depth, and de-duplication without self or missing links", () => {
+  test("link graph and indexing resolve consistently under mode, depth, and ambiguity", () => {
     const notes = [note("a.md", ["b"]), note("b.md", ["c"]), note("c.md")];
     expect(buildFocusGraph("a.md", notes, 1)).toEqual({
       focusPath: "a.md",
@@ -111,28 +97,25 @@ describe("link semantics", () => {
       referencedBy: ["a.md"],
     });
     expect(unresolvedDocumentLinks(noisy[0], noisy)).toEqual(["missing"]);
-  });
 
-  test("indexing resolves the same note a scan would, with first-wins duplicates and unique candidates", () => {
-    const notes = linkedNotes(50, 1);
-
-    expect(resolveDocumentPath("n7.md", notes, "both").path).toBe("n7.md");
-    expect(resolveDocumentPath("n7.md", notes, "both").reason).toBe("exact-path");
-    expect(resolveDocumentPath("n7", notes, "both").reason).toBe("stem");
-    expect(resolveDocumentPath("alias-9", notes, "both").path).toBe("n9.md");
-    expect(resolveDocumentPath("Title 11", notes, "both").path).toBe("n11.md");
-    expect(resolveDocumentPath("nothing-here", notes, "both").path).toBeNull();
+    const indexed = [0, 7, 9, 11].map(indexedNote);
+    expect(resolveDocumentPath("n7.md", indexed, "both").path).toBe("n7.md");
+    expect(resolveDocumentPath("n7.md", indexed, "both").reason).toBe("exact-path");
+    expect(resolveDocumentPath("n7", indexed, "both").reason).toBe("stem");
+    expect(resolveDocumentPath("alias-9", indexed, "both").path).toBe("n9.md");
+    expect(resolveDocumentPath("Title 11", indexed, "both").path).toBe("n11.md");
+    expect(resolveDocumentPath("nothing-here", indexed, "both").path).toBeNull();
 
     const duplicated: ScannedNote[] = [
-      { ...notes[0], path: "first.md", name: "first.md", title: "Shared", aliases: ["dup"] },
-      { ...notes[1], path: "second.md", name: "second.md", title: "Shared", aliases: ["dup"] },
+      { ...indexed[0], path: "first.md", name: "first.md", title: "Shared", aliases: ["dup"] },
+      { ...indexed[1], path: "second.md", name: "second.md", title: "Shared", aliases: ["dup"] },
     ];
     expect(resolveDocumentPath("Shared", duplicated, "both").path).toBe("first.md");
     expect(resolveDocumentPath("dup", duplicated, "both").path).toBe("first.md");
     expect(resolveDocumentPath("Shared", duplicated, "both").alsoMatches).toEqual(["second.md"]);
     expect(resolveDocumentPath("dup", duplicated, "both").alsoMatches).toEqual(["second.md"]);
 
-    const before = linkedNotes(3, 0);
+    const before = [0, 1, 2].map(indexedNote);
     expect(resolveDocumentPath("Title 1", before, "both").path).toBe("n1.md");
     const after = before.map((entry) => ({ ...entry, path: `moved/${entry.path}` }));
     expect(resolveDocumentPath("Title 1", after, "both").path).toBe("moved/n1.md");

@@ -4,21 +4,11 @@
  * Catalog is static metadata for discoverability only. Preference values stay
  * in settingsStore. Matching uses the currently visible locale strings.
  */
-
-export type SettingsSearchCategory =
-  | "general"
-  | "editor"
-  | "appearance"
-  | "markdown"
-  | "preview"
-  | "workspace"
-  | "extensions"
-  | "accessibility"
-  | "keyboard";
+import { SETTINGS_CATEGORIES, type SettingsCategory } from "./settingsCategoryNav";
 
 export type SettingsSearchEntry = {
   readonly id: string;
-  readonly category: SettingsSearchCategory;
+  readonly category: SettingsCategory;
   readonly labelKey: string;
   readonly hintKey?: string;
   /** Locale-stable aliases when the translated label alone is a poor query target. */
@@ -27,254 +17,281 @@ export type SettingsSearchEntry = {
 
 export type SettingsSearchHit = {
   readonly id: string;
-  readonly category: SettingsSearchCategory;
+  readonly category: SettingsCategory;
   readonly label: string;
   readonly hint: string;
   readonly categoryLabel: string;
 };
 
-export const SETTINGS_SEARCH_CATEGORY_LABEL: Readonly<Record<SettingsSearchCategory, string>> = {
-  general: "settings.general",
-  editor: "settings.editor",
-  appearance: "settings.appearance",
-  markdown: "settings.markdown",
-  preview: "settings.preview",
-  workspace: "settings.workspace",
-  extensions: "settings.extensions",
-  accessibility: "settings.accessibility",
-  keyboard: "settings.keyboard",
-};
-
 /**
  * One row per focusable preference (or read-only Settings target).
- * Order is the default result order after rank ties.
+ * Entry `id` values are stable DOM anchors (`data-settings-id`).
  */
 export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   {
     id: "general.locale",
-    category: "general",
+    category: "language",
     labelKey: "settings.locale",
     hintKey: "settings.localeHint",
     terms: ["language", "idioma", "i18n"],
   },
   {
     id: "general.reset",
-    category: "general",
+    category: "about",
     labelKey: "settings.resetToDefaults",
     hintKey: "settings.resetToDefaultsHint",
     terms: ["defaults", "restore"],
   },
   {
-    id: "general.about",
-    category: "general",
-    labelKey: "settings.about",
-    hintKey: "settings.aboutDescription",
-    terms: ["version", "license"],
-  },
-  {
     id: "editor.fontSize",
-    category: "editor",
+    category: "editorText",
     labelKey: "settings.editorFontSize",
     hintKey: "settings.editorFontSizeHint",
   },
   {
     id: "editor.fontFamily",
-    category: "editor",
+    category: "editorText",
     labelKey: "settings.editorFontFamily",
     hintKey: "settings.editorFontFamilyHint",
   },
   {
     id: "editor.lineHeight",
-    category: "editor",
+    category: "editorText",
     labelKey: "settings.editorLineHeight",
     hintKey: "settings.editorLineHeightHint",
   },
   {
     id: "editor.tabSize",
-    category: "editor",
+    category: "editing",
     labelKey: "settings.editorTabSize",
     hintKey: "settings.editorTabSizeHint",
   },
   {
-    id: "editor.defaultEol",
-    category: "editor",
-    labelKey: "settings.editorDefaultEol",
-    hintKey: "settings.editorDefaultEolHint",
-    terms: ["eol", "lf", "crlf", "line endings"],
-  },
-  {
     id: "editor.insertSpaces",
-    category: "editor",
+    category: "editing",
     labelKey: "settings.editorInsertSpaces",
     hintKey: "settings.editorInsertSpacesHint",
   },
   {
     id: "editor.autoIndent",
-    category: "editor",
+    category: "editing",
     labelKey: "settings.editorAutoIndent",
     hintKey: "settings.editorAutoIndentHint",
   },
   {
     id: "editor.wordWrap",
-    category: "editor",
+    category: "editing",
     labelKey: "settings.editorWordWrap",
     hintKey: "settings.editorWordWrapHint",
   },
   {
+    id: "editor.defaultEol",
+    category: "files",
+    labelKey: "settings.editorDefaultEol",
+    hintKey: "settings.editorDefaultEolHint",
+    terms: ["eol", "lf", "crlf", "line endings"],
+  },
+  {
+    id: "editor.trimTrailingWhitespaceOnSave",
+    category: "files",
+    labelKey: "settings.trimTrailingWhitespaceOnSave",
+    hintKey: "settings.trimTrailingWhitespaceOnSaveHint",
+    terms: ["trailing", "trim", "whitespace", "espacios"],
+  },
+  {
+    id: "markdown.defaultExtension",
+    category: "files",
+    labelKey: "settings.defaultExtension",
+    hintKey: "settings.defaultExtensionHint",
+    terms: ["mdx", ".md", "extension"],
+  },
+  {
     id: "editor.lineNumbers",
-    category: "editor",
+    category: "editorDisplay",
     labelKey: "settings.editorLineNumbers",
     hintKey: "settings.editorLineNumbersHint",
   },
   {
+    id: "editor.showSessionChanges",
+    category: "editorDisplay",
+    labelKey: "settings.showSessionChanges",
+    hintKey: "settings.showSessionChangesHint",
+    terms: ["session change", "marker", "before", "preview"],
+  },
+  {
+    id: "editor.showDocumentAnnotations",
+    category: "editorDisplay",
+    labelKey: "settings.showDocumentAnnotations",
+    hintKey: "settings.showDocumentAnnotationsHint",
+  },
+  {
     id: "editor.minimap",
-    category: "editor",
+    category: "editorDisplay",
     labelKey: "settings.editorMinimap",
     hintKey: "settings.editorMinimapHint",
     terms: ["minimap", "minimapa"],
   },
   {
     id: "editor.stickyScroll",
-    category: "editor",
+    category: "editorDisplay",
     labelKey: "settings.editorStickyScroll",
     hintKey: "settings.editorStickyScrollHint",
   },
   {
     id: "editor.whitespace",
-    category: "editor",
+    category: "editorDisplay",
     labelKey: "settings.editorWhitespace",
     hintKey: "settings.editorWhitespaceHint",
   },
   {
-    id: "editor.trimTrailingWhitespaceOnSave",
-    category: "editor",
-    labelKey: "settings.trimTrailingWhitespaceOnSave",
-    hintKey: "settings.trimTrailingWhitespaceOnSaveHint",
-    terms: ["trailing", "trim", "whitespace", "espacios"],
-  },
-  {
-    id: "editor.readingStatistics",
-    category: "editor",
-    labelKey: "settings.readingStatistics",
-    hintKey: "settings.readingStatisticsHint",
-    terms: ["word count", "reading time"],
-  },
-  {
     id: "editor.typewriterScrolling",
-    category: "editor",
+    category: "writing",
     labelKey: "settings.typewriterScrolling",
     hintKey: "settings.typewriterScrollingHint",
   },
   {
-    id: "editor.documentLocation",
-    category: "editor",
-    labelKey: "settings.documentLocation",
-    hintKey: "settings.documentLocationHint",
-  },
-  {
     id: "editor.markdownFormatBar",
-    category: "editor",
+    category: "writing",
     labelKey: "settings.markdownFormatBar",
     hintKey: "settings.markdownFormatBarHint",
   },
   {
-    id: "editor.showDocumentAnnotations",
-    category: "editor",
-    labelKey: "settings.showDocumentAnnotations",
-    hintKey: "settings.showDocumentAnnotationsHint",
-  },
-  {
-    id: "editor.showSessionChanges",
-    category: "editor",
-    labelKey: "settings.showSessionChanges",
-    hintKey: "settings.showSessionChangesHint",
-    terms: ["session change", "marker", "before", "preview"],
-  },
-  {
     id: "appearance.theme",
-    category: "appearance",
+    category: "theme",
     labelKey: "settings.theme",
     hintKey: "settings.themeHint",
     terms: ["dark", "light", "system", "contrast"],
   },
   {
     id: "appearance.interfaceTextSize",
-    category: "appearance",
+    category: "interface",
     labelKey: "settings.interfaceTextSize",
     hintKey: "settings.interfaceTextSizeHint",
   },
   {
     id: "appearance.iconSize",
-    category: "appearance",
+    category: "interface",
     labelKey: "settings.interfaceIconSize",
     hintKey: "settings.interfaceIconSizeHint",
   },
   {
     id: "appearance.density",
-    category: "appearance",
+    category: "interface",
     labelKey: "settings.density",
     hintKey: "settings.densityHint",
   },
   {
+    id: "editor.documentLocation",
+    category: "interface",
+    labelKey: "settings.documentLocation",
+    hintKey: "settings.documentLocationHint",
+  },
+  {
+    id: "accessibility.reducedMotion",
+    category: "accessibility",
+    labelKey: "settings.reducedMotion",
+    hintKey: "settings.reducedMotionHint",
+    terms: ["motion", "animation", "accessibility"],
+  },
+  {
     id: "appearance.statusbarEnabled",
-    category: "appearance",
+    category: "statusbar",
     labelKey: "settings.statusbarEnabled",
     hintKey: "settings.statusbarEnabledHint",
   },
   {
     id: "appearance.statusbar.document",
-    category: "appearance",
+    category: "statusbar",
     labelKey: "settings.statusbarDocument",
     hintKey: "settings.statusbarDocumentHint",
   },
   {
     id: "appearance.statusbar.language",
-    category: "appearance",
+    category: "statusbar",
     labelKey: "settings.statusbarLanguage",
     hintKey: "settings.statusbarLanguageHint",
   },
   {
     id: "appearance.statusbar.linkMode",
-    category: "appearance",
+    category: "statusbar",
     labelKey: "settings.statusbarLinkMode",
     hintKey: "settings.statusbarLinkModeHint",
   },
   {
     id: "appearance.statusbar.workspace",
-    category: "appearance",
+    category: "statusbar",
     labelKey: "settings.statusbarWorkspace",
     hintKey: "settings.statusbarWorkspaceHint",
   },
   {
     id: "appearance.statusbar.characters",
-    category: "appearance",
+    category: "statusbar",
     labelKey: "settings.statusbarCharacters",
     hintKey: "settings.statusbarCharactersHint",
   },
   {
     id: "appearance.statusbar.eol",
-    category: "appearance",
+    category: "statusbar",
     labelKey: "settings.statusbarEol",
     hintKey: "settings.statusbarEolHint",
   },
   {
-    id: "workspace.showHidden",
-    category: "workspace",
-    labelKey: "settings.showHidden",
-    hintKey: "settings.showHiddenHint",
+    id: "editor.readingStatistics",
+    category: "statusbar",
+    labelKey: "settings.readingStatistics",
+    hintKey: "settings.readingStatisticsHint",
+    terms: ["word count", "reading time"],
+  },
+  {
+    id: "workspace.startup",
+    category: "folder",
+    labelKey: "settings.workspaceStartup",
+    hintKey: "settings.workspaceStartupNoneHint",
+    terms: ["startup", "reopen", "last folder"],
   },
   {
     id: "workspace.confirmClose",
-    category: "workspace",
+    category: "folder",
     labelKey: "settings.confirmClose",
     hintKey: "settings.confirmCloseHint",
   },
   {
-    id: "workspace.startup",
-    category: "workspace",
-    labelKey: "settings.workspaceStartup",
-    hintKey: "settings.workspaceStartupNoneHint",
-    terms: ["startup", "reopen", "last folder"],
+    id: "workspace.showHidden",
+    category: "folder",
+    labelKey: "settings.showHidden",
+    hintKey: "settings.showHiddenHint",
+  },
+  {
+    id: "markdown.linkMode",
+    category: "links",
+    labelKey: "settings.linkMode",
+    hintKey: "settings.linkModeHint",
+    terms: ["wikilink", "markdown links"],
+  },
+  {
+    id: "markdown.resolution",
+    category: "links",
+    labelKey: "settings.resolution",
+    hintKey: "settings.resolutionHint",
+  },
+  {
+    id: "markdown.showOutgoingLinks",
+    category: "context",
+    labelKey: "settings.showOutgoingLinks",
+    hintKey: "settings.showOutgoingLinksHint",
+  },
+  {
+    id: "markdown.showIncomingLinks",
+    category: "context",
+    labelKey: "settings.showIncomingLinks",
+    hintKey: "settings.showIncomingLinksHint",
+  },
+  {
+    id: "preview.enabled",
+    category: "preview",
+    labelKey: "settings.showPreview",
+    hintKey: "settings.showPreviewHint",
+    terms: ["preview", "vista previa"],
   },
   {
     id: "extensions.section",
@@ -286,53 +303,9 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   {
     id: "extensions.list",
     category: "extensions",
-    labelKey: "settings.extensions",
+    labelKey: "settings.extensionsInstalled",
     hintKey: "settings.extensionsHint",
     terms: ["installed extensions", "load state", "capabilities"],
-  },
-  {
-    id: "accessibility.reducedMotion",
-    category: "accessibility",
-    labelKey: "settings.reducedMotion",
-    hintKey: "settings.reducedMotionHint",
-  },
-  {
-    id: "markdown.linkMode",
-    category: "markdown",
-    labelKey: "settings.linkMode",
-    hintKey: "settings.linkModeHint",
-    terms: ["wikilink", "markdown links"],
-  },
-  {
-    id: "markdown.resolution",
-    category: "markdown",
-    labelKey: "settings.resolution",
-    hintKey: "settings.resolutionHint",
-  },
-  {
-    id: "markdown.defaultExtension",
-    category: "markdown",
-    labelKey: "settings.defaultExtension",
-    hintKey: "settings.defaultExtensionHint",
-    terms: ["mdx", ".md", "extension"],
-  },
-  {
-    id: "markdown.showOutgoingLinks",
-    category: "markdown",
-    labelKey: "settings.showOutgoingLinks",
-    hintKey: "settings.showOutgoingLinksHint",
-  },
-  {
-    id: "markdown.showIncomingLinks",
-    category: "markdown",
-    labelKey: "settings.showIncomingLinks",
-    hintKey: "settings.showIncomingLinksHint",
-  },
-  {
-    id: "preview.enabled",
-    category: "preview",
-    labelKey: "settings.showPreview",
-    hintKey: "settings.showPreviewHint",
   },
   {
     id: "keyboard.section",
@@ -364,6 +337,20 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     category: "keyboard",
     labelKey: "settings.shortcutGlobalSearch",
     terms: ["ctrl+shift+f"],
+  },
+  {
+    id: "general.about",
+    category: "about",
+    labelKey: "settings.about",
+    hintKey: "settings.aboutDescription",
+    terms: ["version", "license"],
+  },
+  {
+    id: "general.sponsor",
+    category: "about",
+    labelKey: "settings.sponsor",
+    hintKey: "settings.sponsorHint",
+    terms: ["donate", "sponsor", "github", "support"],
   },
 ];
 
@@ -420,30 +407,30 @@ export function matchSettingsSearch(
     return [];
   }
 
-  const scored: { entry: SettingsSearchEntry; rank: number; index: number }[] = [];
+  const scored: { hit: SettingsSearchHit; rank: number; index: number }[] = [];
   for (const [index, entry] of entries.entries()) {
     const label = translate(entry.labelKey);
     const hint = entry.hintKey ? translate(entry.hintKey) : "";
-    const categoryLabel = translate(SETTINGS_SEARCH_CATEGORY_LABEL[entry.category]);
+    const categoryLabel = translate(
+      // Every category id comes from SETTINGS_CATEGORIES.
+      SETTINGS_CATEGORIES.find((category) => category.id === entry.category)!.label,
+    );
     const rank = matchRank(entry, normalized, label, hint, categoryLabel);
     if (rank === null) {
       continue;
     }
-    scored.push({ entry, rank, index });
+    scored.push({
+      hit: { id: entry.id, category: entry.category, label, hint, categoryLabel },
+      rank,
+      index,
+    });
   }
 
   scored.sort((a, b) => a.rank - b.rank || a.index - b.index);
-
-  return scored.map(({ entry }) => ({
-    id: entry.id,
-    category: entry.category,
-    label: translate(entry.labelKey),
-    hint: entry.hintKey ? translate(entry.hintKey) : "",
-    categoryLabel: translate(SETTINGS_SEARCH_CATEGORY_LABEL[entry.category]),
-  }));
+  return scored.map(({ hit }) => hit);
 }
 
-const FOCUSABLE_CONTROL = "button, input, select, textarea";
+const FOCUSABLE_CONTROL = "button, input, select, textarea, a[href]";
 
 /**
  * Scroll a Settings control into view and focus a usable target.

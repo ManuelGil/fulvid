@@ -5,6 +5,7 @@ import { analyzeMarkdownFile } from "./noteAnalyzer";
 import {
   assertCanonicallyContained,
   containedPath,
+  isUnsafePathSegment,
   normalizeWorkspaceRelativePath,
 } from "../security/workspacePaths";
 
@@ -18,44 +19,19 @@ import type { LinkSyntax } from "../../../mainview/modules/document/links/docume
 /** Always excluded - never documentation evidence. */
 const PROTECTED_ENTRIES = new Set([".git", ".svn", ".hg", "node_modules"]);
 
-function isProtectedEntry(name: string): boolean {
-  return PROTECTED_ENTRIES.has(name);
-}
-
-function isHiddenName(name: string): boolean {
-  return name.startsWith(".");
-}
-
 function isExcludedEntry(name: string, includeHidden: boolean): boolean {
-  if (isProtectedEntry(name)) {
-    return true;
-  }
-
-  if (!includeHidden && isHiddenName(name)) {
-    return true;
-  }
-
-  return false;
+  return (
+    PROTECTED_ENTRIES.has(name) ||
+    (!includeHidden && name.startsWith(".")) ||
+    // Containment refuses these names for every document operation, so listing
+    // them offers a document that can only fail to open. Same rule as the
+    // symlink skip below: never surface what document I/O cannot reach.
+    isUnsafePathSegment(name)
+  );
 }
 
-/**
- * Resolve an Explorer directory request against the folder root.
- *
- * The containment decision is canonical, not a string prefix: a symlinked
- * directory inside the folder must not be able to list what lives outside it.
- */
-async function workspaceDirectory(
-  rootPath: string,
-  relativePath: string,
-): Promise<{ path: string; relativePath: string }> {
-  const normalizedPath = normalizeWorkspaceRelativePath(relativePath);
-  const target = containedPath(rootPath, normalizedPath);
-  await assertCanonicallyContained(rootPath, normalizedPath);
-  return { path: target, relativePath: normalizedPath };
-}
-
-export function pathLooksHidden(relativePath: string): boolean {
-  return relativePath.split(/[/\\]/).some((segment) => segment.length > 0 && isHiddenName(segment));
+function pathLooksHidden(relativePath: string): boolean {
+  return relativePath.split(/[/\\]/).some((segment) => segment.startsWith("."));
 }
 
 /**
@@ -118,14 +94,6 @@ function isSkippableScanError(error: unknown): boolean {
   );
 }
 
-function scanLimitReached(collection: MarkdownPathCollection): boolean {
-  return collection.paths.length >= MAX_SCANNED_DOCUMENTS;
-}
-
-function markScanTruncated(collection: MarkdownPathCollection): void {
-  collection.truncated = true;
-}
-
 async function walkForMarkdownPaths(
   directory: string,
   depth: number,
@@ -133,8 +101,8 @@ async function walkForMarkdownPaths(
   includeHidden: boolean,
   beforeReadDirectory?: (directory: string) => void | Promise<void>,
 ): Promise<void> {
-  if (scanLimitReached(collection) || depth > MAX_SCAN_DEPTH) {
-    markScanTruncated(collection);
+  if (collection.paths.length >= MAX_SCANNED_DOCUMENTS || depth > MAX_SCAN_DEPTH) {
+    collection.truncated = true;
     return;
   }
 
@@ -160,9 +128,14 @@ async function walkForMarkdownPaths(
 
     const entryPath = join(directory, entry.name);
 
-    // Dirent file/directory checks do not follow symlinks. Linked notes are
-    // invisible to scan/list; document I/O still resolves them through
-    // `assertCanonicallyContained` so a link cannot escape the folder.
+    // Dirent directory/file checks do not follow POSIX symlinks, but Windows
+    // junctions often report as directories. Skip every reparse/symlink entry so
+    // scan never walks outside the opened folder. Document I/O still resolves
+    // through `assertCanonicallyContained`.
+    if (entry.isSymbolicLink()) {
+      continue;
+    }
+
     if (entry.isDirectory()) {
       await walkForMarkdownPaths(
         entryPath,
@@ -171,8 +144,8 @@ async function walkForMarkdownPaths(
         includeHidden,
         beforeReadDirectory,
       );
-      if (scanLimitReached(collection)) {
-        markScanTruncated(collection);
+      if (collection.paths.length >= MAX_SCANNED_DOCUMENTS) {
+        collection.truncated = true;
         return;
       }
       continue;
@@ -182,8 +155,8 @@ async function walkForMarkdownPaths(
       continue;
     }
 
-    if (scanLimitReached(collection)) {
-      markScanTruncated(collection);
+    if (collection.paths.length >= MAX_SCANNED_DOCUMENTS) {
+      collection.truncated = true;
       return;
     }
     collection.paths.push(entryPath);
@@ -194,18 +167,6 @@ function compareDocumentPaths(pathA: string, pathB: string): number {
   return (
     pathA.localeCompare(pathB, undefined, { sensitivity: "base" }) || pathA.localeCompare(pathB)
   );
-}
-
-async function collectMarkdownPaths(
-  rootPath: string,
-  includeHidden: boolean,
-  beforeReadDirectory?: (directory: string) => void | Promise<void>,
-): Promise<MarkdownPathCollection> {
-  const collection: MarkdownPathCollection = { paths: [], truncated: false, skipped: 0 };
-
-  await walkForMarkdownPaths(rootPath, 0, collection, includeHidden, beforeReadDirectory);
-  collection.paths.sort(compareDocumentPaths);
-  return collection;
 }
 
 /**
@@ -220,13 +181,16 @@ export async function scanWorkspace(
     beforeAnalyzeFile?: (filePath: string) => void | Promise<void>;
   },
 ): Promise<{ scannedNotes: ScannedNote[]; truncated: boolean; skipped: number }> {
-  const includeHidden = Boolean(options.includeHidden);
   const linkMode = options.linkMode ?? "markdown";
-  const collected = await collectMarkdownPaths(
+  const collected: MarkdownPathCollection = { paths: [], truncated: false, skipped: 0 };
+  await walkForMarkdownPaths(
     rootPath,
-    includeHidden,
+    0,
+    collected,
+    Boolean(options.includeHidden),
     testFaults?.beforeReadDirectory,
   );
+  collected.paths.sort(compareDocumentPaths);
   const scannedNotes: ScannedNote[] = [];
   let skipped = collected.skipped;
 
@@ -254,8 +218,12 @@ export async function listWorkspaceEntries(
   options: ScanOptions = {},
 ): Promise<FileSystemEntry[]> {
   const includeHidden = Boolean(options.includeHidden);
-  const target = await workspaceDirectory(rootPath, relativePath);
-  const entries = await readdir(target.path, { withFileTypes: true });
+  // The containment decision is canonical, not a string prefix: a symlinked
+  // directory inside the folder must not be able to list what lives outside it.
+  const directoryPath = normalizeWorkspaceRelativePath(relativePath);
+  const target = containedPath(rootPath, directoryPath);
+  await assertCanonicallyContained(rootPath, directoryPath);
+  const entries = await readdir(target, { withFileTypes: true });
   const result: FileSystemEntry[] = [];
 
   for (const entry of entries) {
@@ -263,17 +231,23 @@ export async function listWorkspaceEntries(
       continue;
     }
 
+    // Same junction/symlink rule as the scan walk: never surface linked
+    // directories or files as Explorer entries.
+    if (entry.isSymbolicLink()) {
+      continue;
+    }
+
     if (!entry.isDirectory() && (!entry.isFile() || !isMarkdownFile(entry.name))) {
       continue;
     }
 
-    const entryRelative = target.relativePath ? join(target.relativePath, entry.name) : entry.name;
-    const normalized = entryRelative.replace(/\\/g, "/");
+    const entryRelative = directoryPath ? join(directoryPath, entry.name) : entry.name;
+    const path = entryRelative.replace(/\\/g, "/");
     result.push({
       kind: entry.isDirectory() ? "directory" : "file",
       name: entry.name,
-      path: normalized,
-      hidden: pathLooksHidden(normalized),
+      path,
+      hidden: pathLooksHidden(path),
     });
   }
 

@@ -232,3 +232,47 @@ describe("folder containment for document I/O", () => {
     }
   });
 });
+
+// Intent: a filename is never rewritten on Fulvid's behalf. Bidi and invisible
+// formatting characters are a presentation concern; normalizing them at the I/O
+// layer would silently change which file a document is.
+// Growth boundary: add a case only for a new class of character, not a new surface.
+// Names use ASCII escapes per the repository human-language contract.
+describe("filename identity", () => {
+  test("carries names with bidi and invisible characters through unchanged", async () => {
+    const root = await makeWorkspace();
+    const names = [
+      "safe\u202Etxt.md", // right-to-left override: displays as "safedm.txt"
+      "a\u200Bb.md", // zero-width, invisible in every surface that shows a name
+      // Ordinary non-ASCII, and chosen for having no canonical decomposition so
+      // a normalizing filesystem cannot make this assertion ambiguous.
+      "\u0645\u0644\u0627\u062D\u0638\u0629.md",
+    ];
+    try {
+      for (const name of names) {
+        await writeFile(join(root, name), `# body\n`, "utf8");
+      }
+
+      const scan = await scanWorkspace(root, { includeHidden: true, linkMode: "markdown" });
+      expect(scan.scannedNotes.map((note) => note.path).sort()).toEqual([...names].sort());
+
+      for (const name of names) {
+        const read = await readDocument(root, name);
+        expect(read.path).toBe(name);
+
+        const written = await writeDocument(root, name, `# changed\n`, read.mtimeMs, "markdown");
+        expect(written.note.path).toBe(name);
+
+        const moved = name.replace(/[.]md$/, ".copy.md");
+        const renamed = await renameDocument(root, name, moved, written.mtimeMs, "markdown");
+        expect(renamed.note.path).toBe(moved);
+        const restored = await renameDocument(root, moved, name, renamed.mtimeMs, "markdown");
+        expect(restored.note.path).toBe(name);
+      }
+
+      expect((await readdir(root)).sort()).toEqual([...names].sort());
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});

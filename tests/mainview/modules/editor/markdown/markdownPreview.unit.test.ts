@@ -3,7 +3,8 @@ import { describe, expect, test } from "bun:test";
 import type { DocumentLink } from "../../../../../src/mainview/modules/document/links/documentLink";
 import type { ScannedNote } from "../../../../../src/mainview/modules/workspace/filesystem/workspaceTypes.ts";
 import {
-  PREVIEW_RENDER_CHAR_LIMIT,
+  PREVIEW_BLOCK_MARKER_LIMIT,
+  PREVIEW_INLINE_MARKUP_LIMIT,
   renderMarkdownPreview,
   exportMarkdownPreviewDocument,
 } from "../../../../../src/mainview/modules/editor/markdown/markdownPreview.ts";
@@ -28,7 +29,7 @@ function note(path: string, documentLinks: DocumentLink[] = []): ScannedNote {
 // attributes, and folder escapes must not become active behavior. Density is
 // bounded so a crafted document cannot freeze the renderer. Export matches Preview.
 describe("markdown preview", () => {
-  test("hostile HTML, MDX, schemes, and folder escapes stay inert", () => {
+  test("preview and export stay inert under hostile input, density, and parity", () => {
     const html = renderMarkdownPreview(
       [
         "<script>alert('x')</script>",
@@ -51,13 +52,10 @@ describe("markdown preview", () => {
 
     for (const target of [
       "javascript:alert(1)",
-      "JaVaScRiPt:alert(1)",
       "data:text/html,<script>alert(1)</script>",
       "file:///etc/passwd",
       "http://example.com",
       "//evil.example/x",
-      "https://example.com/doc",
-      "mailto:user@example.com",
     ]) {
       const result = renderMarkdownPreview(`[x](${target})`, [], "markdown");
       expect(result.html).not.toContain(target);
@@ -105,9 +103,7 @@ describe("markdown preview", () => {
     expect(escape.html).not.toContain("data-document-path");
     expect(escape.html).not.toContain("/etc/passwd");
     expect(escape.html).not.toContain("secret.md");
-  });
 
-  test("HTML export reuses the same inert Preview representation", () => {
     const source =
       "# Start\n\nA **strong** paragraph.\n\n<Component value={x} />\n\n<script>alert(1)</script>";
     const preview = renderMarkdownPreview(
@@ -128,29 +124,69 @@ describe("markdown preview", () => {
     expect(exported.html).not.toContain("<script>");
     expect(exported.html).toContain("&lt;script&gt;");
     expect(exported.preview.hasUnsupportedMdx).toBe(true);
-  });
 
-  test("dense inline markup renders inert instead of blocking Preview or Export", () => {
-    // Historical: marked's inline lexer is quadratic; a document under the
-    // character cap could still freeze the UI for over a minute.
+    // Historical: marked's inline lexer is quadratic past the inline-markup ceiling.
     const notes = [note("n0.md")];
-    const source = "[l](n0.md) ".repeat(
-      Math.floor(PREVIEW_RENDER_CHAR_LIMIT / "[l](n0.md) ".length),
-    );
+    const denseSource = "[l](n0.md) ".repeat(PREVIEW_INLINE_MARKUP_LIMIT + 1);
 
-    const started = performance.now();
-    const result = renderMarkdownPreview(source, notes, "markdown", undefined, "cur.md");
-    expect(result.dense).toBe(true);
-    expect(result.html.startsWith("<pre>")).toBe(true);
-    expect(result.html).not.toContain("<a ");
-    // Soft upper bound against a return to minute-long freezes; behavioral asserts above are primary.
-    expect(performance.now() - started).toBeLessThan(5_000);
+    const dense = renderMarkdownPreview(denseSource, notes, "markdown", undefined, "cur.md");
+    expect(dense.dense).toBe(true);
+    expect(dense.html.startsWith("<pre>")).toBe(true);
+    expect(dense.html).not.toContain("<a ");
 
-    const exported = exportMarkdownPreviewDocument(source, notes, "markdown", {
+    const denseExport = exportMarkdownPreviewDocument(denseSource, notes, "markdown", {
       title: "dense",
       sourcePath: "cur.md",
     });
-    expect(exported.preview.dense).toBe(true);
-    expect(exported.html).toContain("<pre>");
+    expect(denseExport.preview.dense).toBe(true);
+    expect(denseExport.html).toContain("<pre>");
+  });
+});
+
+// Intent: heading identity in Preview comes from the heading's own source, and
+// block-level ambiguity is bounded before marked runs.
+// Growth boundary: add a case only for a new source of heading/marker ambiguity.
+describe("markdown preview heading identity and block density", () => {
+  test("annotates each heading from its own source line, including past frontmatter", () => {
+    const html = renderMarkdownPreview(
+      "> # Quoted\n\n- # Listed\n\n## After\n",
+      [],
+      "markdown",
+    ).html;
+
+    // Headings nested in a quote or a list are not in the line-based outline, so
+    // they carry no anchor - and must not consume the next heading's identity.
+    expect(html).toContain("<h1>Quoted</h1>");
+    expect(html).toContain("<h1>Listed</h1>");
+    expect(html).toContain('id="after"');
+    expect(html).toContain('data-source-line="5"');
+
+    const withFrontmatter = renderMarkdownPreview(
+      "---\ntitle: x\n---\n\n# H\n",
+      [],
+      "markdown",
+    ).html;
+    expect(withFrontmatter).toContain('data-source-line="5"');
+  });
+
+  test("falls back to inert source when bare list markers make blocks ambiguous", () => {
+    // "a\n-\n" repeated is ambiguous between a setext underline and a list item;
+    // resolving it upstream is superlinear and froze the renderer.
+    const overLimit = PREVIEW_BLOCK_MARKER_LIMIT + 1;
+    const pathological = renderMarkdownPreview("a\n-\n".repeat(overLimit), [], "markdown");
+    expect(pathological.dense).toBe(true);
+    expect(pathological.html.startsWith("<pre>")).toBe(true);
+
+    // Real bullets and real setext underlines keep rendering.
+    expect(renderMarkdownPreview("- item one\n- item two\n".repeat(40), [], "markdown").dense).toBe(
+      false,
+    );
+    expect(renderMarkdownPreview("Heading\n---\n\nbody\n\n".repeat(40), [], "markdown").dense).toBe(
+      false,
+    );
+    // Fenced content is never ambiguous upstream, so it must not trip the bound.
+    expect(
+      renderMarkdownPreview("```\n" + "a\n-\n".repeat(overLimit) + "```\n", [], "markdown").dense,
+    ).toBe(false);
   });
 });

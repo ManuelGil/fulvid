@@ -9,7 +9,12 @@
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
-import { createGraphRenderer, getNodeConnectionDetails, type GraphRenderer } from "./graphRenderer";
+import {
+  createGraphRenderer,
+  getNodeConnectionDetails,
+  graphSignature,
+  type GraphRenderer,
+} from "./graphRenderer";
 import { bindGraphSpaceIsolation } from "./graphSpace";
 import type { ComposedGraph, HoverDetails, RendererInteraction } from "../core/graphTypes";
 
@@ -33,15 +38,6 @@ const interaction = ref<RendererInteraction>({
 let renderer: GraphRenderer | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let unbindSpaceIsolation: (() => void) | null = null;
-
-function graphSignature(graph: ComposedGraph): string {
-  const nodeIds = graph.nodes
-    .map((node) => `${node.id}:${node.x},${node.y},${node.depth}`)
-    .join("\0");
-  const edgeIds = graph.edges.map((edge) => `${edge.source}->${edge.target}`).join("\0");
-
-  return `${graph.focusPath}|${nodeIds}|${edgeIds}`;
-}
 
 function bindEvents(): void {
   if (!renderer || !containerRef.value) {

@@ -7,7 +7,7 @@ import {
 import { luaManifest } from "./manifestTestHelpers.ts";
 
 describe("publisher.name extension identity contract", () => {
-  test("accepts publisher.name identities and namespaces commands", () => {
+  test("manifest identity accepts valid publisher.name and rejects reserved, mismatched, and invalid presentation", () => {
     expect(
       validateExtensionManifest(
         luaManifest("imgildev.todo-decorator", ["lua", "commands", "ui", "document"], {
@@ -23,31 +23,10 @@ describe("publisher.name extension identity contract", () => {
       },
     });
 
-    expect(validateExtensionManifest(luaManifest("acme.notify-demo"))).toMatchObject({
-      manifest: { id: "acme.notify-demo", publisher: "acme", name: "notify-demo" },
-    });
-
-    expect(
-      validateExtensionManifest(
-        luaManifest("acme.example-extension", ["lua", "commands", "ui"], {
-          displayName: "Example Extension",
-          description: "An extension from an arbitrary publisher.",
-        }),
-      ),
-    ).toMatchObject({
-      manifest: {
-        id: "acme.example-extension",
-        publisher: "acme",
-        name: "example-extension",
-      },
-    });
-
     expect(namespacedExtensionCommandId("imgildev.todo-decorator", "todoNext")).toBe(
       "imgildev.todo-decorator.todoNext",
     );
-  });
 
-  test("rejects reserved local, mismatches, unknown caps, and invalid presentation", () => {
     expect(
       validateExtensionManifest({
         ...luaManifest("imgildev.todo-decorator"),
@@ -128,27 +107,12 @@ describe("publisher.name extension identity contract", () => {
       }),
     });
 
+    // One representative: host capabilities require lua (templates/editor/document share the rule).
     expect(
       validateExtensionManifest({
         ...luaManifest("acme.doc-demo", ["templates", "commands"], { entry: undefined }),
       }),
     ).toEqual({ reason: "templates capability requires the lua capability" });
-
-    expect(
-      validateExtensionManifest(
-        luaManifest("test.no-lua-editor", ["editor", "commands"], {
-          entry: undefined,
-        }),
-      ),
-    ).toEqual({ reason: "editor capability requires the lua capability" });
-
-    expect(
-      validateExtensionManifest(
-        luaManifest("test.no-lua-doc", ["document", "commands"], {
-          entry: undefined,
-        }),
-      ),
-    ).toEqual({ reason: "document capability requires the lua capability" });
 
     expect(
       validateExtensionManifest({

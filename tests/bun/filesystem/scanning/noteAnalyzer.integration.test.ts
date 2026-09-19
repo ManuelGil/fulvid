@@ -8,9 +8,10 @@ import {
   MAX_ANALYZED_BYTES,
 } from "../../../../src/bun/filesystem/scanning/noteAnalyzer";
 
-// Intent: file-analysis metadata, link extraction, and byte-safe truncation.
+// Intent: file-analysis metadata and byte-safe truncation.
+// Link shape/syntax contracts live in documentLink unit tests.
 describe("analyzeMarkdownFile", () => {
-  test("extracts frontmatter and links; truncated reads never split a multi-byte character", async () => {
+  test("extracts frontmatter and truncated reads never split a multi-byte character", async () => {
     const directory = await mkdtemp(join(tmpdir(), "editor-note-analyzer-"));
     const filePath = join(directory, "guide.md");
 
@@ -41,12 +42,6 @@ describe("analyzeMarkdownFile", () => {
         projects: ["editor"],
         summary: "A short guide",
       });
-      expect(analyzed.documentLinks.map((link) => link.syntax)).toEqual(["wikilink", "wikilink"]);
-      expect(analyzed.documentLinks[1]).toMatchObject({
-        target: "reference",
-        anchor: "overview",
-        label: "the reference",
-      });
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
@@ -54,11 +49,18 @@ describe("analyzeMarkdownFile", () => {
     const utf8Dir = await mkdtemp(join(tmpdir(), "editor-note-utf8-"));
     const wide = join(utf8Dir, "wide.md");
     try {
-      await writeFile(wide, "\u{1F600}".repeat(MAX_ANALYZED_BYTES));
+      // File just over the byte cap, cut mid 4-byte emoji - must not emit U+FFFD.
+      const prefix = new Uint8Array(MAX_ANALYZED_BYTES - 1).fill(0x61);
+      const emoji = new TextEncoder().encode("\u{1F600}");
+      const payload = new Uint8Array(prefix.length + emoji.length);
+      payload.set(prefix);
+      payload.set(emoji, prefix.length);
+      await writeFile(wide, payload);
       const truncated = await analyzeMarkdownFile(wide);
       expect(truncated.content).not.toContain("\uFFFD");
+      expect(truncated.content.endsWith("a")).toBe(true);
     } finally {
       await rm(utf8Dir, { recursive: true, force: true });
     }
-  }, 30_000);
+  });
 });

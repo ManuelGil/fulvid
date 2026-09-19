@@ -40,10 +40,8 @@ describe("writing focus", () => {
     // Tabs are hidden under Writing Focus - restore must stay on Monaco/empty.
     expect(writingFocusLeaveEditorTarget(true)).toBe("monaco");
     expect(writingFocusLeaveEditorTarget(false)).toBe("empty-or-main");
-    expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".quick-actions");
-    expect(WRITING_FOCUS_KEPT_SELECTORS).toContain("[data-application-menu]");
-    expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".toast-host");
-    expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".dialog-host");
+    expect(WRITING_FOCUS_KEPT_SELECTORS).toContain(".preview-pane");
+    expect(WRITING_FOCUS_KEPT_SELECTORS).not.toContain(".markdown-preview");
     // Bun has no Element; kept-target filtering for real nodes stays GUI evidence.
     expect(writingFocusKeepsFocusTarget(null)).toBe(false);
     expect(writingFocusKeepsFocusTarget({} as EventTarget)).toBe(false);

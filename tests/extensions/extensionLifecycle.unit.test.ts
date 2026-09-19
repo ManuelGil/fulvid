@@ -118,12 +118,6 @@ describe("extension install/uninstall lifecycle", () => {
       await readFile(join(userData, "extensions", "acme.dup", "manifest.json"), "utf8"),
     );
     expect(installed.version).toBe("1.0.0");
-  });
-
-  test("rejects symlink packs and leaves no partial install", async () => {
-    const userData = await tempUserData("link");
-    configureExtensionDiscovery(userData);
-    await discoverExtensions();
 
     const realPack = await writeCandidate(
       join(userData, "real"),
@@ -133,14 +127,16 @@ describe("extension install/uninstall lifecycle", () => {
     const linked = join(userData, "linked-source");
     // Junctions on Windows, directory symlinks elsewhere - same install refusal.
     await linkDirectory(realPack, linked);
-
-    const result = await installExtensionFromDirectory(linked);
-    expect(result.status).toBe("error");
-    if (result.status !== "error") {
-      return;
+    const linkResult = await installExtensionFromDirectory(linked);
+    expect(linkResult.status).toBe("error");
+    if (linkResult.status === "error") {
+      expect(linkResult.reason).toMatch(/symlink/i);
     }
-    expect(result.reason).toMatch(/symlink/i);
-    expect(getDiscoveredExtensions().installed).toEqual([]);
+    expect(
+      getDiscoveredExtensions()
+        .installed.map((pack) => pack.id)
+        .sort(),
+    ).toEqual(["acme.dup", "acme.example-extension"]);
   });
 
   test("uninstall removes target independently; missing uninstall errors; broken neighbor stays isolated", async () => {

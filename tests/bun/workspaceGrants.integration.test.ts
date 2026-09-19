@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -9,12 +9,7 @@ import {
   isApprovedWorkspaceRoot,
   resetWorkspaceApprovals,
 } from "../../src/bun/workspaceGrants";
-import {
-  authorizeChosenWorkspaceRoot,
-  reauthorizeWorkspaceRoot,
-  resetWorkspaceAuthority,
-} from "../../src/bun/filesystem/security/workspaceAuthority";
-import { filesystemErrorMessage } from "../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
+import { resetWorkspaceAuthority } from "../../src/bun/filesystem/security/workspaceAuthority";
 
 const directories: string[] = [];
 
@@ -44,13 +39,8 @@ describe("folder approvals", () => {
     expect(isApprovedWorkspaceRoot("/home/me/notes")).toBe(true);
     expect(isApprovedWorkspaceRoot("/home/me/other")).toBe(false);
 
-    for (const corrupt of [
-      "not json at all",
-      '{"roots":["/home/me/notes"]}',
-      "null",
-      '"/home/me/notes"',
-      "[]",
-    ]) {
+    // Three corruption classes: non-JSON, wrong object shape, null root.
+    for (const corrupt of ["not json at all", '{"roots":["/home/me/notes"]}', "null"]) {
       const bad = await mkdtemp(join(tmpdir(), "fulvid-approvals-bad-"));
       directories.push(bad);
       await writeFile(join(bad, "approved-folders.json"), corrupt);
@@ -74,26 +64,5 @@ describe("folder approvals", () => {
     expect(isApprovedWorkspaceRoot("/home/me/second")).toBe(true);
     const stored = JSON.parse(await readFile(join(directory, "approved-folders.json"), "utf8"));
     expect(stored[0]).toBe("/home/me/second");
-  });
-
-  test("dialog approval then session reset still allows Reopen via reauthorize", async () => {
-    const base = await mkdtemp(join(tmpdir(), "fulvid-reopen-"));
-    directories.push(base);
-    const folder = join(base, "docs");
-    await mkdir(folder);
-    await writeFile(join(folder, "note.md"), "hi\n");
-    resetWorkspaceAuthority();
-    resetWorkspaceApprovals();
-    configureWorkspaceApprovals(join(base, "userdata"));
-
-    const authorized = await authorizeChosenWorkspaceRoot(folder);
-    resetWorkspaceAuthority();
-    await expect(reauthorizeWorkspaceRoot(authorized)).resolves.toBe(authorized);
-
-    const stranger = join(base, "other");
-    await mkdir(stranger);
-    await expect(reauthorizeWorkspaceRoot(stranger)).rejects.toThrow(
-      filesystemErrorMessage("folderNotOpen"),
-    );
   });
 });

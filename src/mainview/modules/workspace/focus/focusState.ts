@@ -54,43 +54,30 @@ export function isFocusValidForWorkspace(
   return Boolean(focus && workspacePath && focus.workspacePath === workspacePath);
 }
 
-function clearFocus(): void {
+export function clearFocusState(): void {
   currentFocus.value = null;
   closeInspector();
 }
 
-export function clearFocusState(): void {
-  clearFocus();
-}
-
 export function bindFocusToWorkspace(workspacePath: string | null): void {
   if (activeWorkspacePath.value !== workspacePath) {
-    clearFocus();
+    clearFocusState();
   }
 
   activeWorkspacePath.value = workspacePath;
 }
 
-function setFocus(path: string): void {
-  if (!activeWorkspacePath.value) {
-    return;
-  }
-
-  currentFocus.value = {
-    path,
-    workspacePath: activeWorkspacePath.value,
-  };
-}
-
 /** Commit Focus while keeping the Inspector on that document. */
 export function focusDocument(path: string): void {
-  setFocus(path);
+  if (activeWorkspacePath.value) {
+    currentFocus.value = { path, workspacePath: activeWorkspacePath.value };
+  }
   inspectionPath.value = path;
 }
 
 export function clearFocusForDocument(path: string): void {
   if (currentFocus.value?.path === path) {
-    clearFocus();
+    clearFocusState();
   }
 }
 

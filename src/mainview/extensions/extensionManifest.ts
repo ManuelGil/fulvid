@@ -239,15 +239,15 @@ function isAllowedActivation(value: string): value is ExtensionActivation {
 const ACTION_ID_PATTERN = /^[a-z][a-zA-Z0-9]*$/;
 
 /** Canonical identity: `publisher.name`. */
-export function extensionIdFromPublisherName(publisher: string, name: string): string {
+function extensionIdFromPublisherName(publisher: string, name: string): string {
   return `${publisher}.${name}`;
 }
 
-export function isValidPublisher(publisher: string): boolean {
+function isValidPublisher(publisher: string): boolean {
   return PUBLISHER_PATTERN.test(publisher) && !RESERVED_PUBLISHERS.has(publisher);
 }
 
-export function isValidPackageName(name: string): boolean {
+function isValidPackageName(name: string): boolean {
   return PACKAGE_NAME_PATTERN.test(name);
 }
 
@@ -429,26 +429,15 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
     return { reason: "lua capability requires entry" };
   }
 
-  if (hasLua && !capabilitySet.has("commands")) {
-    return { reason: "lua capability requires the commands capability" };
+  for (const required of ["commands", "ui"] as const) {
+    if (hasLua && !capabilitySet.has(required)) {
+      return { reason: `lua capability requires the ${required} capability` };
+    }
   }
-  if (hasLua && !capabilitySet.has("ui")) {
-    return { reason: "lua capability requires the ui capability" };
-  }
-  if (capabilitySet.has("editor") && !hasLua) {
-    return { reason: "editor capability requires the lua capability" };
-  }
-  if (capabilitySet.has("document") && !hasLua) {
-    return { reason: "document capability requires the lua capability" };
-  }
-  if (capabilitySet.has("decorations") && !hasLua) {
-    return { reason: "decorations capability requires the lua capability" };
-  }
-  if (capabilitySet.has("templates") && !hasLua) {
-    return { reason: "templates capability requires the lua capability" };
-  }
-  if (capabilitySet.has("commands") && !hasLua) {
-    return { reason: "commands capability requires the lua capability" };
+  for (const dependent of ["editor", "document", "decorations", "templates", "commands"] as const) {
+    if (capabilitySet.has(dependent) && !hasLua) {
+      return { reason: `${dependent} capability requires the lua capability` };
+    }
   }
 
   let activation: ExtensionActivation = "command";
@@ -574,21 +563,15 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
 
   let repository: string | undefined;
   if (value.repository !== undefined) {
-    if (typeof value.repository === "string") {
-      const parsed = parseHttpUrl(value.repository, "repository");
-      if (!parsed.ok) {
-        return parsed;
-      }
-      repository = parsed.url;
-    } else if (isRecord(value.repository)) {
-      const parsed = parseHttpUrl(value.repository.url, "repository");
-      if (!parsed.ok) {
-        return parsed;
-      }
-      repository = parsed.url;
-    } else {
-      return { reason: "invalid repository" };
+    // A string or a `{ url }` object; anything else fails as an invalid URL.
+    const parsed = parseHttpUrl(
+      isRecord(value.repository) ? value.repository.url : value.repository,
+      "repository",
+    );
+    if (!parsed.ok) {
+      return parsed;
     }
+    repository = parsed.url;
   }
 
   let bugs: string | undefined;

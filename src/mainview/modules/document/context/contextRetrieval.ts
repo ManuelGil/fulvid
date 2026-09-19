@@ -11,28 +11,15 @@ import {
 import { documentFact, type DocumentFact } from "../facts/documentFacts";
 import { i18n } from "../../../i18n";
 
-interface NoteReach {
-  documents: number;
-}
-
 /**
- * Documents reachable by following explicit references from this document,
- * excluding itself.
+ * How many documents are reachable by following explicit references from this
+ * document, excluding itself - as a fact, or none when nothing is reachable.
  */
-export function noteReach(focusPath: string, notes: ScannedNote[]): NoteReach {
+export function noteReachFacts(focusPath: string, notes: ScannedNote[]): DocumentFact[] {
   const reached = buildFocusGraph(focusPath, notes, Number.POSITIVE_INFINITY).nodes.filter(
     (node) => node.id !== focusPath,
-  );
-
-  return { documents: reached.length };
-}
-
-export function noteReachFacts(reach: NoteReach): DocumentFact[] {
-  if (reach.documents <= 0) {
-    return [];
-  }
-
-  return [documentFact("documents", reach.documents.toLocaleString())];
+  ).length;
+  return reached > 0 ? [documentFact("documents", reached.toLocaleString())] : [];
 }
 
 /** Context narrative kept short; detailed references appear in their own sections. */
@@ -45,55 +32,37 @@ export function buildReadingGuidance(focusPath: string, notes: ScannedNote[]): s
   const { references, referencedBy } = noteConnections(focusPath, notes);
   const incomplete = unresolvedDocumentLinks(note, notes);
   const ambiguous = ambiguousOutboundLinks(note, notes);
+  const connected = references.length > 0 || referencedBy.length > 0;
   const paragraphs: string[] = [];
 
-  if (references.length === 0 && referencedBy.length === 0) {
-    if (incomplete.length > 0) {
-      paragraphs.push(
-        incomplete.length === 1
-          ? i18n.global.t("context.incompleteOne", {
-              count: incomplete.length.toLocaleString(i18n.global.locale.value),
-            })
-          : i18n.global.t("context.incompleteMany", {
-              count: incomplete.length.toLocaleString(i18n.global.locale.value),
-            }),
-      );
-      if (incompleteHasCandidates(incomplete, notes)) {
-        paragraphs.push(i18n.global.t("context.nearbyHint"));
-      }
-    }
-    if (ambiguous.length > 0) {
-      paragraphs.push(
-        ambiguous.length === 1
-          ? i18n.global.t("context.ambiguousOne")
-          : i18n.global.t("context.ambiguousMany", {
-              count: ambiguous.length.toLocaleString(i18n.global.locale.value),
-            }),
-      );
-    }
-    return paragraphs;
-  }
-
-  const neighborCount = new Set([...references, ...referencedBy]).size;
-  paragraphs.push(
-    neighborCount === 1
-      ? i18n.global.t("context.sharedOne")
-      : i18n.global.t("context.sharedMany", {
-          count: neighborCount.toLocaleString(i18n.global.locale.value),
-        }),
-  );
-
-  if (incomplete.length > 0) {
+  if (connected) {
+    const neighborCount = new Set([...references, ...referencedBy]).size;
     paragraphs.push(
-      incomplete.length === 1
-        ? i18n.global.t("context.unresolvedOne", {
-            count: incomplete.length.toLocaleString(i18n.global.locale.value),
-          })
-        : i18n.global.t("context.unresolvedMany", {
-            count: incomplete.length.toLocaleString(i18n.global.locale.value),
+      neighborCount === 1
+        ? i18n.global.t("context.sharedOne")
+        : i18n.global.t("context.sharedMany", {
+            count: neighborCount.toLocaleString(i18n.global.locale.value),
           }),
     );
-    if (incompleteHasCandidates(incomplete, notes)) {
+  }
+
+  if (incomplete.length > 0) {
+    // Beside shared references these links are "unresolved"; in a document
+    // with none they are the whole story, so they read as "incomplete".
+    const one = incomplete.length === 1;
+    paragraphs.push(
+      i18n.global.t(
+        connected
+          ? one
+            ? "context.unresolvedOne"
+            : "context.unresolvedMany"
+          : one
+            ? "context.incompleteOne"
+            : "context.incompleteMany",
+        { count: incomplete.length.toLocaleString(i18n.global.locale.value) },
+      ),
+    );
+    if (incomplete.some((link) => candidateNotesForLink(link, notes).length > 0)) {
       paragraphs.push(i18n.global.t("context.nearbyHint"));
     }
   }
@@ -109,10 +78,6 @@ export function buildReadingGuidance(focusPath: string, notes: ScannedNote[]): s
   }
 
   return paragraphs;
-}
-
-function incompleteHasCandidates(incomplete: string[], notes: ScannedNote[]): boolean {
-  return incomplete.some((link) => candidateNotesForLink(link, notes).length > 0);
 }
 
 /**
