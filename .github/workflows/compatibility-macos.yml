@@ -22,17 +22,9 @@ env:
 
 jobs:
   macos:
-    name: macOS ${{ matrix.label }}
-    runs-on: ${{ matrix.os }}
+    name: macOS 26 Apple Silicon
+    runs-on: macos-26
     timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-26
-            label: 26 Apple Silicon
-          - os: macos-15
-            label: 15 Apple Silicon
     defaults:
       run:
         shell: bash
@@ -52,9 +44,9 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.bun/install/cache
-          key: bun-compat-macos-${{ matrix.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          key: bun-compat-macos-26-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            bun-compat-macos-${{ matrix.os }}-${{ env.BUN_VERSION }}-
+            bun-compat-macos-26-${{ env.BUN_VERSION }}-
 
       - name: Install dependencies
         env:
@@ -83,7 +75,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: compatibility-macos-${{ matrix.os }}
+          name: compatibility-macos-26
           path: |
             artifacts/build.log
             dist/index.html

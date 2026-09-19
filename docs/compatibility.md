@@ -2,7 +2,7 @@
 
 What Fulvid runs on, what CI actually exercises, and what that does not mean.
 
-These checks live in three independent workflows. They do not publish. They do not share `needs` with each other or with `release.yml`. The release gate stays off.
+These checks live in three independent workflows. They do not publish. They do not share `needs` with each other or with `release.yml`.
 
 ```text
 .github/workflows/compatibility-linux.yml
@@ -53,8 +53,8 @@ Packaging is 64-bit only (`win-x64`). GitHub does not offer Windows 10 or Window
 | Image | Role |
 | --- | --- |
 | Windows Server 2025 (`windows-2025`) | Tested. Stand-in for a current Windows 11 x64 stack (WebView2) |
-| Windows Server 2022 (`windows-2022`) | Tested. Stand-in for a Windows 10-era x64 stack |
 | Windows 10 x64, Windows 11 x64 | Supported desktop targets. Not tested as those SKUs |
+| Windows Server 2022 | Not in the compatibility matrix (older stand-in dropped as redundant with Server 2025) |
 | Windows 11 Arm, 32-bit | Unsupported |
 
 No Authenticode and no secrets on these jobs.
@@ -66,7 +66,7 @@ The published artifact is Apple Silicon. Intel packaging scripts exist; they are
 | Image | Role |
 | --- | --- |
 | macOS 26 (`macos-26`) | Tested. Apple Silicon |
-| macOS 15 (`macos-15`) | Tested. Previous Apple Silicon image |
+| macOS 15 | Not in the compatibility matrix (previous image dropped as redundant with macOS 26) |
 | Intel macOS | Not a published channel. Not tested |
 | macOS 14 | GitHub image is retiring. Not in the matrix |
 
@@ -79,8 +79,8 @@ No Apple signing secrets on these jobs.
 | Platform | Desktop compatibility CI | Lua packaged smoke (`bun run smoke:lua-packaged`) |
 | --- | --- | --- |
 | Linux x64 | Tested | **Verified** (local + Compatibility Linux CI) |
-| Windows x64 | Tested | **Verified** (Compatibility Windows CI - Server 2022/2025) |
-| macOS arm64 | Tested | **Verified** (Compatibility macOS CI - 15/26 Apple Silicon) |
+| Windows x64 | Tested | **Verified** (Compatibility Windows CI - Server 2025) |
+| macOS arm64 | Tested | **Verified** (Compatibility macOS CI - 26 Apple Silicon) |
 
 Evidence (Compatibility CI): [Windows run 34909418780](https://github.com/ManuelGil/fulvid/actions/runs/34909418780), [macOS run 34909421392](https://github.com/ManuelGil/fulvid/actions/runs/34909421392). Packaged Lua runtime is verified on the three supported desktop architectures above.
 
