@@ -21,7 +21,7 @@ env:
 
 jobs:
   windows:
-    name: Windows Server 2025 (Win 11-era x64)
+    name: Windows
     runs-on: windows-2025
     timeout-minutes: 90
     defaults:
@@ -43,9 +43,9 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
-          key: bun-compat-windows-2025-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          key: bun-compat-windows-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            bun-compat-windows-2025-${{ env.BUN_VERSION }}-
+            bun-compat-windows-${{ env.BUN_VERSION }}-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -66,7 +66,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: compatibility-windows-2025
+          name: compatibility-windows
           path: |
             artifacts/build.log
             dist/index.html

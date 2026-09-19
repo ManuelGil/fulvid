@@ -15,7 +15,7 @@ Contributor checks (`validate.yml`) run on pull requests and pushes to `main`. C
 
 ## Jobs
 
-Three platform jobs build, package, and upload workflow artifacts on the pinned runners (`ubuntu-24.04`, `windows-2025`, `macos-26`). A fourth job publishes only when the ref is `refs/tags/v*`.
+Three platform jobs build, package, and upload workflow artifacts on the pinned runners (`ubuntu-24.04`, `windows-2025`, `macos-26`). The `windows-2025` value is the GitHub-hosted runner image for Windows desktop CI, not a Windows Server product target. A fourth job publishes only when the ref is `refs/tags/v*`.
 
 - Linux: Electrobun stable build, public names, `.deb` via `dpkg-deb`, checksums, upload. Desktop file: [packaging/linux/desktop/fulvid.desktop](../packaging/linux/desktop/fulvid.desktop).
 - Windows and macOS: [packaging/windows/](../packaging/windows/) and [packaging/macos/](../packaging/macos/).

@@ -57,16 +57,16 @@ Linux compatibility CI launches under Xvfb with `GDK_BACKEND=x11` and `WEBKIT_DI
 
 ## Windows
 
-Packaging is 64-bit only (`win-x64`). GitHub does not offer Windows 10 or Windows 11 x64 desktop runners. Windows 11 Arm runners exist; Fulvid does not ship `win-arm64`.
+Packaging is 64-bit only (`win-x64`). Fulvid targets Windows 10/11 x64 desktop (WebView2). There is no Windows Server product target and no Windows Server compatibility matrix.
 
-| Image | Role |
+GitHub-hosted CI for Windows uses the `windows-2025` runner label (the current GitHub image for Windows jobs). That label names the runner image, not a Fulvid platform. Job titles are simply **Windows**.
+
+| Image / target | Role |
 | --- | --- |
-| Windows Server 2025 (`windows-2025`) | Tested. Stand-in for a current Windows 11 x64 stack (WebView2) |
-| Windows 10 x64, Windows 11 x64 | Supported desktop targets. Not tested as those SKUs |
-| Windows Server 2022 | Not in the compatibility matrix (older stand-in dropped as redundant with Server 2025) |
+| Windows 10 x64, Windows 11 x64 | Supported desktop targets. Compatibility and Validate run Windows packaging/smoke on the `windows-2025` GitHub runner as a stand-in |
 | Windows 11 Arm, 32-bit | Unsupported |
 
-No Authenticode and no secrets on these jobs.
+No Authenticode and no secrets on Compatibility Windows jobs.
 
 ## macOS
 
@@ -88,7 +88,7 @@ No Apple signing secrets on these jobs.
 | Platform | Desktop compatibility CI | Lua packaged smoke (`bun run smoke:lua-packaged`) |
 | --- | --- | --- |
 | Linux x64 | Tested | **Verified** (local + Compatibility Linux CI) |
-| Windows x64 | Tested | **Verified** (Compatibility Windows CI - Server 2025) |
+| Windows x64 | Tested | **Verified** (Compatibility Windows CI) |
 | macOS arm64 | Tested | **Verified** (Compatibility macOS CI - 26 Apple Silicon) |
 
 Evidence (Compatibility CI): [Windows run 34909418780](https://github.com/ManuelGil/fulvid/actions/runs/34909418780), [macOS run 34909421392](https://github.com/ManuelGil/fulvid/actions/runs/34909421392). Packaged Lua runtime is verified on the three supported desktop architectures above.

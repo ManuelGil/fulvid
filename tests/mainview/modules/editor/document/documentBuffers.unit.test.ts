@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+
+import * as untitledDraftStore from "../../../../../src/mainview/modules/editor/document/untitledDraftStore.ts";
 
 type FakeModel = {
   value: string;
@@ -163,29 +165,34 @@ let draftIdSeq = 0;
 let listedDrafts: Array<{ recoveryId: string; content: string; updatedAt: number }> = [];
 let listDraftsShouldFail = false;
 
-mock.module("../../../../../src/mainview/modules/editor/document/untitledDraftStore.ts", () => ({
-  MAX_UNTITLED_DRAFT_CHARS: 8_000_000,
-  createUntitledDraftRecoveryId: () => {
+// Prefer spyOn over mock.module: top-level module mocks leak across files on Bun 1.4.2
+// and break untitledDraftStore.unit.test.ts when this file runs first.
+const draftSpies = [
+  spyOn(untitledDraftStore, "createUntitledDraftRecoveryId").mockImplementation(() => {
     draftIdSeq += 1;
     return `recovery-${draftIdSeq}`;
-  },
-  scheduleUntitledDraftPersist: (recoveryId: string, content: string) => {
-    draftPuts.push({ recoveryId, content });
-  },
-  flushUntitledDraftWrites: async () => undefined,
-  deleteUntitledDraft: async (recoveryId: string) => {
-    draftDeletes.push(recoveryId);
-  },
-  cancelPendingUntitledDraftWrite: () => undefined,
-  listUntitledDrafts: async () => {
+  }),
+  spyOn(untitledDraftStore, "scheduleUntitledDraftPersist").mockImplementation(
+    (recoveryId: string, content: string) => {
+      draftPuts.push({ recoveryId, content });
+    },
+  ),
+  spyOn(untitledDraftStore, "flushUntitledDraftWrites").mockImplementation(async () => undefined),
+  spyOn(untitledDraftStore, "deleteUntitledDraft").mockImplementation(
+    async (recoveryId: string) => {
+      draftDeletes.push(recoveryId);
+    },
+  ),
+  spyOn(untitledDraftStore, "cancelPendingUntitledDraftWrite").mockImplementation(() => undefined),
+  spyOn(untitledDraftStore, "listUntitledDrafts").mockImplementation(async () => {
     if (listDraftsShouldFail) {
       throw new Error("indexedDB unavailable");
     }
     return listedDrafts;
-  },
-  putUntitledDraft: async () => undefined,
-  resetUntitledDraftStoreForTests: () => undefined,
-}));
+  }),
+  spyOn(untitledDraftStore, "putUntitledDraft").mockImplementation(async () => undefined),
+  spyOn(untitledDraftStore, "resetUntitledDraftStoreForTests").mockImplementation(() => undefined),
+];
 
 const changeMarkerCalls: {
   bind: Array<{ content: string }>;
@@ -553,4 +560,10 @@ describe("document buffers", () => {
     expect(closeDocumentById(untitled.id, true)).toBe(true);
     expect(changeMarkerCalls.dispose).toBe(disposeBefore + 1);
   });
+});
+
+afterAll(() => {
+  for (const draftSpy of draftSpies) {
+    draftSpy.mockRestore();
+  }
 });
