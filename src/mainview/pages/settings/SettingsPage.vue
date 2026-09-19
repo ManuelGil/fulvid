@@ -17,7 +17,11 @@ import {
   focusSettingsSearchTarget,
   matchSettingsSearch,
 } from "../../modules/settings/settingsSearch";
-import { settingsCategoryNavDelta } from "../../modules/settings/settingsCategoryNav";
+import {
+  SETTINGS_CATEGORIES,
+  settingsCategoryNavDelta,
+  type SettingsCategory,
+} from "../../modules/settings/settingsCategoryNav";
 import { syncDocumentAnnotationsVisibleFromPreference } from "../../modules/editor/document/documentAnnotationVisibility";
 import { discoveredExtensions, setDiscoveredExtensions } from "../../extensions/extensionRegistry";
 import { confirmDialog } from "../../app/dialogs";
@@ -36,45 +40,6 @@ import {
 } from "../../../../package.json";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
-
-type SettingsCategory =
-  | "language"
-  | "editorText"
-  | "editing"
-  | "files"
-  | "editorDisplay"
-  | "writing"
-  | "theme"
-  | "interface"
-  | "accessibility"
-  | "statusbar"
-  | "folder"
-  | "links"
-  | "context"
-  | "preview"
-  | "extensions"
-  | "keyboard"
-  | "about";
-
-const SETTINGS_CATEGORIES = [
-  { id: "language", label: "settings.language" },
-  { id: "editorText", label: "settings.editorText" },
-  { id: "editing", label: "settings.editing" },
-  { id: "files", label: "settings.files" },
-  { id: "editorDisplay", label: "settings.editorDisplay" },
-  { id: "writing", label: "settings.writing" },
-  { id: "theme", label: "settings.themeCategory" },
-  { id: "interface", label: "settings.interface" },
-  { id: "accessibility", label: "settings.accessibility" },
-  { id: "statusbar", label: "settings.statusbar" },
-  { id: "folder", label: "settings.folder" },
-  { id: "links", label: "settings.links" },
-  { id: "context", label: "settings.context" },
-  { id: "preview", label: "settings.preview" },
-  { id: "extensions", label: "settings.extensions" },
-  { id: "keyboard", label: "settings.keyboard" },
-  { id: "about", label: "settings.about" },
-] as const;
 
 const SETTINGS_NAV_GROUPS = [
   { label: "settings.navApplication", categories: SETTINGS_CATEGORIES.slice(0, 1) },

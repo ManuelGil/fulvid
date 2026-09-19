@@ -109,19 +109,13 @@ export function showsMainPanelDocumentLocation(destination: DocumentLocationDest
   return destination === "main-panel";
 }
 
-export function showsWindowTitleDocumentLocation(
-  destination: DocumentLocationDestination,
-): boolean {
-  return destination === "window-title";
-}
-
 /** Host window title from the same location projection. */
 export function windowTitleForDocumentLocation(
   appName: string,
   location: DocumentLocation | null,
   destination: DocumentLocationDestination,
 ): string {
-  if (!showsWindowTitleDocumentLocation(destination) || !location) {
+  if (destination !== "window-title" || !location) {
     return appName;
   }
   return `${appName} - ${location.label}`;
@@ -166,25 +160,21 @@ export function tabLabelForBuffer(
     return buffer.title;
   }
 
-  if (buffer.rootPath && buffer.path) {
-    const full = normalizePathSeparators(buffer.path);
-    const others = collisions
-      .filter((candidate) => candidate.id !== buffer.id && candidate.path)
-      .map((candidate) => normalizePathSeparators(candidate.path!));
-    const distinguished = disambiguatedRelativePath(full, others);
-    return compactDocumentPath(distinguished, maxLength);
+  // Folder documents are told apart by folder path, others by absolute path.
+  const byFolderPath = Boolean(buffer.rootPath && buffer.path);
+  const pathOf = (source: DocumentLocationSource): string | null =>
+    byFolderPath ? source.path : source.absolutePath;
+  const full = pathOf(buffer);
+  if (!full) {
+    return buffer.title;
   }
-
-  if (buffer.absolutePath) {
-    const full = normalizePathSeparators(buffer.absolutePath);
-    const others = collisions
-      .filter((candidate) => candidate.id !== buffer.id && candidate.absolutePath)
-      .map((candidate) => normalizePathSeparators(candidate.absolutePath!));
-    const distinguished = disambiguatedRelativePath(full, others);
-    return compactDocumentPath(distinguished, maxLength);
-  }
-
-  return buffer.title;
+  const others = collisions
+    .filter((candidate) => candidate.id !== buffer.id)
+    .map(pathOf)
+    .filter((path): path is string => Boolean(path))
+    .map(normalizePathSeparators);
+  const distinguished = disambiguatedRelativePath(normalizePathSeparators(full), others);
+  return compactDocumentPath(distinguished, maxLength);
 }
 
 export function tabLabelsForBuffers(

@@ -18,19 +18,14 @@ export function usesHtmlApplicationMenuFallback(): boolean {
 }
 
 export async function resolveApplicationMenuSupport(): Promise<ApplicationMenuSupport> {
+  let support: ApplicationMenuSupport;
   try {
-    const support = await desktopRequest().getApplicationMenuSupport({});
-    applicationMenuSupport.value = support;
-    return support;
+    support = await desktopRequest().getApplicationMenuSupport({});
   } catch {
-    const support: ApplicationMenuSupport = {
-      native: false,
-      platform: "other",
-      fallbackReason: "rpc-unavailable",
-    };
-    applicationMenuSupport.value = support;
-    return support;
+    support = { native: false, platform: "other", fallbackReason: "rpc-unavailable" };
   }
+  applicationMenuSupport.value = support;
+  return support;
 }
 
 export async function syncNativeApplicationMenu(menus: readonly PresentedMenuBar[]): Promise<void> {

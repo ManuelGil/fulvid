@@ -14,18 +14,7 @@ import type {
   SearchRun,
 } from "./searchStrategies";
 
-export type {
-  SearchDocumentGroup,
-  SearchHit,
-  SearchMatch,
-  SearchMatchKind,
-  SearchQueryIssue,
-  SearchQueryOptions,
-  SearchRun,
-  SearchSnippetPart,
-} from "./searchStrategies";
-
-export { highlightSearchSnippet, searchQueryIssue } from "./searchStrategies";
+export { highlightSearchSnippet } from "./searchStrategies";
 
 const MAX_MATCHES_PER_DOCUMENT = 25;
 const MAX_COLLECTED_MATCHES = 500;

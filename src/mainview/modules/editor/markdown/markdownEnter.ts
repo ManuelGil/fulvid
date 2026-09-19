@@ -9,8 +9,6 @@ import type { MarkdownFence } from "./markdownStructure";
  * continue GFM table rows. Tables stay ordinary Markdown text.
  */
 
-export type MarkdownFenceRange = MarkdownFence;
-
 /**
  * `insert` places text and moves the caret. `clear-line` removes an empty
  * list or quote prefix and leaves the caret at column 1.
@@ -65,7 +63,7 @@ function splitTableCells(line: string): string[] | null {
     return null;
   }
   cells.push(current);
-  return cells.length >= 1 ? cells : null;
+  return cells;
 }
 
 function isSeparatorRow(cells: readonly string[]): boolean {
@@ -144,18 +142,11 @@ function lineIndent(value: string): string {
   return value.match(/^\s*/)?.[0] ?? "";
 }
 
-function isInsideFence(fences: readonly MarkdownFenceRange[], lineNumber: number): boolean {
+function isInsideFence(fences: readonly MarkdownFence[], lineNumber: number): boolean {
   return fences.some((fence) => lineNumber > fence.startLine && lineNumber < fence.endLine);
 }
 
-function fenceStartsOnLine(
-  fences: readonly MarkdownFenceRange[],
-  lineNumber: number,
-): MarkdownFenceRange | undefined {
-  return fences.find((fence) => fence.startLine === lineNumber);
-}
-
-function isClosedFence(fence: MarkdownFenceRange, lines: readonly string[]): boolean {
+function isClosedFence(fence: MarkdownFence, lines: readonly string[]): boolean {
   if (fence.endLine <= fence.startLine) {
     return false;
   }
@@ -173,7 +164,7 @@ export function markdownEnterAction(input: {
   lines: readonly string[];
   lineNumber: number;
   column: number;
-  fences: readonly MarkdownFenceRange[];
+  fences: readonly MarkdownFence[];
 }): MarkdownEnterAction | null {
   const line = input.lines[input.lineNumber - 1];
   if (line === undefined) {
@@ -197,7 +188,7 @@ export function markdownEnterAction(input: {
   if (openingFence && after.trim().length === 0) {
     const fenceIndent = openingFence[1] ?? "";
     const marker = openingFence[2] ?? "```";
-    const existing = fenceStartsOnLine(input.fences, input.lineNumber);
+    const existing = input.fences.find((fence) => fence.startLine === input.lineNumber);
     if (existing && isClosedFence(existing, input.lines)) {
       return {
         kind: "insert",

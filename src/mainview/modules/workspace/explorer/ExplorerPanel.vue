@@ -211,9 +211,11 @@ async function loadDirectory(relativePath: string): Promise<boolean> {
   }
 
   const session = explorerListSession;
+  const isCurrent = (): boolean =>
+    isCurrentExplorerListSession(session, explorerListSession, rootPath, workspaceRoot.value);
   const loadPromise = (async (): Promise<boolean> => {
     markDirectoryLoading(relativePath, true);
-    if (isCurrentExplorerListSession(session, explorerListSession, rootPath, workspaceRoot.value)) {
+    if (isCurrent()) {
       errorMessage.value = null;
     }
     try {
@@ -222,9 +224,7 @@ async function loadDirectory(relativePath: string): Promise<boolean> {
         relativePath,
         settings.value.workspace.showHiddenFiles,
       );
-      if (
-        !isCurrentExplorerListSession(session, explorerListSession, rootPath, workspaceRoot.value)
-      ) {
+      if (!isCurrent()) {
         return false;
       }
       const reconciled = reconcileExplorerDirectoryState(
@@ -237,16 +237,12 @@ async function loadDirectory(relativePath: string): Promise<boolean> {
       expandedDirectories.value = reconciled.expandedDirectories;
       return true;
     } catch (error) {
-      if (
-        isCurrentExplorerListSession(session, explorerListSession, rootPath, workspaceRoot.value)
-      ) {
+      if (isCurrent()) {
         errorMessage.value = describeFilesystemError(error, "files.readError");
       }
       return false;
     } finally {
-      if (
-        isCurrentExplorerListSession(session, explorerListSession, rootPath, workspaceRoot.value)
-      ) {
+      if (isCurrent()) {
         markDirectoryLoading(relativePath, false);
       }
     }
@@ -636,8 +632,7 @@ async function deleteDocumentEntry(entry: FileSystemEntry): Promise<void> {
 
 async function runContextAction(id: string): Promise<void> {
   const entry = contextTarget.value;
-  contextMenu.value.open = false;
-  contextTarget.value = null;
+  closeContextMenu();
   if (!entry) {
     return;
   }

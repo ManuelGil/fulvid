@@ -15,7 +15,7 @@ import type {
 
 type MenuClickPayload = { action?: string; data?: { action?: string } };
 
-export function desktopPlatform(): DesktopPlatform {
+function desktopPlatform(): DesktopPlatform {
   if (
     process.platform === "darwin" ||
     process.platform === "win32" ||
@@ -69,7 +69,7 @@ function menuClickAction(event: unknown): string | null {
   if (!event || typeof event !== "object") {
     return null;
   }
-  const payload = event as MenuClickPayload & { data?: MenuClickPayload };
+  const payload = event as MenuClickPayload;
   const action = payload.action ?? payload.data?.action;
   return typeof action === "string" && action.length > 0 ? action : null;
 }

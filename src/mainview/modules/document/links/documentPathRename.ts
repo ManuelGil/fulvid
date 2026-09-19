@@ -7,6 +7,7 @@
  */
 import { relativeDocumentLinkPath } from "../../editor/markdown/markdownAuthoring";
 import {
+  markdownDestination,
   parseDocumentLinks,
   resolveDocumentLink,
   type DocumentLink,
@@ -35,19 +36,6 @@ export type DocumentPathRenamePlan = {
   newPath: string;
   edits: DocumentPathRenameEdit[];
 };
-
-function markdownDestination(raw: string): { destStart: number; dest: string } | null {
-  const closeLabel = raw.indexOf("](");
-  if (closeLabel < 0) {
-    return null;
-  }
-  const destStart = closeLabel + 2;
-  const destEnd = raw.lastIndexOf(")");
-  if (destEnd <= destStart) {
-    return null;
-  }
-  return { destStart, dest: raw.slice(destStart, destEnd) };
-}
 
 /**
  * Source span of the document path inside a link, excluding `#fragment` and
@@ -93,13 +81,6 @@ export function documentTargetRange(link: DocumentLink): TextRange | null {
   return { start, end: start + trimmed.length };
 }
 
-function contentForNote(
-  note: ScannedNote,
-  contentByPath: ReadonlyMap<string, string> | undefined,
-): string {
-  return contentByPath?.get(note.path) ?? note.content ?? "";
-}
-
 /**
  * Build offset edits that retarget inbound (and self) links from `oldPath` to
  * `newPath` using source-relative path semantics.
@@ -124,7 +105,7 @@ export function planDocumentPathRename(input: {
   const noteList = notes as ScannedNote[];
 
   for (const note of notes) {
-    const content = contentForNote(note, contentByPath);
+    const content = contentByPath?.get(note.path) ?? note.content ?? "";
     const links = parseDocumentLinks(content, linkMode);
     const sourceForRelative = note.path === oldPath ? newPath : note.path;
 

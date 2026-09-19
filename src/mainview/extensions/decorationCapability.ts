@@ -99,31 +99,23 @@ export function parseDecorationAppearance(
   const appearance: ExtensionDecorationAppearance = {
     backgroundColor: background.color,
   };
-  if (record.color !== undefined) {
-    const foreground = parseDecorationColor(record.color);
-    if (!foreground.ok) {
-      return foreground;
+  for (const key of ["color", "overviewColor"] as const) {
+    if (record[key] !== undefined) {
+      const parsed = parseDecorationColor(record[key]);
+      if (!parsed.ok) {
+        return parsed;
+      }
+      appearance[key] = parsed.color;
     }
-    appearance.color = foreground.color;
   }
-  if (record.overviewColor !== undefined) {
-    const overview = parseDecorationColor(record.overviewColor);
-    if (!overview.ok) {
-      return overview;
+  for (const key of ["bold", "glyph"] as const) {
+    const flag = record[key];
+    if (flag !== undefined) {
+      if (typeof flag !== "boolean") {
+        return { ok: false, error: `decoration appearance.${key} must be boolean` };
+      }
+      appearance[key] = flag;
     }
-    appearance.overviewColor = overview.color;
-  }
-  if (record.bold !== undefined) {
-    if (typeof record.bold !== "boolean") {
-      return { ok: false, error: "decoration appearance.bold must be boolean" };
-    }
-    appearance.bold = record.bold;
-  }
-  if (record.glyph !== undefined) {
-    if (typeof record.glyph !== "boolean") {
-      return { ok: false, error: "decoration appearance.glyph must be boolean" };
-    }
-    appearance.glyph = record.glyph;
   }
   return { ok: true, appearance };
 }
@@ -182,6 +174,43 @@ export function monacoDecorationOptionsForRange(range: ExtensionDecorationRange)
   };
 }
 
+/** Text color that stays readable on each closed style token's chip. */
+const STYLE_TEXT_COLORS: Record<ExtensionDecorationStyle, string> = {
+  info: "#ffffff",
+  warn: "#0d1117",
+  error: "#0d1117",
+};
+
+/** Highlighted-text chip; the one paint both style tokens and appearances use. */
+function chipRule(className: string, background: string, color: string, weight: string): string {
+  return `.monaco-editor .${className},
+.${className} {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  border-radius: 0.2rem;
+  font-weight: ${weight} !important;
+  padding: 0 0.12em;
+  background-color: ${background} !important;
+  color: ${color} !important;
+}`;
+}
+
+/** Centered dot in the glyph margin. */
+function glyphDotRule(className: string, background: string): string {
+  return `.${className} { position: relative; }
+.${className}::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin: auto;
+  border-radius: 50%;
+  background: ${background};
+}`;
+}
+
 const EXTENSION_DECORATION_STYLE_ELEMENT_ID = "fulvid-extension-decoration-styles";
 const EXTENSION_APPEARANCE_STYLE_ELEMENT_ID = "fulvid-extension-appearance-styles";
 const injectedAppearanceKeys = new Set<string>();
@@ -199,64 +228,20 @@ export function ensureExtensionDecorationStyles(): void {
   }
   const style = document.createElement("style");
   style.id = EXTENSION_DECORATION_STYLE_ELEMENT_ID;
-  style.textContent = `
-.monaco-editor .fulvid-ext-decoration-info,
-.fulvid-ext-decoration-info {
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  border-radius: 0.2rem;
-  font-weight: 700 !important;
-  padding: 0 0.12em;
-  background-color: ${EXTENSION_DECORATION_OVERVIEW_HEX.info} !important;
-  color: #ffffff !important;
-}
-.monaco-editor .fulvid-ext-decoration-warn,
-.fulvid-ext-decoration-warn {
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  border-radius: 0.2rem;
-  font-weight: 700 !important;
-  padding: 0 0.12em;
-  background-color: ${EXTENSION_DECORATION_OVERVIEW_HEX.warn} !important;
-  color: #0d1117 !important;
-}
-.monaco-editor .fulvid-ext-decoration-error,
-.fulvid-ext-decoration-error {
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  border-radius: 0.2rem;
-  font-weight: 700 !important;
-  padding: 0 0.12em;
-  background-color: ${EXTENSION_DECORATION_OVERVIEW_HEX.error} !important;
-  color: #0d1117 !important;
-}
-.fulvid-ext-decoration-glyph-info,
-.fulvid-ext-decoration-glyph-warn,
-.fulvid-ext-decoration-glyph-error {
-  position: relative;
-}
-.fulvid-ext-decoration-glyph-info::before,
-.fulvid-ext-decoration-glyph-warn::before,
-.fulvid-ext-decoration-glyph-error::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 0.45rem;
-  height: 0.45rem;
-  margin: auto;
-  border-radius: 50%;
-}
-.fulvid-ext-decoration-glyph-info::before {
-  background: ${EXTENSION_DECORATION_OVERVIEW_HEX.info};
-}
-.fulvid-ext-decoration-glyph-warn::before {
-  background: ${EXTENSION_DECORATION_OVERVIEW_HEX.warn};
-}
-.fulvid-ext-decoration-glyph-error::before {
-  background: ${EXTENSION_DECORATION_OVERVIEW_HEX.error};
-}
-`.trim();
+  style.textContent = EXTENSION_DECORATION_STYLES.map((token) =>
+    [
+      chipRule(
+        cssClassForExtensionDecoration(token),
+        EXTENSION_DECORATION_OVERVIEW_HEX[token],
+        STYLE_TEXT_COLORS[token],
+        "700",
+      ),
+      glyphDotRule(
+        `fulvid-ext-decoration-glyph-${token}`,
+        EXTENSION_DECORATION_OVERVIEW_HEX[token],
+      ),
+    ].join("\n"),
+  ).join("\n");
   document.head.appendChild(style);
 }
 
@@ -279,41 +264,21 @@ export function ensureExtensionAppearanceStyles(appearance: ExtensionDecorationA
     sheet.id = EXTENSION_APPEARANCE_STYLE_ELEMENT_ID;
     document.head.appendChild(sheet);
   }
-  const className = cssClassForExtensionAppearance(appearance);
-  const glyphClass = glyphClassForExtensionAppearance(appearance);
-  const color = appearance.color ?? "#0d1117";
   const weight = appearance.bold === false ? "400" : "700";
-  const overview = appearance.overviewColor ?? appearance.backgroundColor;
-  const glyphRule =
+  const chip = chipRule(
+    cssClassForExtensionAppearance(appearance),
+    appearance.backgroundColor,
+    appearance.color ?? "#0d1117",
+    weight,
+  );
+  const glyph =
     appearance.glyph === false
       ? ""
-      : `
-.${glyphClass} { position: relative; }
-.${glyphClass}::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 0.45rem;
-  height: 0.45rem;
-  margin: auto;
-  border-radius: 50%;
-  background: ${overview};
-}
-`;
-  sheet.textContent += `
-.monaco-editor .${className},
-.${className} {
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  border-radius: 0.2rem;
-  font-weight: ${weight} !important;
-  padding: 0 0.12em;
-  background-color: ${appearance.backgroundColor} !important;
-  color: ${color} !important;
-}
-${glyphRule}
-`;
+      : glyphDotRule(
+          glyphClassForExtensionAppearance(appearance),
+          appearance.overviewColor ?? appearance.backgroundColor,
+        );
+  sheet.textContent += `\n${chip}\n${glyph}\n`;
   injectedAppearanceKeys.add(key);
 }
 

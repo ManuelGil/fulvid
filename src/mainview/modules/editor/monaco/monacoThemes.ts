@@ -168,23 +168,6 @@ export const THEME_OPTIONS: readonly ThemeOption[] = [
   },
 ];
 
-const EDITOR_THEME_IDS: Readonly<Record<Exclude<ThemePreference, "system">, string>> = {
-  light: "fulvid-monaco-light",
-  paper: "fulvid-monaco-paper",
-  "warm-light": "fulvid-monaco-warm-light",
-  "soft-light": "fulvid-monaco-soft-light",
-  dark: "fulvid-monaco-dark",
-  "dark-soft": "fulvid-monaco-dark-soft",
-  "dark-strong": "fulvid-monaco-dark-strong",
-  midnight: "fulvid-monaco-midnight",
-  "high-contrast-light": "fulvid-monaco-high-contrast-light",
-  "high-contrast-dark": "fulvid-monaco-high-contrast-dark",
-  protanopia: "fulvid-monaco-protanopia",
-  deuteranopia: "fulvid-monaco-deuteranopia",
-  tritanopia: "fulvid-monaco-tritanopia",
-  monochrome: "fulvid-monaco-monochrome",
-};
-
 export function themeOptionsForFamily(family: ThemeFamily): readonly ThemeOption[] {
   return THEME_OPTIONS.filter((option) => option.family === family);
 }
@@ -211,9 +194,7 @@ export function resolveMonacoThemeId(
     return prefersLight ? "hc-light" : "hc-black";
   }
 
-  if (theme === "system") {
-    return prefersLight ? EDITOR_THEME_IDS.light : EDITOR_THEME_IDS.dark;
-  }
-
-  return EDITOR_THEME_IDS[theme];
+  // Every Fulvid theme defines a Monaco theme of the same name.
+  const resolved = theme === "system" ? (prefersLight ? "light" : "dark") : theme;
+  return `fulvid-monaco-${resolved}`;
 }

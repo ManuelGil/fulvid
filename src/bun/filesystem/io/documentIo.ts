@@ -1,8 +1,8 @@
 /**
  * Folder document I/O on the privileged host.
  *
- * Folder operations take `rootPath` + `relativePath` and go through
- * `assertWithinWorkspace` plus canonical containment. Open File / Save As
+ * Folder operations take `rootPath` + `relativePath` and go through lexical
+ * (`containedPath`) plus canonical containment. Open File / Save As
  * take a native-dialog path: extension and null-byte checks only, not folder
  * roots. Later standalone saves use a grant token that maps to that path.
  * HTML Export writes `.html` through the same dialog folder picker and
@@ -16,11 +16,13 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, relative, resolve } from "node:path";
 
-import type {
-  DocumentSnapshot,
-  DocumentWriteResult,
+import {
+  isMarkdownFile,
+  RESERVED_DEVICE_NAMES,
+  type DocumentSnapshot,
+  type DocumentWriteResult,
+  type MarkdownFileType,
 } from "../../../mainview/modules/workspace/filesystem/workspaceTypes";
-import { isMarkdownFile } from "../../../mainview/modules/workspace/filesystem/workspaceTypes";
 import type { LinkSyntax } from "../../../mainview/modules/document/links/documentLink";
 import { scannedNoteFromFile } from "../scanning/scanDirectory";
 import {
@@ -29,7 +31,6 @@ import {
   hasControlCharacters,
   isUnsafePathSegment,
   normalizeWorkspaceRelativePath,
-  RESERVED_DEVICE_NAMES,
   WorkspaceBoundaryError,
 } from "../security/workspacePaths";
 import { MAX_DOCUMENT_BYTES } from "../rpc/rpcInput";
@@ -49,18 +50,6 @@ export class DocumentConflictError extends Error {
     super(documentConflictMessage(path));
     this.name = "DocumentConflictError";
   }
-}
-
-/**
- * Resolve a workspace-relative target while keeping the workspace boundary
- * explicit for every document operation.
- *
- * Lexical only. Callers that touch the filesystem must also clear
- * `assertCanonicallyContained`, so a symlink inside the folder cannot move the
- * target outside the root after normalization.
- */
-export function assertWithinWorkspace(rootPath: string, relativePath: string): string {
-  return containedPath(rootPath, relativePath);
 }
 
 function assertStandaloneDocumentPath(targetPath: string): string {
@@ -96,14 +85,11 @@ function requireSafeBasename(value: string): string {
   return value;
 }
 
-function validateDocumentBasename(
-  value: string,
-  defaultExtension: "md" | "markdown" | "mdx" = "mdx",
-): string {
+function validateDocumentBasename(value: string, defaultExtension: MarkdownFileType): string {
   const basenameValue = requireSafeBasename(value);
   const extension = extname(basenameValue);
   const candidate = extension ? basenameValue : `${basenameValue}.${defaultExtension}`;
-  const stem = basename(candidate).replace(/\.[^.]+$/, "");
+  const stem = candidate.replace(/\.[^.]+$/, "");
   if (!isMarkdownFile(candidate) || stem === "") {
     throw new WorkspaceBoundaryError("unsafeName");
   }
@@ -123,19 +109,11 @@ export function validateHtmlBasename(value: string): string {
   if (extname(candidate).toLowerCase() !== ".html") {
     throw new WorkspaceBoundaryError("unsafeName");
   }
-  const stem = basename(candidate).slice(0, -extname(candidate).length);
+  const stem = candidate.slice(0, -extname(candidate).length);
   if (stem === "" || RESERVED_DEVICE_NAMES.has(stem.toLowerCase())) {
     throw new WorkspaceBoundaryError("unsafeName");
   }
   return `${stem}.html`;
-}
-
-function assertDocumentPath(rootPath: string, relativePath: string): string {
-  const targetPath = assertWithinWorkspace(rootPath, relativePath);
-  if (!isMarkdownFile(targetPath)) {
-    throw new WorkspaceBoundaryError("unsupportedDocument");
-  }
-  return targetPath;
 }
 
 /**
@@ -146,7 +124,10 @@ function assertDocumentPath(rootPath: string, relativePath: string): string {
  * resolves a link target against scanned notes rather than the disk tree.
  */
 async function resolveWorkspaceFileTarget(rootPath: string, relativePath: string): Promise<string> {
-  const targetPath = assertDocumentPath(rootPath, relativePath);
+  const targetPath = containedPath(rootPath, relativePath);
+  if (!isMarkdownFile(targetPath)) {
+    throw new WorkspaceBoundaryError("unsupportedDocument");
+  }
   await assertCanonicallyContained(rootPath, relativePath);
   return targetPath;
 }
@@ -163,15 +144,20 @@ async function fileMtimeOrNull(targetPath: string): Promise<number | null> {
     }
     return information.mtimeMs;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      (error as NodeJS.ErrnoException).code === "ENOENT"
-    ) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return null;
     }
     throw error;
   }
+}
+
+/** The mtime of a file that must still be there, such as one this module just wrote. */
+async function existingFileMtime(targetPath: string): Promise<number> {
+  const mtimeMs = await fileMtimeOrNull(targetPath);
+  if (mtimeMs === null) {
+    throw new Error(filesystemErrorMessage("operationFailed"));
+  }
+  return mtimeMs;
 }
 
 /**
@@ -186,16 +172,22 @@ async function assertReadableSize(targetPath: string): Promise<void> {
   }
 }
 
+/**
+ * The document must still be the one the renderer last saw: a changed mtime is
+ * a conflict, and a document that is gone cannot be written, renamed or deleted.
+ */
 async function assertExpectedMtime(
   targetPath: string,
   relativePath: string,
   expectedMtimeMs: number | undefined,
-): Promise<number | null> {
+): Promise<void> {
   const currentMtimeMs = await fileMtimeOrNull(targetPath);
   if (expectedMtimeMs !== undefined && currentMtimeMs !== expectedMtimeMs) {
     throw new DocumentConflictError(relativePath, expectedMtimeMs, currentMtimeMs);
   }
-  return currentMtimeMs;
+  if (currentMtimeMs === null) {
+    throw new Error(filesystemErrorMessage("documentMissing"));
+  }
 }
 
 /**
@@ -255,10 +247,7 @@ async function readFileContentWithMtimeCheck(
   await assertReadableSize(targetPath);
 
   const content = await readFile(targetPath, "utf8");
-  const finalMtimeMs = await fileMtimeOrNull(targetPath);
-  if (finalMtimeMs === null) {
-    throw new Error(filesystemErrorMessage("operationFailed"));
-  }
+  const finalMtimeMs = await existingFileMtime(targetPath);
   // Reject a torn read when the file changed under us between the two stats.
   if (finalMtimeMs !== initialMtimeMs) {
     throw new Error(filesystemErrorMessage("operationFailed"));
@@ -301,17 +290,11 @@ export async function writeDocument(
   linkMode: LinkSyntax = "markdown",
 ): Promise<DocumentWriteResult> {
   const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
-  const currentMtimeMs = await assertExpectedMtime(targetPath, relativePath, expectedMtimeMs);
-  if (currentMtimeMs === null) {
-    throw new Error(filesystemErrorMessage("documentMissing"));
-  }
+  await assertExpectedMtime(targetPath, relativePath, expectedMtimeMs);
 
   await writeAtomically(targetPath, content);
   const note = await scannedNoteFromFile(rootPath, targetPath, linkMode);
-  const mtimeMs = await fileMtimeOrNull(targetPath);
-  if (mtimeMs === null) {
-    throw new Error(filesystemErrorMessage("operationFailed"));
-  }
+  const mtimeMs = await existingFileMtime(targetPath);
 
   return { note, absolutePath: targetPath, mtimeMs };
 }
@@ -333,10 +316,7 @@ export async function createDocument(
     throw new Error(filesystemErrorMessage("documentExists"));
   }
   const note = await scannedNoteFromFile(rootPath, targetPath, linkMode);
-  const mtimeMs = await fileMtimeOrNull(targetPath);
-  if (mtimeMs === null) {
-    throw new Error(filesystemErrorMessage("operationFailed"));
-  }
+  const mtimeMs = await existingFileMtime(targetPath);
 
   return { note, absolutePath: targetPath, mtimeMs };
 }
@@ -358,20 +338,18 @@ export async function createDirectory(
   const targetPath = containedPath(rootPath, normalized);
   await assertCanonicallyContained(rootPath, normalized);
 
+  // Any entry already at the path, file or directory, refuses the create.
+  let occupied = true;
   try {
     await stat(targetPath);
-    throw new Error(filesystemErrorMessage("documentExists"));
   } catch (error) {
-    if (error instanceof Error && error.message === filesystemErrorMessage("documentExists")) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
       throw error;
     }
-    if (!(
-      error instanceof Error &&
-      "code" in error &&
-      (error as NodeJS.ErrnoException).code === "ENOENT"
-    )) {
-      throw error;
-    }
+    occupied = false;
+  }
+  if (occupied) {
+    throw new Error(filesystemErrorMessage("documentExists"));
   }
 
   await mkdir(targetPath, { recursive: false });
@@ -387,10 +365,7 @@ export async function renameDocument(
 ): Promise<DocumentWriteResult> {
   const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
   const nextTargetPath = await resolveWorkspaceFileTarget(rootPath, nextRelativePath);
-  const currentMtimeMs = await assertExpectedMtime(targetPath, relativePath, expectedMtimeMs);
-  if (currentMtimeMs === null) {
-    throw new Error(filesystemErrorMessage("documentMissing"));
-  }
+  await assertExpectedMtime(targetPath, relativePath, expectedMtimeMs);
 
   if ((await fileMtimeOrNull(nextTargetPath)) !== null) {
     throw new Error(filesystemErrorMessage("documentExists"));
@@ -409,10 +384,7 @@ export async function renameDocument(
     throw error;
   }
   const note = await scannedNoteFromFile(rootPath, nextTargetPath, linkMode);
-  const mtimeMs = await fileMtimeOrNull(nextTargetPath);
-  if (mtimeMs === null) {
-    throw new Error(filesystemErrorMessage("operationFailed"));
-  }
+  const mtimeMs = await existingFileMtime(nextTargetPath);
 
   return { note, absolutePath: nextTargetPath, mtimeMs };
 }
@@ -433,15 +405,16 @@ export async function readSelectedDocument(
   return { absolutePath: targetPath, content, mtimeMs };
 }
 
+type SelectedWriteResult =
+  | { status: "saved"; absolutePath: string; mtimeMs: number }
+  | { status: "exists"; absolutePath: string };
+
 async function writeSelectedBasename(
   selectedFolder: string,
   filename: string,
   content: string,
   overwrite: boolean,
-): Promise<
-  | { status: "saved"; absolutePath: string; mtimeMs: number }
-  | { status: "exists"; absolutePath: string }
-> {
+): Promise<SelectedWriteResult> {
   const folderPath = resolve(selectedFolder);
   // The folder came from a native dialog, but the name came from the renderer:
   // prove the join stays in the chosen folder even through a symlinked name.
@@ -457,10 +430,7 @@ async function writeSelectedBasename(
   } else {
     await writeAtomically(targetPath, content);
   }
-  const mtimeMs = await fileMtimeOrNull(targetPath);
-  if (mtimeMs === null) {
-    throw new Error(filesystemErrorMessage("operationFailed"));
-  }
+  const mtimeMs = await existingFileMtime(targetPath);
   return { status: "saved", absolutePath: targetPath, mtimeMs };
 }
 
@@ -468,12 +438,9 @@ export async function saveSelectedDocument(
   selectedFolder: string,
   requestedBasename: string,
   content: string,
-  defaultExtension: "md" | "markdown" | "mdx" = "mdx",
+  defaultExtension: MarkdownFileType = "mdx",
   overwrite = false,
-): Promise<
-  | { status: "saved"; absolutePath: string; mtimeMs: number }
-  | { status: "exists"; absolutePath: string }
-> {
+): Promise<SelectedWriteResult> {
   return writeSelectedBasename(
     selectedFolder,
     validateDocumentBasename(requestedBasename, defaultExtension),
@@ -493,10 +460,7 @@ export async function saveSelectedHtmlExport(
   requestedBasename: string,
   content: string,
   overwrite = false,
-): Promise<
-  | { status: "saved"; absolutePath: string; mtimeMs: number }
-  | { status: "exists"; absolutePath: string }
-> {
+): Promise<SelectedWriteResult> {
   return writeSelectedBasename(
     selectedFolder,
     validateHtmlBasename(requestedBasename),
@@ -521,10 +485,7 @@ export async function writeGrantedDocument(
   // the absolute path does not belong in a message the renderer renders.
   await assertExpectedMtime(targetPath, basename(targetPath), expectedMtimeMs);
   await writeAtomically(targetPath, content);
-  const mtimeMs = await fileMtimeOrNull(targetPath);
-  if (mtimeMs === null) {
-    throw new Error(filesystemErrorMessage("operationFailed"));
-  }
+  const mtimeMs = await existingFileMtime(targetPath);
   return { absolutePath: targetPath, mtimeMs };
 }
 
@@ -546,10 +507,7 @@ export async function deleteDocument(
   expectedMtimeMs?: number,
 ): Promise<boolean> {
   const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
-  const currentMtimeMs = await assertExpectedMtime(targetPath, relativePath, expectedMtimeMs);
-  if (currentMtimeMs === null) {
-    throw new Error(filesystemErrorMessage("documentMissing"));
-  }
+  await assertExpectedMtime(targetPath, relativePath, expectedMtimeMs);
 
   await unlink(targetPath);
   return true;

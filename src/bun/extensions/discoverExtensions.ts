@@ -35,15 +35,6 @@ import {
 } from "./lua/luaExtensionRuntime";
 import { LUA_EXTENSION_LIMITS } from "./lua/luaLimits";
 
-export type {
-  DiscoveredExtension,
-  DiscoveredExtensionCommand,
-  ExtensionDiscoveryResult,
-  ExtensionInstallResult,
-  ExtensionLoadFailure,
-  ExtensionUninstallResult,
-};
-
 const STAGING_PREFIX = "_fulvid-staging-";
 const MAX_PACK_FILES = 256;
 const MAX_PACK_TOTAL_BYTES = 2 * 1024 * 1024;
@@ -79,14 +70,7 @@ export function configureExtensionDiscovery(userDataPath: string): void {
 }
 
 export function getDiscoveredExtensions(): ExtensionDiscoveryResult {
-  return (
-    cachedDiscovery ?? {
-      loaded: [],
-      failed: [],
-      installed: [],
-      extensionsRoot: extensionsRootPath,
-    }
-  );
+  return cachedDiscovery ?? emptyResult();
 }
 
 function boundReason(raw: string): string {
@@ -101,6 +85,15 @@ function emptyResult(): ExtensionDiscoveryResult {
     installed: [],
     extensionsRoot: extensionsRootPath,
   };
+}
+
+/** A failed install or uninstall, reported with the inventory as it stands. */
+function lifecycleError(reason: string): {
+  status: "error";
+  reason: string;
+  discovery: ExtensionDiscoveryResult;
+} {
+  return { status: "error", reason, discovery: getDiscoveredExtensions() };
 }
 
 function isStagingDirectoryName(name: string): boolean {
@@ -131,7 +124,7 @@ async function cleanupStaleStaging(root: string): Promise<void> {
  * Continues after individual failures.
  */
 export async function discoverExtensions(): Promise<ExtensionDiscoveryResult> {
-  return withExtensionLifecycleLock(async () => discoverExtensionsUnlocked());
+  return withExtensionLifecycleLock(discoverExtensionsUnlocked);
 }
 
 async function discoverExtensionsUnlocked(): Promise<ExtensionDiscoveryResult> {
@@ -140,9 +133,8 @@ async function discoverExtensionsUnlocked(): Promise<ExtensionDiscoveryResult> {
 
   const root = extensionsRootPath;
   if (!root) {
-    const empty = emptyResult();
-    cachedDiscovery = empty;
-    return empty;
+    cachedDiscovery = emptyResult();
+    return cachedDiscovery;
   }
 
   await cleanupStaleStaging(root);
@@ -225,10 +217,7 @@ export async function loadAllowedBlockedExtension(
   extensionId: string,
 ): Promise<ExtensionDiscoveryResult> {
   return withExtensionLifecycleLock(async () => {
-    if (!allowBlockedExtension(extensionId)) {
-      return getDiscoveredExtensions();
-    }
-    if (!extensionsRootPath) {
+    if (!allowBlockedExtension(extensionId) || !extensionsRootPath) {
       return getDiscoveredExtensions();
     }
     return discoverExtensionsUnlocked();
@@ -364,46 +353,26 @@ export async function installExtensionFromDirectory(
   return withExtensionLifecycleLock(async () => {
     const root = extensionsRootPath;
     if (!root) {
-      return {
-        status: "error",
-        reason: "extensions directory unavailable",
-        discovery: getDiscoveredExtensions(),
-      };
+      return lifecycleError("extensions directory unavailable");
     }
 
     let sourceReal: string;
     try {
       const sourceStat = await lstat(sourceDirectory);
       if (sourceStat.isSymbolicLink()) {
-        return {
-          status: "error",
-          reason: "extension pack must not be a symlink",
-          discovery: getDiscoveredExtensions(),
-        };
+        return lifecycleError("extension pack must not be a symlink");
       }
       if (!sourceStat.isDirectory()) {
-        return {
-          status: "error",
-          reason: "extension pack must be a directory",
-          discovery: getDiscoveredExtensions(),
-        };
+        return lifecycleError("extension pack must be a directory");
       }
       sourceReal = await realpath(sourceDirectory);
     } catch {
-      return {
-        status: "error",
-        reason: "extension pack unreadable",
-        discovery: getDiscoveredExtensions(),
-      };
+      return lifecycleError("extension pack unreadable");
     }
 
     const rootReal = await realpath(root).catch(() => root);
     if (sourceReal === rootReal || pathInsideRoot(sourceReal, rootReal)) {
-      return {
-        status: "error",
-        reason: "cannot install from the extensions directory",
-        discovery: getDiscoveredExtensions(),
-      };
+      return lifecycleError("cannot install from the extensions directory");
     }
 
     let manifest: ExtensionManifest;
@@ -417,17 +386,13 @@ export async function installExtensionFromDirectory(
           : error instanceof Error
             ? error.message
             : "invalid extension pack";
-      return { status: "error", reason: boundReason(reason), discovery: getDiscoveredExtensions() };
+      return lifecycleError(boundReason(reason));
     }
 
     const destination = join(root, manifest.id);
     try {
       await lstat(destination);
-      return {
-        status: "error",
-        reason: `extension "${manifest.id}" is already installed`,
-        discovery: getDiscoveredExtensions(),
-      };
+      return lifecycleError(`extension "${manifest.id}" is already installed`);
     } catch {
       // Destination must not exist.
     }
@@ -468,45 +433,21 @@ export async function uninstallExtensionPack(
 ): Promise<ExtensionUninstallResult> {
   return withExtensionLifecycleLock(async () => {
     if (!isValidExtensionId(extensionId)) {
-      return {
-        status: "error",
-        reason: "invalid extension id",
-        discovery: getDiscoveredExtensions(),
-      };
+      return lifecycleError("invalid extension id");
     }
     const root = extensionsRootPath;
     if (!root) {
-      return {
-        status: "error",
-        reason: "extensions directory unavailable",
-        discovery: getDiscoveredExtensions(),
-      };
+      return lifecycleError("extensions directory unavailable");
     }
 
     const packPath = join(root, extensionId);
     if (basename(packPath) !== extensionId || !pathInsideRoot(resolve(packPath), resolve(root))) {
-      return {
-        status: "error",
-        reason: "invalid extension path",
-        discovery: getDiscoveredExtensions(),
-      };
+      return lifecycleError("invalid extension path");
     }
 
-    try {
-      const packStat = await lstat(packPath);
-      if (packStat.isSymbolicLink() || !packStat.isDirectory()) {
-        return {
-          status: "error",
-          reason: "extension pack missing",
-          discovery: getDiscoveredExtensions(),
-        };
-      }
-    } catch {
-      return {
-        status: "error",
-        reason: "extension pack missing",
-        discovery: getDiscoveredExtensions(),
-      };
+    const packStat = await lstat(packPath).catch(() => null);
+    if (!packStat || packStat.isSymbolicLink() || !packStat.isDirectory()) {
+      return lifecycleError("extension pack missing");
     }
 
     unloadLuaExtensionPack(extensionId);

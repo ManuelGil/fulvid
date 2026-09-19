@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 import { Utils } from "electrobun/main";
 
-export type WindowFrame = {
+type WindowFrame = {
   x: number;
   y: number;
   width: number;
@@ -30,27 +30,19 @@ function boundsPath(): string {
   return join(dir, "window-frame.json");
 }
 
+function roundedOr(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.round(value) : fallback;
+}
+
 function sanitize(value: unknown): WindowFrame {
   const source = value && typeof value === "object" ? (value as Partial<WindowFrame>) : {};
-
-  const width =
-    typeof source.width === "number" && Number.isFinite(source.width)
-      ? Math.max(MIN_WIDTH, Math.round(source.width))
-      : DEFAULT_FRAME.width;
-  const height =
-    typeof source.height === "number" && Number.isFinite(source.height)
-      ? Math.max(MIN_HEIGHT, Math.round(source.height))
-      : DEFAULT_FRAME.height;
-  const x =
-    typeof source.x === "number" && Number.isFinite(source.x)
-      ? Math.round(source.x)
-      : DEFAULT_FRAME.x;
-  const y =
-    typeof source.y === "number" && Number.isFinite(source.y)
-      ? Math.round(source.y)
-      : DEFAULT_FRAME.y;
-
-  return { x, y, width, height };
+  return {
+    x: roundedOr(source.x, DEFAULT_FRAME.x),
+    y: roundedOr(source.y, DEFAULT_FRAME.y),
+    // The defaults already exceed the minimums, so clamping them is a no-op.
+    width: Math.max(MIN_WIDTH, roundedOr(source.width, DEFAULT_FRAME.width)),
+    height: Math.max(MIN_HEIGHT, roundedOr(source.height, DEFAULT_FRAME.height)),
+  };
 }
 
 export function loadWindowFrame(): WindowFrame {

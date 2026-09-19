@@ -175,7 +175,7 @@ function onDialogKeydown(event: KeyboardEvent): void {
   );
   const isLeavingForward =
     !event.shiftKey && (currentIndex < 0 || currentIndex === focusable.length - 1);
-  const isLeavingBackward = event.shiftKey && (currentIndex < 0 || currentIndex <= 0);
+  const isLeavingBackward = event.shiftKey && currentIndex <= 0;
   if (!isLeavingForward && !isLeavingBackward) {
     return;
   }
@@ -235,26 +235,30 @@ function activateQuickOpenSelection(): void {
   submitQuickOpen(selected.path);
 }
 
-function onQuickOpenKeydown(event: KeyboardEvent): void {
+/** Escape, arrows and Enter for a filter-and-pick listbox (Quick Open and pick lists). */
+function onListboxKeydown(
+  event: KeyboardEvent,
+  move: (delta: 1 | -1) => void,
+  activate: () => void,
+): void {
   if (event.key === "Escape") {
     event.preventDefault();
     cancelDialog();
     return;
   }
-  if (event.key === "ArrowDown") {
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
     event.preventDefault();
-    moveQuickOpenSelection(1);
-    return;
-  }
-  if (event.key === "ArrowUp") {
-    event.preventDefault();
-    moveQuickOpenSelection(-1);
+    move(event.key === "ArrowDown" ? 1 : -1);
     return;
   }
   if (event.key === "Enter") {
     event.preventDefault();
-    activateQuickOpenSelection();
+    activate();
   }
+}
+
+function onQuickOpenKeydown(event: KeyboardEvent): void {
+  onListboxKeydown(event, moveQuickOpenSelection, activateQuickOpenSelection);
 }
 
 function onQuickOpenResultClick(index: number): void {
@@ -282,25 +286,7 @@ function activatePickSelection(): void {
 }
 
 function onPickKeydown(event: KeyboardEvent): void {
-  if (event.key === "Escape") {
-    event.preventDefault();
-    cancelDialog();
-    return;
-  }
-  if (event.key === "ArrowDown") {
-    event.preventDefault();
-    movePickSelection(1);
-    return;
-  }
-  if (event.key === "ArrowUp") {
-    event.preventDefault();
-    movePickSelection(-1);
-    return;
-  }
-  if (event.key === "Enter") {
-    event.preventDefault();
-    activatePickSelection();
-  }
+  onListboxKeydown(event, movePickSelection, activatePickSelection);
 }
 
 function onPickResultClick(index: number): void {

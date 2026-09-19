@@ -51,16 +51,13 @@ import {
   requireString,
 } from "./rpcInput";
 
-async function pickNativePath(options: {
-  allowedFileTypes: string;
-  canChooseFiles: boolean;
-  canChooseDirectory: boolean;
-}): Promise<string | null> {
+/** The one folder or Markdown document a person chose in a native dialog, or null. */
+async function pickNativePath(kind: "folder" | "document"): Promise<string | null> {
   const chosenPaths = await Utils.openFileDialog({
     startingFolder: Utils.paths.home,
-    allowedFileTypes: options.allowedFileTypes,
-    canChooseFiles: options.canChooseFiles,
-    canChooseDirectory: options.canChooseDirectory,
+    allowedFileTypes: kind === "folder" ? "*" : "*.md,*.markdown,*.mdx",
+    canChooseFiles: kind === "document",
+    canChooseDirectory: kind === "folder",
     allowsMultipleSelection: false,
   });
   return chosenPaths[0] ?? null;
@@ -72,19 +69,11 @@ export const filesystemRpcHandlers = {
     if (requestedPath) {
       return reauthorizeWorkspaceRoot(requestedPath);
     }
-    const selectedPath = await pickNativePath({
-      allowedFileTypes: "*",
-      canChooseFiles: false,
-      canChooseDirectory: true,
-    });
+    const selectedPath = await pickNativePath("folder");
     return selectedPath ? authorizeChosenWorkspaceRoot(selectedPath) : null;
   }),
   pickAndOpenDocument: containHostError("pickAndOpenDocument", async () => {
-    const selectedPath = await pickNativePath({
-      allowedFileTypes: "*.md,*.markdown,*.mdx",
-      canChooseFiles: true,
-      canChooseDirectory: false,
-    });
+    const selectedPath = await pickNativePath("document");
     if (!selectedPath) {
       return null;
     }
@@ -100,11 +89,7 @@ export const filesystemRpcHandlers = {
     const defaultExtension = requireDefaultExtension(params);
     const overwrite = optionalBoolean(params, "overwrite", false);
 
-    const selectedFolder = await pickNativePath({
-      allowedFileTypes: "*",
-      canChooseFiles: false,
-      canChooseDirectory: true,
-    });
+    const selectedFolder = await pickNativePath("folder");
     if (!selectedFolder) {
       return { status: "cancelled" as const };
     }
@@ -128,19 +113,13 @@ export const filesystemRpcHandlers = {
     const content = requireDocumentContent(params);
     const overwrite = optionalBoolean(params, "overwrite", false);
 
-    const selectedFolder = await pickNativePath({
-      allowedFileTypes: "*",
-      canChooseFiles: false,
-      canChooseDirectory: true,
-    });
+    const selectedFolder = await pickNativePath("folder");
     if (!selectedFolder) {
       return { status: "cancelled" as const };
     }
     const result = await saveSelectedHtmlExport(selectedFolder, basename, content, overwrite);
-    if (result.status === "exists") {
-      return { status: "exists" as const, absolutePath: result.absolutePath };
-    }
-    return { status: "saved" as const, absolutePath: result.absolutePath };
+    // An export is not a document buffer, so its mtime is not reported.
+    return { status: result.status, absolutePath: result.absolutePath };
   }),
   writeGrantedDocument: containHostError("writeGrantedDocument", async (params: unknown) => {
     const grantToken = requireGrantToken(params);

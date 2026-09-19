@@ -26,30 +26,23 @@ const steps: Step[] = [
   { name: "Doctor", command: "bun", args: ["run", "doctor"] },
 ];
 
-function runStep(step: Step): void {
-  console.log(`\n-> ${step.name}\n`);
-  execFileSync(step.command, step.args, { cwd: root, stdio: "inherit" });
-}
-
 console.log("\nFulvid validate\n");
 
 for (const step of steps) {
+  console.log(`\n-> ${step.name}\n`);
   try {
-    runStep(step);
+    execFileSync(step.command, step.args, { cwd: root, stdio: "inherit" });
   } catch {
     console.error(`\nValidate failed at: ${step.name}\n`);
     process.exit(1);
   }
 }
 
-if (!existsSync(join(root, "dist/index.html"))) {
-  console.error("\nValidate failed: dist/index.html missing after build\n");
-  process.exit(1);
-}
-
-if (!existsSync(join(root, "dist/assets"))) {
-  console.error("\nValidate failed: dist/assets missing after build\n");
-  process.exit(1);
+for (const required of ["dist/index.html", "dist/assets"]) {
+  if (!existsSync(join(root, required))) {
+    console.error(`\nValidate failed: ${required} missing after build\n`);
+    process.exit(1);
+  }
 }
 
 console.log("\nValidate passed.\n");

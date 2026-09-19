@@ -205,14 +205,17 @@ function bufferForGraphNode(nodePath: string) {
 }
 
 function openGraphDocument(path: string, explain = false): void {
-  const existing = bufferForGraphNode(path);
-  if (existing) {
-    selectDocument(existing.id);
+  const showInEditor = (): void => {
     void router.push({ name: APP_ROUTE_NAMES.editor }).then(() => {
       if (explain) {
         openInspector();
       }
     });
+  };
+  const existing = bufferForGraphNode(path);
+  if (existing) {
+    selectDocument(existing.id);
+    showInEditor();
     return;
   }
 
@@ -222,13 +225,7 @@ function openGraphDocument(path: string, explain = false): void {
   }
 
   void openOrActivate({ kind: "workspace", rootPath, path })
-    .then(() => {
-      void router.push({ name: APP_ROUTE_NAMES.editor }).then(() => {
-        if (explain) {
-          openInspector();
-        }
-      });
-    })
+    .then(showInEditor)
     .catch((error) => {
       // Same visible failure path as Search / Quick Open / Inspector - not a silent no-op.
       notifyFilesystemError(error, "workspace.openDocumentError", notify);

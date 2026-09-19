@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type * as monaco from "monaco-editor/editor";
 
@@ -41,11 +41,7 @@ function setRowElement(key: string, element: unknown): void {
 }
 
 function focusRelativeRow(index: number, delta: number): void {
-  const nextIndex = Math.min(Math.max(index + delta, 0), rows.value.length - 1);
-  const row = rows.value[nextIndex];
-  if (row) {
-    setRovingRow(nextIndex, true);
-  }
+  setRovingRow(Math.min(Math.max(index + delta, 0), rows.value.length - 1), true);
 }
 
 function setRovingRow(index: number, focus: boolean): void {
@@ -90,7 +86,7 @@ function flattenSymbols(
       column: symbol.selectionRange.startColumn,
       level,
     });
-    if (symbol.children && symbol.children.length > 0) {
+    if (symbol.children) {
       flattenSymbols(symbol.children, level + 1, result);
     }
   }
@@ -140,10 +136,6 @@ watch(
   },
   { flush: "post" },
 );
-
-onMounted(() => {
-  focusedInitialRow = false;
-});
 
 onBeforeUnmount(() => {
   if (refreshTimer) {

@@ -21,12 +21,7 @@ export function isCurrentExplorerListSession(
   requestRoot: string | null,
   currentRoot: string | null,
 ): boolean {
-  return (
-    requestSession === currentSession &&
-    requestRoot !== null &&
-    currentRoot !== null &&
-    requestRoot === currentRoot
-  );
+  return requestSession === currentSession && requestRoot !== null && requestRoot === currentRoot;
 }
 
 /**
@@ -59,7 +54,6 @@ export function reconcileExplorerDirectoryState(
 
   const nextExpanded = new Set(expandedDirectories);
   for (const prefix of removedPrefixes) {
-    nextExpanded.delete(prefix);
     for (const path of [...nextExpanded]) {
       if (path === prefix || path.startsWith(`${prefix}/`)) {
         nextExpanded.delete(path);

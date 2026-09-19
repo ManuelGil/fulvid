@@ -14,9 +14,9 @@ import {
   closeWorkspace,
   copyPath,
   copyWorkspacePath,
+  openGrantedSnapshot,
   openWorkspace,
   refreshWorkspace,
-  relativeDocumentPath,
   revealPath,
   revealWorkspaceInExplorer,
   workspace,
@@ -119,6 +119,7 @@ import {
   toggleDocumentAnnotationsVisible,
 } from "../modules/editor/document/documentAnnotationVisibility";
 import { isUsableFocusTarget } from "./usableFocusTarget";
+import { trackPointerDrag } from "./pointerDrag";
 import QuickActionsToolbar from "../shell/QuickActionsToolbar.vue";
 import OutlinePanel from "../modules/editor/outline/OutlinePanel.vue";
 import Statusbar from "../shell/Statusbar.vue";
@@ -369,10 +370,7 @@ function activateMruDocument(direction: 1 | -1): void {
     activateAdjacentDocument(direction);
     return;
   }
-  const nextBuffer = openBuffers.value.find((buffer) => buffer.id === nextId);
-  if (!nextBuffer) {
-    return;
-  }
+  // No-op when the id is no longer open.
   selectDocument(nextId);
 }
 
@@ -620,29 +618,9 @@ function startContextualResize(event: PointerEvent): void {
   contextualResizeCleanup?.();
   const startX = event.clientX;
   const startWidth = layout.value.contextualWidth;
-  let cleanup = (): void => {};
-  const onMove = (moveEvent: PointerEvent): void => {
+  contextualResizeCleanup = trackPointerDrag("col-resize", (moveEvent) => {
     setContextualWidth(startWidth + (startX - moveEvent.clientX));
-  };
-  const onUp = (): void => {
-    cleanup();
-    if (contextualResizeCleanup === cleanup) {
-      contextualResizeCleanup = null;
-    }
-  };
-  cleanup = (): void => {
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
-    window.removeEventListener("pointercancel", onUp);
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-  };
-  document.body.style.cursor = "col-resize";
-  document.body.style.userSelect = "none";
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointercancel", onUp);
-  contextualResizeCleanup = cleanup;
+  });
 }
 
 const unregisterNativeMenu = onApplicationMenuClicked((action) => {
@@ -784,11 +762,7 @@ const liveAnnouncement = computed(() =>
 async function createNewDocument(content?: string): Promise<void> {
   try {
     closeRightSidebar();
-    if (content === undefined) {
-      await openOrActivate({ kind: "virtual" });
-    } else {
-      await openOrActivate({ kind: "virtual", content });
-    }
+    await openOrActivate({ kind: "virtual", content });
     await router.push({ name: APP_ROUTE_NAMES.editor });
   } catch (error) {
     notifyFilesystemError(error, "workspace.openDocumentError", notify);
@@ -854,18 +828,7 @@ async function openFileDocument(): Promise<void> {
     if (!snapshot) {
       return;
     }
-    const attachment =
-      workspace.value && snapshot.absolutePath
-        ? relativeDocumentPath(workspace.value.path, snapshot.absolutePath)
-        : null;
-    const openWorkspace = workspace.value;
-    await openOrActivate({
-      kind: "granted",
-      snapshot,
-      ...(attachment && openWorkspace
-        ? { attachment: { rootPath: openWorkspace.path, path: attachment } }
-        : {}),
-    });
+    await openGrantedSnapshot(snapshot);
     closeRightSidebar();
     await router.push({ name: APP_ROUTE_NAMES.editor });
   } catch (error) {

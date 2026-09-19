@@ -13,16 +13,13 @@ import type { ScannedNote } from "../workspace/filesystem/workspaceTypes";
 
 export type SearchStrategyId = "literal" | "regex";
 
-export type SearchMatchKind = "content";
-
 export type SearchMatch = {
   offset: number;
   length: number;
   lineNumber: number;
   column: number;
   snippet: string;
-  score?: number;
-  kind?: SearchMatchKind;
+  kind?: "content";
 };
 
 export type SearchHit = {
@@ -70,9 +67,9 @@ export type SearchStrategyLimits = {
   maxCollected: number;
 };
 
-export type SearchStrategyResult = SearchRun;
-
 type Finder = (text: string, from: number) => { index: number; length: number } | null;
+
+type CompiledFinder = { ok: true; find: Finder } | { ok: false; issue: SearchQueryIssue };
 
 type Budget = {
   remaining: number;
@@ -96,7 +93,7 @@ function spend(budget: Budget, cost = 1): boolean {
  * Heuristic refuse for nested quantifiers that commonly cause ReDoS.
  * Not a complete regex complexity analysis - paired with the wall-clock budget.
  */
-export function looksCatastrophicRegex(source: string): boolean {
+function looksCatastrophicRegex(source: string): boolean {
   return /\([^)]*[+*{][^)]*\)[+*{]/.test(source) || /[+*][+*]/.test(source);
 }
 
@@ -115,10 +112,6 @@ export function searchStrategyUsesWholeWord(strategy: SearchStrategyId): boolean
   return strategy === "literal";
 }
 
-export function searchStrategyUsesMatchCountSort(_strategy: SearchStrategyId): boolean {
-  return true;
-}
-
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -132,17 +125,10 @@ export function searchQueryIssue(
   options: SearchQueryOptions = {},
 ): SearchQueryIssue | null {
   const needle = query.trim();
-  const strategy = resolveSearchStrategy(options);
-  if (!needle) {
+  if (!needle || resolveSearchStrategy(options) !== "regex") {
     return null;
   }
-  if (strategy !== "regex") {
-    return null;
-  }
-  if (needle.length > MAX_REGEX_LENGTH) {
-    return "tooExpensive";
-  }
-  if (looksCatastrophicRegex(needle)) {
+  if (needle.length > MAX_REGEX_LENGTH || looksCatastrophicRegex(needle)) {
     return "tooExpensive";
   }
   try {
@@ -153,10 +139,7 @@ export function searchQueryIssue(
   return null;
 }
 
-function compileLiteralFinder(
-  needle: string,
-  options: SearchQueryOptions,
-): { ok: true; find: Finder } | { ok: false; issue: SearchQueryIssue } {
+function compileLiteralFinder(needle: string, options: SearchQueryOptions): CompiledFinder {
   const term = needle.trim();
   if (!term) {
     return { ok: true, find: () => null };
@@ -191,10 +174,7 @@ function compileLiteralFinder(
   };
 }
 
-function compileRegexFinder(
-  needle: string,
-  options: SearchQueryOptions,
-): { ok: true; find: Finder } | { ok: false; issue: SearchQueryIssue } {
+function compileRegexFinder(needle: string, options: SearchQueryOptions): CompiledFinder {
   const issue = searchQueryIssue(needle, { ...options, strategy: "regex" });
   if (issue) {
     return { ok: false, issue };
@@ -217,18 +197,13 @@ function compileRegexFinder(
   }
 }
 
-export function compileSearchFinder(
-  query: string,
-  options: SearchQueryOptions = {},
-): { ok: true; find: Finder } | { ok: false; issue: SearchQueryIssue } {
-  const strategy = resolveSearchStrategy(options);
-  if (strategy === "regex") {
-    return compileRegexFinder(query, options);
-  }
-  return compileLiteralFinder(query, options);
+function compileSearchFinder(query: string, options: SearchQueryOptions): CompiledFinder {
+  return resolveSearchStrategy(options) === "regex"
+    ? compileRegexFinder(query, options)
+    : compileLiteralFinder(query, options);
 }
 
-export function positionAt(
+function positionAt(
   text: string,
   offset: number,
 ): {
@@ -243,12 +218,7 @@ export function positionAt(
   };
 }
 
-export function snippetAt(
-  text: string,
-  offset: number,
-  matchLength: number,
-  maxLength = 180,
-): string {
+function snippetAt(text: string, offset: number, matchLength: number, maxLength = 180): string {
   const matchEnd = Math.min(text.length, offset + Math.max(0, matchLength));
   const lineStart = text.lastIndexOf("\n", offset - 1) + 1;
   const firstLineEndIndex = text.indexOf("\n", offset);
@@ -271,18 +241,13 @@ export function snippetAt(
   return `${start > 0 ? "..." : ""}${line.slice(start, end)}${end < line.length ? "..." : ""}`;
 }
 
-export function createSearchMatch(
-  content: string,
-  index: number,
-  length: number,
-  extras: { score?: number; kind?: SearchMatchKind } = {},
-): SearchMatch {
+function createSearchMatch(content: string, index: number, length: number): SearchMatch {
   return {
     offset: index,
     length,
     ...positionAt(content, index),
     snippet: snippetAt(content, index, length),
-    ...extras,
+    kind: "content",
   };
 }
 
@@ -302,24 +267,10 @@ function collectWithFinder(
     if (!found) {
       break;
     }
-    matches.push(createSearchMatch(content, found.index, found.length, { kind: "content" }));
+    matches.push(createSearchMatch(content, found.index, found.length));
     from = found.index + Math.max(1, found.length);
   }
   return matches;
-}
-
-function orderMatches(matches: readonly SearchMatch[]): SearchMatch[] {
-  const seen = new Set<string>();
-  return [...matches]
-    .sort((left, right) => left.offset - right.offset || left.length - right.length)
-    .filter((match) => {
-      const key = `${match.offset}:${match.length}`;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
 }
 
 function appendHits(
@@ -328,7 +279,8 @@ function appendHits(
   matches: SearchMatch[],
   maxCollected: number,
 ): boolean {
-  for (const match of orderMatches(matches)) {
+  // A finder only moves forward, so matches arrive in order and never repeat.
+  for (const match of matches) {
     if (hits.length >= maxCollected) {
       return false;
     }
@@ -342,7 +294,7 @@ export function runSearchStrategy(
   query: string,
   options: SearchQueryOptions = {},
   limits: SearchStrategyLimits,
-): SearchStrategyResult {
+): SearchRun {
   const issue = searchQueryIssue(query, options);
   if (issue) {
     return { hits: [], issue };

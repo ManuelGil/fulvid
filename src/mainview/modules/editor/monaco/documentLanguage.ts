@@ -38,6 +38,7 @@ import {
   markdownSnippetKind,
   mdxCompletionKind,
 } from "../markdown/markdownCompletion";
+import { relativeDocumentLinkPath } from "../markdown/markdownAuthoring";
 import { offsetToPosition } from "../markdown/markdownFormat";
 import { findMarkdownHeading, parseMarkdownStructure } from "../markdown/markdownStructure";
 import {
@@ -57,12 +58,6 @@ type ModelRegistration = {
 type DocumentContext = {
   rootPath: string;
   notes: NonNullable<typeof workspace.value>["scannedNotes"];
-};
-
-type LinkReference = {
-  location: monaco.languages.Location;
-  link: DocumentLink;
-  versionId: number;
 };
 
 const models = new Map<string, ModelRegistration>();
@@ -169,23 +164,18 @@ function documentLinksForModel(model: monaco.editor.ITextModel): DocumentLink[] 
   return parseDocumentLinks(model.getValue(), settings.value.links.linkMode);
 }
 
-function rangeForOffsets(
+function rangeForTextRange(
   model: monaco.editor.ITextModel,
-  start: number,
-  end: number,
+  range: { start: number; end: number },
 ): monaco.Range {
-  const startPosition = model.getPositionAt(start);
-  const endPosition = model.getPositionAt(end);
+  const startPosition = model.getPositionAt(range.start);
+  const endPosition = model.getPositionAt(range.end);
   return new monaco.Range(
     startPosition.lineNumber,
     startPosition.column,
     endPosition.lineNumber,
     endPosition.column,
   );
-}
-
-function rangeForLink(model: monaco.editor.ITextModel, link: DocumentLink): monaco.Range {
-  return rangeForOffsets(model, link.range.start, link.range.end);
 }
 
 function rangeForTextOffsets(text: string, start: number, end: number): monaco.Range {
@@ -227,12 +217,9 @@ function unresolvedLinksForModel(
   context: DocumentContext,
   links: DocumentLink[],
 ): DocumentLink[] {
-  const modelRelativePath = relativePath(context.rootPath, model.uri.fsPath);
-  const savedNote = context.notes.find((note) => note.path === modelRelativePath);
+  const modelRelativePath = relativePath(context.rootPath, model.uri.fsPath) ?? undefined;
   return links.filter(
-    (link) =>
-      !resolveDocumentLink(link, context.notes, undefined, modelRelativePath ?? savedNote?.path)
-        .path,
+    (link) => !resolveDocumentLink(link, context.notes, undefined, modelRelativePath).path,
   );
 }
 
@@ -256,7 +243,7 @@ function markerForLink(
           items: candidates.map((candidate) => candidate.path).join(", "),
         })}`
       : "";
-  const range = rangeForLink(model, link);
+  const range = rangeForTextRange(model, link.range);
   return {
     severity: monaco.MarkerSeverity.Warning,
     message: `${i18n.global.t("links.unresolved", {
@@ -340,13 +327,6 @@ function headingLookupDocuments(
   return documents;
 }
 
-function rangeForTextRange(
-  model: monaco.editor.ITextModel,
-  range: { start: number; end: number },
-): monaco.Range {
-  return rangeForOffsets(model, range.start, range.end);
-}
-
 function dedupeLocations(locations: monaco.languages.Location[]): monaco.languages.Location[] {
   const seen = new Set<string>();
   return locations.filter((location) => {
@@ -363,7 +343,7 @@ function markerForMissingAnchor(
   model: monaco.editor.ITextModel,
   link: DocumentLink,
 ): monaco.editor.IMarkerData {
-  const range = rangeForLink(model, link);
+  const range = rangeForTextRange(model, link.range);
   return {
     severity: monaco.MarkerSeverity.Warning,
     message: i18n.global.t("links.missingAnchor", {
@@ -414,27 +394,6 @@ function invalidLinkMarkers(model: monaco.editor.ITextModel): monaco.editor.IMar
       },
     ];
   });
-}
-
-function relativeLinkPath(sourcePath: string, targetPath: string): string {
-  if (!sourcePath) {
-    return targetPath;
-  }
-  const sourceSegments = sourcePath.split("/").filter(Boolean);
-  sourceSegments.pop();
-  const targetSegments = targetPath.split("/").filter(Boolean);
-  let common = 0;
-  while (
-    common < sourceSegments.length &&
-    common < targetSegments.length &&
-    sourceSegments[common] === targetSegments[common]
-  ) {
-    common += 1;
-  }
-  const upward = sourceSegments.slice(common).map(() => "..");
-  const downward = targetSegments.slice(common);
-  const relative = [...upward, ...downward].join("/");
-  return upward.length === 0 ? `./${relative}` : relative;
 }
 
 function sourceRelativePrefix(query: string, sourcePath: string): string {
@@ -611,7 +570,7 @@ function mdxSnippetItems(
       label: i18n.global.t(`documentLanguage.${labelKey}`),
       detail: i18n.global.t("documentLanguage.snippetMdxAttributeDetail"),
       kind: api.languages.CompletionItemKind.Property,
-      insertText: `${attribute}="${"${1:value}"}"`,
+      insertText: `${attribute}="\${1:value}"`,
       insertTextRules: api.languages.CompletionItemInsertTextRule.InsertAsSnippet,
       range: new api.Range(
         position.lineNumber,
@@ -790,8 +749,8 @@ async function findLinkLocations(
   notes: DocumentContext["notes"],
   targetPath: string,
   targetAnchor?: string,
-): Promise<LinkReference[]> {
-  const locations: LinkReference[] = [];
+): Promise<monaco.languages.Location[]> {
+  const locations: monaco.languages.Location[] = [];
 
   for (const note of notes) {
     const sourceModel = modelForPath(rootPath, note.path);
@@ -809,36 +768,16 @@ async function findLinkLocations(
       if (targetAnchor && link.anchor?.toLowerCase() !== targetAnchor.toLowerCase()) {
         continue;
       }
-      const fragmentRange = targetAnchor ? fragmentAnchorRange(link) : null;
-      const sourceRange = sourceModel
-        ? fragmentRange
-          ? rangeForTextRange(sourceModel, fragmentRange)
-          : rangeForLink(sourceModel, link)
-        : new monaco.Range(1, 1, 1, 1);
-      const versionId = sourceModel?.getVersionId() ?? 0;
-      if (!sourceModel) {
-        const snapshot = await readDocument(rootPath, note.path);
-        const closedRange = fragmentRange
-          ? rangeForTextOffsets(snapshot.content, fragmentRange.start, fragmentRange.end)
-          : rangeForTextOffsets(snapshot.content, link.range.start, link.range.end);
-        locations.push({
-          location: {
-            uri: monaco.Uri.file(absolutePath(rootPath, note.path)),
-            range: closedRange,
-          },
-          link,
-          versionId,
-        });
-        continue;
-      }
-      locations.push({
-        location: {
-          uri: monaco.Uri.file(absolutePath(rootPath, note.path)),
-          range: sourceRange,
-        },
-        link,
-        versionId,
-      });
+      const span = (targetAnchor ? fragmentAnchorRange(link) : null) ?? link.range;
+      // A closed document is measured against its text on disk.
+      const range = sourceModel
+        ? rangeForTextRange(sourceModel, span)
+        : rangeForTextOffsets(
+            (await readDocument(rootPath, note.path)).content,
+            span.start,
+            span.end,
+          );
+      locations.push({ uri: monaco.Uri.file(absolutePath(rootPath, note.path)), range });
     }
   }
 
@@ -934,7 +873,9 @@ function completionItems(
           .filter((note): note is DocumentContext["notes"][number] => Boolean(note))
       : context.notes.slice(0, 30);
   return candidateNotes.map((note) => {
-    const insertText = relativePrefix ? relativeLinkPath(sourcePath ?? "", note.path) : note.path;
+    const insertText = relativePrefix
+      ? relativeDocumentLinkPath(sourcePath ?? "", note.path)
+      : note.path;
     return {
       label: note.title,
       kind: api.languages.CompletionItemKind.Reference,
@@ -959,7 +900,7 @@ export function documentSymbolsForModel(
   const lines = model.getLinesContent();
   const headings = parseMarkdownStructure(model.getValue()).headings;
   const symbols: monaco.languages.DocumentSymbol[] = [];
-  const stack: monaco.languages.DocumentSymbol[] = [];
+  const stack: { depth: number; symbol: monaco.languages.DocumentSymbol }[] = [];
   headings.forEach((heading, index) => {
     const line = lines[heading.lineNumber - 1] ?? "";
     const nextHeading = headings
@@ -987,21 +928,22 @@ export function documentSymbolsForModel(
       children: [],
       tags: [],
     };
-    while (stack.length > 0 && Number(stack[stack.length - 1]?.detail.slice(1)) >= heading.depth) {
+    while (stack.length > 0 && stack[stack.length - 1].depth >= heading.depth) {
       stack.pop();
     }
-    if (stack.length > 0) {
-      stack[stack.length - 1]?.children?.push(symbol);
+    const parent = stack.at(-1);
+    if (parent) {
+      parent.symbol.children?.push(symbol);
     } else {
       symbols.push(symbol);
     }
-    stack.push(symbol);
+    stack.push({ depth: heading.depth, symbol });
   });
   return symbols;
 }
 
 /** Fold frontmatter, fences, and heading sections. Same structure as the outline. */
-export function foldingRangesForModel(
+function foldingRangesForModel(
   api: typeof monaco,
   model: monaco.editor.ITextModel,
 ): monaco.languages.FoldingRange[] {
@@ -1054,454 +996,401 @@ function isInsideFence(model: monaco.editor.ITextModel, lineNumber: number): boo
  * openOrActivate, definition, completions, hover, Find References, quick
  * fixes, and heading/fragment rename. F2 does not rename files.
  */
-function createProviders(api: typeof monaco): monaco.IDisposable[] {
+function createProviders(api: typeof monaco): void {
   const languages = ["markdown", "mdx"];
-  const disposables: monaco.IDisposable[] = [];
 
-  disposables.push(
-    api.languages.registerDocumentSymbolProvider(languages, {
-      provideDocumentSymbols(model) {
-        return documentSymbolsForModel(api, model);
-      },
-    }),
-  );
+  api.languages.registerDocumentSymbolProvider(languages, {
+    provideDocumentSymbols(model) {
+      return documentSymbolsForModel(api, model);
+    },
+  });
 
-  disposables.push(
-    api.languages.registerFoldingRangeProvider(languages, {
-      provideFoldingRanges(model) {
-        return foldingRangesForModel(api, model);
-      },
-    }),
-  );
+  api.languages.registerFoldingRangeProvider(languages, {
+    provideFoldingRanges(model) {
+      return foldingRangesForModel(api, model);
+    },
+  });
 
-  disposables.push(
-    api.languages.registerLinkProvider(languages, {
-      provideLinks(model) {
-        const context = contextForModel(model);
-        if (!context) {
-          return { links: [] };
-        }
-        const sourcePath = relativePath(context.rootPath, model.uri.fsPath);
-        return {
-          links: documentLinksForModel(model)
-            .map((link) => {
-              const targetPath = documentLinkNavigationPath(
-                link,
-                context.notes,
-                sourcePath ?? undefined,
-              );
-              if (!targetPath) {
-                return null;
-              }
-              return {
-                range: rangeForLink(model, link),
-                url: link.anchor
-                  ? api.Uri.file(absolutePath(context.rootPath, targetPath)).with({
-                      fragment: link.anchor,
-                    })
-                  : api.Uri.file(absolutePath(context.rootPath, targetPath)),
-                tooltip: i18n.global.t("links.open", {
-                  path: targetPath,
-                }),
-              };
-            })
-            .filter(
-              (
-                link,
-              ): link is {
-                range: monaco.Range;
-                url: monaco.Uri;
-                tooltip: string;
-              } => Boolean(link),
-            ),
-        };
-      },
-    }),
-  );
+  api.languages.registerLinkProvider(languages, {
+    provideLinks(model) {
+      const context = contextForModel(model);
+      if (!context) {
+        return { links: [] };
+      }
+      const sourcePath = relativePath(context.rootPath, model.uri.fsPath);
+      return {
+        links: documentLinksForModel(model).flatMap((link) => {
+          const targetPath = documentLinkNavigationPath(
+            link,
+            context.notes,
+            sourcePath ?? undefined,
+          );
+          if (!targetPath) {
+            return [];
+          }
+          return {
+            range: rangeForTextRange(model, link.range),
+            url: link.anchor
+              ? api.Uri.file(absolutePath(context.rootPath, targetPath)).with({
+                  fragment: link.anchor,
+                })
+              : api.Uri.file(absolutePath(context.rootPath, targetPath)),
+            tooltip: i18n.global.t("links.open", {
+              path: targetPath,
+            }),
+          };
+        }),
+      };
+    },
+  });
 
-  disposables.push(
-    api.editor.registerLinkOpener({
-      open(resource) {
-        const rootPath = rootForResource(resource);
-        if (!rootPath) {
-          return false;
-        }
-        const relativeDocumentPath = relativePath(rootPath, resource.fsPath);
-        if (!relativeDocumentPath) {
-          return false;
-        }
-        const note = workspace.value?.scannedNotes.find(
-          (candidate) => candidate.path === relativeDocumentPath,
-        );
-        const targetModel = modelForPath(rootPath, relativeDocumentPath);
-        const targetContent = targetModel?.getValue() ?? note?.content;
-        void openOrActivate({
-          kind: "workspace",
-          rootPath,
-          path: relativeDocumentPath,
-          ...(targetContent && resource.fragment
-            ? {
-                reveal: revealPositionForAnchor(targetContent, resource.fragment),
-              }
-            : {}),
-        });
-        return true;
-      },
-    }),
-  );
+  api.editor.registerLinkOpener({
+    open(resource) {
+      const rootPath = rootForResource(resource);
+      if (!rootPath) {
+        return false;
+      }
+      const relativeDocumentPath = relativePath(rootPath, resource.fsPath);
+      if (!relativeDocumentPath) {
+        return false;
+      }
+      const note = workspace.value?.scannedNotes.find(
+        (candidate) => candidate.path === relativeDocumentPath,
+      );
+      const targetModel = modelForPath(rootPath, relativeDocumentPath);
+      const targetContent = targetModel?.getValue() ?? note?.content;
+      void openOrActivate({
+        kind: "workspace",
+        rootPath,
+        path: relativeDocumentPath,
+        ...(targetContent && resource.fragment
+          ? {
+              reveal: revealPositionForAnchor(targetContent, resource.fragment),
+            }
+          : {}),
+      });
+      return true;
+    },
+  });
 
-  disposables.push(
-    api.languages.registerDefinitionProvider(languages, {
-      provideDefinition(model, position) {
-        const context = contextForModel(model);
-        const link = linkAtPosition(model, position);
-        if (!context || !link) {
-          return undefined;
-        }
-        const sourcePath = relativePath(context.rootPath, model.uri.fsPath);
-        const resolved = resolveDocumentLink(
-          link,
-          context.notes,
-          undefined,
-          sourcePath ?? undefined,
-        );
-        const targetPath = documentLinkNavigationPath(link, context.notes, sourcePath ?? undefined);
-        if (!targetPath) {
-          return undefined;
-        }
-        const targetContent = contentForPath(context, targetPath);
-        const targetPosition =
-          targetContent && link.anchor && resolved.path
-            ? revealPositionForAnchor(targetContent, link.anchor)
-            : undefined;
-        return [
-          {
-            uri:
-              link.anchor && resolved.path
-                ? api.Uri.file(absolutePath(context.rootPath, targetPath)).with({
-                    fragment: link.anchor,
-                  })
-                : api.Uri.file(absolutePath(context.rootPath, targetPath)),
-            range: new api.Range(
-              targetPosition?.lineNumber ?? 1,
-              targetPosition?.column ?? 1,
-              targetPosition?.lineNumber ?? 1,
-              targetPosition?.column ?? 1,
-            ),
-          },
-        ];
-      },
-    }),
-  );
+  api.languages.registerDefinitionProvider(languages, {
+    provideDefinition(model, position) {
+      const context = contextForModel(model);
+      const link = linkAtPosition(model, position);
+      if (!context || !link) {
+        return undefined;
+      }
+      const sourcePath = relativePath(context.rootPath, model.uri.fsPath);
+      const resolved = resolveDocumentLink(link, context.notes, undefined, sourcePath ?? undefined);
+      const targetPath = documentLinkNavigationPath(link, context.notes, sourcePath ?? undefined);
+      if (!targetPath) {
+        return undefined;
+      }
+      const targetContent = contentForPath(context, targetPath);
+      const targetPosition =
+        targetContent && link.anchor && resolved.path
+          ? revealPositionForAnchor(targetContent, link.anchor)
+          : undefined;
+      return [
+        {
+          uri:
+            link.anchor && resolved.path
+              ? api.Uri.file(absolutePath(context.rootPath, targetPath)).with({
+                  fragment: link.anchor,
+                })
+              : api.Uri.file(absolutePath(context.rootPath, targetPath)),
+          range: new api.Range(
+            targetPosition?.lineNumber ?? 1,
+            targetPosition?.column ?? 1,
+            targetPosition?.lineNumber ?? 1,
+            targetPosition?.column ?? 1,
+          ),
+        },
+      ];
+    },
+  });
 
-  disposables.push(
-    api.languages.registerCompletionItemProvider(languages, {
-      triggerCharacters: ["[", "#", "|", "`", " "],
-      provideCompletionItems(model, position) {
-        const context = contextForModel(model);
-        const insideFence = isInsideFence(model, position.lineNumber);
-        return {
-          suggestions: [
-            ...(!insideFence && context ? completionItems(api, model, position, context) : []),
-            ...(!insideFence ? markdownSnippetItems(api, model, position) : []),
-            ...fenceLanguageItems(api, model, position),
-          ],
-        };
-      },
-    }),
-  );
+  api.languages.registerCompletionItemProvider(languages, {
+    triggerCharacters: ["[", "#", "|", "`", " "],
+    provideCompletionItems(model, position) {
+      const context = contextForModel(model);
+      const insideFence = isInsideFence(model, position.lineNumber);
+      return {
+        suggestions: [
+          ...(!insideFence && context ? completionItems(api, model, position, context) : []),
+          ...(!insideFence ? markdownSnippetItems(api, model, position) : []),
+          ...fenceLanguageItems(api, model, position),
+        ],
+      };
+    },
+  });
 
-  disposables.push(
-    api.languages.registerCompletionItemProvider("mdx", {
-      triggerCharacters: ["<", "{"],
-      provideCompletionItems(model, position) {
-        if (isInsideFence(model, position.lineNumber)) {
-          return { suggestions: [] };
-        }
-        return { suggestions: mdxSnippetItems(api, model, position) };
-      },
-    }),
-  );
+  api.languages.registerCompletionItemProvider("mdx", {
+    triggerCharacters: ["<", "{"],
+    provideCompletionItems(model, position) {
+      if (isInsideFence(model, position.lineNumber)) {
+        return { suggestions: [] };
+      }
+      return { suggestions: mdxSnippetItems(api, model, position) };
+    },
+  });
 
-  disposables.push(
-    api.languages.registerHoverProvider(languages, {
-      provideHover(model, position) {
-        const context = contextForModel(model);
-        const link = linkAtPosition(model, position);
-        if (!context || !link) {
-          return undefined;
-        }
+  api.languages.registerHoverProvider(languages, {
+    provideHover(model, position) {
+      const context = contextForModel(model);
+      const link = linkAtPosition(model, position);
+      if (!context || !link) {
+        return undefined;
+      }
 
-        const sourcePath = relativePath(context.rootPath, model.uri.fsPath);
-        const resolved = resolveDocumentLink(
-          link,
-          context.notes,
-          undefined,
-          sourcePath ?? undefined,
-        );
-        const targetContent = resolved.path ? contentForPath(context, resolved.path) : null;
-        const targetHeading =
-          resolved.path && link.anchor && targetContent
-            ? findMarkdownHeading(targetContent, link.anchor)
-            : undefined;
-        const headingText = link.anchor
-          ? `\n\n${i18n.global.t("links.heading", {
-              anchor: link.anchor,
-              status: targetHeading
-                ? targetHeading.text
-                : i18n.global.t("links.missingAnchorStatus"),
+      const sourcePath = relativePath(context.rootPath, model.uri.fsPath);
+      const resolved = resolveDocumentLink(link, context.notes, undefined, sourcePath ?? undefined);
+      const targetContent = resolved.path ? contentForPath(context, resolved.path) : null;
+      const targetHeading =
+        resolved.path && link.anchor && targetContent
+          ? findMarkdownHeading(targetContent, link.anchor)
+          : undefined;
+      const headingText = link.anchor
+        ? `\n\n${i18n.global.t("links.heading", {
+            anchor: link.anchor,
+            status: targetHeading ? targetHeading.text : i18n.global.t("links.missingAnchorStatus"),
+          })}`
+        : "";
+      const alsoMatchesText =
+        resolved.path && resolved.alsoMatches.length > 0
+          ? `\n\n${i18n.global.t("links.alsoMatches", {
+              items: resolved.alsoMatches.join(", "),
             })}`
           : "";
-        const alsoMatchesText =
-          resolved.path && resolved.alsoMatches.length > 0
-            ? `\n\n${i18n.global.t("links.alsoMatches", {
-                items: resolved.alsoMatches.join(", "),
-              })}`
-            : "";
-        const candidates = resolved.path ? [] : candidateNotesForLink(link.target, context.notes);
-        const candidateText =
-          candidates.length > 0
-            ? `\n\n${i18n.global.t("links.candidates", {
-                items: candidates.map((candidate) => candidate.path).join(", "),
-              })}`
-            : "";
-        return {
-          range: rangeForLink(model, link),
-          contents: [
-            {
-              value: resolved.path
-                ? `**${link.label ?? link.target}**\n\n${resolved.path}${headingText}${alsoMatchesText}`
-                : `**${i18n.global.t("links.unresolvedTitle")}**\n\n${link.target}${candidateText}`,
-            },
-          ],
-        };
-      },
-    }),
-  );
+      const candidates = resolved.path ? [] : candidateNotesForLink(link.target, context.notes);
+      const candidateText =
+        candidates.length > 0
+          ? `\n\n${i18n.global.t("links.candidates", {
+              items: candidates.map((candidate) => candidate.path).join(", "),
+            })}`
+          : "";
+      return {
+        range: rangeForTextRange(model, link.range),
+        contents: [
+          {
+            value: resolved.path
+              ? `**${link.label ?? link.target}**\n\n${resolved.path}${headingText}${alsoMatchesText}`
+              : `**${i18n.global.t("links.unresolvedTitle")}**\n\n${link.target}${candidateText}`,
+          },
+        ],
+      };
+    },
+  });
 
-  disposables.push(
-    api.languages.registerReferenceProvider(languages, {
-      async provideReferences(model, position) {
-        const context = contextForModel(model);
-        const sourcePath = sourcePathForModel(model, context);
-        const linkMode = settings.value.links.linkMode;
-        const notes = context?.notes ?? [];
-        const documents = headingLookupDocuments(model, context);
-        const entity = semanticEntityAt(
-          model.getValue(),
-          model.getOffsetAt(position),
-          linkMode,
-          notes,
-          sourcePath,
-        );
-        const fragmentLink = !entity ? linkAtPosition(model, position) : null;
-        const headingTarget = entity
-          ? { heading: entity.heading, documentPath: sourcePath }
-          : fragmentLink?.anchor
-            ? headingForFragmentLink(fragmentLink, sourcePath, notes, documents)
-            : null;
+  api.languages.registerReferenceProvider(languages, {
+    async provideReferences(model, position) {
+      const context = contextForModel(model);
+      const sourcePath = sourcePathForModel(model, context);
+      const linkMode = settings.value.links.linkMode;
+      const notes = context?.notes ?? [];
+      const documents = headingLookupDocuments(model, context);
+      const entity = semanticEntityAt(
+        model.getValue(),
+        model.getOffsetAt(position),
+        linkMode,
+        notes,
+        sourcePath,
+      );
+      const fragmentLink = !entity ? linkAtPosition(model, position) : null;
+      const headingTarget = entity
+        ? { heading: entity.heading, documentPath: sourcePath }
+        : fragmentLink?.anchor
+          ? headingForFragmentLink(fragmentLink, sourcePath, notes, documents)
+          : null;
 
-        if (headingTarget) {
-          const references = collectHeadingReferences(
-            headingTarget.heading,
-            headingTarget.documentPath,
-            documents,
-            notes,
-            linkMode,
-          );
-          const locations: monaco.languages.Location[] = references.map((reference) => {
-            const open =
-              reference.documentPath === sourcePath
-                ? model
-                : context && reference.documentPath
-                  ? modelForPath(context.rootPath, reference.documentPath)
-                  : reference.documentPath === null
-                    ? model
-                    : null;
-            const content =
-              open?.getValue() ??
-              documents.find((document) => document.path === reference.documentPath)?.content ??
-              model.getValue();
-            return {
-              uri:
-                open?.uri ??
-                (context && reference.documentPath
-                  ? api.Uri.file(absolutePath(context.rootPath, reference.documentPath))
-                  : model.uri),
-              range: open
-                ? rangeForTextRange(open, reference.range)
-                : rangeForTextOffsets(content, reference.range.start, reference.range.end),
-            };
-          });
-          if (context && headingTarget.documentPath) {
-            const covered = new Set(
-              documents
-                .map((document) => document.path)
-                .filter((path): path is string => Boolean(path)),
-            );
-            const unread = notes.filter((note) => !covered.has(note.path));
-            if (unread.length > 0) {
-              locations.push(
-                ...(
-                  await findLinkLocations(
-                    context.rootPath,
-                    unread,
-                    headingTarget.documentPath,
-                    headingTarget.heading.anchor,
-                  )
-                ).map((reference) => reference.location),
-              );
-            }
-          }
-          return dedupeLocations(locations);
-        }
-
-        const link = linkAtPosition(model, position);
-        if (
-          !context ||
-          !link ||
-          link.anchor ||
-          linkPartAtOffset(link, model.getOffsetAt(position)) === "label"
-        ) {
-          return [];
-        }
-        const resolved = resolveDocumentLink(link, notes, undefined, sourcePath ?? undefined);
-        return resolved.path
-          ? dedupeLocations(
-              (await findLinkLocations(context.rootPath, notes, resolved.path)).map(
-                (reference) => reference.location,
-              ),
-            )
-          : [];
-      },
-    }),
-  );
-
-  disposables.push(
-    api.languages.registerCodeActionProvider(languages, {
-      provideCodeActions(model, range) {
-        const context = contextForModel(model);
-        if (!context) {
-          return { actions: [], dispose() {} };
-        }
-        const unresolved = unresolvedLinksForModel(
-          model,
-          context,
-          documentLinksForModel(model),
-        ).filter((link) => rangeForLink(model, link).intersectRanges(range));
-        const actions = unresolved.flatMap((link) => {
-          const candidates = candidateNotesForLink(link.target, context.notes);
-          const preferred = candidates.length === 1;
-          return candidates.map((candidate) => ({
-            title: i18n.global.t("links.linkTo", {
-              path: candidate.path,
-            }),
-            kind: "quickfix",
-            isPreferred: preferred,
-            edit: {
-              edits: [
-                {
-                  resource: model.uri,
-                  versionId: model.getVersionId(),
-                  textEdit: {
-                    range: rangeForLink(model, link),
-                    text: formatLinkTarget(link, candidate.path),
-                  },
-                },
-              ],
-            },
-          }));
-        });
-        return { actions, dispose() {} };
-      },
-    }),
-  );
-
-  disposables.push(
-    api.languages.registerRenameProvider(languages, {
-      resolveRenameLocation(model, position) {
-        const context = contextForModel(model);
-        const entity = semanticEntityAt(
-          model.getValue(),
-          model.getOffsetAt(position),
-          settings.value.links.linkMode,
-          context?.notes ?? [],
-          sourcePathForModel(model, context),
-        );
-        if (!entity) {
-          return {
-            range: new api.Range(position.lineNumber, 1, position.lineNumber, 1),
-            text: "",
-            rejectReason: i18n.global.t("documentLanguage.renameUnsupported"),
-          };
-        }
-        return {
-          range: rangeForTextRange(model, entity.range),
-          text: entity.heading.text,
-        };
-      },
-      provideRenameEdits(model, position, newName) {
-        const context = contextForModel(model);
-        const sourcePath = sourcePathForModel(model, context);
-        const notes = context?.notes ?? [];
-        const entity = semanticEntityAt(
-          model.getValue(),
-          model.getOffsetAt(position),
-          settings.value.links.linkMode,
-          notes,
-          sourcePath,
-        );
-        if (!entity) {
-          return {
-            edits: [],
-            rejectReason: i18n.global.t("documentLanguage.renameUnsupported"),
-          };
-        }
-        const documents = headingLookupDocuments(model, context);
-        const openDocuments = openHeadingDocuments(model, context);
+      if (headingTarget) {
         const references = collectHeadingReferences(
-          entity.heading,
-          sourcePath,
+          headingTarget.heading,
+          headingTarget.documentPath,
           documents,
           notes,
-          settings.value.links.linkMode,
+          linkMode,
         );
-        const plan = planHeadingRename(
-          entity.heading,
-          sourcePath,
-          model.getValue(),
-          newName,
-          references,
-          new Set(openDocuments.map((document) => document.path)),
-        );
-        if (!plan) {
+        const locations: monaco.languages.Location[] = references.map((reference) => {
+          const open =
+            reference.documentPath === sourcePath
+              ? model
+              : context && reference.documentPath
+                ? modelForPath(context.rootPath, reference.documentPath)
+                : reference.documentPath === null
+                  ? model
+                  : null;
+          const content =
+            open?.getValue() ??
+            documents.find((document) => document.path === reference.documentPath)?.content ??
+            model.getValue();
           return {
-            edits: [],
-            rejectReason: i18n.global.t("documentLanguage.renameUnsupported"),
+            uri:
+              open?.uri ??
+              (context && reference.documentPath
+                ? api.Uri.file(absolutePath(context.rootPath, reference.documentPath))
+                : model.uri),
+            range: open
+              ? rangeForTextRange(open, reference.range)
+              : rangeForTextOffsets(content, reference.range.start, reference.range.end),
           };
+        });
+        if (context && headingTarget.documentPath) {
+          const covered = new Set(
+            documents
+              .map((document) => document.path)
+              .filter((path): path is string => Boolean(path)),
+          );
+          const unread = notes.filter((note) => !covered.has(note.path));
+          if (unread.length > 0) {
+            locations.push(
+              ...(await findLinkLocations(
+                context.rootPath,
+                unread,
+                headingTarget.documentPath,
+                headingTarget.heading.anchor,
+              )),
+            );
+          }
         }
-        return {
-          edits: plan.edits.map((edit) => {
-            const target =
-              edit.documentPath === sourcePath
-                ? model
-                : (openDocuments.find((document) => document.path === edit.documentPath)?.model ??
-                  model);
-            return {
-              resource: target.uri,
-              versionId: target.getVersionId(),
-              textEdit: {
-                range: rangeForTextRange(target, { start: edit.start, end: edit.end }),
-                text: edit.text,
-              },
-            };
-          }),
-        };
-      },
-    }),
-  );
+        return dedupeLocations(locations);
+      }
 
-  return disposables;
+      const link = linkAtPosition(model, position);
+      if (
+        !context ||
+        !link ||
+        link.anchor ||
+        linkPartAtOffset(link, model.getOffsetAt(position)) === "label"
+      ) {
+        return [];
+      }
+      const resolved = resolveDocumentLink(link, notes, undefined, sourcePath ?? undefined);
+      return resolved.path
+        ? dedupeLocations(await findLinkLocations(context.rootPath, notes, resolved.path))
+        : [];
+    },
+  });
+
+  api.languages.registerCodeActionProvider(languages, {
+    provideCodeActions(model, range) {
+      const context = contextForModel(model);
+      if (!context) {
+        return { actions: [], dispose() {} };
+      }
+      const unresolved = unresolvedLinksForModel(
+        model,
+        context,
+        documentLinksForModel(model),
+      ).filter((link) => rangeForTextRange(model, link.range).intersectRanges(range));
+      const actions = unresolved.flatMap((link) => {
+        const candidates = candidateNotesForLink(link.target, context.notes);
+        const preferred = candidates.length === 1;
+        return candidates.map((candidate) => ({
+          title: i18n.global.t("links.linkTo", {
+            path: candidate.path,
+          }),
+          kind: "quickfix",
+          isPreferred: preferred,
+          edit: {
+            edits: [
+              {
+                resource: model.uri,
+                versionId: model.getVersionId(),
+                textEdit: {
+                  range: rangeForTextRange(model, link.range),
+                  text: formatLinkTarget(link, candidate.path),
+                },
+              },
+            ],
+          },
+        }));
+      });
+      return { actions, dispose() {} };
+    },
+  });
+
+  api.languages.registerRenameProvider(languages, {
+    resolveRenameLocation(model, position) {
+      const context = contextForModel(model);
+      const entity = semanticEntityAt(
+        model.getValue(),
+        model.getOffsetAt(position),
+        settings.value.links.linkMode,
+        context?.notes ?? [],
+        sourcePathForModel(model, context),
+      );
+      if (!entity) {
+        return {
+          range: new api.Range(position.lineNumber, 1, position.lineNumber, 1),
+          text: "",
+          rejectReason: i18n.global.t("documentLanguage.renameUnsupported"),
+        };
+      }
+      return {
+        range: rangeForTextRange(model, entity.range),
+        text: entity.heading.text,
+      };
+    },
+    provideRenameEdits(model, position, newName) {
+      const context = contextForModel(model);
+      const sourcePath = sourcePathForModel(model, context);
+      const notes = context?.notes ?? [];
+      const entity = semanticEntityAt(
+        model.getValue(),
+        model.getOffsetAt(position),
+        settings.value.links.linkMode,
+        notes,
+        sourcePath,
+      );
+      if (!entity) {
+        return {
+          edits: [],
+          rejectReason: i18n.global.t("documentLanguage.renameUnsupported"),
+        };
+      }
+      const documents = headingLookupDocuments(model, context);
+      const openDocuments = openHeadingDocuments(model, context);
+      const references = collectHeadingReferences(
+        entity.heading,
+        sourcePath,
+        documents,
+        notes,
+        settings.value.links.linkMode,
+      );
+      const plan = planHeadingRename(
+        entity.heading,
+        sourcePath,
+        model.getValue(),
+        newName,
+        references,
+        new Set(openDocuments.map((document) => document.path)),
+      );
+      if (!plan) {
+        return {
+          edits: [],
+          rejectReason: i18n.global.t("documentLanguage.renameUnsupported"),
+        };
+      }
+      return {
+        edits: plan.edits.map((edit) => {
+          const target =
+            edit.documentPath === sourcePath
+              ? model
+              : (openDocuments.find((document) => document.path === edit.documentPath)?.model ??
+                model);
+          return {
+            resource: target.uri,
+            versionId: target.getVersionId(),
+            textEdit: {
+              range: rangeForTextRange(target, { start: edit.start, end: edit.end }),
+              text: edit.text,
+            },
+          };
+        }),
+      };
+    },
+  });
 }
 
 export function ensureDocumentLanguageProviders(api: typeof monaco): void {

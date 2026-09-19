@@ -4,29 +4,11 @@
  * Catalog is static metadata for discoverability only. Preference values stay
  * in settingsStore. Matching uses the currently visible locale strings.
  */
-
-export type SettingsSearchCategory =
-  | "language"
-  | "editorText"
-  | "editing"
-  | "files"
-  | "editorDisplay"
-  | "writing"
-  | "theme"
-  | "interface"
-  | "accessibility"
-  | "statusbar"
-  | "folder"
-  | "links"
-  | "context"
-  | "preview"
-  | "extensions"
-  | "keyboard"
-  | "about";
+import { SETTINGS_CATEGORIES, type SettingsCategory } from "./settingsCategoryNav";
 
 export type SettingsSearchEntry = {
   readonly id: string;
-  readonly category: SettingsSearchCategory;
+  readonly category: SettingsCategory;
   readonly labelKey: string;
   readonly hintKey?: string;
   /** Locale-stable aliases when the translated label alone is a poor query target. */
@@ -35,30 +17,10 @@ export type SettingsSearchEntry = {
 
 export type SettingsSearchHit = {
   readonly id: string;
-  readonly category: SettingsSearchCategory;
+  readonly category: SettingsCategory;
   readonly label: string;
   readonly hint: string;
   readonly categoryLabel: string;
-};
-
-export const SETTINGS_SEARCH_CATEGORY_LABEL: Readonly<Record<SettingsSearchCategory, string>> = {
-  language: "settings.language",
-  editorText: "settings.editorText",
-  editing: "settings.editing",
-  files: "settings.files",
-  editorDisplay: "settings.editorDisplay",
-  writing: "settings.writing",
-  theme: "settings.themeCategory",
-  interface: "settings.interface",
-  accessibility: "settings.accessibility",
-  statusbar: "settings.statusbar",
-  folder: "settings.folder",
-  links: "settings.links",
-  context: "settings.context",
-  preview: "settings.preview",
-  extensions: "settings.extensions",
-  keyboard: "settings.keyboard",
-  about: "settings.about",
 };
 
 /**
@@ -445,27 +407,27 @@ export function matchSettingsSearch(
     return [];
   }
 
-  const scored: { entry: SettingsSearchEntry; rank: number; index: number }[] = [];
+  const scored: { hit: SettingsSearchHit; rank: number; index: number }[] = [];
   for (const [index, entry] of entries.entries()) {
     const label = translate(entry.labelKey);
     const hint = entry.hintKey ? translate(entry.hintKey) : "";
-    const categoryLabel = translate(SETTINGS_SEARCH_CATEGORY_LABEL[entry.category]);
+    const categoryLabel = translate(
+      // Every category id comes from SETTINGS_CATEGORIES.
+      SETTINGS_CATEGORIES.find((category) => category.id === entry.category)!.label,
+    );
     const rank = matchRank(entry, normalized, label, hint, categoryLabel);
     if (rank === null) {
       continue;
     }
-    scored.push({ entry, rank, index });
+    scored.push({
+      hit: { id: entry.id, category: entry.category, label, hint, categoryLabel },
+      rank,
+      index,
+    });
   }
 
   scored.sort((a, b) => a.rank - b.rank || a.index - b.index);
-
-  return scored.map(({ entry }) => ({
-    id: entry.id,
-    category: entry.category,
-    label: translate(entry.labelKey),
-    hint: entry.hintKey ? translate(entry.hintKey) : "",
-    categoryLabel: translate(SETTINGS_SEARCH_CATEGORY_LABEL[entry.category]),
-  }));
+  return scored.map(({ hit }) => hit);
 }
 
 const FOCUSABLE_CONTROL = "button, input, select, textarea, a[href]";

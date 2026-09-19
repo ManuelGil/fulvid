@@ -4,7 +4,7 @@
  * Distinct from `buildFocusGraph` (directed outgoing BFS for Context stats).
  * Consumes Graph View State; never Shell or editor `activeId`.
  */
-import { resolveWorkspaceEdges } from "../../document/links/documentLink";
+import { resolveWorkspaceEdges } from "../../document/links/linkSemantics";
 import type { ScannedNote } from "../../workspace/filesystem/workspaceTypes";
 
 import type { GraphViewState } from "./graphViewState";

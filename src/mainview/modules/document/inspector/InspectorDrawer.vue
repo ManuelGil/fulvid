@@ -28,7 +28,6 @@ import {
 import {
   buildReadingGuidance,
   explainReferenceEvidence,
-  noteReach,
   noteReachFacts,
 } from "../context/contextRetrieval";
 import { openOrActivate } from "../../editor/document/documentBuffers";
@@ -54,6 +53,7 @@ import {
 } from "../../../app/workspaceState";
 import { APP_ROUTE_NAMES } from "../../../app/router";
 import { settings } from "../../settings/settingsStore";
+import { trackPointerDrag } from "../../../app/pointerDrag";
 
 const route = useRoute();
 const router = useRouter();
@@ -175,7 +175,7 @@ const reachFactRows = computed(() => {
   if (!readingNote.value) {
     return [];
   }
-  return noteReachFacts(noteReach(readingNote.value.path, workspaceNotes.value));
+  return noteReachFacts(readingNote.value.path, workspaceNotes.value);
 });
 
 const panelRef = ref<HTMLElement | null>(null);
@@ -294,32 +294,9 @@ function startInspectorResize(event: PointerEvent): void {
   inspectorResizeCleanup?.();
   const startX = event.clientX;
   const startWidth = layout.value.inspectorWidth;
-  let cleanup = (): void => {};
-
-  const onMove = (moveEvent: PointerEvent): void => {
+  inspectorResizeCleanup = trackPointerDrag("col-resize", (moveEvent) => {
     setInspectorWidth(startWidth - (moveEvent.clientX - startX));
-  };
-
-  const onUp = (): void => {
-    cleanup();
-    if (inspectorResizeCleanup === cleanup) {
-      inspectorResizeCleanup = null;
-    }
-  };
-  cleanup = (): void => {
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
-    window.removeEventListener("pointercancel", onUp);
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-  };
-
-  document.body.style.cursor = "col-resize";
-  document.body.style.userSelect = "none";
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointercancel", onUp);
-  inspectorResizeCleanup = cleanup;
+  });
 }
 
 function rememberScroll(): void {

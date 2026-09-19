@@ -25,7 +25,7 @@ let sharedFactory: LuaFactory | null = null;
  * no way to catch the interrupt, the budget is the ceiling it claims to be.
  * A command that fails still reports through the invoke failure contract.
  */
-export async function reduceLuaGuestEnvironment(engine: LuaEngine): Promise<void> {
+async function reduceLuaGuestEnvironment(engine: LuaEngine): Promise<void> {
   await engine.doString(`
     io = nil
     os = nil

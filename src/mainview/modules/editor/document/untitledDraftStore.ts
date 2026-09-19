@@ -246,28 +246,17 @@ async function writeDraftNow(
     return;
   }
   // Empty / whitespace-only: remove any prior recovery row instead of storing "".
-  if (isEmptyUntitledDraftContent(content)) {
-    const work = (async () => {
-      try {
-        const store = await resolveBackend();
-        await store.remove(recoveryId);
-      } catch {
-        // Best-effort cleanup.
-      }
-    })().finally(() => {
-      if (inFlight.get(recoveryId) === work) {
-        inFlight.delete(recoveryId);
-      }
-    });
-    inFlight.set(recoveryId, work);
-    await work;
-    return;
-  }
-  const work = putUntitledDraft({
-    recoveryId,
-    content,
-    updatedAt: Date.now(),
-  }).finally(() => {
+  const write = isEmptyUntitledDraftContent(content)
+    ? (async () => {
+        try {
+          const store = await resolveBackend();
+          await store.remove(recoveryId);
+        } catch {
+          // Best-effort cleanup.
+        }
+      })()
+    : putUntitledDraft({ recoveryId, content, updatedAt: Date.now() });
+  const work = write.finally(() => {
     if (inFlight.get(recoveryId) === work) {
       inFlight.delete(recoveryId);
     }

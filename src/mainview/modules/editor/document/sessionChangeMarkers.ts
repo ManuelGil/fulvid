@@ -18,16 +18,6 @@ import {
   type LineChangeRange,
 } from "./sessionChangeMarkerMapping";
 
-export {
-  changeMarkerSpecsFromLineChanges,
-  hunkSnippetsFromTexts,
-  lineChangeRangeForMarkerLine,
-  lineChangeRangeKey,
-  type ChangeMarkerKind,
-  type ChangeMarkerSpec,
-  type LineChangeRange,
-} from "./sessionChangeMarkerMapping";
-
 /** Hunk-scoped DiffEditor payload; derived presentation only. */
 export type SessionChangePreviewPayload = {
   hunk: LineChangeRange;
@@ -186,9 +176,14 @@ export async function computeLineChangesWithTransientDiffEditor(
   return queued;
 }
 
-function clearDecorations(model: TextModel, state: MarkerState): void {
-  state.lastChanges = [];
-  state.changesVersionId = null;
+/** Stop pending and in-flight marker work for a model and clear what it painted. */
+function cancelMarkers(model: TextModel, state: MarkerState): void {
+  if (state.timer) {
+    clearTimeout(state.timer);
+    state.timer = null;
+  }
+  state.generation += 1;
+  invalidateHunkCache(state);
   clearPresentationDecorations(model, state);
 }
 
@@ -209,12 +204,7 @@ function invalidateHunkCache(state: MarkerState): void {
 export function bindSessionChangeMarkers(model: TextModel, baselineContent: string): void {
   const existing = stateByModel.get(model);
   if (existing) {
-    if (existing.timer) {
-      clearTimeout(existing.timer);
-      existing.timer = null;
-    }
-    existing.generation += 1;
-    clearDecorations(model, existing);
+    cancelMarkers(model, existing);
     existing.baseline = baselineContent;
     return;
   }
@@ -231,18 +221,7 @@ export function bindSessionChangeMarkers(model: TextModel, baselineContent: stri
 
 /** After successful save / Save As: baseline becomes current text; markers clear. */
 export function resetSessionChangeBaseline(model: TextModel, baselineContent: string): void {
-  const state = stateByModel.get(model);
-  if (!state) {
-    bindSessionChangeMarkers(model, baselineContent);
-    return;
-  }
-  if (state.timer) {
-    clearTimeout(state.timer);
-    state.timer = null;
-  }
-  state.generation += 1;
-  state.baseline = baselineContent;
-  clearDecorations(model, state);
+  bindSessionChangeMarkers(model, baselineContent);
 }
 
 /**
@@ -262,13 +241,18 @@ export function disposeSessionChangeMarkers(model: TextModel): void {
   if (!state) {
     return;
   }
-  if (state.timer) {
-    clearTimeout(state.timer);
-    state.timer = null;
-  }
-  state.generation += 1;
-  clearDecorations(model, state);
+  cancelMarkers(model, state);
   stateByModel.delete(model);
+}
+
+/** Recalculate now, keeping the work visible so a preview can wait for it. */
+function startRecalculate(model: TextModel, state: MarkerState, generation: number): void {
+  const work = recalculate(model, generation).finally(() => {
+    if (state.inFlight === work) {
+      state.inFlight = null;
+    }
+  });
+  state.inFlight = work;
 }
 
 async function recalculate(model: TextModel, generation: number): Promise<void> {
@@ -321,12 +305,7 @@ export function scheduleSessionChangeMarkers(model: TextModel): void {
   state.generation = generation;
   state.timer = setTimeout(() => {
     state.timer = null;
-    const work = recalculate(model, generation).finally(() => {
-      if (state.inFlight === work) {
-        state.inFlight = null;
-      }
-    });
-    state.inFlight = work;
+    startRecalculate(model, state, generation);
   }, CHANGE_MARKER_DEBOUNCE_MS);
 }
 
@@ -374,13 +353,7 @@ export async function resolveSessionChangePreviewAtLine(
   if (state.timer !== null) {
     clearTimeout(state.timer);
     state.timer = null;
-    const generation = state.generation;
-    const work = recalculate(model, generation).finally(() => {
-      if (state.inFlight === work) {
-        state.inFlight = null;
-      }
-    });
-    state.inFlight = work;
+    startRecalculate(model, state, state.generation);
   }
   if (state.inFlight) {
     await state.inFlight;
@@ -389,7 +362,8 @@ export async function resolveSessionChangePreviewAtLine(
   if (!latest || model.isDisposed()) {
     return null;
   }
-  if (latest.changesVersionId === null || latest.changesVersionId !== model.getVersionId()) {
+  const versionId = model.getVersionId();
+  if (latest.changesVersionId !== versionId) {
     return null;
   }
   const hunk = lineChangeRangeForMarkerLine(latest.lastChanges, lineNumber);
@@ -402,7 +376,7 @@ export async function resolveSessionChangePreviewAtLine(
     hunkKey: lineChangeRangeKey(hunk),
     before: snippets.before,
     after: snippets.after,
-    versionId: latest.changesVersionId,
+    versionId,
   };
 }
 

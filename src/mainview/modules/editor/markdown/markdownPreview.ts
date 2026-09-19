@@ -57,7 +57,7 @@ export const PREVIEW_INLINE_MARKUP_LIMIT = 2_000;
  */
 const INLINE_MARKUP_RE = /!?\[|\]\(|`|~~|\bhttps?:\/\/|[*_]{1,2}(?=[^\s*_])/g;
 
-export function countInlineMarkup(source: string): number {
+function countInlineMarkup(source: string): number {
   INLINE_MARKUP_RE.lastIndex = 0;
   let count = 0;
   while (INLINE_MARKUP_RE.exec(source) !== null) {
@@ -92,7 +92,7 @@ const BARE_LIST_MARKER_RE = /^ {0,3}[-*+]$/;
  * fenced code. One linear pass; fenced content is free because marked never
  * resolves the ambiguity there.
  */
-export function countAmbiguousBlockMarkers(
+function countAmbiguousBlockMarkers(
   lines: readonly string[],
   fences: readonly MarkdownFence[],
 ): number {
@@ -191,10 +191,6 @@ export function escapeHtml(value: string): string {
   );
 }
 
-function escapeAttribute(value: string): string {
-  return escapeHtml(value);
-}
-
 function documentHref(path: string, anchor?: string): string {
   return `#document/${encodeURIComponent(path)}${anchor ? `#${encodeURIComponent(anchor)}` : ""}`;
 }
@@ -204,11 +200,11 @@ function renderInternalDocumentAnchor(
   innerHtml: string,
   options?: { anchor?: string; title?: string | null },
 ): string {
-  const titleValue = options?.title ? ` title="${escapeAttribute(options.title)}"` : "";
-  return `<a href="${escapeAttribute(documentHref(path, options?.anchor))}" data-document-path="${escapeAttribute(
+  const titleValue = options?.title ? ` title="${escapeHtml(options.title)}"` : "";
+  return `<a href="${escapeHtml(documentHref(path, options?.anchor))}" data-document-path="${escapeHtml(
     path,
   )}"${
-    options?.anchor ? ` data-document-anchor="${escapeAttribute(options.anchor)}"` : ""
+    options?.anchor ? ` data-document-anchor="${escapeHtml(options.anchor)}"` : ""
   }${titleValue}>${innerHtml}</a>`;
 }
 
@@ -223,20 +219,6 @@ function renderResolvedLink(
     return escapeHtml(label);
   }
   return renderInternalDocumentAnchor(resolved.path, escapeHtml(label), { anchor: link.anchor });
-}
-
-function emptyResult(
-  frontmatter: PreviewFrontmatterState,
-  hasUnsupportedMdx: boolean,
-): MarkdownPreviewResult {
-  return {
-    html: "",
-    empty: true,
-    frontmatter,
-    hasUnsupportedMdx,
-    failed: false,
-    dense: false,
-  };
 }
 
 /**
@@ -259,7 +241,14 @@ export function renderMarkdownPreview(
   const sourceLines = source.split(/\r?\n/);
   const unsupportedMdx = hasUnsupportedMdx(sourceLines, structure.fences);
   if (source.trim().length === 0) {
-    return emptyResult(previewSource.frontmatter, unsupportedMdx);
+    return {
+      html: "",
+      empty: true,
+      frontmatter: previewSource.frontmatter,
+      hasUnsupportedMdx: unsupportedMdx,
+      failed: false,
+      dense: false,
+    };
   }
 
   if (
@@ -314,7 +303,7 @@ export function renderMarkdownPreview(
     if (!heading) {
       return `<h${depth}>${label}</h${depth}>\n`;
     }
-    return `<h${depth} id="${escapeAttribute(heading.anchor)}" role="button" tabindex="0" data-source-line="${
+    return `<h${depth} id="${escapeHtml(heading.anchor)}" role="button" tabindex="0" data-source-line="${
       heading.lineNumber + previewSource.lineOffset
     }">${label}</h${depth}>\n`;
   };
@@ -339,7 +328,7 @@ export function renderMarkdownPreview(
       }
     }
 
-    const titleValue = title ? ` title="${escapeAttribute(title)}"` : "";
+    const titleValue = title ? ` title="${escapeHtml(title)}"` : "";
     // Non-document URLs are display-only in Preview: never tab stops or navigable.
     // Document links remain real anchors via renderInternalDocumentAnchor.
     return `<span class="markdown-preview__external"${titleValue}>${label}</span>`;

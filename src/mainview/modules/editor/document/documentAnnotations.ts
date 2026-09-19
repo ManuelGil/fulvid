@@ -370,17 +370,11 @@ export function clearDocumentAnnotations(model: TextModel): number {
   return records.length;
 }
 
-/** Quick Action label mode from whether the cursor line already has an annotation. */
-export type DocumentAnnotationQuickActionMode = "add" | "edit";
-
-export function documentAnnotationQuickActionMode(
-  hasAnnotationAtCurrentLine: boolean,
-): DocumentAnnotationQuickActionMode {
-  return hasAnnotationAtCurrentLine ? "edit" : "add";
-}
-
+/** Quick Action label: edit when the cursor line already has an annotation, else add. */
 export function documentAnnotationQuickActionLabelKey(
-  mode: DocumentAnnotationQuickActionMode,
+  hasAnnotationAtCurrentLine: boolean,
 ): "documentAnnotations.addTitle" | "documentAnnotations.editTitle" {
-  return mode === "edit" ? "documentAnnotations.editTitle" : "documentAnnotations.addTitle";
+  return hasAnnotationAtCurrentLine
+    ? "documentAnnotations.editTitle"
+    : "documentAnnotations.addTitle";
 }

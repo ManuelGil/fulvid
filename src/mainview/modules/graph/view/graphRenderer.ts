@@ -64,18 +64,6 @@ const DEPTH_OPACITY: Record<number, number> = {
 
 const depthOpacity = (depth: number): number => DEPTH_OPACITY[depth] ?? DEPTH_OPACITY[5];
 
-const edgeDepthOpacity = (
-  sourceId: string,
-  targetId: string,
-  nodes: ComposedGraphNode[],
-): number => {
-  const depthById = new Map(nodes.map((node) => [node.id, node.depth]));
-  const sourceDepth = depthById.get(sourceId) ?? 3;
-  const targetDepth = depthById.get(targetId) ?? 3;
-
-  return Math.min(depthOpacity(sourceDepth), depthOpacity(targetDepth));
-};
-
 let themeColorHost: HTMLElement | undefined;
 
 const cssVar = (name: string, fallback = "#888888"): string => {
@@ -160,12 +148,6 @@ const truncateLabel = (label: string, maxLength = MAX_VISIBLE_LABEL_LENGTH): str
 
   return `${trimmed.slice(0, Math.max(0, maxLength - 3))}...`;
 };
-
-const shouldShowNodeLabel = (
-  nodeId: string,
-  depth: number,
-  hoveredNodeId: string | null,
-): boolean => depth <= 1 || hoveredNodeId === nodeId;
 
 const labelLengthForDepth = (depth: number): number => {
   if (depth === 0) {
@@ -304,6 +286,16 @@ export function getNodeConnectionDetails(
   };
 }
 
+/** Identity of a composed projection: same focus, geometry and edges. */
+export function graphSignature(composed: ComposedGraph): string {
+  const nodeIds = composed.nodes
+    .map((node) => `${node.id}:${node.x},${node.y},${node.depth}`)
+    .join("\0");
+  const edgeIds = composed.edges.map((edge) => `${edge.source}->${edge.target}`).join("\0");
+
+  return `${composed.focusPath}|${nodeIds}|${edgeIds}`;
+}
+
 export function createGraphRenderer(): GraphRenderer {
   let graph: Graph | undefined;
   let renderer: Sigma | undefined;
@@ -327,15 +319,6 @@ export function createGraphRenderer(): GraphRenderer {
   let hoverLeaveTimer: ReturnType<typeof setTimeout> | null = null;
   let frameGeneration = 0;
   let lastViewport = { width: 0, height: 0 };
-
-  const graphSignature = (composed: ComposedGraph): string => {
-    const nodeIds = composed.nodes
-      .map((node) => `${node.id}:${node.x},${node.y},${node.depth}`)
-      .join("\0");
-    const edgeIds = composed.edges.map((edge) => `${edge.source}->${edge.target}`).join("\0");
-
-    return `${composed.focusPath}|${nodeIds}|${edgeIds}`;
-  };
 
   const isNodeConnectedToSelection = (nodeId: string): boolean => {
     if (!interaction.selectedNodeId) {
@@ -378,9 +361,7 @@ export function createGraphRenderer(): GraphRenderer {
     const isHighlighted = isSelected || isHovered || isNodeConnectedToSelection(node);
     const nodeDepth = renderNode?.depth ?? 3;
     const rawLabel = renderNode?.label ?? "";
-    const showLabel =
-      shouldShowNodeLabel(node, nodeDepth, interaction.hoveredNodeId) ||
-      interaction.selectedNodeId === node;
+    const showLabel = nodeDepth <= 1 || isHovered || isSelected;
 
     let size = SECONDARY_NODE_SIZE;
     if (isFocus) {
@@ -451,13 +432,11 @@ export function createGraphRenderer(): GraphRenderer {
       label: showLabel ? truncateLabel(rawLabel, labelLengthForDepth(isFocus ? 0 : nodeDepth)) : "",
       labelColor: withAlpha(
         cssVar(labelColorVar),
-        forcedColors
+        forcedColors || isFocus
           ? 1
-          : isFocus
-            ? 1
-            : nodeDepth <= 1
-              ? Math.max(visualAlpha, 0.9)
-              : Math.min(visualAlpha, 0.48),
+          : nodeDepth <= 1
+            ? Math.max(visualAlpha, 0.9)
+            : Math.min(visualAlpha, 0.48),
       ),
       labelSize: graphLabelSize(isFocus ? 15 : nodeDepth <= 1 ? 12 : 9),
       labelWeight: isFocus ? "700" : nodeDepth <= 1 ? "600" : "500",
@@ -476,11 +455,13 @@ export function createGraphRenderer(): GraphRenderer {
     const highlighted = isEdgeHighlighted(source, target);
     const activeInteraction = hasActiveInteraction();
     const forcedColors = forcedColorsActive();
-    const edgeAlpha = forcedColors ? 1 : edgeDepthOpacity(source, target, latestNodes);
     const touchesFocus = focusPath !== "" && (source === focusPath || target === focusPath);
     const sourceDepth = latestNodes.find((node) => node.id === source)?.depth ?? 3;
     const targetDepth = latestNodes.find((node) => node.id === target)?.depth ?? 3;
     const minDepth = Math.min(sourceDepth, targetDepth);
+    const edgeAlpha = forcedColors
+      ? 1
+      : Math.min(depthOpacity(sourceDepth), depthOpacity(targetDepth));
 
     let edgeColor: string;
     let edgeSize: number;
@@ -869,7 +850,7 @@ export function createGraphRenderer(): GraphRenderer {
     },
 
     setHighlightedNode(nodeId: string | null) {
-      interaction.selectedNodeId = nodeId ?? focusPath ?? null;
+      interaction.selectedNodeId = nodeId ?? focusPath;
       renderer?.refresh();
     },
 

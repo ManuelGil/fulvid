@@ -25,6 +25,7 @@ import {
   workspaceName,
 } from "../app/workspaceState";
 import { APP_ROUTE_NAMES, type AppRouteName } from "../app/router";
+import { trackPointerDrag } from "../app/pointerDrag";
 
 const route = useRoute();
 const router = useRouter();
@@ -99,32 +100,9 @@ function startSidebarResize(event: PointerEvent): void {
   sidebarResizeCleanup?.();
   const startX = event.clientX;
   const startWidth = layout.value.sidebarWidth;
-  let cleanup = (): void => {};
-
-  const onMove = (moveEvent: PointerEvent): void => {
+  sidebarResizeCleanup = trackPointerDrag("col-resize", (moveEvent) => {
     setSidebarWidth(startWidth + (moveEvent.clientX - startX));
-  };
-
-  const onUp = (): void => {
-    cleanup();
-    if (sidebarResizeCleanup === cleanup) {
-      sidebarResizeCleanup = null;
-    }
-  };
-  cleanup = (): void => {
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
-    window.removeEventListener("pointercancel", onUp);
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-  };
-
-  document.body.style.cursor = "col-resize";
-  document.body.style.userSelect = "none";
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointercancel", onUp);
-  sidebarResizeCleanup = cleanup;
+  });
 }
 
 onBeforeUnmount(() => {

@@ -35,7 +35,11 @@ import {
   toSearchQueryOptions,
 } from "../../modules/search/searchOptions";
 import { selectedSearchContext } from "../../modules/search/searchSession";
-import { SEARCH_STRATEGY_IDS, type SearchStrategyId } from "../../modules/search/searchStrategies";
+import {
+  SEARCH_STRATEGY_IDS,
+  type SearchMatch,
+  type SearchStrategyId,
+} from "../../modules/search/searchStrategies";
 import {
   filterNotesByFileType,
   groupSearchHits,
@@ -43,7 +47,6 @@ import {
   limitSearchGroups,
   runDocumentSearch,
   sortSearchGroups,
-  type SearchMatch,
 } from "../../modules/search/searchResults";
 
 const MAX_RESULTS = 50;
@@ -179,7 +182,7 @@ const contextActions = computed<readonly ContextMenuAction[]>(() => {
   if (!row) {
     return [];
   }
-  if (workspace.value || row.note.path.includes("/") || row.note.path.includes("\\")) {
+  if (canRevealOrCopy(row.note.path)) {
     return [
       { id: "open", label: t("actions.open") },
       { id: "reveal", label: t("menu.revealInFolder") },
@@ -314,10 +317,7 @@ function activateHighlighted(): void {
 
 function openResult(index: number): void {
   highlightIndex.value = index;
-  const row = resultRows.value[index];
-  if (row) {
-    void openSearchHit(row.note.path, row.match);
-  }
+  activateHighlighted();
 }
 
 function onQueryKeydown(event: KeyboardEvent): void {

@@ -5,8 +5,6 @@ import {
 } from "./linkSemantics";
 import type { ScannedNote } from "../../workspace/filesystem/workspaceTypes";
 
-export { resolveWorkspaceEdges } from "./linkSemantics";
-
 /**
  * Shared DocumentLink parse and resolve boundary.
  *
@@ -35,12 +33,10 @@ export interface DocumentLink {
   };
 }
 
-export type LinkResolutionReason = DocumentResolutionReason;
-
 export interface LinkResolution {
   link: DocumentLink;
   path: string | null;
-  reason: LinkResolutionReason;
+  reason: DocumentResolutionReason;
   /** See {@link resolveDocumentPath} `alsoMatches`. */
   alsoMatches: string[];
 }
@@ -207,30 +203,36 @@ function isIgnoredLink(link: DocumentLink, ignoredRanges: IgnoredRange[]): boole
 export function parseDocumentLinks(text: string, linkMode: LinkSyntax): DocumentLink[] {
   const links: DocumentLink[] = [];
   const ignoredRanges = ignoredMarkdownRanges(text);
+  const pattern = linkMode === "wikilink" ? WIKILINK_RE : MARKDOWN_LINK_RE;
+  const createLink = linkMode === "wikilink" ? createWikilink : createMarkdownLink;
 
-  if (linkMode === "wikilink") {
-    WIKILINK_RE.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = WIKILINK_RE.exec(text)) !== null) {
-      const link = createWikilink(match);
-      if (link && !isIgnoredLink(link, ignoredRanges)) {
-        links.push(link);
-      }
-    }
-  }
-
-  if (linkMode === "markdown") {
-    MARKDOWN_LINK_RE.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = MARKDOWN_LINK_RE.exec(text)) !== null) {
-      const link = createMarkdownLink(match);
-      if (link && !isIgnoredLink(link, ignoredRanges)) {
-        links.push(link);
-      }
+  pattern.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    const link = createLink(match);
+    if (link && !isIgnoredLink(link, ignoredRanges)) {
+      links.push(link);
     }
   }
 
   return links.sort((left, right) => left.range.start - right.range.start);
+}
+
+/**
+ * The destination of a Markdown link's source text: what sits between `](`
+ * and the final `)`, with its offset inside `raw`. Null for anything else.
+ */
+export function markdownDestination(raw: string): { destStart: number; dest: string } | null {
+  const closeLabel = raw.indexOf("](");
+  if (closeLabel < 0) {
+    return null;
+  }
+  const destStart = closeLabel + 2;
+  const destEnd = raw.lastIndexOf(")");
+  if (destEnd <= destStart) {
+    return null;
+  }
+  return { destStart, dest: raw.slice(destStart, destEnd) };
 }
 
 /**

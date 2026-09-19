@@ -9,8 +9,10 @@
 import { ref, watch } from "vue";
 import { setDocumentLinkSettings, type LinkResolutionMode } from "../document/links/linkSemantics";
 import type { LinkSyntax } from "../document/links/documentLink";
-import type { DocumentLocationDestination } from "../editor/document/documentLocation";
-import { DOCUMENT_LOCATION_DESTINATIONS } from "../editor/document/documentLocation";
+import {
+  DOCUMENT_LOCATION_DESTINATIONS,
+  type DocumentLocationDestination,
+} from "../editor/document/documentLocation";
 import {
   DEFAULT_THEME,
   THEME_PREFERENCES,
@@ -187,30 +189,35 @@ const STORAGE_KEY = "fulvid.settings.v1";
 /** Storage key for tests and recovery tooling - not a second settings authority. */
 export const SETTINGS_STORAGE_KEY = STORAGE_KEY;
 
-const VALID_THEMES = new Set<ThemePreference>(THEME_PREFERENCES);
-const VALID_LOCALES = new Set<Locale>(["de", "en", "es", "fr", "it", "nl", "pt"]);
-const VALID_EDITOR_FONT_FAMILIES = new Set<EditorFontFamily>(["monospace", "system", "serif"]);
-const VALID_EDITOR_LINE_HEIGHTS = new Set<EditorLineHeight>(["auto", "compact", "comfortable"]);
-const VALID_EDITOR_TAB_SIZES = new Set<EditorTabSize>([2, 4, 8]);
-const VALID_EDITOR_DEFAULT_EOL = new Set<EditorDefaultEol>(["lf", "crlf"]);
-const VALID_EDITOR_WORD_WRAP = new Set<EditorWordWrap>(["on", "off", "bounded"]);
-const VALID_EDITOR_RENDER_WHITESPACE = new Set<EditorRenderWhitespace>([
+const VALID_LOCALES: readonly Locale[] = ["de", "en", "es", "fr", "it", "nl", "pt"];
+const VALID_EDITOR_FONT_FAMILIES: readonly EditorFontFamily[] = ["monospace", "system", "serif"];
+const VALID_EDITOR_LINE_HEIGHTS: readonly EditorLineHeight[] = ["auto", "compact", "comfortable"];
+const VALID_EDITOR_TAB_SIZES: readonly EditorTabSize[] = [2, 4, 8];
+const VALID_EDITOR_DEFAULT_EOL: readonly EditorDefaultEol[] = ["lf", "crlf"];
+const VALID_EDITOR_WORD_WRAP: readonly EditorWordWrap[] = ["on", "off", "bounded"];
+const VALID_EDITOR_RENDER_WHITESPACE: readonly EditorRenderWhitespace[] = [
   "none",
   "selection",
   "all",
-]);
-const VALID_INTERFACE_TEXT_SCALES = new Set<InterfaceTextScale>(["small", "normal", "large"]);
-const VALID_ICON_SCALES = new Set<IconScale>(["small", "normal", "large"]);
-const VALID_INTERFACE_DENSITIES = new Set<InterfaceDensity>(["normal", "compact"]);
-const VALID_READING_STATISTICS = new Set<ReadingStatisticsMode>(["off", "words", "wordsAndTime"]);
+];
+const VALID_INTERFACE_TEXT_SCALES: readonly InterfaceTextScale[] = ["small", "normal", "large"];
+const VALID_ICON_SCALES: readonly IconScale[] = ["small", "normal", "large"];
+const VALID_INTERFACE_DENSITIES: readonly InterfaceDensity[] = ["normal", "compact"];
+const VALID_READING_STATISTICS: readonly ReadingStatisticsMode[] = ["off", "words", "wordsAndTime"];
 
-function themeFromPersistedAppearance(
-  appearance: Partial<FulvidSettings["appearance"]>,
-): ThemePreference {
-  const persistedTheme = appearance.theme as string;
-  return VALID_THEMES.has(persistedTheme as ThemePreference)
-    ? (persistedTheme as ThemePreference)
-    : DEFAULT_THEME;
+/** A persisted value when it is one of `allowed`, otherwise the default. */
+function oneOf<T>(allowed: readonly T[], value: unknown, fallback: T): T {
+  return (allowed as readonly unknown[]).includes(value) ? (value as T) : fallback;
+}
+
+/** A persisted boolean, otherwise the default. */
+function booleanOr(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+/** A nested settings group, or an empty one when storage holds something else. */
+function group<T>(value: T | undefined): Partial<T> {
+  return value && typeof value === "object" ? value : {};
 }
 
 /**
@@ -233,85 +240,52 @@ function resolveShowSessionChanges(editor: object): boolean {
 }
 
 export function sanitizeSettings(value: unknown): FulvidSettings {
-  const source = value && typeof value === "object" ? (value as Partial<FulvidSettings>) : {};
-
-  const appearance: Partial<FulvidSettings["appearance"]> =
-    source.appearance && typeof source.appearance === "object" ? source.appearance : {};
-  const appearanceStatusbar: Partial<StatusbarSettings> =
-    appearance.statusbar && typeof appearance.statusbar === "object" ? appearance.statusbar : {};
-  const statusbarIndicators: Partial<Record<StatusbarIndicator, boolean>> =
-    appearanceStatusbar.indicators && typeof appearanceStatusbar.indicators === "object"
-      ? appearanceStatusbar.indicators
-      : {};
-  const editor: Partial<FulvidSettings["editor"]> =
-    source.editor && typeof source.editor === "object" ? source.editor : {};
-
-  const workspace: Partial<FulvidSettings["workspace"]> =
-    source.workspace && typeof source.workspace === "object" ? source.workspace : {};
-  const links: Partial<FulvidSettings["links"]> =
-    source.links && typeof source.links === "object" ? source.links : {};
-  const preview: Partial<FulvidSettings["preview"]> =
-    source.preview && typeof source.preview === "object" ? source.preview : {};
-  const linkMode: LinkMode =
-    links.linkMode === "markdown" || links.linkMode === "wikilink"
-      ? links.linkMode
-      : DEFAULT_SETTINGS.links.linkMode;
-  const workspaceStartup: WorkspaceStartup =
-    workspace.workspaceStartup === "none" || workspace.workspaceStartup === "last"
-      ? workspace.workspaceStartup
-      : DEFAULT_SETTINGS.workspace.workspaceStartup;
+  const source = group(value as Partial<FulvidSettings> | undefined);
+  const appearance = group(source.appearance);
+  const statusbar = group(appearance.statusbar);
+  const indicators = group(statusbar.indicators);
+  const editor = group(source.editor);
+  const workspace = group(source.workspace);
+  const links = group(source.links);
+  const preview = group(source.preview);
+  const defaults = DEFAULT_SETTINGS;
 
   return {
-    locale: VALID_LOCALES.has(source.locale as Locale)
-      ? (source.locale as Locale)
-      : DEFAULT_SETTINGS.locale,
+    locale: oneOf(VALID_LOCALES, source.locale, defaults.locale),
     appearance: {
-      theme: themeFromPersistedAppearance(appearance),
-      interfaceTextScale: VALID_INTERFACE_TEXT_SCALES.has(
-        appearance.interfaceTextScale as InterfaceTextScale,
-      )
-        ? (appearance.interfaceTextScale as InterfaceTextScale)
-        : DEFAULT_SETTINGS.appearance.interfaceTextScale,
-      iconScale: VALID_ICON_SCALES.has(appearance.iconScale as IconScale)
-        ? (appearance.iconScale as IconScale)
-        : DEFAULT_SETTINGS.appearance.iconScale,
-      density: VALID_INTERFACE_DENSITIES.has(appearance.density as InterfaceDensity)
-        ? (appearance.density as InterfaceDensity)
-        : DEFAULT_SETTINGS.appearance.density,
-      reducedMotion:
-        typeof appearance.reducedMotion === "boolean"
-          ? appearance.reducedMotion
-          : DEFAULT_SETTINGS.appearance.reducedMotion,
+      theme: oneOf(THEME_PREFERENCES, appearance.theme, DEFAULT_THEME),
+      interfaceTextScale: oneOf(
+        VALID_INTERFACE_TEXT_SCALES,
+        appearance.interfaceTextScale,
+        defaults.appearance.interfaceTextScale,
+      ),
+      iconScale: oneOf(VALID_ICON_SCALES, appearance.iconScale, defaults.appearance.iconScale),
+      density: oneOf(VALID_INTERFACE_DENSITIES, appearance.density, defaults.appearance.density),
+      reducedMotion: booleanOr(appearance.reducedMotion, defaults.appearance.reducedMotion),
       statusbar: {
-        enabled:
-          typeof appearanceStatusbar.enabled === "boolean"
-            ? appearanceStatusbar.enabled
-            : DEFAULT_SETTINGS.appearance.statusbar.enabled,
+        enabled: booleanOr(statusbar.enabled, defaults.appearance.statusbar.enabled),
         indicators: {
-          document:
-            typeof statusbarIndicators.document === "boolean"
-              ? statusbarIndicators.document
-              : DEFAULT_SETTINGS.appearance.statusbar.indicators.document,
-          language:
-            typeof statusbarIndicators.language === "boolean"
-              ? statusbarIndicators.language
-              : DEFAULT_SETTINGS.appearance.statusbar.indicators.language,
-          linkMode:
-            typeof statusbarIndicators.linkMode === "boolean"
-              ? statusbarIndicators.linkMode
-              : DEFAULT_SETTINGS.appearance.statusbar.indicators.linkMode,
-          workspace:
-            typeof statusbarIndicators.workspace === "boolean"
-              ? statusbarIndicators.workspace
-              : DEFAULT_SETTINGS.appearance.statusbar.indicators.workspace,
-          characters:
-            typeof statusbarIndicators.characters === "boolean"
-              ? statusbarIndicators.characters
-              : DEFAULT_SETTINGS.appearance.statusbar.indicators.characters,
-          eol:
-            typeof statusbarIndicators.eol === "boolean"
-              ? statusbarIndicators.eol
-              : DEFAULT_SETTINGS.appearance.statusbar.indicators.eol,
+          document: booleanOr(
+            indicators.document,
+            defaults.appearance.statusbar.indicators.document,
+          ),
+          language: booleanOr(
+            indicators.language,
+            defaults.appearance.statusbar.indicators.language,
+          ),
+          linkMode: booleanOr(
+            indicators.linkMode,
+            defaults.appearance.statusbar.indicators.linkMode,
+          ),
+          workspace: booleanOr(
+            indicators.workspace,
+            defaults.appearance.statusbar.indicators.workspace,
+          ),
+          characters: booleanOr(
+            indicators.characters,
+            defaults.appearance.statusbar.indicators.characters,
+          ),
+          eol: booleanOr(indicators.eol, defaults.appearance.statusbar.indicators.eol),
         },
       },
     },
@@ -319,110 +293,72 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
       fontSize:
         typeof editor.fontSize === "number" && Number.isFinite(editor.fontSize)
           ? Math.min(24, Math.max(10, editor.fontSize))
-          : DEFAULT_SETTINGS.editor.fontSize,
-      fontFamily: VALID_EDITOR_FONT_FAMILIES.has(editor.fontFamily as EditorFontFamily)
-        ? (editor.fontFamily as EditorFontFamily)
-        : DEFAULT_SETTINGS.editor.fontFamily,
-      lineHeight: VALID_EDITOR_LINE_HEIGHTS.has(editor.lineHeight as EditorLineHeight)
-        ? (editor.lineHeight as EditorLineHeight)
-        : DEFAULT_SETTINGS.editor.lineHeight,
-      tabSize: VALID_EDITOR_TAB_SIZES.has(editor.tabSize as EditorTabSize)
-        ? (editor.tabSize as EditorTabSize)
-        : DEFAULT_SETTINGS.editor.tabSize,
-      defaultEol: VALID_EDITOR_DEFAULT_EOL.has(editor.defaultEol as EditorDefaultEol)
-        ? (editor.defaultEol as EditorDefaultEol)
-        : DEFAULT_SETTINGS.editor.defaultEol,
-      insertSpaces:
-        typeof editor.insertSpaces === "boolean"
-          ? editor.insertSpaces
-          : DEFAULT_SETTINGS.editor.insertSpaces,
-      wordWrap: VALID_EDITOR_WORD_WRAP.has(editor.wordWrap as EditorWordWrap)
-        ? (editor.wordWrap as EditorWordWrap)
-        : DEFAULT_SETTINGS.editor.wordWrap,
-      autoIndent:
-        typeof editor.autoIndent === "boolean"
-          ? editor.autoIndent
-          : DEFAULT_SETTINGS.editor.autoIndent,
-      lineNumbers:
-        typeof editor.lineNumbers === "boolean"
-          ? editor.lineNumbers
-          : DEFAULT_SETTINGS.editor.lineNumbers,
-      minimap:
-        typeof editor.minimap === "boolean" ? editor.minimap : DEFAULT_SETTINGS.editor.minimap,
-      stickyScroll:
-        typeof editor.stickyScroll === "boolean"
-          ? editor.stickyScroll
-          : DEFAULT_SETTINGS.editor.stickyScroll,
-      renderWhitespace: VALID_EDITOR_RENDER_WHITESPACE.has(
-        editor.renderWhitespace as EditorRenderWhitespace,
-      )
-        ? (editor.renderWhitespace as EditorRenderWhitespace)
-        : DEFAULT_SETTINGS.editor.renderWhitespace,
-      trimTrailingWhitespaceOnSave:
-        typeof (editor as { trimTrailingWhitespaceOnSave?: unknown })
-          .trimTrailingWhitespaceOnSave === "boolean"
-          ? (editor as { trimTrailingWhitespaceOnSave: boolean }).trimTrailingWhitespaceOnSave
-          : DEFAULT_SETTINGS.editor.trimTrailingWhitespaceOnSave,
-      showMarkdownFormatBar:
-        typeof (editor as { showMarkdownFormatBar?: unknown }).showMarkdownFormatBar === "boolean"
-          ? (editor as { showMarkdownFormatBar: boolean }).showMarkdownFormatBar
-          : DEFAULT_SETTINGS.editor.showMarkdownFormatBar,
-      showDocumentAnnotations:
-        typeof (editor as { showDocumentAnnotations?: unknown }).showDocumentAnnotations ===
-        "boolean"
-          ? (editor as { showDocumentAnnotations: boolean }).showDocumentAnnotations
-          : DEFAULT_SETTINGS.editor.showDocumentAnnotations,
+          : defaults.editor.fontSize,
+      fontFamily: oneOf(VALID_EDITOR_FONT_FAMILIES, editor.fontFamily, defaults.editor.fontFamily),
+      lineHeight: oneOf(VALID_EDITOR_LINE_HEIGHTS, editor.lineHeight, defaults.editor.lineHeight),
+      tabSize: oneOf(VALID_EDITOR_TAB_SIZES, editor.tabSize, defaults.editor.tabSize),
+      defaultEol: oneOf(VALID_EDITOR_DEFAULT_EOL, editor.defaultEol, defaults.editor.defaultEol),
+      insertSpaces: booleanOr(editor.insertSpaces, defaults.editor.insertSpaces),
+      wordWrap: oneOf(VALID_EDITOR_WORD_WRAP, editor.wordWrap, defaults.editor.wordWrap),
+      autoIndent: booleanOr(editor.autoIndent, defaults.editor.autoIndent),
+      lineNumbers: booleanOr(editor.lineNumbers, defaults.editor.lineNumbers),
+      minimap: booleanOr(editor.minimap, defaults.editor.minimap),
+      stickyScroll: booleanOr(editor.stickyScroll, defaults.editor.stickyScroll),
+      renderWhitespace: oneOf(
+        VALID_EDITOR_RENDER_WHITESPACE,
+        editor.renderWhitespace,
+        defaults.editor.renderWhitespace,
+      ),
+      trimTrailingWhitespaceOnSave: booleanOr(
+        editor.trimTrailingWhitespaceOnSave,
+        defaults.editor.trimTrailingWhitespaceOnSave,
+      ),
+      showMarkdownFormatBar: booleanOr(
+        editor.showMarkdownFormatBar,
+        defaults.editor.showMarkdownFormatBar,
+      ),
+      showDocumentAnnotations: booleanOr(
+        editor.showDocumentAnnotations,
+        defaults.editor.showDocumentAnnotations,
+      ),
       showSessionChanges: resolveShowSessionChanges(editor),
-      readingStatistics: VALID_READING_STATISTICS.has(
-        editor.readingStatistics as ReadingStatisticsMode,
-      )
-        ? (editor.readingStatistics as ReadingStatisticsMode)
-        : DEFAULT_SETTINGS.editor.readingStatistics,
-      typewriterScrolling:
-        typeof editor.typewriterScrolling === "boolean"
-          ? editor.typewriterScrolling
-          : DEFAULT_SETTINGS.editor.typewriterScrolling,
-      documentLocation: DOCUMENT_LOCATION_DESTINATIONS.includes(
-        editor.documentLocation as DocumentLocationDestination,
-      )
-        ? (editor.documentLocation as DocumentLocationDestination)
-        : DEFAULT_SETTINGS.editor.documentLocation,
+      readingStatistics: oneOf(
+        VALID_READING_STATISTICS,
+        editor.readingStatistics,
+        defaults.editor.readingStatistics,
+      ),
+      typewriterScrolling: booleanOr(
+        editor.typewriterScrolling,
+        defaults.editor.typewriterScrolling,
+      ),
+      documentLocation: oneOf(
+        DOCUMENT_LOCATION_DESTINATIONS,
+        editor.documentLocation,
+        defaults.editor.documentLocation,
+      ),
     },
     workspace: {
-      showHiddenFiles:
-        typeof workspace.showHiddenFiles === "boolean"
-          ? workspace.showHiddenFiles
-          : DEFAULT_SETTINGS.workspace.showHiddenFiles,
-      workspaceStartup,
-      confirmClose:
-        typeof workspace.confirmClose === "boolean"
-          ? workspace.confirmClose
-          : DEFAULT_SETTINGS.workspace.confirmClose,
+      showHiddenFiles: booleanOr(workspace.showHiddenFiles, defaults.workspace.showHiddenFiles),
+      workspaceStartup: oneOf(
+        ["none", "last"],
+        workspace.workspaceStartup,
+        defaults.workspace.workspaceStartup,
+      ),
+      confirmClose: booleanOr(workspace.confirmClose, defaults.workspace.confirmClose),
     },
     links: {
-      linkMode,
-      resolution:
-        links.resolution === "stem" || links.resolution === "path" || links.resolution === "both"
-          ? links.resolution
-          : DEFAULT_SETTINGS.links.resolution,
-      defaultExtension:
-        links.defaultExtension === "md" ||
-        links.defaultExtension === "markdown" ||
-        links.defaultExtension === "mdx"
-          ? links.defaultExtension
-          : DEFAULT_SETTINGS.links.defaultExtension,
-      showIncomingLinks:
-        typeof links.showIncomingLinks === "boolean"
-          ? links.showIncomingLinks
-          : DEFAULT_SETTINGS.links.showIncomingLinks,
-      showOutgoingLinks:
-        typeof links.showOutgoingLinks === "boolean"
-          ? links.showOutgoingLinks
-          : DEFAULT_SETTINGS.links.showOutgoingLinks,
+      linkMode: oneOf(["markdown", "wikilink"], links.linkMode, defaults.links.linkMode),
+      resolution: oneOf(["stem", "path", "both"], links.resolution, defaults.links.resolution),
+      defaultExtension: oneOf(
+        ["md", "markdown", "mdx"],
+        links.defaultExtension,
+        defaults.links.defaultExtension,
+      ),
+      showIncomingLinks: booleanOr(links.showIncomingLinks, defaults.links.showIncomingLinks),
+      showOutgoingLinks: booleanOr(links.showOutgoingLinks, defaults.links.showOutgoingLinks),
     },
     preview: {
-      enabled:
-        typeof preview.enabled === "boolean" ? preview.enabled : DEFAULT_SETTINGS.preview.enabled,
+      enabled: booleanOr(preview.enabled, defaults.preview.enabled),
     },
   };
 }

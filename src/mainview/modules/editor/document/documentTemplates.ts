@@ -12,16 +12,11 @@
  */
 import Mustache from "mustache";
 
-export type DocumentTemplateId = "readme";
+type DocumentTemplateId = "readme";
 
-export type DocumentTemplateContext = {
+type DocumentTemplateContext = {
   /** H1 title. Defaults to README when missing or empty after normalization. */
   title?: string;
-};
-
-export type DocumentTemplate = {
-  id: DocumentTemplateId;
-  body: string;
 };
 
 /** Deterministic fallback when creation has no folder context. */
@@ -86,12 +81,9 @@ Optional settings or conventions for this area.
 - [External resource](https://example.com)
 `;
 
-export const DOCUMENT_TEMPLATES: readonly DocumentTemplate[] = [
-  {
-    id: "readme",
-    body: README_TEMPLATE_BODY,
-  },
-];
+const TEMPLATE_BODIES: Record<DocumentTemplateId, string> = {
+  readme: README_TEMPLATE_BODY,
+};
 
 /** Collapse whitespace; empty -> fallback. Does not invent product metadata. */
 export function normalizeDocumentTemplateTitle(raw: string | undefined | null): string {
@@ -120,7 +112,7 @@ export function documentTemplateTitleFromParentPath(
 }
 
 /**
- * Render a built-in core template. Unknown ids yield "".
+ * Render a built-in core template.
  * Context values are Mustache-escaped (HTML entities) so hostile folder names
  * stay inert through Preview; the output must contain no Mustache tags.
  */
@@ -128,10 +120,6 @@ export function renderDocumentTemplate(
   id: DocumentTemplateId = "readme",
   context: DocumentTemplateContext = {},
 ): string {
-  const template = DOCUMENT_TEMPLATES.find((entry) => entry.id === id);
-  if (!template) {
-    return "";
-  }
   const title = normalizeDocumentTemplateTitle(context.title);
-  return Mustache.render(template.body, { title });
+  return Mustache.render(TEMPLATE_BODIES[id], { title });
 }

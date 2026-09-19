@@ -95,12 +95,7 @@ function openMenu(
   openMenuId.value = menuId;
   menuLabel.value = label;
   menuActions.value = actions;
-  menuAnchor.value = {
-    left: bounds.left,
-    top: bounds.top,
-    right: bounds.right,
-    bottom: bounds.bottom,
-  };
+  menuAnchor.value = bounds;
   menuX.value = bounds.left;
   menuY.value = bounds.bottom + 2;
 }
@@ -125,13 +120,17 @@ function selectCommand(id: string): void {
   emit("command", id);
 }
 
-function focusAdjacentMenu(menuId: string, direction: -1 | 1): void {
+/** The menu beside `menuId` in the bar, wrapping at either end. */
+function adjacentMenu(menuId: string, direction: -1 | 1): PresentedMenuBar | null {
   const index = props.menus.findIndex((menu) => menu.id === menuId);
   if (index < 0) {
-    return;
+    return null;
   }
-  const nextIndex = (index + direction + props.menus.length) % props.menus.length;
-  const nextMenu = props.menus[nextIndex];
+  return props.menus[(index + direction + props.menus.length) % props.menus.length] ?? null;
+}
+
+function focusAdjacentMenu(menuId: string, direction: -1 | 1): void {
+  const nextMenu = adjacentMenu(menuId, direction);
   if (nextMenu) {
     menuButtons.get(nextMenu.id)?.focus();
   }
@@ -142,12 +141,7 @@ function navigateOpenMenu(direction: -1 | 1): void {
   if (!currentId) {
     return;
   }
-  const index = props.menus.findIndex((menu) => menu.id === currentId);
-  if (index < 0) {
-    return;
-  }
-
-  const nextMenu = props.menus[(index + direction + props.menus.length) % props.menus.length];
+  const nextMenu = adjacentMenu(currentId, direction);
   const button = nextMenu ? menuButtons.get(nextMenu.id) : undefined;
   if (!nextMenu || !button) {
     return;

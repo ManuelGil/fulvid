@@ -56,10 +56,9 @@ function frontmatterEnd(lines: string[]): number | null {
   return closingIndex >= 0 ? closingIndex : null;
 }
 
-function fenceMatches(opening: string, closing: string): boolean {
-  const openChar = opening[0];
-  const closeChar = closing[0];
-  return openChar === closeChar && closing.length >= opening.length;
+/** A closing fence uses the opening's character and is at least as long. */
+export function fenceMatches(opening: string, closing: string): boolean {
+  return opening[0] === closing[0] && closing.length >= opening.length;
 }
 
 export function parseMarkdownStructure(content: string): MarkdownStructure {
@@ -154,15 +153,19 @@ export function parseMarkdownStructure(content: string): MarkdownStructure {
   };
 }
 
-export function findMarkdownHeading(content: string, anchor: string): MarkdownHeading | undefined {
+/** Whether a link fragment names this heading, by anchor slug or by its text. */
+export function headingMatchesAnchor(heading: MarkdownHeading, anchor: string): boolean {
   let target: string;
   try {
     target = decodeURIComponent(anchor).toLowerCase();
   } catch {
     target = anchor.toLowerCase();
   }
+  return heading.text.toLowerCase() === target || heading.anchor === target;
+}
 
-  return parseMarkdownStructure(content).headings.find(
-    (heading) => heading.text.toLowerCase() === target || heading.anchor === target,
+export function findMarkdownHeading(content: string, anchor: string): MarkdownHeading | undefined {
+  return parseMarkdownStructure(content).headings.find((heading) =>
+    headingMatchesAnchor(heading, anchor),
   );
 }

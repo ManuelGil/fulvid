@@ -72,39 +72,33 @@ function scheduleRender(): void {
   }, RENDER_DEBOUNCE_MS);
 }
 
-function revealHeading(anchor: string): boolean {
-  const heading = findMarkdownHeading(props.content, anchor);
-  if (!heading) {
-    return false;
-  }
-  emit("revealSource", heading.lineNumber);
-  return true;
-}
-
-function activatePreviewTarget(target: Element): boolean {
+function activatePreviewTarget(target: Element): void {
   const link = target.closest<HTMLElement>("[data-document-path]");
   const path = link?.dataset.documentPath;
   if (path) {
     const anchor = link?.dataset.documentAnchor;
-    if (path === props.path && anchor) {
-      revealHeading(anchor);
-      return true;
+    if (path !== props.path || !anchor) {
+      emit("openDocument", path, anchor);
+      return;
     }
-    emit("openDocument", path, anchor);
-    return true;
+    // A heading in this document: move the editor there.
+    const heading = findMarkdownHeading(props.content, anchor);
+    if (heading) {
+      emit("revealSource", heading.lineNumber);
+    }
+    return;
   }
 
+  // Any other anchor is display-only.
   if (target.closest("a")) {
-    return true;
+    return;
   }
 
   const heading = target.closest<HTMLElement>("[data-source-line]");
   const sourceLine = Number(heading?.dataset.sourceLine);
-  if (!Number.isInteger(sourceLine) || sourceLine < 1) {
-    return false;
+  if (Number.isInteger(sourceLine) && sourceLine >= 1) {
+    emit("revealSource", sourceLine);
   }
-  emit("revealSource", sourceLine);
-  return true;
 }
 
 function onPreviewClick(event: MouseEvent): void {

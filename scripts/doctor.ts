@@ -48,10 +48,6 @@ function linuxRuntimeLibraries(): LinuxLibrary[] {
 
 const checks: Check[] = [];
 
-function record(check: Check): void {
-  checks.push(check);
-}
-
 /** Compare dotted numeric versions. Returns -1, 0, or 1. */
 function compareVersions(left: string, right: string): number {
   const a = left.split(".").map((part) => Number.parseInt(part, 10) || 0);
@@ -72,7 +68,7 @@ function checkBun(): void {
   const comparison = compareVersions(version, EXPECTED_BUN);
 
   if (comparison < 0) {
-    record({
+    checks.push({
       name: "Bun",
       status: "warn",
       detail: `${version} (releases are built with ${EXPECTED_BUN})`,
@@ -81,7 +77,7 @@ function checkBun(): void {
     return;
   }
 
-  record({ name: "Bun", status: "ok", detail: version });
+  checks.push({ name: "Bun", status: "ok", detail: version });
 }
 
 function checkPlatform(): void {
@@ -89,7 +85,7 @@ function checkPlatform(): void {
   const platform = process.platform;
 
   if (!supported.has(platform)) {
-    record({
+    checks.push({
       name: "Platform",
       status: "fail",
       detail: `${platform} is not supported`,
@@ -98,12 +94,12 @@ function checkPlatform(): void {
     return;
   }
 
-  record({ name: "Platform", status: "ok", detail: `${platform} ${process.arch}` });
+  checks.push({ name: "Platform", status: "ok", detail: `${platform} ${process.arch}` });
 }
 
 function checkDependencies(): void {
   if (!existsSync("node_modules/electrobun")) {
-    record({
+    checks.push({
       name: "Dependencies",
       status: "fail",
       detail: "not installed",
@@ -112,14 +108,14 @@ function checkDependencies(): void {
     return;
   }
 
-  record({ name: "Dependencies", status: "ok", detail: "installed" });
+  checks.push({ name: "Dependencies", status: "ok", detail: "installed" });
 }
 
 /** The Vite build requires the project-local Electrobun 2 devkit projection. */
 function checkRuntime(): void {
   const devkitConfig = ".hutch/devkit/api/config/electrobun-vite.ts";
   if (!existsSync(devkitConfig)) {
-    record({
+    checks.push({
       name: "Electrobun devkit",
       status: "warn",
       detail: "not prepared - Vite aliases and desktop builds are unavailable",
@@ -128,12 +124,12 @@ function checkRuntime(): void {
     return;
   }
 
-  record({ name: "Electrobun devkit", status: "ok", detail: "prepared" });
+  checks.push({ name: "Electrobun devkit", status: "ok", detail: "prepared" });
 }
 
 function checkBuild(): void {
   if (!existsSync("dist/index.html")) {
-    record({
+    checks.push({
       name: "Web build",
       status: "warn",
       detail: "dist/ is empty - the window would load nothing",
@@ -142,7 +138,7 @@ function checkBuild(): void {
     return;
   }
 
-  record({ name: "Web build", status: "ok", detail: "dist/index.html present" });
+  checks.push({ name: "Web build", status: "ok", detail: "dist/index.html present" });
 }
 
 /** Library names known to the dynamic linker, when ldconfig is available. */
@@ -176,7 +172,7 @@ function checkLinuxLibraries(): void {
   });
 
   if (missing.length > 0) {
-    record({
+    checks.push({
       name: "System libraries",
       status: "fail",
       detail: `missing ${missing.map(({ file }) => file).join(", ")}`,
@@ -185,7 +181,7 @@ function checkLinuxLibraries(): void {
     return;
   }
 
-  record({
+  checks.push({
     name: "System libraries",
     status: "ok",
     detail: "GTK and WebKitGTK present",
@@ -198,7 +194,7 @@ function checkDisplay(): void {
   }
 
   if (!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
-    record({
+    checks.push({
       name: "Display",
       status: "warn",
       detail: "no DISPLAY or WAYLAND_DISPLAY - a window cannot open",
@@ -207,7 +203,7 @@ function checkDisplay(): void {
     return;
   }
 
-  record({ name: "Display", status: "ok", detail: "display server available" });
+  checks.push({ name: "Display", status: "ok", detail: "display server available" });
 }
 
 checkBun();

@@ -25,10 +25,9 @@ requestAnimationFrame(() => {
     ensureUntitledDocument();
     // An external request outranks the remembered folder: someone asked for this
     // one now. Only restore the last folder when nothing external opened one.
-    void applyPendingExternalOpens().then(({ openedFolder }) => {
-      if (!openedFolder) {
-        bootstrapWorkspace();
-      }
-    });
+    const { openedFolder } = await applyPendingExternalOpens();
+    if (!openedFolder) {
+      bootstrapWorkspace();
+    }
   })();
 });

@@ -41,46 +41,28 @@ function clamp(value: number, min: number, max: number): number {
   return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : min;
 }
 
-function readNumberField(
-  source: Partial<LayoutIntent>,
-  key: keyof Pick<LayoutIntent, "sidebarWidth" | "inspectorWidth" | "contextualWidth">,
-  fallback: number,
-  min: number,
-  max: number,
-): number {
-  const raw = source[key];
-  return clamp(typeof raw === "number" ? raw : fallback, min, max);
+function clampedNumber(value: unknown, fallback: number, min: number, max: number): number {
+  return clamp(typeof value === "number" ? value : fallback, min, max);
 }
 
 function sanitize(value: unknown): LayoutIntent {
   const source = value && typeof value === "object" ? (value as Partial<LayoutIntent>) : {};
 
   return {
-    sidebarWidth: readNumberField(
-      source,
-      "sidebarWidth",
-      SIDEBAR_DEFAULT,
-      SIDEBAR_MIN,
-      SIDEBAR_MAX,
-    ),
-    inspectorWidth: readNumberField(
-      source,
-      "inspectorWidth",
+    sidebarWidth: clampedNumber(source.sidebarWidth, SIDEBAR_DEFAULT, SIDEBAR_MIN, SIDEBAR_MAX),
+    inspectorWidth: clampedNumber(
+      source.inspectorWidth,
       INSPECTOR_DEFAULT,
       INSPECTOR_MIN,
       INSPECTOR_MAX,
     ),
-    contextualWidth: readNumberField(
-      source,
-      "contextualWidth",
+    contextualWidth: clampedNumber(
+      source.contextualWidth,
       CONTEXTUAL_DEFAULT,
       CONTEXTUAL_MIN,
       CONTEXTUAL_MAX,
     ),
-    previewRatio:
-      typeof source.previewRatio === "number"
-        ? clamp(source.previewRatio, PREVIEW_MIN, PREVIEW_MAX)
-        : PREVIEW_DEFAULT,
+    previewRatio: clampedNumber(source.previewRatio, PREVIEW_DEFAULT, PREVIEW_MIN, PREVIEW_MAX),
     leftSidebarOpen: typeof source.leftSidebarOpen === "boolean" ? source.leftSidebarOpen : true,
     rightSidebar:
       source.rightSidebar === "explorer" ||

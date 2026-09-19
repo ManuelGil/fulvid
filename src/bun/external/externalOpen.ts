@@ -59,20 +59,18 @@ export function parseExternalOpenRequest(value: unknown): ExternalOpenRequest {
   }
 
   const path = candidate.path;
-  if (typeof path !== "string" || path.length === 0) {
-    throw new RpcInputError("invalidTarget");
-  }
-  if (path.length > MAX_EXTERNAL_OPEN_PATH_LENGTH) {
-    throw new RpcInputError("invalidTarget");
-  }
-  if (path.includes("\0") || hasControlCharacters(path)) {
-    throw new RpcInputError("invalidTarget");
-  }
-  // A relative path has no meaning across a process boundary: there is no
-  // agreed working directory to resolve it against, and guessing one would
-  // invent a target the sender did not name. `isAbsolute` is the host
-  // platform's own rule, so drive letters and UNC paths stay valid on Windows.
-  if (!isAbsolute(path)) {
+  if (
+    typeof path !== "string" ||
+    path.length === 0 ||
+    path.length > MAX_EXTERNAL_OPEN_PATH_LENGTH ||
+    path.includes("\0") ||
+    hasControlCharacters(path) ||
+    // A relative path has no meaning across a process boundary: there is no
+    // agreed working directory to resolve it against, and guessing one would
+    // invent a target the sender did not name. `isAbsolute` is the host
+    // platform's own rule, so drive letters and UNC paths stay valid on Windows.
+    !isAbsolute(path)
+  ) {
     throw new RpcInputError("invalidTarget");
   }
 

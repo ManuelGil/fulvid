@@ -31,19 +31,13 @@ let disposed = false;
 let previousFocus: HTMLElement | null = null;
 
 function disposeDiff(): void {
-  if (diffEditor) {
-    diffEditor.setModel(null);
-    diffEditor.dispose();
-    diffEditor = null;
-  }
-  if (originalModel) {
-    originalModel.dispose();
-    originalModel = null;
-  }
-  if (modifiedModel) {
-    modifiedModel.dispose();
-    modifiedModel = null;
-  }
+  diffEditor?.setModel(null);
+  diffEditor?.dispose();
+  diffEditor = null;
+  originalModel?.dispose();
+  originalModel = null;
+  modifiedModel?.dispose();
+  modifiedModel = null;
 }
 
 function mountDiff(payload: SessionChangePreviewPayload): void {

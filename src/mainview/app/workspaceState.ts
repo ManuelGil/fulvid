@@ -17,6 +17,7 @@ import {
   detachDocumentBuffer,
   invalidatePendingWorkspaceOpens,
   openBuffers,
+  openOrActivate,
 } from "../modules/editor/document/documentBuffers";
 import {
   copyPathToClipboard,
@@ -27,7 +28,11 @@ import {
   scanWorkspace,
 } from "../modules/workspace/filesystem/workspaceScanner";
 import { parseFilesystemErrorCode } from "../modules/workspace/filesystem/workspaceErrors";
-import type { ScannedNote, WorkspaceScan } from "../modules/workspace/filesystem/workspaceTypes";
+import type {
+  GrantedDocumentSnapshot,
+  ScannedNote,
+  WorkspaceScan,
+} from "../modules/workspace/filesystem/workspaceTypes";
 import { folderDocumentPreflight, shouldLoadFolderWorkspace } from "./folderPreflight";
 import { settings } from "../modules/settings/settingsStore";
 import { notify } from "./notify";
@@ -131,25 +136,19 @@ function isStaleWorkspaceRequest(requestGeneration: number): boolean {
   return requestGeneration !== workspaceRequestGeneration;
 }
 
-function finishWorkspaceRequestIfCurrent(requestGeneration: number): boolean {
+function finishWorkspaceRequestIfCurrent(requestGeneration: number): void {
   if (isStaleWorkspaceRequest(requestGeneration)) {
-    return false;
+    return;
   }
-  setLoadingStatus(null);
+  loadingStatus.value = null;
   isLoading.value = false;
-  return true;
-}
-
-function normalizedAbsolutePath(path: string): string {
-  const normalized = path.replace(/\\/g, "/").replace(/\/+$/, "");
-  return normalized || "/";
 }
 
 function absolutePathSegments(path: string): {
   absolute: boolean;
   segments: string[];
 } {
-  const normalized = normalizedAbsolutePath(path);
+  const normalized = path.replace(/\\/g, "/").replace(/\/+$/, "") || "/";
   return {
     absolute: /^\//.test(normalized) || /^[A-Za-z]:\//.test(normalized),
     segments: normalized.split("/").filter(Boolean),
@@ -166,10 +165,23 @@ export function relativeDocumentPath(rootPath: string, absolutePath: string | nu
     return null;
   }
   if (root.segments.every((segment, index) => segment === target.segments[index])) {
-    const relativePath = target.segments.slice(root.segments.length).join("/");
-    return relativePath;
+    return target.segments.slice(root.segments.length).join("/");
   }
   return null;
+}
+
+/**
+ * Open a document the host granted (Open dialog or external open). Inside the
+ * open Folder it attaches there, so it behaves like any folder document.
+ */
+export async function openGrantedSnapshot(snapshot: GrantedDocumentSnapshot): Promise<void> {
+  const rootPath = workspace.value?.path ?? null;
+  const path = rootPath ? relativeDocumentPath(rootPath, snapshot.absolutePath) : null;
+  await openOrActivate({
+    kind: "granted",
+    snapshot,
+    ...(rootPath && path ? { attachment: { rootPath, path } } : {}),
+  });
 }
 
 async function detachWorkspaceBuffers(rootPath: string): Promise<void> {
@@ -192,28 +204,22 @@ function attachBuffersToWorkspace(rootPath: string): void {
   }
 }
 
-function setLoadingStatus(label: string | null): void {
-  loadingStatus.value = label;
-}
-
 async function readWorkspaceFromDisk(path: string): Promise<WorkspaceScan> {
   const includeHidden = settings.value.workspace.showHiddenFiles;
 
-  setLoadingStatus(i18n.global.t("workspace.loadingDocuments"));
+  loadingStatus.value = i18n.global.t("workspace.loadingDocuments");
   const scan = await scanWorkspace(path, includeHidden, settings.value.links.linkMode);
   if (scan.scannedNotes.length === 0) {
     // A partial walk cannot claim the folder has no documents.
-    setLoadingStatus(
-      i18n.global.t(scan.truncated || scan.skipped ? "workspace.looking" : "workspace.noDocuments"),
+    loadingStatus.value = i18n.global.t(
+      scan.truncated || scan.skipped ? "workspace.looking" : "workspace.noDocuments",
     );
   } else {
-    setLoadingStatus(
-      i18n.global.t(
-        scan.scannedNotes.length === 1 ? "workspace.openingOne" : "workspace.openingMany",
-        {
-          count: scan.scannedNotes.length.toLocaleString(i18n.global.locale.value),
-        },
-      ),
+    loadingStatus.value = i18n.global.t(
+      scan.scannedNotes.length === 1 ? "workspace.openingOne" : "workspace.openingMany",
+      {
+        count: scan.scannedNotes.length.toLocaleString(i18n.global.locale.value),
+      },
     );
   }
   return scan;
@@ -294,7 +300,7 @@ async function loadWorkspace(path: string): Promise<void> {
   invalidatePendingWorkspaceOpens();
   isLoading.value = true;
   errorMessage.value = null;
-  setLoadingStatus(i18n.global.t("workspace.loadingDocuments"));
+  loadingStatus.value = i18n.global.t("workspace.loadingDocuments");
 
   try {
     const scan = await readWorkspaceFromDisk(path);
@@ -375,7 +381,7 @@ export async function closeWorkspace(): Promise<void> {
       workspaceRequestGeneration += 1;
       invalidatePendingWorkspaceOpens();
       isLoading.value = false;
-      setLoadingStatus(null);
+      loadingStatus.value = null;
       errorMessage.value = null;
     }
     return;
@@ -398,7 +404,7 @@ export async function closeWorkspace(): Promise<void> {
     }
     errorMessage.value = describeFilesystemError(error, "workspace.closeWorkspaceError");
     isLoading.value = false;
-    setLoadingStatus(null);
+    loadingStatus.value = null;
     return;
   }
   if (isStaleWorkspaceRequest(requestGeneration)) {
@@ -407,7 +413,7 @@ export async function closeWorkspace(): Promise<void> {
   workspace.value = null;
   errorMessage.value = null;
   isLoading.value = false;
-  setLoadingStatus(null);
+  loadingStatus.value = null;
   bindFocusToWorkspace(null);
   closeRightSidebar();
   notify(i18n.global.t("workspace.closed"));
@@ -423,7 +429,7 @@ export async function refreshWorkspace(options: { silent?: boolean } = {}): Prom
   const requestGeneration = ++workspaceRequestGeneration;
   isLoading.value = true;
   errorMessage.value = null;
-  setLoadingStatus(i18n.global.t("workspace.loadingDocuments"));
+  loadingStatus.value = i18n.global.t("workspace.loadingDocuments");
 
   try {
     const scan = await readWorkspaceFromDisk(path);
