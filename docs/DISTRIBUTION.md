@@ -52,46 +52,53 @@ Those last three are not install paths. Durable constraints live next to the stu
 
 ### Windows
 
-GitHub Actions calls [packaging/windows/](../packaging/windows/). Authenticode is optional and only runs when certificate secrets are present on trusted events (not pull requests).
+GitHub Actions calls [packaging/windows/](../packaging/windows/). Authenticode is optional and only runs when certificate secrets are present.
 
 ### macOS
 
-GitHub Actions calls [packaging/macos/](../packaging/macos/). Apple signing and notarization are optional and only run when Apple secrets are present on trusted events.
+GitHub Actions calls [packaging/macos/](../packaging/macos/). Apple signing and notarization are optional and only run when Apple secrets are present.
 
 ## How builds are made
 
 ```text
-GitHub Actions (main)
-  Linux, Windows, macOS
-  -> GitHub Release only when publication is enabled
+Tag v*
+  release.yml -> Linux + Windows + macOS artifacts -> GitHub Release
+
+Push to main
+  validate.yml -> contributor gate
+  compatibility-*.yml -> package + smoke (does not publish)
+
+Pull request
+  validate.yml -> contributor gate
 
 Manual Linux helper
-  make + packaging/linux/
-  -> local artifacts; does not publish
+  make + packaging/linux/ -> local artifacts; does not publish
 ```
 
-Actions is the main path. Linux CI is written in `.github/workflows/release.yml`. It does not use Make. Windows and macOS CI call the platform scripts under `packaging/`.
+Actions is the main path for official releases. Linux packaging in `release.yml` does not use Make. Windows and macOS CI call the platform scripts under `packaging/`.
 
-The two paths do not share an implementation. Their files do not need to be byte-identical. Each path must be consistent with itself.
+The Actions and Make paths do not share an implementation. Their files do not need to be byte-identical. Each path must be consistent with itself.
 
 Maintainer procedures: [github-distribution.md](./github-distribution.md), [linux-release.md](./linux-release.md).
 
 ## Publication
 
-Automatic publication is one boolean on the publish job in `.github/workflows/release.yml`:
+Official GitHub Releases are created only from version tags.
+
+Publish job condition in `.github/workflows/release.yml`:
 
 ```text
-if: ${{ true && startsWith(github.ref, 'refs/tags/v') }}
+if: startsWith(github.ref, 'refs/tags/v')
 ```
 
-The first operand is the enablement gate. GitHub does not allow workflow `env` in a job `if`, so the switch lives there.
+- A push of tag `v*` builds all three platforms and publishes.
+- `workflow_dispatch` on the Release workflow builds artifacts for diagnosis and never publishes.
+- Pull requests and pushes to `main` never run the Release publish job.
 
-- `true`: a `v*` tag creates or updates a GitHub Release (current setting for 1.0.0).
-- `false`: platform jobs still build and upload workflow artifacts. Nothing is published.
+Who can create or move `v*` tags is a GitHub repository permission.
 
-Pull requests and pushes to `main` never publish. Who can create or move `v*` tags is a GitHub repository permission.
+Release body notes live under [releases/](./releases/) (`v1.0.0.md` for the current release notes; use `vX.Y.Z.md` for the version you are shipping). Actions generates a commit list automatically; replace or append the curated notes on the Release when needed.
 
-A public tag can also be attached by hand from workflow artifacts or a local Linux set, using the matching file under [releases/](./releases/) as the body (`v1.0.0.md` for the current release notes; use `vX.Y.Z.md` for the version you are shipping). Do not flip the gate just to finish a documentation pass.
 
 ## Verification
 
@@ -114,7 +121,7 @@ gpg --verify SHA256SUMS.asc SHA256SUMS
 sha256sum -c SHA256SUMS
 ```
 
-**Platform signing.** Optional. Windows Authenticode and Apple signing/notarization run in CI only when secrets are configured. Linux CI does not add a Debian package signature. Missing credentials do not skip packaging. Unsigned artifacts are expected on pull requests and when those secrets are absent.
+**Platform signing.** Optional. Windows Authenticode and Apple signing/notarization run in Release CI only when secrets are configured. Linux CI does not add a Debian package signature. Missing credentials do not skip packaging. Unsigned artifacts are expected when those secrets are absent.
 
 ## Generated output
 

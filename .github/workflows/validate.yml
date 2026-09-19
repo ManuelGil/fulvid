@@ -1,4 +1,4 @@
-# Contributor gate. Not an official release. Does not package or sign.
+# Contributor gate. Does not package or publish.
 name: Validate
 
 on:
@@ -21,13 +21,19 @@ env:
 
 jobs:
   validate:
-    name: Validate (${{ matrix.os }})
+    name: Validate (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-24.04
+            label: Ubuntu 24.04
+          - os: windows-2025
+            label: Windows Server 2025
+          - os: macos-26
+            label: macOS 26
     defaults:
       run:
         shell: bash
@@ -39,7 +45,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -57,12 +63,12 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Restore Bun cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          key: bun-${{ matrix.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            bun-${{ runner.os }}-${{ env.BUN_VERSION }}-
+            bun-${{ matrix.os }}-${{ env.BUN_VERSION }}-
 
       - name: Install dependencies
         env:
@@ -80,7 +86,7 @@ jobs:
 
   dependency-health:
     name: Dependency health
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
@@ -88,7 +94,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -98,12 +104,12 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Restore Bun cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          key: bun-ubuntu-24.04-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            bun-${{ runner.os }}-${{ env.BUN_VERSION }}-
+            bun-ubuntu-24.04-${{ env.BUN_VERSION }}-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts

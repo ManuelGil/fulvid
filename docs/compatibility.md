@@ -10,6 +10,15 @@ These checks live in three independent workflows. They do not publish. They do n
 .github/workflows/compatibility-macos.yml
 ```
 
+## When compatibility CI runs
+
+| Event | Effect |
+| --- | --- |
+| Push to `main` | Package + smoke on the pinned OS images |
+| `workflow_dispatch` | Same package + smoke, on demand |
+| Pull request | Does **not** run (PRs use `validate.yml` only) |
+| Tag `v*` | Does **not** run (official packaging is `release.yml`) |
+
 ## Words
 
 | Word | Means |
@@ -105,7 +114,6 @@ Lua packaged smoke (after packaging on the current OS): `bun run smoke:lua-packa
 
 ## Not this CI
 
-- GitHub Releases
+- GitHub Releases (see [DISTRIBUTION.md](./DISTRIBUTION.md); tags `v*` via `release.yml`)
 - Snap, AppImage, Flatpak
 - Signing
-- Changing the publish gate (`true`/`false` && `startsWith(github.ref, 'refs/tags/v')`) in `release.yml`

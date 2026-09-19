@@ -1,28 +1,41 @@
 # GitHub Actions release
 
-How `.github/workflows/release.yml` packages Fulvid. Public status and artifact names: [DISTRIBUTION.md](./DISTRIBUTION.md).
+How `.github/workflows/release.yml` packages Fulvid and publishes GitHub Releases. Artifact names: [DISTRIBUTION.md](./DISTRIBUTION.md).
 
-This is the main packaging path. It does not use the Linux Makefile or `packaging/linux/` for the `.deb`.
+This is the official packaging path for version tags. It does not use the Linux Makefile for the `.deb`.
 
-The workflow runs on pull requests, pushes to `main`, version tags `v*`, and `workflow_dispatch`. Contributor checks (`validate.yml`) run `bun run validate` and do not package. Compatibility CI is three other workflows ([compatibility.md](./compatibility.md)). Those package and smoke per OS. They never publish.
+## When it runs
+
+| Event | Effect |
+| --- | --- |
+| Push tag `v*` | Build Linux, Windows, and macOS, then publish a GitHub Release |
+| `workflow_dispatch` | Build and upload workflow artifacts only. Does **not** publish |
+
+Contributor checks (`validate.yml`) run on pull requests and pushes to `main`. Compatibility CI (`compatibility-*.yml`) packages and smokes on pushes to `main` and never publishes.
 
 ## Jobs
 
-Three platform jobs always build, package, and upload workflow artifacts. A fourth job publishes only when the gate in [DISTRIBUTION.md](./DISTRIBUTION.md#publication) is on and the ref is a `v*` tag.
+Three platform jobs build, package, and upload workflow artifacts on the pinned runners (`ubuntu-24.04`, `windows-2025`, `macos-26`). A fourth job publishes only when the ref is `refs/tags/v*`.
 
-- Linux: Electrobun stable build, public names, `.deb` via `dpkg-deb`, checksums, upload. Desktop file comes from [packaging/linux/desktop/fulvid.desktop](../packaging/linux/desktop/fulvid.desktop).
+- Linux: Electrobun stable build, public names, `.deb` via `dpkg-deb`, checksums, upload. Desktop file: [packaging/linux/desktop/fulvid.desktop](../packaging/linux/desktop/fulvid.desktop).
 - Windows and macOS: [packaging/windows/](../packaging/windows/) and [packaging/macos/](../packaging/macos/).
 
-On a version tag, each platform job rewrites `package.json` and `electrobun.config.ts` to match the tag (the `v` prefix is stripped) before packaging. That only sets the artifact version.
+On a version tag, each platform job rewrites `package.json` and `electrobun.config.ts` to match the tag (the `v` prefix is stripped) before packaging.
 
 ## Publish job
 
-It waits for all three platforms. If any fails, nothing is published.
+It waits for all three platforms (`needs: [linux, windows, macos]`). If any fails, nothing is published.
+
+Condition:
+
+```text
+if: startsWith(github.ref, 'refs/tags/v')
+```
 
 It downloads `fulvid-linux/`, `fulvid-windows/`, and `fulvid-macos/`, renames shared metadata (`SHA256SUMS`, `release-manifest.json`, `build.log`) with a platform suffix, and calls `softprops/action-gh-release` with `GITHUB_TOKEN`. That job is the only one with `contents: write`.
 
 - If no Release exists for the tag, one is created (`Fulvid <tag>`).
-- The action sets `generate_release_notes: true` (GitHub's commit list). When attaching a Release by hand, use the matching file under [releases/](./releases/) (`v1.0.0.md` for the current release notes; use `vX.Y.Z.md` for the version you are shipping).
+- The action sets `generate_release_notes: true` (GitHub's commit list). When attaching notes by hand, use the matching file under [releases/](./releases/) (`v1.0.0.md` for the current release notes; use `vX.Y.Z.md` for the version you are shipping).
 - If a Release already exists, new assets are uploaded. `overwrite_files: false`, so a name already on the Release fails the upload.
 - A re-run does not replace existing assets.
 
@@ -30,4 +43,4 @@ It downloads `fulvid-linux/`, `fulvid-windows/`, and `fulvid-macos/`, renames sh
 
 GitHub Actions does not use the project PGP key. Linux CI does not write `.asc` files.
 
-On trusted events (`push`, tags, `workflow_dispatch`), Windows Authenticode and Apple signing run only when the matching secrets are present. Secrets are not passed on `pull_request`. The Linux job and the publish job do not receive them. Missing secrets must not skip a platform.
+Windows Authenticode and Apple signing/notarization run only when the matching secrets are present. Missing secrets must not skip a platform.
