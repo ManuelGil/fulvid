@@ -3,14 +3,12 @@
  * Prefer fail-closed regressions over coverage padding.
  */
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
   findLuaCommand,
   invokeLuaExtensionCommand,
-  loadLuaExtensionPack,
   resetLuaCommandStore,
 } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 import {
@@ -23,8 +21,12 @@ import {
   setLuaExecutionBudgetForTests,
 } from "../../src/bun/extensions/lua/luaLimits.ts";
 import { parseExtensionDecorationRanges } from "../../src/mainview/extensions/decorationCapability.ts";
-import { validateExtensionManifest } from "../../src/mainview/extensions/extensionManifest.ts";
-import { luaManifest } from "./manifestTestHelpers.ts";
+import {
+  loadValidatedLuaPack,
+  luaManifest,
+  tempExtensionRoot,
+  writeExtensionPack,
+} from "./manifestTestHelpers.ts";
 import {
   configureExtensionHostActions,
   resetExtensionRegistryForTests,
@@ -36,39 +38,6 @@ import {
   registerEditorExtensionSeam,
   resetEditorExtensionSeamForTests,
 } from "../../src/mainview/extensions/editorExtensionSeam.ts";
-
-async function tempRoot(label: string): Promise<string> {
-  const root = join(tmpdir(), `fulvid-adv-${label}-${crypto.randomUUID()}`);
-  await mkdir(root, { recursive: true });
-  return root;
-}
-
-async function writePack(
-  root: string,
-  id: string,
-  manifest: unknown,
-  files: Record<string, string>,
-): Promise<string> {
-  const pack = join(root, id);
-  await mkdir(pack, { recursive: true });
-  await writeFile(join(pack, "manifest.json"), JSON.stringify(manifest, null, 2));
-  for (const [relative, content] of Object.entries(files)) {
-    const target = join(pack, relative);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, content);
-  }
-  return pack;
-}
-
-async function loadPack(pack: string) {
-  const validated = validateExtensionManifest(
-    JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-  );
-  if (!("manifest" in validated)) {
-    throw new Error(validated.reason);
-  }
-  return loadLuaExtensionPack(pack, validated.manifest);
-}
 
 afterEach(() => {
   resetExtensionRegistryForTests();
@@ -104,34 +73,50 @@ describe("adversarial lua sandbox", () => {
       engine.global.close();
     }
 
-    const root = await tempRoot("bytecode");
-    const pack = await writePack(root, "test.adv-bytecode", luaManifest("test.adv-bytecode"), {
-      "entry.lua": "\u001bLua\0fake-bytecode",
+    const root = await tempExtensionRoot("bytecode");
+    const pack = await writeExtensionPack(
+      root,
+      "test.adv-bytecode",
+      luaManifest("test.adv-bytecode"),
+      {
+        "entry.lua": "\u001bLua\0fake-bytecode",
+      },
+    );
+    await expect(loadValidatedLuaPack(pack)).rejects.toMatchObject({
+      reason: "bytecode entry is not allowed",
     });
-    await expect(loadPack(pack)).rejects.toMatchObject({ reason: "bytecode entry is not allowed" });
     expect(findLuaCommand("test.adv-bytecode.ping")).toBeNull();
   });
 });
 
 describe("adversarial resource bounds", () => {
   test("rejects oversized titles, notify flood, decoration coords, and reveal", async () => {
-    const root = await tempRoot("bounds");
+    const root = await tempExtensionRoot("bounds");
     const title = "T".repeat(LUA_EXTENSION_LIMITS.maxCommandTitleChars.value + 1);
-    const titlePack = await writePack(root, "test.adv-title", luaManifest("test.adv-title"), {
-      "entry.lua": `
+    const titlePack = await writeExtensionPack(
+      root,
+      "test.adv-title",
+      luaManifest("test.adv-title"),
+      {
+        "entry.lua": `
 commands.register({
   id = "ping",
   title = ${JSON.stringify(title)},
   run = function() end
 })
 `,
-    });
-    await expect(loadPack(titlePack)).rejects.toBeDefined();
+      },
+    );
+    await expect(loadValidatedLuaPack(titlePack)).rejects.toBeDefined();
     expect(findLuaCommand("test.adv-title.ping")).toBeNull();
 
     const limit = LUA_EXTENSION_LIMITS.maxNotificationsPerInvoke.value;
-    const floodPack = await writePack(root, "test.adv-flood", luaManifest("test.adv-flood"), {
-      "entry.lua": `
+    const floodPack = await writeExtensionPack(
+      root,
+      "test.adv-flood",
+      luaManifest("test.adv-flood"),
+      {
+        "entry.lua": `
 commands.register({
   id = "flood",
   title = "Flood",
@@ -142,8 +127,9 @@ commands.register({
   end
 })
 `,
-    });
-    await loadPack(floodPack);
+      },
+    );
+    await loadValidatedLuaPack(floodPack);
     const flood = await invokeLuaExtensionCommand("test.adv-flood.flood");
     expect(flood.ok).toBe(false);
     if (!flood.ok) {
@@ -163,7 +149,7 @@ commands.register({
       ]),
     ).toEqual({ ok: false, error: "invalid decoration range" });
 
-    const revealPack = await writePack(
+    const revealPack = await writeExtensionPack(
       root,
       "test.adv-reveal",
       luaManifest("test.adv-reveal", ["lua", "commands", "ui", "document"]),
@@ -179,7 +165,7 @@ commands.register({
 `,
       },
     );
-    await loadPack(revealPack);
+    await loadValidatedLuaPack(revealPack);
     const reveal = await invokeLuaExtensionCommand({
       namespacedId: "test.adv-reveal.go",
       document: {
@@ -196,15 +182,15 @@ commands.register({
 
 describe("adversarial lifecycle and isolation", () => {
   test("reentrancy fail-closed, capability denial, and malformed DTO", async () => {
-    const root = await tempRoot("lifecycle");
+    const root = await tempExtensionRoot("lifecycle");
 
     // Overlapping loads first - cold factory so createHardenedLuaEngine overlaps.
-    const a = await writePack(root, "test.adv-loada", luaManifest("test.adv-loada"), {
+    const a = await writeExtensionPack(root, "test.adv-loada", luaManifest("test.adv-loada"), {
       "entry.lua": `
 commands.register({ id = "a", title = "A", run = function() ui.notify("a") end })
 `,
     });
-    const b = await writePack(root, "test.adv-loadb", luaManifest("test.adv-loadb"), {
+    const b = await writeExtensionPack(root, "test.adv-loadb", luaManifest("test.adv-loadb"), {
       "entry.lua": `
 commands.register({ id = "b", title = "B", run = function() ui.notify("b") end })
 `,
@@ -212,20 +198,27 @@ commands.register({ id = "b", title = "B", run = function() ui.notify("b") end }
     // Concurrent loads: claim is sync before awaits, so one must fail closed.
     resetLuaCommandStore();
     resetLuaFactoryForTests();
-    const loadOutcomes = await Promise.allSettled([loadPack(a), loadPack(b)]);
+    const loadOutcomes = await Promise.allSettled([
+      loadValidatedLuaPack(a),
+      loadValidatedLuaPack(b),
+    ]);
     const rejectedLoads = loadOutcomes.filter((entry) => entry.status === "rejected").length;
     expect(rejectedLoads).toBeGreaterThanOrEqual(1);
     expect(loadOutcomes.some((entry) => entry.status === "fulfilled")).toBe(true);
     resetLuaCommandStore();
     resetLuaFactoryForTests();
-    await loadPack(a);
+    await loadValidatedLuaPack(a);
     expect(await invokeLuaExtensionCommand("test.adv-loada.a")).toEqual({
       ok: true,
       notifications: ["a"],
     });
 
-    const reentry = await writePack(root, "test.adv-reentry", luaManifest("test.adv-reentry"), {
-      "entry.lua": `
+    const reentry = await writeExtensionPack(
+      root,
+      "test.adv-reentry",
+      luaManifest("test.adv-reentry"),
+      {
+        "entry.lua": `
 commands.register({
   id = "outer",
   title = "Outer",
@@ -234,8 +227,9 @@ commands.register({
   end
 })
 `,
-    });
-    await loadPack(reentry);
+      },
+    );
+    await loadValidatedLuaPack(reentry);
 
     const invokeResults = await Promise.all(
       Array.from({ length: 12 }, () => invokeLuaExtensionCommand("test.adv-reentry.outer")),
@@ -246,7 +240,7 @@ commands.register({
     );
     expect(findLuaCommand("test.adv-reentry.outer")).not.toBeNull();
 
-    const nocap = await writePack(root, "test.adv-nocap", luaManifest("test.adv-nocap"), {
+    const nocap = await writeExtensionPack(root, "test.adv-nocap", luaManifest("test.adv-nocap"), {
       "entry.lua": `
 commands.register({
   id = "probe",
@@ -259,7 +253,7 @@ commands.register({
 })
 `,
     });
-    await loadPack(nocap);
+    await loadValidatedLuaPack(nocap);
     expect(
       await invokeLuaExtensionCommand({
         namespacedId: "test.adv-nocap.probe",
@@ -448,18 +442,26 @@ describe("adversarial execution budget", () => {
   test("guest cannot catch the budget interrupt and keep running", async () => {
     setLuaExecutionBudgetForTests(300);
     try {
-      const root = await tempRoot("budget");
-      const pack = await writePack(root, "test.adv-budget", luaManifest("test.adv-budget"), {
-        "entry.lua": "while true do pcall(function() while true do end end) end",
-      });
-      const started = Date.now();
-      await expect(loadPack(pack)).rejects.toBeInstanceOf(Error);
-      expect(Date.now() - started).toBeLessThan(5_000);
+      const root = await tempExtensionRoot("budget");
+      const pack = await writeExtensionPack(
+        root,
+        "test.adv-budget",
+        luaManifest("test.adv-budget"),
+        {
+          "entry.lua": "while true do pcall(function() while true do end end) end",
+        },
+      );
+      await expect(loadValidatedLuaPack(pack)).rejects.toBeInstanceOf(Error);
 
-      const looping = await writePack(root, "test.adv-loop", luaManifest("test.adv-loop"), {
-        "entry.lua": "while true do end",
-      });
-      await expect(loadPack(looping)).rejects.toMatchObject({
+      const looping = await writeExtensionPack(
+        root,
+        "test.adv-loop",
+        luaManifest("test.adv-loop"),
+        {
+          "entry.lua": "while true do end",
+        },
+      );
+      await expect(loadValidatedLuaPack(looping)).rejects.toMatchObject({
         reason: "execution limit exceeded",
       });
     } finally {

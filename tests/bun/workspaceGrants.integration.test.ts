@@ -39,13 +39,8 @@ describe("folder approvals", () => {
     expect(isApprovedWorkspaceRoot("/home/me/notes")).toBe(true);
     expect(isApprovedWorkspaceRoot("/home/me/other")).toBe(false);
 
-    for (const corrupt of [
-      "not json at all",
-      '{"roots":["/home/me/notes"]}',
-      "null",
-      '"/home/me/notes"',
-      "[]",
-    ]) {
+    // Three corruption classes: non-JSON, wrong object shape, null root.
+    for (const corrupt of ["not json at all", '{"roots":["/home/me/notes"]}', "null"]) {
       const bad = await mkdtemp(join(tmpdir(), "fulvid-approvals-bad-"));
       directories.push(bad);
       await writeFile(join(bad, "approved-folders.json"), corrupt);

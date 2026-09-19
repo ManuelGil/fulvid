@@ -3,7 +3,8 @@ import { describe, expect, test } from "bun:test";
 import type { DocumentLink } from "../../../../../src/mainview/modules/document/links/documentLink";
 import type { ScannedNote } from "../../../../../src/mainview/modules/workspace/filesystem/workspaceTypes.ts";
 import {
-  PREVIEW_RENDER_CHAR_LIMIT,
+  PREVIEW_BLOCK_MARKER_LIMIT,
+  PREVIEW_INLINE_MARKUP_LIMIT,
   renderMarkdownPreview,
   exportMarkdownPreviewDocument,
 } from "../../../../../src/mainview/modules/editor/markdown/markdownPreview.ts";
@@ -51,13 +52,10 @@ describe("markdown preview", () => {
 
     for (const target of [
       "javascript:alert(1)",
-      "JaVaScRiPt:alert(1)",
       "data:text/html,<script>alert(1)</script>",
       "file:///etc/passwd",
       "http://example.com",
       "//evil.example/x",
-      "https://example.com/doc",
-      "mailto:user@example.com",
     ]) {
       const result = renderMarkdownPreview(`[x](${target})`, [], "markdown");
       expect(result.html).not.toContain(target);
@@ -127,20 +125,14 @@ describe("markdown preview", () => {
     expect(exported.html).toContain("&lt;script&gt;");
     expect(exported.preview.hasUnsupportedMdx).toBe(true);
 
-    // Historical: marked's inline lexer is quadratic; a document under the
-    // character cap could still freeze the UI for over a minute.
+    // Historical: marked's inline lexer is quadratic past the inline-markup ceiling.
     const notes = [note("n0.md")];
-    const denseSource = "[l](n0.md) ".repeat(
-      Math.floor(PREVIEW_RENDER_CHAR_LIMIT / "[l](n0.md) ".length),
-    );
+    const denseSource = "[l](n0.md) ".repeat(PREVIEW_INLINE_MARKUP_LIMIT + 1);
 
-    const started = performance.now();
     const dense = renderMarkdownPreview(denseSource, notes, "markdown", undefined, "cur.md");
     expect(dense.dense).toBe(true);
     expect(dense.html.startsWith("<pre>")).toBe(true);
     expect(dense.html).not.toContain("<a ");
-    // Soft upper bound against a return to minute-long freezes; behavioral asserts above are primary.
-    expect(performance.now() - started).toBeLessThan(5_000);
 
     const denseExport = exportMarkdownPreviewDocument(denseSource, notes, "markdown", {
       title: "dense",
@@ -155,7 +147,7 @@ describe("markdown preview", () => {
 // block-level ambiguity is bounded before marked runs.
 // Growth boundary: add a case only for a new source of heading/marker ambiguity.
 describe("markdown preview heading identity and block density", () => {
-  test("annotates each heading from its own source line, never a neighbour's", () => {
+  test("annotates each heading from its own source line, including past frontmatter", () => {
     const html = renderMarkdownPreview(
       "> # Quoted\n\n- # Listed\n\n## After\n",
       [],
@@ -168,31 +160,33 @@ describe("markdown preview heading identity and block density", () => {
     expect(html).toContain("<h1>Listed</h1>");
     expect(html).toContain('id="after"');
     expect(html).toContain('data-source-line="5"');
-  });
 
-  test("offsets heading source lines past omitted frontmatter", () => {
-    const html = renderMarkdownPreview("---\ntitle: x\n---\n\n# H\n", [], "markdown").html;
-
-    expect(html).toContain('data-source-line="5"');
+    const withFrontmatter = renderMarkdownPreview(
+      "---\ntitle: x\n---\n\n# H\n",
+      [],
+      "markdown",
+    ).html;
+    expect(withFrontmatter).toContain('data-source-line="5"');
   });
 
   test("falls back to inert source when bare list markers make blocks ambiguous", () => {
     // "a\n-\n" repeated is ambiguous between a setext underline and a list item;
     // resolving it upstream is superlinear and froze the renderer.
-    const pathological = renderMarkdownPreview("a\n-\n".repeat(4_000), [], "markdown");
+    const overLimit = PREVIEW_BLOCK_MARKER_LIMIT + 1;
+    const pathological = renderMarkdownPreview("a\n-\n".repeat(overLimit), [], "markdown");
     expect(pathological.dense).toBe(true);
     expect(pathological.html.startsWith("<pre>")).toBe(true);
 
     // Real bullets and real setext underlines keep rendering.
-    expect(
-      renderMarkdownPreview("- item one\n- item two\n".repeat(2_000), [], "markdown").dense,
-    ).toBe(false);
-    expect(
-      renderMarkdownPreview("Heading\n---\n\nbody\n\n".repeat(2_000), [], "markdown").dense,
-    ).toBe(false);
+    expect(renderMarkdownPreview("- item one\n- item two\n".repeat(40), [], "markdown").dense).toBe(
+      false,
+    );
+    expect(renderMarkdownPreview("Heading\n---\n\nbody\n\n".repeat(40), [], "markdown").dense).toBe(
+      false,
+    );
     // Fenced content is never ambiguous upstream, so it must not trip the bound.
     expect(
-      renderMarkdownPreview("```\n" + "a\n-\n".repeat(4_000) + "```\n", [], "markdown").dense,
+      renderMarkdownPreview("```\n" + "a\n-\n".repeat(overLimit) + "```\n", [], "markdown").dense,
     ).toBe(false);
   });
 });

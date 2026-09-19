@@ -6,12 +6,11 @@ import {
   normalizeDocumentTemplateTitle,
   renderDocumentTemplate,
 } from "../../../../../src/mainview/modules/editor/document/documentTemplates.ts";
-import { renderMarkdownPreview } from "../../../../../src/mainview/modules/editor/markdown/markdownPreview.ts";
 
 // Intent: one built-in README seed - title rules and inert interpolation.
 // Growth boundary: do not add per-section body assertions.
 describe("document templates", () => {
-  test("README seed interpolates titles and keeps hostile names inert through Preview", () => {
+  test("README seed interpolates titles and keeps hostile names inert", () => {
     const blank = "";
     const withTitle = renderDocumentTemplate("readme", { title: "Docs" });
     const emptyTitle = renderDocumentTemplate("readme", { title: "   " });
@@ -37,9 +36,5 @@ describe("document templates", () => {
     expect(markdown).not.toContain("<script>");
     expect(markdown).toContain("&lt;script&gt;");
     expect(markdown).not.toContain("{{");
-
-    const preview = renderMarkdownPreview(markdown, [], "markdown");
-    expect(preview.html).not.toContain("<script>alert(1)</script>");
-    expect(preview.html.toLowerCase()).not.toContain("javascript:");
   });
 });

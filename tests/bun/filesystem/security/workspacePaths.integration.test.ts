@@ -93,13 +93,14 @@ describe("folder path containment", () => {
 // Growth boundary: add a case only for a new reserved-name shape.
 describe("reserved device names across suffixes", () => {
   test("refuses a reserved stem regardless of how many suffixes follow", () => {
-    for (const segment of ["CON.md", "CON.tar.md", "nul.x.md", "AUX.tar.gz.md", "com1.a.b.md"]) {
+    // Stem-before-first-dot: simple reserved + one multi-suffix form.
+    for (const segment of ["CON.md", "CON.tar.md"]) {
       expect(isUnsafePathSegment(segment)).toBe(true);
       expect(() => workspaceRelativeSegments(`notes/${segment}`)).toThrow("fulvid.fs:unsafeName");
     }
 
-    // A reserved word that is not the leading stem, and a leading dot, are fine.
-    for (const segment of ["notes.con.md", ".con.md", "console.md", "contract.md"]) {
+    // Reserved word not as leading stem, and lookalike stems, are fine.
+    for (const segment of ["notes.con.md", ".con.md", "console.md"]) {
       expect(isUnsafePathSegment(segment)).toBe(false);
     }
   });

@@ -1,11 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { cp } from "node:fs/promises";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
   invokeLuaExtensionCommand,
-  loadLuaExtensionPack,
   resetLuaCommandStore,
 } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 import { resetLuaFactoryForTests } from "../../src/bun/extensions/lua/luaEngine.ts";
@@ -18,6 +17,11 @@ import {
   type EditorSelectionSnapshot,
 } from "../../src/mainview/extensions/editorCapability.ts";
 import {
+  documentTextLimitError,
+  DOCUMENT_EXTENSION_LIMITS,
+  type DocumentSnapshot,
+} from "../../src/mainview/extensions/documentCapability.ts";
+import {
   registerEditorExtensionSeam,
   resetEditorExtensionSeamForTests,
 } from "../../src/mainview/extensions/editorExtensionSeam.ts";
@@ -27,8 +31,12 @@ import {
   runExtensionCommand,
   setDiscoveredExtensions,
 } from "../../src/mainview/extensions/extensionRegistry.ts";
-import { validateExtensionManifest } from "../../src/mainview/extensions/extensionManifest.ts";
-import { luaManifest } from "./manifestTestHelpers.ts";
+import {
+  loadValidatedLuaPack,
+  luaManifest,
+  tempExtensionRoot,
+  writeExtensionPack,
+} from "./manifestTestHelpers.ts";
 
 const EDITOR_FIXTURE = join(import.meta.dir, "fixtures/test.contract-lua-editor");
 
@@ -42,6 +50,17 @@ function editorSnap(
     alternativeVersionId: 1,
     startOffset: 0,
     endOffset: selection.length,
+    ...overrides,
+  };
+}
+
+function docSnap(text: string, overrides: Partial<DocumentSnapshot> = {}): DocumentSnapshot {
+  return {
+    text,
+    documentId: "untitled:1",
+    alternativeVersionId: 1,
+    cursorLine: 1,
+    cursorColumn: 1,
     ...overrides,
   };
 }
@@ -63,39 +82,6 @@ function stubSeam(
     clearExtensionDecorations: partial.clearExtensionDecorations ?? (() => false),
     hasActiveEditor: partial.hasActiveEditor ?? (() => true),
   });
-}
-
-async function tempRoot(label: string): Promise<string> {
-  const root = join(tmpdir(), `fulvid-editor-${label}-${crypto.randomUUID()}`);
-  await mkdir(root, { recursive: true });
-  return root;
-}
-
-async function writePack(
-  root: string,
-  id: string,
-  manifest: unknown,
-  files: Record<string, string>,
-): Promise<string> {
-  const pack = join(root, id);
-  await mkdir(pack, { recursive: true });
-  await writeFile(join(pack, "manifest.json"), JSON.stringify(manifest, null, 2));
-  for (const [relative, content] of Object.entries(files)) {
-    const target = join(pack, relative);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, content);
-  }
-  return pack;
-}
-
-async function loadValidatedPack(pack: string) {
-  const validated = validateExtensionManifest(
-    JSON.parse(await readFile(join(pack, "manifest.json"), "utf8")),
-  );
-  if (!("manifest" in validated)) {
-    throw new Error(validated.reason);
-  }
-  await loadLuaExtensionPack(pack, validated.manifest);
 }
 
 function registerEditorFixture(): void {
@@ -141,10 +127,8 @@ afterEach(() => {
 });
 
 describe("editor capability contract", () => {
-  test("pins 256 KiB limits and detects stale snapshot identity", () => {
-    const limit = 256 * 1024;
-    expect(EDITOR_EXTENSION_LIMITS.maxSelectionChars.value).toBe(limit);
-    expect(LUA_EXTENSION_LIMITS.maxEditorSelectionChars.value).toBe(limit);
+  test("selection size boundaries and stale snapshot identity", () => {
+    const limit = EDITOR_EXTENSION_LIMITS.maxSelectionChars.value;
     expect(editorReplaceLimitError(1)).toBe("editor.replaceSelection requires a string");
     expect(editorSelectionLimitError("x".repeat(limit))).toBeNull();
     expect(editorReplaceLimitError("x".repeat(limit))).toBeNull();
@@ -170,10 +154,10 @@ describe("editor capability contract", () => {
 
 describe("editor snapshot/apply through Lua", () => {
   test("wraps selection, empty selection notifies, and getSelection is a plain string", async () => {
-    const root = await tempRoot("happy");
+    const root = await tempExtensionRoot("happy");
     const pack = join(root, "test.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
-    await loadValidatedPack(pack);
+    await loadValidatedLuaPack(pack);
 
     expect(
       await invokeLuaExtensionCommand({
@@ -213,7 +197,7 @@ describe("editor snapshot/apply through Lua", () => {
     expect(applied).toEqual(["**world**"]);
     expect(notifications).toEqual(["wrapped"]);
 
-    const plain = await writePack(
+    const plain = await writeExtensionPack(
       root,
       "test.contract-lua-plain",
       luaManifest("test.contract-lua-plain", ["lua", "commands", "ui", "editor"], {
@@ -241,7 +225,7 @@ commands.register({
 `,
       },
     );
-    await loadValidatedPack(plain);
+    await loadValidatedLuaPack(plain);
     expect(
       await invokeLuaExtensionCommand({
         namespacedId: "test.contract-lua-plain.probe",
@@ -251,10 +235,10 @@ commands.register({
   });
 
   test("stale apply, no editor, oversized, and capability denial fail closed", async () => {
-    const root = await tempRoot("fail");
+    const root = await tempExtensionRoot("fail");
     const pack = join(root, "test.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
-    await loadValidatedPack(pack);
+    await loadValidatedLuaPack(pack);
 
     let calls = 0;
     stubSeam({
@@ -290,7 +274,7 @@ commands.register({
       /too large|size limit/i,
     );
 
-    const big = await writePack(
+    const big = await writeExtensionPack(
       root,
       "test.contract-lua-bigrep",
       luaManifest("test.contract-lua-bigrep", ["lua", "commands", "ui", "editor"], {
@@ -309,7 +293,7 @@ commands.register({
 `,
       },
     );
-    await loadValidatedPack(big);
+    await loadValidatedLuaPack(big);
     const bigResult = await invokeLuaExtensionCommand({
       namespacedId: "test.contract-lua-bigrep.boom",
       editor: editorSnap("x"),
@@ -320,7 +304,7 @@ commands.register({
     }
 
     // Capability denial covered in adversarial; keep nil-without-cap smoke for editor surface.
-    const noed = await writePack(
+    const noed = await writeExtensionPack(
       root,
       "test.contract-lua-noed",
       luaManifest("test.contract-lua-noed", ["lua", "commands", "ui"], {
@@ -340,7 +324,7 @@ commands.register({
 `,
       },
     );
-    await loadValidatedPack(noed);
+    await loadValidatedLuaPack(noed);
     expect(
       await invokeLuaExtensionCommand({
         namespacedId: "test.contract-lua-noed.ping",
@@ -354,6 +338,56 @@ commands.register({
     expect(await invokeLuaExtensionCommand("test.contract-lua-noed.ping")).toEqual({
       ok: true,
       notifications: ["ok"],
+    });
+  });
+});
+
+describe("host document/decorations contracts", () => {
+  test("document size boundary and Lua document/decoration happy path", async () => {
+    const limit = DOCUMENT_EXTENSION_LIMITS.maxTextChars.value;
+    expect(documentTextLimitError("x".repeat(limit))).toBeNull();
+    expect(documentTextLimitError("x".repeat(limit + 1))).toBe("document text exceeds size limit");
+
+    const root = await tempExtensionRoot("host");
+    const pack = await writeExtensionPack(
+      root,
+      "test.contract-host",
+      luaManifest("test.contract-host", ["lua", "commands", "ui", "document", "decorations"], {
+        version: "0.0.0",
+        displayName: "Host",
+      }),
+      {
+        "entry.lua": `
+commands.register({
+  id = "run",
+  title = "Run",
+  run = function()
+    local text = document.getText()
+    local cursor = document.getCursor()
+    decorations.set({
+      { startLine = 1, startColumn = 1, endLine = 1, endColumn = 2, style = "info" },
+    })
+    document.reveal(cursor.line, cursor.column)
+    document.createUntitled("# " .. text)
+    ui.notify("ok")
+  end
+})
+`,
+      },
+    );
+    await loadValidatedLuaPack(pack);
+    const result = await invokeLuaExtensionCommand({
+      namespacedId: "test.contract-host.run",
+      document: docSnap("body", { cursorLine: 2, cursorColumn: 3 }),
+    });
+    expect(result).toEqual({
+      ok: true,
+      notifications: ["ok"],
+      createUntitled: "# body",
+      reveal: { lineNumber: 2, column: 3 },
+      decorations: {
+        set: [{ startLine: 1, startColumn: 1, endLine: 1, endColumn: 2, style: "info" }],
+      },
     });
   });
 });

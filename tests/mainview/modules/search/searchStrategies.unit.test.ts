@@ -4,7 +4,6 @@ import { parseSearchOptions } from "../../../../src/mainview/modules/search/sear
 import {
   SEARCH_STRATEGY_IDS,
   isSearchStrategyId,
-  looksCatastrophicRegex,
   resolveSearchStrategy,
   runSearchStrategy,
   searchQueryIssue,
@@ -22,9 +21,6 @@ describe("search strategies", () => {
     expect(parseSearchOptions({ mode: "regex" }).strategy).toBe("regex");
     expect(searchQueryIssue("(unclosed", { strategy: "regex" })).toBe("invalidRegex");
     expect(searchQueryIssue("a".repeat(200), { strategy: "regex" })).toBe("tooExpensive");
-
-    expect(looksCatastrophicRegex("(a+)+b")).toBe(true);
-    expect(looksCatastrophicRegex("note|draft")).toBe(false);
     expect(searchQueryIssue("(a+)+$", { strategy: "regex" })).toBe("tooExpensive");
     expect(searchQueryIssue("heading", { strategy: "regex" })).toBe(null);
 

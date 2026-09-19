@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 
 import {
   configureExtensionDiscovery,
@@ -11,21 +10,11 @@ import {
 } from "../../src/bun/extensions/discoverExtensions.ts";
 import { resetExtensionAllowancesForTests } from "../../src/bun/extensions/extensionAllowances.ts";
 import { validateExtensionManifest } from "../../src/mainview/extensions/extensionManifest.ts";
-import { luaManifest } from "./manifestTestHelpers.ts";
+import { luaManifest, tempExtensionRoot, writeExtensionPack } from "./manifestTestHelpers.ts";
 import { integrateExtensionActionsIntoMenus } from "../../src/mainview/shell/applicationMenu/applicationMenuModel.ts";
 import { resetExtensionRegistryForTests } from "../../src/mainview/extensions/extensionRegistry.ts";
 
-async function tempRoot(label: string): Promise<string> {
-  const root = join(tmpdir(), `fulvid-organic-${label}-${crypto.randomUUID()}`);
-  await mkdir(root, { recursive: true });
-  return root;
-}
-
-async function writePack(
-  root: string,
-  id: string,
-  manifest: unknown,
-  entry = `
+const DEFAULT_PING_ENTRY = `
 commands.register({
   id = "ping",
   title = "Ping",
@@ -33,12 +22,15 @@ commands.register({
     ui.notify("ok")
   end
 })
-`,
+`;
+
+async function writePack(
+  root: string,
+  id: string,
+  manifest: unknown,
+  entry = DEFAULT_PING_ENTRY,
 ): Promise<void> {
-  const pack = join(root, id);
-  await mkdir(pack, { recursive: true });
-  await writeFile(join(pack, "manifest.json"), JSON.stringify(manifest, null, 2));
-  await writeFile(join(pack, "entry.lua"), entry);
+  await writeExtensionPack(root, id, manifest, { "entry.lua": entry });
 }
 
 afterEach(() => {
@@ -133,7 +125,7 @@ describe("manifest menu placement and organic integration", () => {
   });
 
   test("unknown capability stays blocked after explicit consent retry", async () => {
-    const userData = await tempRoot("blocked");
+    const userData = await tempExtensionRoot("blocked");
     const extensions = join(userData, "extensions");
     await mkdir(extensions, { recursive: true });
     await writePack(

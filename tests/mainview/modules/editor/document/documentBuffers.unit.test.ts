@@ -241,7 +241,7 @@ const {
   selectDocument,
   restoreUntitledDrafts,
 } = await import("../../../../../src/mainview/modules/editor/document/documentBuffers.ts");
-const { activeId, clearSessionDocuments } =
+const { activeId, clearSessionDocuments, smallestAvailableUntitledNumber, untitledNumberFromId } =
   await import("../../../../../src/mainview/modules/editor/document/documentSession.ts");
 const { bindFocusToWorkspace, clearFocusState, currentFocus } =
   await import("../../../../../src/mainview/modules/workspace/focus/focusState");
@@ -521,6 +521,15 @@ describe("document buffers", () => {
     const stillWorks = createUntitledDocument("# still works\n");
     expect(stillWorks.model.getValue()).toBe("# still works\n");
     expect(stillWorks.kind).toBe("virtual");
+  });
+
+  test("assigns smallest available Untitled numbers and parses untitled ids only", () => {
+    expect(smallestAvailableUntitledNumber([])).toBe(1);
+    expect(smallestAvailableUntitledNumber([1, 3])).toBe(2);
+    expect(smallestAvailableUntitledNumber([2, 3])).toBe(1);
+    expect(untitledNumberFromId("untitled:12")).toBe(12);
+    expect(untitledNumberFromId("file:/tmp/note.md")).toBeNull();
+    expect(untitledNumberFromId("untitled:0")).toBeNull();
   });
 
   test("change markers reset on successful save and dispose on close", async () => {

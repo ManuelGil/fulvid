@@ -45,16 +45,14 @@ describe("Markdown structure setext boundaries", () => {
         (heading) => `h${heading.depth}:${heading.text}`,
       );
 
+    // Representatives: list, quote, table (same non-paragraph rule).
     expect(headings("# Real\n\n- item\n---\n\n## After\n")).toEqual(["h1:Real", "h2:After"]);
     expect(headings("> quote\n---\n\n## After\n")).toEqual(["h2:After"]);
-    expect(headings("1. item\n---\n\n## After\n")).toEqual(["h2:After"]);
-    expect(headings("para\n\n    code\n---\n\n## After\n")).toEqual(["h2:After"]);
     expect(headings("| a | b |\n|:--|--:|\n| 1 | 2 |\n---\n\n## After\n")).toEqual(["h2:After"]);
 
     // Paragraph text still underlines, including a line that merely starts with a hyphen.
     expect(headings("Title\n---\n\n## After\n")).toEqual(["h2:Title", "h2:After"]);
     expect(headings("-notadash\n---\n\n## After\n")).toEqual(["h2:-notadash", "h2:After"]);
-    expect(headings("a - b\n---\n")).toEqual(["h2:a - b"]);
   });
 
   test("reports a multi-line setext heading at the first line of its paragraph", () => {

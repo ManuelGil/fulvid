@@ -35,6 +35,7 @@ import { workspace } from "../../app/workspaceState";
 import { isTypingTarget } from "../../app/isTypingTarget";
 import { notify } from "../../app/notify";
 import { APP_ROUTE_NAMES } from "../../app/router";
+import { isGraphKeyTargetInScope } from "../../modules/graph/graphKeyScope";
 import { notifyFilesystemError } from "../../modules/workspace/filesystem/workspaceScanner";
 
 type GraphDepth = (typeof GRAPH_DEPTH_STEPS)[number];
@@ -353,8 +354,8 @@ function onGraphKeydown(event: KeyboardEvent): void {
     return;
   }
 
-  // Application keys belong to the graph workbench, not the whole page chrome.
-  if (!(event.target instanceof Element) || !event.target.closest(".graph-workbench")) {
+  // Application keys belong to the main stage, not app chrome.
+  if (!isGraphKeyTargetInScope(event.target)) {
     return;
   }
 

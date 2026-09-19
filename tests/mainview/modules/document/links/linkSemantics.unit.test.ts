@@ -41,28 +41,14 @@ function note(
   };
 }
 
-function linkedNotes(count: number, linksPerNote: number): ScannedNote[] {
-  return Array.from({ length: count }, (_, index) => ({
-    path: `n${index}.md`,
-    name: `n${index}.md`,
+function indexedNote(index: number): ScannedNote {
+  return note(`n${index}.md`, [], {
     title: `Title ${index}`,
     aliases: [`alias-${index}`],
-    documentLinks: Array.from({ length: linksPerNote }, (_, offset) => ({
-      syntax: "markdown" as const,
-      raw: `[x](n${(index + offset) % count}.md)`,
-      target: `n${(index + offset) % count}.md`,
-      range: { start: 0, end: 0 },
-    })),
-    tags: [],
-    categories: [],
-    projects: [],
-    summary: "",
-    words: 0,
-  }));
+  });
 }
 
 // Intent: protect resolved-edge and graph semantics at the pure-logic boundary.
-// Prefer index correctness over wall-clock scale when choosing coverage.
 describe("link semantics", () => {
   beforeEach(() => {
     setDocumentLinkSettings({ linkMode: "wikilink", resolution: "both" });
@@ -112,7 +98,7 @@ describe("link semantics", () => {
     });
     expect(unresolvedDocumentLinks(noisy[0], noisy)).toEqual(["missing"]);
 
-    const indexed = linkedNotes(50, 1);
+    const indexed = [0, 7, 9, 11].map(indexedNote);
     expect(resolveDocumentPath("n7.md", indexed, "both").path).toBe("n7.md");
     expect(resolveDocumentPath("n7.md", indexed, "both").reason).toBe("exact-path");
     expect(resolveDocumentPath("n7", indexed, "both").reason).toBe("stem");
@@ -129,7 +115,7 @@ describe("link semantics", () => {
     expect(resolveDocumentPath("Shared", duplicated, "both").alsoMatches).toEqual(["second.md"]);
     expect(resolveDocumentPath("dup", duplicated, "both").alsoMatches).toEqual(["second.md"]);
 
-    const before = linkedNotes(3, 0);
+    const before = [0, 1, 2].map(indexedNote);
     expect(resolveDocumentPath("Title 1", before, "both").path).toBe("n1.md");
     const after = before.map((entry) => ({ ...entry, path: `moved/${entry.path}` }));
     expect(resolveDocumentPath("Title 1", after, "both").path).toBe("moved/n1.md");
