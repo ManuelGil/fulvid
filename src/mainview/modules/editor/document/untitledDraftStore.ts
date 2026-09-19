@@ -45,7 +45,7 @@ function isValidDraftRecord(value: unknown): value is UntitledDraftRecord {
 }
 
 /** Recovery treats whitespace-only text as empty (editor content is unchanged). */
-export function isEmptyUntitledDraftContent(content: string): boolean {
+function isEmptyUntitledDraftContent(content: string): boolean {
   return content.trim() === "";
 }
 

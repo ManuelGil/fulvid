@@ -3,7 +3,6 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   deleteUntitledDraft,
   flushUntitledDraftWrites,
-  isEmptyUntitledDraftContent,
   listUntitledDrafts,
   putUntitledDraft,
   resetUntitledDraftStoreForTests,
@@ -44,9 +43,6 @@ describe("untitled draft store", () => {
 
   test("empty and whitespace content never persists and clears an existing draft", async () => {
     resetUntitledDraftStoreForTests();
-    expect(isEmptyUntitledDraftContent("")).toBe(true);
-    expect(isEmptyUntitledDraftContent(" \n\t ")).toBe(true);
-    expect(isEmptyUntitledDraftContent("# Note")).toBe(false);
 
     await putUntitledDraft({ recoveryId: "empty", content: "", updatedAt: 1 });
     await putUntitledDraft({ recoveryId: "ws", content: "\n\n  ", updatedAt: 2 });

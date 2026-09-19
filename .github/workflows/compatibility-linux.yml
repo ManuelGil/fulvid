@@ -139,7 +139,8 @@ jobs:
             xauth \
             dbus \
             dpkg \
-            procps
+            procps \
+            zstd
 
       - name: Record native stack
         run: |
