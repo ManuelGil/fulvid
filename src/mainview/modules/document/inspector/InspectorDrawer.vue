@@ -35,6 +35,7 @@ import { openOrActivate } from "../../editor/document/documentBuffers";
 import { notifyFilesystemError } from "../../workspace/filesystem/workspaceScanner";
 import EmptyState from "../../../shell/EmptyState.vue";
 import AppIcon from "../../../shell/AppIcon.vue";
+import { restoreUsableFocus } from "../../../app/usableFocusTarget";
 import NotePreview from "../facts/NotePreview.vue";
 import FactEvidence from "../facts/FactEvidence.vue";
 import FactGroup from "../facts/FactGroup.vue";
@@ -367,8 +368,8 @@ watch(
 
     rememberScroll();
 
-    if (!props.embedded && previousFocus && document.contains(previousFocus)) {
-      previousFocus.focus({ preventScroll: true });
+    if (!props.embedded) {
+      restoreUsableFocus(previousFocus);
     }
     previousFocus = null;
   },

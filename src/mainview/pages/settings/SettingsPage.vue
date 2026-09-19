@@ -17,6 +17,7 @@ import {
   focusSettingsSearchTarget,
   matchSettingsSearch,
 } from "../../modules/settings/settingsSearch";
+import { settingsCategoryNavDelta } from "../../modules/settings/settingsCategoryNav";
 import { syncDocumentAnnotationsVisibleFromPreference } from "../../modules/editor/document/documentAnnotationVisibility";
 import { discoveredExtensions, setDiscoveredExtensions } from "../../extensions/extensionRegistry";
 import { confirmDialog } from "../../app/dialogs";
@@ -456,22 +457,7 @@ function onSettingsSearchKeydown(event: KeyboardEvent): void {
 }
 
 function onCategoryKeydown(event: KeyboardEvent, index: number): void {
-  const compact = compactCategoryNav.value;
-  const delta = compact
-    ? event.key === "ArrowRight" || event.key === "ArrowDown"
-      ? event.key === "ArrowDown"
-        ? 2
-        : 1
-      : event.key === "ArrowLeft" || event.key === "ArrowUp"
-        ? event.key === "ArrowUp"
-          ? -2
-          : -1
-        : 0
-    : event.key === "ArrowDown"
-      ? 1
-      : event.key === "ArrowUp"
-        ? -1
-        : 0;
+  const delta = settingsCategoryNavDelta(event.key, compactCategoryNav.value);
   if (delta === 0 && !["Home", "End"].includes(event.key)) {
     return;
   }
@@ -644,7 +630,7 @@ async function onOpenSponsorPage(): Promise<void> {
             class="settings-category-nav__item"
             :class="{ 'is-active': selectedCategory === category.id }"
             :aria-selected="selectedCategory === category.id"
-            :aria-controls="'settings-panel'"
+            :aria-controls="searchActive ? undefined : 'settings-panel'"
             :tabindex="selectedCategory === category.id ? 0 : -1"
             @click="selectCategory(category.id)"
             @keydown="onCategoryKeydown($event, categoryIndex(category.id))"

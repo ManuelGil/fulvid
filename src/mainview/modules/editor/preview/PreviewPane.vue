@@ -176,6 +176,7 @@ onBeforeUnmount(() => {
   <aside
     ref="previewPane"
     class="preview-pane"
+    tabindex="0"
     :aria-label="path ? `${t('preview.aria')}: ${path}` : t('preview.aria')"
   >
     <div class="preview-pane__header">
@@ -222,6 +223,11 @@ onBeforeUnmount(() => {
   overflow: auto;
   border-inline-start: 1px solid $border-subtle;
   background: $surface;
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring;
+    outline-offset: -2px;
+  }
 }
 
 .preview-pane__header {

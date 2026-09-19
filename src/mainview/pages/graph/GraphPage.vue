@@ -353,6 +353,11 @@ function onGraphKeydown(event: KeyboardEvent): void {
     return;
   }
 
+  // Application keys belong to the graph workbench, not the whole page chrome.
+  if (!(event.target instanceof Element) || !event.target.closest(".graph-workbench")) {
+    return;
+  }
+
   if (event.key === "c" || event.key === "C") {
     event.preventDefault();
     centerFocus();

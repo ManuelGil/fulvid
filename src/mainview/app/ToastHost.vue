@@ -5,13 +5,7 @@ import { toasts } from "./notify";
 <template>
   <Teleport to="body">
     <div class="toast-host" aria-live="polite" aria-relevant="additions">
-      <p
-        v-for="toast in toasts"
-        :key="toast.id"
-        class="toast"
-        :class="`toast--${toast.tone}`"
-        role="status"
-      >
+      <p v-for="toast in toasts" :key="toast.id" class="toast" :class="`toast--${toast.tone}`">
         {{ toast.message }}
       </p>
     </div>
