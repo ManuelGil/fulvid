@@ -16,11 +16,8 @@ function elementWithClosest(match: string | null): Element {
 // Intent: graph shortcuts must survive focus restore to #main-content, not only
 // nodes inside `.graph-workbench`, while remaining off app chrome.
 describe("graph key scope", () => {
-  test("accepts targets inside #main-content", () => {
+  test("accepts #main-content targets and refuses sidebar/chrome", () => {
     expect(isGraphKeyTargetInScope(elementWithClosest("#main-content"))).toBe(true);
-  });
-
-  test("refuses sidebar/chrome targets outside #main-content", () => {
     expect(isGraphKeyTargetInScope(elementWithClosest(null))).toBe(false);
     expect(isGraphKeyTargetInScope(null)).toBe(false);
   });

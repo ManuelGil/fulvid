@@ -39,7 +39,9 @@ function installMemoryLocalStorage(): void {
 describe("settings sanitize", () => {
   test("accepts current fields, rejects unsupported enums, and resets to defaults", () => {
     expect(defaultSettings().appearance.theme).toBe("system");
+    expect(defaultSettings().locale).toBe("system");
     expect(sanitizeSettings({}).appearance.theme).toBe("system");
+    expect(sanitizeSettings({}).locale).toBe("system");
 
     const next = sanitizeSettings({
       locale: "es",
@@ -73,7 +75,9 @@ describe("settings sanitize", () => {
     expect(next).not.toHaveProperty("templates");
     expect(next).not.toHaveProperty("contextRoot");
     expect(next).not.toHaveProperty("contextRoots");
-    expect(sanitizeSettings({ locale: "ja" }).locale).toBe("en");
+    expect(sanitizeSettings({ locale: "ja" }).locale).toBe("system");
+    expect(sanitizeSettings({ locale: "system" }).locale).toBe("system");
+    expect(sanitizeSettings({ locale: "en" }).locale).toBe("en");
     expect(sanitizeSettings({ appearance: { theme: "constructor" } }).appearance.theme).toBe(
       "system",
     );

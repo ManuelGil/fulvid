@@ -234,7 +234,7 @@ commands.register({
     ).toEqual({ ok: true, notifications: ["plain-data"] });
   });
 
-  test("stale apply, no editor, oversized, and capability denial fail closed", async () => {
+  test("stale apply, no editor, oversized, and nil-without-cap fail closed", async () => {
     const root = await tempExtensionRoot("fail");
     const pack = join(root, "test.contract-lua-editor");
     await cp(EDITOR_FIXTURE, pack, { recursive: true });
@@ -303,7 +303,8 @@ commands.register({
       expect(bigResult.error).toMatch(/exceeds size limit/);
     }
 
-    // Capability denial covered in adversarial; keep nil-without-cap smoke for editor surface.
+    // Capability denial with an editor snapshot is covered in adversarial.
+    // Keep the editor-surface smoke: without the capability, editor stays nil.
     const noed = await writeExtensionPack(
       root,
       "test.contract-lua-noed",
@@ -325,16 +326,6 @@ commands.register({
       },
     );
     await loadValidatedLuaPack(noed);
-    expect(
-      await invokeLuaExtensionCommand({
-        namespacedId: "test.contract-lua-noed.ping",
-        editor: editorSnap("secret"),
-      }),
-    ).toEqual({
-      ok: false,
-      error: "editor capability not granted",
-      failureKind: "commandFailed",
-    });
     expect(await invokeLuaExtensionCommand("test.contract-lua-noed.ping")).toEqual({
       ok: true,
       notifications: ["ok"],

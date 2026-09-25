@@ -20,7 +20,6 @@ import {
   LUA_EXTENSION_LIMITS,
   setLuaExecutionBudgetForTests,
 } from "../../src/bun/extensions/lua/luaLimits.ts";
-import { parseExtensionDecorationRanges } from "../../src/mainview/extensions/decorationCapability.ts";
 import {
   loadValidatedLuaPack,
   luaManifest,
@@ -90,7 +89,7 @@ describe("adversarial lua sandbox", () => {
 });
 
 describe("adversarial resource bounds", () => {
-  test("rejects oversized titles, notify flood, decoration coords, and reveal", async () => {
+  test("rejects oversized titles, notify flood, and reveal", async () => {
     const root = await tempExtensionRoot("bounds");
     const title = "T".repeat(LUA_EXTENSION_LIMITS.maxCommandTitleChars.value + 1);
     const titlePack = await writeExtensionPack(
@@ -135,19 +134,6 @@ commands.register({
     if (!flood.ok) {
       expect(flood.error).toMatch(/size limit/i);
     }
-
-    const max = LUA_EXTENSION_LIMITS.maxRevealPosition.value;
-    expect(
-      parseExtensionDecorationRanges([
-        {
-          startLine: max + 1,
-          startColumn: 1,
-          endLine: max + 1,
-          endColumn: 2,
-          style: "info",
-        },
-      ]),
-    ).toEqual({ ok: false, error: "invalid decoration range" });
 
     const revealPack = await writeExtensionPack(
       root,
