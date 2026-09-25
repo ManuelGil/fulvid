@@ -705,6 +705,7 @@ async function onOpenSponsorPage(): Promise<void> {
                   setLocale(($event.target as HTMLSelectElement).value as FulvidSettings['locale'])
                 "
               >
+                <option value="system">{{ t("settings.system") }}</option>
                 <option value="de">{{ t("settings.german") }}</option>
                 <option value="en">{{ t("settings.english") }}</option>
                 <option value="es">{{ t("settings.spanish") }}</option>

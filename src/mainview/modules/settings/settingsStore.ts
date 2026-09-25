@@ -18,8 +18,14 @@ import {
   THEME_PREFERENCES,
   type ThemePreference,
 } from "../editor/monaco/monacoThemes";
+import {
+  DEFAULT_LOCALE_PREFERENCE,
+  LOCALE_PREFERENCES,
+  type Locale,
+  type LocalePreference,
+} from "../../i18n/resolveLocale";
 
-export type Locale = "de" | "en" | "es" | "fr" | "it" | "nl" | "pt";
+export type { Locale, LocalePreference };
 export type LinkMode = LinkSyntax;
 export type WorkspaceStartup = "none" | "last";
 export type StatusbarIndicator =
@@ -90,7 +96,8 @@ export interface EditorSettings {
 }
 
 export interface FulvidSettings {
-  locale: Locale;
+  /** Explicit catalog locale, or "system" to follow a supported OS language. */
+  locale: LocalePreference;
   appearance: {
     theme: ThemePreference;
     interfaceTextScale: InterfaceTextScale;
@@ -127,7 +134,7 @@ export interface FulvidSettings {
 
 /** Single source of defaults for load, sanitize fallbacks, and reset. */
 const DEFAULT_SETTINGS: FulvidSettings = {
-  locale: "en",
+  locale: DEFAULT_LOCALE_PREFERENCE,
   appearance: {
     theme: DEFAULT_THEME,
     interfaceTextScale: "normal",
@@ -189,7 +196,7 @@ const STORAGE_KEY = "fulvid.settings.v1";
 /** Storage key for tests and recovery tooling - not a second settings authority. */
 export const SETTINGS_STORAGE_KEY = STORAGE_KEY;
 
-const VALID_LOCALES: readonly Locale[] = ["de", "en", "es", "fr", "it", "nl", "pt"];
+const VALID_LOCALE_PREFERENCES: readonly LocalePreference[] = LOCALE_PREFERENCES;
 const VALID_EDITOR_FONT_FAMILIES: readonly EditorFontFamily[] = ["monospace", "system", "serif"];
 const VALID_EDITOR_LINE_HEIGHTS: readonly EditorLineHeight[] = ["auto", "compact", "comfortable"];
 const VALID_EDITOR_TAB_SIZES: readonly EditorTabSize[] = [2, 4, 8];
@@ -251,7 +258,7 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
   const defaults = DEFAULT_SETTINGS;
 
   return {
-    locale: oneOf(VALID_LOCALES, source.locale, defaults.locale),
+    locale: oneOf(VALID_LOCALE_PREFERENCES, source.locale, defaults.locale),
     appearance: {
       theme: oneOf(THEME_PREFERENCES, appearance.theme, DEFAULT_THEME),
       interfaceTextScale: oneOf(

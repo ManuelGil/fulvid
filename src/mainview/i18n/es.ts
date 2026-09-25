@@ -729,7 +729,7 @@ export default {
     sponsorHint: "Abre la página de GitHub Sponsors en tu navegador.",
     locale: "Idioma",
     localeHint:
-      "Cambia al momento los menús, Ajustes y mensajes de Fulvid. Tus documentos se quedan en el idioma en que los escribiste.",
+      "Sistema sigue el idioma del sistema operativo si Fulvid lo admite; si no, inglés. Una elección aquí se conserva. Tus documentos se quedan en el idioma en que los escribiste.",
     english: "English",
     spanish: "Español",
     german: "Deutsch",
