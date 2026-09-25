@@ -245,11 +245,17 @@ const {
   openBuffers,
   openDocument,
   renameDocumentBuffer,
+  reorderOpenDocuments,
   selectDocument,
   restoreUntitledDrafts,
 } = await import("../../../../../src/mainview/modules/editor/document/documentBuffers.ts");
-const { activeId, clearSessionDocuments, smallestAvailableUntitledNumber, untitledNumberFromId } =
-  await import("../../../../../src/mainview/modules/editor/document/documentSession.ts");
+const {
+  activeId,
+  clearSessionDocuments,
+  openIds,
+  smallestAvailableUntitledNumber,
+  untitledNumberFromId,
+} = await import("../../../../../src/mainview/modules/editor/document/documentSession.ts");
 const { bindFocusToWorkspace, clearFocusState, currentFocus } =
   await import("../../../../../src/mainview/modules/workspace/focus/focusState");
 const { patchSettings, settings } =
@@ -537,6 +543,62 @@ describe("document buffers", () => {
     expect(untitledNumberFromId("untitled:12")).toBe(12);
     expect(untitledNumberFromId("file:/tmp/note.md")).toBeNull();
     expect(untitledNumberFromId("untitled:0")).toBeNull();
+  });
+
+  test("reorderOpenDocuments moves strip order without changing active or dirty state", async () => {
+    bindFocusToWorkspace("/workspace");
+    const first = await openDocument("/workspace", "one.md");
+    const second = await openDocument("/workspace", "two.md");
+    const third = await openDocument("/workspace", "three.md");
+    second.model.setValue("# dirty two");
+    expect(selectDocument(second.id)).toBe(true);
+    expect(isDocumentDirty(second)).toBe(true);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([first.id, second.id, third.id]);
+
+    expect(reorderOpenDocuments(0, 2)).toBe(true);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([second.id, third.id, first.id]);
+    expect(openIds.value).toEqual([second.id, third.id, first.id]);
+    expect(activeId.value).toBe(second.id);
+    expect(isDocumentDirty(second)).toBe(true);
+    expect(second.model.getValue()).toBe("# dirty two");
+
+    // Adjacent navigation (PageUp/Down / Next/Previous) walks openBuffers order.
+    const currentIndex = openBuffers.value.findIndex((buffer) => buffer.id === activeId.value);
+    const nextIndex = (currentIndex + 1) % openBuffers.value.length;
+    expect(openBuffers.value[nextIndex]?.id).toBe(third.id);
+    expect(reorderOpenDocuments(-1, 0)).toBe(false);
+    expect(reorderOpenDocuments(0, 0)).toBe(true);
+  });
+
+  test("keyboard and drop index math drive the same reorderOpenDocuments contract", async () => {
+    const { adjacentTabReorderIndex, tabDropReorderIndex } =
+      await import("../../../../../src/mainview/modules/editor/editorTabReorder.ts");
+
+    expect(adjacentTabReorderIndex(0, -1, 3)).toBeNull();
+    expect(adjacentTabReorderIndex(2, 1, 3)).toBeNull();
+    expect(adjacentTabReorderIndex(1, -1, 3)).toBe(0);
+    expect(adjacentTabReorderIndex(1, 1, 3)).toBe(2);
+
+    // Pointer drop equivalent to Alt+ArrowRight from index 0: insert after neighbor.
+    expect(tabDropReorderIndex(0, 1, true)).toBe(1);
+    expect(tabDropReorderIndex(1, 1, false)).toBe(1);
+
+    bindFocusToWorkspace("/workspace");
+    const first = await openDocument("/workspace", "a.md");
+    const second = await openDocument("/workspace", "b.md");
+    const third = await openDocument("/workspace", "c.md");
+    expect(selectDocument(first.id)).toBe(true);
+    const from = 0;
+    const to = adjacentTabReorderIndex(from, 1, openBuffers.value.length);
+    expect(to).toBe(1);
+    expect(reorderOpenDocuments(from, to!)).toBe(true);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([second.id, first.id, third.id]);
+    expect(activeId.value).toBe(first.id);
+
+    // Invalid / cancelled-equivalent: same index leaves order unchanged.
+    expect(reorderOpenDocuments(1, tabDropReorderIndex(1, 1, false))).toBe(true);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([second.id, first.id, third.id]);
+    expect(activeId.value).toBe(first.id);
   });
 
   test("change markers reset on successful save and dispose on close", async () => {

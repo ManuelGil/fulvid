@@ -102,6 +102,28 @@ export function registerDocument(id: DocumentId): void {
   touchDocumentMru(id);
 }
 
+/**
+ * Move an open document in the session order. Does not change `activeId`, MRU,
+ * pending reveal, or buffer membership. Indices are positions in `openIds`.
+ */
+export function reorderOpenDocuments(fromIndex: number, toIndex: number): boolean {
+  const ids = openIds.value;
+  if (fromIndex < 0 || toIndex < 0 || fromIndex >= ids.length || toIndex >= ids.length) {
+    return false;
+  }
+  if (fromIndex === toIndex) {
+    return true;
+  }
+  const next = [...ids];
+  const [moved] = next.splice(fromIndex, 1);
+  if (moved === undefined) {
+    return false;
+  }
+  next.splice(toIndex, 0, moved);
+  openIds.value = next;
+  return true;
+}
+
 export function unregisterDocument(id: DocumentId): void {
   openIds.value = openIds.value.filter((openId) => openId !== id);
   removeDocumentMru(id);

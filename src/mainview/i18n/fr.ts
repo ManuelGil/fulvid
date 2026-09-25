@@ -712,6 +712,7 @@ export default {
     shortcutClose: "Fermer l'onglet actif",
     shortcutCloseOthers: "Fermer tous les autres onglets",
     shortcutTabs: "Passer d'un onglet de document ouvert à l'autre",
+    shortcutMoveTab: "Déplacer l'onglet de document focalisé vers la gauche ou la droite",
     shortcutContext: "Ouvrir le Contexte du document sélectionné (I).",
     shortcutGraph: "Où est ce document ?",
     shortcutEscape:

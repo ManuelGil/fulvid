@@ -702,6 +702,7 @@ export default {
     shortcutClose: "Cerrar la pestaña activa",
     shortcutCloseOthers: "Cerrar todas las demás pestañas",
     shortcutTabs: "Moverse entre documentos abiertos",
+    shortcutMoveTab: "Mover a izquierda o derecha la pestaña del documento enfocada",
     shortcutContext: "Abrir el contexto del documento seleccionado (I).",
     shortcutGraph: "¿Dónde está este documento?",
     shortcutEscape:

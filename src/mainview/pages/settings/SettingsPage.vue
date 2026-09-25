@@ -2028,6 +2028,10 @@ async function onOpenSponsorPage(): Promise<void> {
                 <dd>{{ t("settings.shortcutTabs") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
+                <dt><kbd>Alt</kbd><kbd>Left</kbd> <kbd>Alt</kbd><kbd>Right</kbd></dt>
+                <dd>{{ t("settings.shortcutMoveTab") }}</dd>
+              </div>
+              <div class="settings-shortcuts__row">
                 <dt><kbd>I</kbd></dt>
                 <dd>{{ t("settings.shortcutContext") }}</dd>
               </div>

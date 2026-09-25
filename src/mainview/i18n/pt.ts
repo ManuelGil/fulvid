@@ -704,6 +704,7 @@ export default {
     shortcutClose: "Fechar o separador ativo",
     shortcutCloseOthers: "Fechar todos os outros separadores",
     shortcutTabs: "Alternar entre separadores de documentos abertos",
+    shortcutMoveTab: "Mover o separador do documento focado para a esquerda ou para a direita",
     shortcutContext: "Abrir o Contexto do documento selecionado (I).",
     shortcutGraph: "Onde está este documento?",
     shortcutEscape:

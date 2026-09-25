@@ -691,6 +691,7 @@ export default {
     shortcutClose: "Close the active tab",
     shortcutCloseOthers: "Close every other tab",
     shortcutTabs: "Move between open document tabs",
+    shortcutMoveTab: "Move the focused open document tab left or right",
     shortcutContext: "Open Document Context for the selected document (I).",
     shortcutGraph: "Where is this document?",
     shortcutEscape:

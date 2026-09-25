@@ -704,6 +704,7 @@ export default {
     shortcutClose: "Het actieve tabblad sluiten",
     shortcutCloseOthers: "Alle andere tabbladen sluiten",
     shortcutTabs: "Wisselen tussen geopende documenttabbladen",
+    shortcutMoveTab: "Verplaats het gefocuste documenttabblad naar links of rechts",
     shortcutContext: "Documentcontext voor het geselecteerde document openen (I).",
     shortcutGraph: "Waar is dit document?",
     shortcutEscape:

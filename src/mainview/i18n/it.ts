@@ -705,6 +705,7 @@ export default {
     shortcutClose: "Chiudi la scheda attiva",
     shortcutCloseOthers: "Chiudi tutte le altre schede",
     shortcutTabs: "Spostati tra le schede dei documenti aperti",
+    shortcutMoveTab: "Sposta a sinistra o a destra la scheda del documento attiva",
     shortcutContext: "Apri il Contesto del documento selezionato (I).",
     shortcutGraph: "Dov'è questo documento?",
     shortcutEscape:
