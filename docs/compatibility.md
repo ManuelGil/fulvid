@@ -39,7 +39,7 @@ Electrobun's CLI (`electrobun.cjs`) and Vite's CLI start with `#!/usr/bin/env no
 | --- | --- |
 | Ubuntu 24.04 (`ubuntu-24.04`) | Tested. Build, `.deb`, launch under Xvfb, filesystem smoke |
 | Debian 13 (`debian:13` container) | Tested separately from Ubuntu. Same checks |
-| Ubuntu 26.04 | Current Ubuntu LTS. Supported as a WebKitGTK 4.1 host. **Not tested** here: the GitHub runner image is still preview |
+| Ubuntu 26.04 | Supported as a WebKitGTK 4.1 host. **Not tested** in this matrix (no GitHub-hosted job yet) |
 | Ubuntu 22.04, Debian 12 | Unsupported. Electrobun 2.0.1 ships Cottontail 0.5.0 (`GLIBC_2.38`, `GLIBCXX_3.4.32`) and `libNativeWrapper.so` (`GLIBC_2.38`, `GLIBCXX_3.4.32`). Ubuntu 22.04 is glibc 2.35; Debian 12 is glibc 2.36 |
 | Ubuntu 20.04, Debian 11, 32-bit | Unsupported |
 
@@ -91,7 +91,7 @@ No Apple signing secrets on these jobs.
 | Windows x64 | Tested | **Verified** (Compatibility Windows CI) |
 | macOS arm64 | Tested | **Verified** (Compatibility macOS CI - 26 Apple Silicon) |
 
-Evidence (Compatibility CI): [Windows run 34909418780](https://github.com/ManuelGil/fulvid/actions/runs/34909418780), [macOS run 34909421392](https://github.com/ManuelGil/fulvid/actions/runs/34909421392). Packaged Lua runtime is verified on the three supported desktop architectures above.
+Evidence: Compatibility Linux / Windows / macOS workflows on `main` (see When compatibility CI runs). Packaged Lua runtime is verified on the three supported desktop architectures above.
 
 The Lua smoke checks packaged `bun/glue.wasm`, Wasm init, discovery + `ui.notify`, invalid-pack isolation, and lightweight interrupt/memory probes against the packaged module. It does not launch the UI and does not replace `smoke:compatibility`.
 

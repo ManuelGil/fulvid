@@ -1,4 +1,5 @@
-# Linux manual packaging helpers. Not used by GitHub Actions or other platforms.
+# Linux packaging helpers (manual Make path and Compatibility Linux package.sh).
+# release.yml inlines Debian steps and does not source this file.
 # shellcheck shell=bash
 
 ROOT="$(CDPATH='' cd -- "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

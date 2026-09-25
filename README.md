@@ -57,7 +57,7 @@ Look at an Outline of headings, or at Document Context for references and facts 
 
 Install **local Extensions** when you want small add-ons - a menu command, a note template, or a bounded selection transform - without giving them the filesystem, network, or the live editor. Packs live under your user data folder as ordinary files you can inspect. Details: [docs/EXTENSIONS.md](docs/EXTENSIONS.md). Catalog: sibling [`fulvid-extensions`](../fulvid-extensions/).
 
-The chrome is English or Spanish. Document text, filenames, and link targets are never translated.
+The chrome is translated for the locales listed in [docs/I18N.md](docs/I18N.md). Document text, filenames, and link targets are never translated.
 
 ![MDX opened as source in Fulvid](assets/screenshots/editor-mdx.png)
 
@@ -154,7 +154,7 @@ Fulvid is a good fit if you:
 
 ## Who Fulvid is not for
 
-Skip Fulvid if you need a personal knowledge manager, a cloud workspace, live collaboration, or a place that executes MDX as an application. It is not a generic IDE, not a plugin platform, and not a publishing pipeline.
+Skip Fulvid if you need a personal knowledge manager, a cloud workspace, live collaboration, or a place that executes MDX as an application. It is not a generic IDE, not a plugin marketplace, and not a publishing pipeline.
 
 Those are other products. Fulvid stays a desktop editor for local Markdown and MDX files.
 
@@ -162,7 +162,7 @@ Those are other products. Fulvid stays a desktop editor for local Markdown and M
 
 Fulvid is built as a desktop app for Linux, Windows, and macOS. There is no 32-bit build.
 
-**Linux.** Packaging produces a Debian package (`fulvid_<version>_linux-x64.deb`) and a `.tar.gz` archive. Those files are meant for GitHub Releases. There is no Flathub, Snap, or AppImage package today.
+**Linux.** Packaging produces a Debian package (`fulvid_<version>_linux-x64.deb`) and a `.tar.gz` archive for GitHub Releases. There is no Flathub, Snap, or AppImage package.
 
 **Windows.** Packaging produces a zip (`fulvid_<version>_win-x64-Setup.zip`) for 64-bit Windows.
 
@@ -172,9 +172,9 @@ Unsigned local builds may need an OS security approval the first time they run. 
 
 ## Installation
 
-GitHub Releases is the public download channel. There is not a published release on that page yet, so the way to run Fulvid today is from source.
+Download a published build from [GitHub Releases](https://github.com/ManuelGil/fulvid/releases) and pick the artifact for your platform (see [Platforms](#platforms)). That is the public install channel.
 
-When a release is published, download it from [GitHub Releases](https://github.com/ManuelGil/fulvid/releases) and pick the file for your platform. Until then, use the steps below.
+To run from source for development or contribution:
 
 You need [Bun](https://bun.sh) **1.4.2** or newer on the host (what `bun run doctor` checks). Electrobun's and Vite's CLIs also need [Node](https://nodejs.org/) 18 or newer on `PATH` (`#!/usr/bin/env node`). The packaged app embeds Electrobun 2.0.1 with Hutch's Bun **1.4.0** runtime - that packaged Bun version is independent of the host Bun you use to develop.
 

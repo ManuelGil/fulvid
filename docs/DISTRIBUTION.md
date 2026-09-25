@@ -1,6 +1,6 @@
 # Distribution
 
-GitHub Releases is the only public download channel. No version is published yet. Until then, run Fulvid from source (see the README).
+GitHub Releases is the only public download channel. Install artifacts for tagged versions are published there. Running from source remains available for development (see the README).
 
 Release notes for a tag live under [releases/](./releases/) and are copied onto that GitHub Release by hand. The chronological list of user-facing changes is [CHANGELOG.md](../CHANGELOG.md).
 
@@ -38,12 +38,12 @@ Canary packaging exists for development. Canary builds are not published as GitH
 
 ### Linux
 
-The `.deb` and the `-Setup.tar.gz` archive are what Linux packaging produces today. The `.deb` sits next to the archive; it does not replace it.
+The `.deb` and the `-Setup.tar.gz` archive are what Linux packaging produces. The `.deb` sits next to the archive; it does not replace it.
 
 | Format | Status |
 | --- | --- |
-| Debian (`.deb`) | Produced by current packaging. Not downloadable until a GitHub Release exists. |
-| Linux archive | Produced by current packaging. Same set as the `.deb`. |
+| Debian (`.deb`) | Produced by packaging; published on GitHub Releases for tagged versions. |
+| Linux archive | Produced by packaging; same set as the `.deb`. |
 | Snap | Notes and a draft only. No Store listing. |
 | AppImage | Notes only. No `.AppImage` is produced. |
 | Flatpak / Flathub | Notes only. Not submitted. No manifest. |
