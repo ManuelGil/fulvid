@@ -703,7 +703,10 @@ export default {
     shortcutSaveAs: "Guardar o documento ativo como um novo ficheiro",
     shortcutClose: "Fechar o separador ativo",
     shortcutCloseOthers: "Fechar todos os outros separadores",
-    shortcutTabs: "Alternar entre separadores de documentos abertos",
+    shortcutTabs: "Ativar o separador aberto seguinte ou anterior na ordem dos separadores",
+    shortcutTabsOrder: "Ativar o separador aberto seguinte ou anterior na ordem dos separadores",
+    shortcutTabList:
+      "Ativar o separador anterior ou seguinte quando a faixa de separadores tem o foco",
     shortcutMoveTab: "Mover o separador do documento focado para a esquerda ou para a direita",
     shortcutContext: "Abrir o Contexto do documento selecionado (I).",
     shortcutGraph: "Onde está este documento?",

@@ -701,7 +701,10 @@ export default {
     shortcutSaveAs: "Guardar el documento activo como archivo nuevo",
     shortcutClose: "Cerrar la pestaña activa",
     shortcutCloseOthers: "Cerrar todas las demás pestañas",
-    shortcutTabs: "Moverse entre documentos abiertos",
+    shortcutTabs: "Activar la pestaña abierta siguiente o anterior en el orden de pestañas",
+    shortcutTabsOrder: "Activar la pestaña abierta siguiente o anterior en el orden de pestañas",
+    shortcutTabList:
+      "Activar la pestaña anterior o siguiente cuando la franja de pestañas tiene el foco",
     shortcutMoveTab: "Mover a izquierda o derecha la pestaña del documento enfocada",
     shortcutContext: "Abrir el contexto del documento seleccionado (I).",
     shortcutGraph: "¿Dónde está este documento?",

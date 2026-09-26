@@ -703,7 +703,10 @@ export default {
     shortcutSaveAs: "Het actieve document als nieuw bestand opslaan",
     shortcutClose: "Het actieve tabblad sluiten",
     shortcutCloseOthers: "Alle andere tabbladen sluiten",
-    shortcutTabs: "Wisselen tussen geopende documenttabbladen",
+    shortcutTabs: "Activeer het volgende of vorige geopende tabblad in tabbladvolgorde",
+    shortcutTabsOrder: "Activeer het volgende of vorige geopende tabblad in tabbladvolgorde",
+    shortcutTabList:
+      "Activeer het vorige of volgende tabblad wanneer de tabbladbalk de focus heeft",
     shortcutMoveTab: "Verplaats het gefocuste documenttabblad naar links of rechts",
     shortcutContext: "Documentcontext voor het geselecteerde document openen (I).",
     shortcutGraph: "Waar is dit document?",

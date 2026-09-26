@@ -33,7 +33,7 @@ const idleState: ApplicationMenuState = {
 // buffers can be confirmed. Extensions live under File. Full Screen shortcuts are
 // platform-specific (Ctrl differs from Cmd). Linux native menu is Electrobun's limit.
 describe("application menu", () => {
-  test("Save, Quit, Extensions, and Full Screen follow product ownership rules", () => {
+  test("Save, Quit, Extensions, and Full Screen follow product ownership rules", async () => {
     expect(menuItemEnabled("canSave", idleState)).toBe(false);
     expect(
       menuItemEnabled("canSave", {
@@ -117,5 +117,37 @@ describe("application menu", () => {
       // macOS Full Screen is Control+Command+F - not primary-mod equivalence with Ctrl.
       expect(darwinFullscreen.shortcut).toBe("Ctrl+Cmd+F");
     }
+
+    const winNavigate = win.find((menu) => menu.id === "navigate");
+    const winTabs = winNavigate?.items.find(
+      (item) => item.type === "submenu" && item.id === "tabs",
+    );
+    expect(winTabs?.type).toBe("submenu");
+    if (winTabs?.type === "submenu") {
+      const nextTab = winTabs.items.find(
+        (item) => item.type === "command" && item.id === "nextTab",
+      );
+      const previousTab = winTabs.items.find(
+        (item) => item.type === "command" && item.id === "previousTab",
+      );
+      expect(nextTab?.type).toBe("command");
+      expect(previousTab?.type).toBe("command");
+      if (nextTab?.type === "command") {
+        expect(nextTab.shortcut).toBe("Ctrl/Cmd+PageDown");
+      }
+      if (previousTab?.type === "command") {
+        expect(previousTab.shortcut).toBe("Ctrl/Cmd+PageUp");
+      }
+    }
+
+    const { default: en } = await import("../../../src/mainview/i18n/en.ts");
+    const { default: it } = await import("../../../src/mainview/i18n/it.ts");
+    // Settings: Tab / Shift+Tab and PageUp/PageDown both describe open-order navigation.
+    expect(en.settings.shortcutTabs).toContain("tab order");
+    expect(en.settings.shortcutTabsOrder).toContain("tab order");
+    expect(en.settings.shortcutTabs).toBe(en.settings.shortcutTabsOrder);
+    expect(en.settings.shortcutMoveTab).toContain("focused");
+    expect(en.settings.shortcutTabList).toContain("tab strip is focused");
+    expect(it.settings.shortcutMoveTab).toContain("focalizzata");
   });
 });

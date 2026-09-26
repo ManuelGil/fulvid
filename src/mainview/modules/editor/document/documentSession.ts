@@ -77,24 +77,6 @@ function removeDocumentMru(id: DocumentId): void {
   documentMru.value = documentMru.value.filter((openId) => openId !== id);
 }
 
-function mruIndexAfter(currentIndex: number, direction: 1 | -1, stackLength: number): number {
-  if (currentIndex < 0) {
-    return direction === 1 ? 1 : stackLength - 1;
-  }
-  return (currentIndex + direction + stackLength) % stackLength;
-}
-
-export function nextMruDocument(direction: 1 | -1): DocumentId | null {
-  const openSet = new Set(openIds.value);
-  const mruStack = documentMru.value.filter((id) => openSet.has(id));
-  if (mruStack.length < 2) {
-    return null;
-  }
-  const currentIndex = activeId.value ? mruStack.indexOf(activeId.value) : -1;
-  const nextIndex = mruIndexAfter(currentIndex, direction, mruStack.length);
-  return mruStack[nextIndex] ?? null;
-}
-
 export function registerDocument(id: DocumentId): void {
   if (!openIds.value.includes(id)) {
     openIds.value = [...openIds.value, id];

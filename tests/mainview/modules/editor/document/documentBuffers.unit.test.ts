@@ -562,12 +562,54 @@ describe("document buffers", () => {
     expect(isDocumentDirty(second)).toBe(true);
     expect(second.model.getValue()).toBe("# dirty two");
 
-    // Adjacent navigation (PageUp/Down / Next/Previous) walks openBuffers order.
+    // Adjacent navigation (Ctrl+Tab / Ctrl+Shift+Tab / PageUp/Down) walks openBuffers order.
     const currentIndex = openBuffers.value.findIndex((buffer) => buffer.id === activeId.value);
     const nextIndex = (currentIndex + 1) % openBuffers.value.length;
     expect(openBuffers.value[nextIndex]?.id).toBe(third.id);
     expect(reorderOpenDocuments(-1, 0)).toBe(false);
     expect(reorderOpenDocuments(0, 0)).toBe(true);
+  });
+
+  test("Ctrl+Tab / Ctrl+Shift+Tab open-order wrap follows strip order after reorder", async () => {
+    bindFocusToWorkspace("/workspace");
+    const one = await openDocument("/workspace", "1.md");
+    const two = await openDocument("/workspace", "2.md");
+    const three = await openDocument("/workspace", "3.md");
+    const four = await openDocument("/workspace", "4.md");
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([
+      one.id,
+      two.id,
+      three.id,
+      four.id,
+    ]);
+    expect(selectDocument(one.id)).toBe(true);
+
+    const walk = (direction: -1 | 1, steps: number): string[] => {
+      const ids = [activeId.value!];
+      for (let step = 0; step < steps; step += 1) {
+        const currentIndex = openBuffers.value.findIndex((buffer) => buffer.id === activeId.value);
+        const nextIndex =
+          (currentIndex + direction + openBuffers.value.length) % openBuffers.value.length;
+        const nextId = openBuffers.value[nextIndex]!.id;
+        expect(selectDocument(nextId)).toBe(true);
+        ids.push(nextId);
+      }
+      return ids;
+    };
+
+    expect(walk(1, 4)).toEqual([one.id, two.id, three.id, four.id, one.id]);
+    expect(walk(-1, 4)).toEqual([one.id, four.id, three.id, two.id, one.id]);
+
+    expect(reorderOpenDocuments(0, 2)).toBe(true);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([
+      two.id,
+      three.id,
+      one.id,
+      four.id,
+    ]);
+    expect(selectDocument(two.id)).toBe(true);
+    expect(walk(1, 4)).toEqual([two.id, three.id, one.id, four.id, two.id]);
+    expect(walk(-1, 4)).toEqual([two.id, four.id, one.id, three.id, two.id]);
   });
 
   test("keyboard and drop index math drive the same reorderOpenDocuments contract", async () => {
@@ -599,6 +641,42 @@ describe("document buffers", () => {
     expect(reorderOpenDocuments(1, tabDropReorderIndex(1, 1, false))).toBe(true);
     expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([second.id, first.id, third.id]);
     expect(activeId.value).toBe(first.id);
+  });
+
+  test("tab strip reveal and middle-click close stay on existing chrome paths", async () => {
+    const { revealTabInOverflowStrip, shouldCloseTabOnAuxClick } =
+      await import("../../../../../src/mainview/modules/editor/editorTabStrip.ts");
+
+    const scrollCalls: unknown[] = [];
+    revealTabInOverflowStrip({
+      getClientRects: () => [{}, {}],
+      scrollIntoView: (options) => {
+        scrollCalls.push(options);
+      },
+    });
+    expect(scrollCalls).toEqual([{ inline: "nearest", block: "nearest" }]);
+    revealTabInOverflowStrip({
+      getClientRects: () => [],
+      scrollIntoView: () => {
+        throw new Error("hidden strip must not scroll");
+      },
+    });
+
+    const tabTarget = {
+      closest: () => null,
+    };
+    const closeTarget = {
+      closest: (selector: string) => (selector === ".editor-tabs__close" ? closeTarget : null),
+    };
+    expect(
+      shouldCloseTabOnAuxClick({ button: 1, target: tabTarget as unknown as EventTarget }),
+    ).toBe(true);
+    expect(
+      shouldCloseTabOnAuxClick({ button: 1, target: closeTarget as unknown as EventTarget }),
+    ).toBe(false);
+    expect(
+      shouldCloseTabOnAuxClick({ button: 0, target: tabTarget as unknown as EventTarget }),
+    ).toBe(false);
   });
 
   test("change markers reset on successful save and dispose on close", async () => {

@@ -2024,8 +2024,28 @@ async function onOpenSponsorPage(): Promise<void> {
                 <dd>{{ t("settings.shortcutCloseOthers") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
-                <dt><kbd>Left</kbd> <kbd>Right</kbd></dt>
+                <dt>
+                  <kbd>{{ primaryModifier }}</kbd
+                  ><kbd>Tab</kbd>
+                  /
+                  <kbd>{{ primaryModifier }}</kbd
+                  ><kbd>Shift</kbd><kbd>Tab</kbd>
+                </dt>
                 <dd>{{ t("settings.shortcutTabs") }}</dd>
+              </div>
+              <div class="settings-shortcuts__row">
+                <dt>
+                  <kbd>{{ primaryModifier }}</kbd
+                  ><kbd>PageDown</kbd>
+                  /
+                  <kbd>{{ primaryModifier }}</kbd
+                  ><kbd>PageUp</kbd>
+                </dt>
+                <dd>{{ t("settings.shortcutTabsOrder") }}</dd>
+              </div>
+              <div class="settings-shortcuts__row">
+                <dt><kbd>Left</kbd> <kbd>Right</kbd></dt>
+                <dd>{{ t("settings.shortcutTabList") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
                 <dt><kbd>Alt</kbd><kbd>Left</kbd> <kbd>Alt</kbd><kbd>Right</kbd></dt>

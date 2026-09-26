@@ -704,7 +704,10 @@ export default {
     shortcutSaveAs: "Das aktive Dokument als neue Datei speichern",
     shortcutClose: "Den aktiven Tab schließen",
     shortcutCloseOthers: "Alle anderen Tabs schließen",
-    shortcutTabs: "Zwischen geöffneten Dokument-Tabs wechseln",
+    shortcutTabs: "Den nächsten oder vorherigen geöffneten Tab in Tab-Reihenfolge aktivieren",
+    shortcutTabsOrder: "Den nächsten oder vorherigen geöffneten Tab in Tab-Reihenfolge aktivieren",
+    shortcutTabList:
+      "Den vorherigen oder nächsten Tab aktivieren, wenn der Tab-Streifen fokussiert ist",
     shortcutMoveTab: "Den fokussierten Dokument-Tab nach links oder rechts verschieben",
     shortcutContext: "Dokumentkontext für das ausgewählte Dokument öffnen (I).",
     shortcutGraph: "Wo ist dieses Dokument?",

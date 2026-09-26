@@ -53,11 +53,7 @@ import {
   documentLocationFromBuffer,
   windowTitleForDocumentLocation,
 } from "../modules/editor/document/documentLocation";
-import {
-  activeId,
-  nextMruDocument,
-  pendingReveal,
-} from "../modules/editor/document/documentSession";
+import { activeId, pendingReveal } from "../modules/editor/document/documentSession";
 import {
   closeInspector,
   inspectorOpen,
@@ -66,6 +62,7 @@ import {
   peekDocument,
 } from "../modules/workspace/focus/focusState";
 import { isTextEntryTarget } from "./isTypingTarget";
+import { isTabKey } from "./isTabKey";
 import {
   closeLeftSidebar,
   closeRightSidebar,
@@ -364,16 +361,6 @@ function activateAdjacentDocument(direction: -1 | 1): void {
   selectDocument(nextBuffer.id);
 }
 
-function activateMruDocument(direction: 1 | -1): void {
-  const nextId = nextMruDocument(direction);
-  if (!nextId) {
-    activateAdjacentDocument(direction);
-    return;
-  }
-  // No-op when the id is no longer open.
-  selectDocument(nextId);
-}
-
 function overlayFocusableElements(): HTMLElement[] {
   return [
     ...document.querySelectorAll<HTMLElement>(
@@ -459,9 +446,9 @@ function handleModifierShortcut(event: KeyboardEvent, insideMonaco: boolean): bo
     void runCommand("openFile");
     return true;
   }
-  if (event.key === "Tab") {
+  if (isTabKey(event)) {
     event.preventDefault();
-    activateMruDocument(event.shiftKey ? -1 : 1);
+    activateAdjacentDocument(event.shiftKey ? -1 : 1);
     return true;
   }
   if (event.key === "PageDown") {
@@ -483,7 +470,7 @@ function handleModifierShortcut(event: KeyboardEvent, insideMonaco: boolean): bo
 }
 
 function trapOverlayTab(event: KeyboardEvent): boolean {
-  if (!overlayOpen.value || event.key !== "Tab") {
+  if (!overlayOpen.value || !isTabKey(event)) {
     return false;
   }
 

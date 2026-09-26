@@ -704,8 +704,11 @@ export default {
     shortcutSaveAs: "Salva il documento attivo come nuovo file",
     shortcutClose: "Chiudi la scheda attiva",
     shortcutCloseOthers: "Chiudi tutte le altre schede",
-    shortcutTabs: "Spostati tra le schede dei documenti aperti",
-    shortcutMoveTab: "Sposta a sinistra o a destra la scheda del documento attiva",
+    shortcutTabs: "Attiva la scheda aperta successiva o precedente nell'ordine delle schede",
+    shortcutTabsOrder: "Attiva la scheda aperta successiva o precedente nell'ordine delle schede",
+    shortcutTabList:
+      "Attiva la scheda precedente o successiva quando la barra delle schede ha il focus",
+    shortcutMoveTab: "Sposta a sinistra o a destra la scheda del documento focalizzata",
     shortcutContext: "Apri il Contesto del documento selezionato (I).",
     shortcutGraph: "Dov'è questo documento?",
     shortcutEscape:

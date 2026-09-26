@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId } from "vue";
+import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import type { DocumentBuffer } from "./document/documentBuffers";
@@ -9,6 +9,7 @@ import ContextMenu from "../../shell/ContextMenu.vue";
 import AppIcon from "../../shell/AppIcon.vue";
 import { canCloseOtherEditorTabs, editorTabContextActions } from "./editorTabContextMenu";
 import { adjacentTabReorderIndex, tabDropReorderIndex } from "./editorTabReorder";
+import { revealTabInOverflowStrip, shouldCloseTabOnAuxClick } from "./editorTabStrip";
 
 const { t } = useI18n();
 const tabIdPrefix = useId();
@@ -75,6 +76,24 @@ function focusActiveTab(): void {
     focusTab(props.activeId);
   }
 }
+
+function revealActiveTabInStrip(): void {
+  if (!props.activeId) {
+    return;
+  }
+  revealTabInOverflowStrip(tabElements.get(props.activeId));
+}
+
+watch(
+  () => props.activeId,
+  (id) => {
+    if (!id) {
+      return;
+    }
+    void nextTick(() => revealActiveTabInStrip());
+  },
+  { immediate: true },
+);
 
 function moveFocusedTab(index: number, direction: -1 | 1): void {
   const toIndex = adjacentTabReorderIndex(index, direction, props.buffers.length);
@@ -182,6 +201,14 @@ function closeTab(id: string): void {
   focusActiveTab();
 }
 
+function onTabAuxClick(event: MouseEvent, id: string): void {
+  if (!shouldCloseTabOnAuxClick(event)) {
+    return;
+  }
+  event.preventDefault();
+  closeTab(id);
+}
+
 function clearDragState(): void {
   dragFromIndex.value = null;
   dropMarkerIndex.value = null;
@@ -264,6 +291,7 @@ defineExpose({ focusActiveTab });
         role="presentation"
         draggable="true"
         @contextmenu="onTabContextMenu($event, buffer.id)"
+        @auxclick="onTabAuxClick($event, buffer.id)"
         @dragstart="onTabDragStart($event, index)"
         @dragover="onTabDragOver($event, index)"
         @drop="onTabDrop($event, index)"
