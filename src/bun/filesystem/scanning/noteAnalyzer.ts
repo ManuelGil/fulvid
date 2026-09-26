@@ -74,15 +74,33 @@ function countWords(text: string): number {
   return trimmed.split(/\s+/).length;
 }
 
+/** Longest UTF-8 encoding, so only the final few bytes can be a partial sequence. */
+const MAX_UTF8_SEQUENCE_BYTES = 4;
+
+/** How many bytes the sequence starting at this lead byte occupies. */
+function utf8SequenceLength(leadByte: number): number {
+  if (leadByte >= 0xf0) {
+    return 4;
+  }
+  if (leadByte >= 0xe0) {
+    return 3;
+  }
+  if (leadByte >= 0xc0) {
+    return 2;
+  }
+  return 1;
+}
+
 /** Drop a trailing partial UTF-8 sequence left by a byte-level cut. */
 function trimPartialUtf8(bytes: Uint8Array): Uint8Array {
-  for (let index = bytes.length - 1; index >= 0 && index > bytes.length - 5; index -= 1) {
+  const firstPossibleLead = bytes.length - MAX_UTF8_SEQUENCE_BYTES;
+  for (let index = bytes.length - 1; index >= 0 && index >= firstPossibleLead; index -= 1) {
     const byte = bytes[index];
     if ((byte & 0b1100_0000) === 0b1000_0000) {
       continue;
     }
     // A lead byte: keep its sequence only when all of it was read.
-    const expected = byte < 0x80 ? 1 : byte >= 0xf0 ? 4 : byte >= 0xe0 ? 3 : byte >= 0xc0 ? 2 : 1;
+    const expected = utf8SequenceLength(byte);
     return bytes.length - index >= expected ? bytes : bytes.subarray(0, index);
   }
   return bytes;

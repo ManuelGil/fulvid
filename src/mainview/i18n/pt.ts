@@ -703,7 +703,11 @@ export default {
     shortcutSaveAs: "Guardar o documento ativo como um novo ficheiro",
     shortcutClose: "Fechar o separador ativo",
     shortcutCloseOthers: "Fechar todos os outros separadores",
-    shortcutTabs: "Alternar entre separadores de documentos abertos",
+    shortcutTabs: "Ativar o separador aberto seguinte ou anterior na ordem dos separadores",
+    shortcutTabsOrder: "Ativar o separador aberto seguinte ou anterior na ordem dos separadores",
+    shortcutTabList:
+      "Ativar o separador anterior ou seguinte quando a faixa de separadores tem o foco",
+    shortcutMoveTab: "Mover o separador do documento focado para a esquerda ou para a direita",
     shortcutContext: "Abrir o Contexto do documento selecionado (I).",
     shortcutGraph: "Onde está este documento?",
     shortcutEscape:
@@ -731,7 +735,7 @@ export default {
     sponsorHint: "Abre a página do GitHub Sponsors no seu navegador.",
     locale: "Idioma",
     localeHint:
-      "Altera imediatamente os menus, as Definições e as mensagens do Fulvid. Os seus documentos mantêm o idioma em que foram escritos.",
+      "Sistema segue o idioma do sistema operativo quando o Fulvid o suporta; caso contrário, inglês. Uma escolha aqui é mantida. Os seus documentos mantêm o idioma em que foram escritos.",
     english: "English",
     spanish: "Español",
     german: "Deutsch",
@@ -854,7 +858,7 @@ export default {
     missingAnchor: 'O título "{anchor}" não existe nesse documento.',
     candidates: "Possíveis correspondências: {items}",
     alsoMatches: "Também corresponde: {items}",
-    open: "Abrir {path}",
+    open: "Abrir",
     unresolvedTitle: "Esta ligação não corresponde a um documento",
     heading: "Título #{anchor}: {status}",
     missingAnchorStatus: "em falta",

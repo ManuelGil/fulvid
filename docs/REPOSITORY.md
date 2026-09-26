@@ -21,7 +21,7 @@ src/mainview/pages/      Routes: editor/, search/, graph/, settings/
 src/mainview/modules/    workspace/, editor/, search/, quickOpen/, graph/, document/, settings/
 src/mainview/app/        Bootstrap, router, layout, folder lifecycle
 src/mainview/shell/      Menus, sidebars, AppIcon.vue
-src/mainview/i18n/       EN/ES catalogs; see I18N.md
+src/mainview/i18n/       UI locale catalogs (en/es/de/fr/it/nl/pt); see I18N.md
 src/mainview/styles/
 tests/                   Mirrors src/bun, src/mainview, and scripts/
 tests/extensions/        Extension contract/security tests (+ disposable fixtures/)
@@ -47,8 +47,23 @@ docs/                    Includes EXTENSIONS.md + EXTENSION-PRODUCT-CONTRACT.md
 | Outline | `modules/editor/outline/OutlinePanel.vue` |
 | Preview | `modules/editor/preview/PreviewPane.vue` |
 
-Tests mirror `src/` and `scripts/`. Names are `.unit.test.ts`, `.integration.test.ts`, and `.smoke.test.ts`. Unit tests are the exception; see [CONTRIBUTING.md](../CONTRIBUTING.md#testing). Smoke is `bun run smoke`, not part of `bun run test`.
+Tests mirror `src/` and `scripts/`. Names are `.unit.test.ts` and `.integration.test.ts` (what `bun run test` / `validate` run). `bun run smoke` checks the built shell and may re-run the lifecycle integration test; optional desktop launch is separate. See [CONTRIBUTING.md](../CONTRIBUTING.md#testing).
 
 Product copy uses **Folder**. Host code may keep `workspace*` identifiers.
 
 Distribution: [DISTRIBUTION.md](./DISTRIBUTION.md).
+
+## Documentation map
+
+| Need | Start here |
+| --- | --- |
+| Product vocabulary | [CONCEPTS.md](./CONCEPTS.md) |
+| Ownership / architecture | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| Enforceable rules | [INVARIANTS.md](./INVARIANTS.md) |
+| Security contract | [SECURITY-AND-RESILIENCE.md](./SECURITY-AND-RESILIENCE.md) |
+| Extensions | [EXTENSIONS.md](./EXTENSIONS.md) |
+| Platforms / CI smoke | [compatibility.md](./compatibility.md) |
+| Packaging / Releases | [DISTRIBUTION.md](./DISTRIBUTION.md) |
+| Contributor actions | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
+| User-facing history | [../CHANGELOG.md](../CHANGELOG.md), [releases/](./releases/) |
+| Historical security evidence | [security/](./security/) (not the living control list) |

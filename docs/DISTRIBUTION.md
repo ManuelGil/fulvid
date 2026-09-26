@@ -1,6 +1,6 @@
 # Distribution
 
-GitHub Releases is the only public download channel. No version is published yet. Until then, run Fulvid from source (see the README).
+GitHub Releases is the only public download channel. Install artifacts for tagged versions are published there. Running from source remains available for development (see the README).
 
 Release notes for a tag live under [releases/](./releases/) and are copied onto that GitHub Release by hand. The chronological list of user-facing changes is [CHANGELOG.md](../CHANGELOG.md).
 
@@ -38,12 +38,12 @@ Canary packaging exists for development. Canary builds are not published as GitH
 
 ### Linux
 
-The `.deb` and the `-Setup.tar.gz` archive are what Linux packaging produces today. The `.deb` sits next to the archive; it does not replace it.
+The `.deb` and the `-Setup.tar.gz` archive are what Linux packaging produces. The `.deb` sits next to the archive; it does not replace it.
 
 | Format | Status |
 | --- | --- |
-| Debian (`.deb`) | Produced by current packaging. Not downloadable until a GitHub Release exists. |
-| Linux archive | Produced by current packaging. Same set as the `.deb`. |
+| Debian (`.deb`) | Produced by packaging; published on GitHub Releases for tagged versions. |
+| Linux archive | Produced by packaging; same set as the `.deb`. |
 | Snap | Notes and a draft only. No Store listing. |
 | AppImage | Notes only. No `.AppImage` is produced. |
 | Flatpak / Flathub | Notes only. Not submitted. No manifest. |
@@ -97,7 +97,7 @@ if: startsWith(github.ref, 'refs/tags/v')
 
 Who can create or move `v*` tags is a GitHub repository permission.
 
-Release body notes live under [releases/](./releases/) (`v1.0.0.md` for the current release notes; use `vX.Y.Z.md` for the version you are shipping). Actions generates a commit list automatically; replace or append the curated notes on the Release when needed.
+Release body notes live under [releases/](./releases/) (`v1.1.0.md` for the current release notes; use `vX.Y.Z.md` for the version you are shipping). Actions generates a commit list automatically; replace or append the curated notes on the Release when needed.
 
 
 ## Verification

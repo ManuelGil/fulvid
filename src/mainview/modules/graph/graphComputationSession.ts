@@ -102,6 +102,20 @@ export function createGraphComputationSession(options: {
 
           worker.postMessage(referenceGraph);
         } catch {
+          // A worker that was constructed but never started must not outlive
+          // this call: WebKitGTK can fail the constructor or the structured
+          // clone, and the sync fallback below would otherwise leave that
+          // worker running until the next compute or terminate.
+          const orphan = active;
+          if (orphan) {
+            orphan.settled = true;
+            try {
+              orphan.worker.terminate();
+            } catch {
+              // Worker may already be dead.
+            }
+            active = null;
+          }
           resolve(options.runSync(referenceGraph));
         }
       });

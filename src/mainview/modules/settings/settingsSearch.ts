@@ -33,7 +33,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     category: "language",
     labelKey: "settings.locale",
     hintKey: "settings.localeHint",
-    terms: ["language", "idioma", "i18n"],
+    terms: ["language", "idioma", "i18n", "system"],
   },
   {
     id: "general.reset",

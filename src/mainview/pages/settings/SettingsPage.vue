@@ -8,6 +8,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import PageShell from "../../shell/PageShell.vue";
 import {
+  EDITOR_FONT_SIZE_LIMITS,
   patchSettings,
   resetSettingsToDefaults,
   settings,
@@ -705,6 +706,7 @@ async function onOpenSponsorPage(): Promise<void> {
                   setLocale(($event.target as HTMLSelectElement).value as FulvidSettings['locale'])
                 "
               >
+                <option value="system">{{ t("settings.system") }}</option>
                 <option value="de">{{ t("settings.german") }}</option>
                 <option value="en">{{ t("settings.english") }}</option>
                 <option value="es">{{ t("settings.spanish") }}</option>
@@ -736,8 +738,8 @@ async function onOpenSponsorPage(): Promise<void> {
                 <input
                   class="settings-option__number"
                   type="number"
-                  min="10"
-                  max="24"
+                  :min="EDITOR_FONT_SIZE_LIMITS.min"
+                  :max="EDITOR_FONT_SIZE_LIMITS.max"
                   step="1"
                   :value="settings.editor.fontSize"
                   :aria-label="t('settings.editorFontSize')"
@@ -2023,8 +2025,32 @@ async function onOpenSponsorPage(): Promise<void> {
                 <dd>{{ t("settings.shortcutCloseOthers") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
-                <dt><kbd>Left</kbd> <kbd>Right</kbd></dt>
+                <dt>
+                  <kbd>{{ primaryModifier }}</kbd
+                  ><kbd>Tab</kbd>
+                  /
+                  <kbd>{{ primaryModifier }}</kbd
+                  ><kbd>Shift</kbd><kbd>Tab</kbd>
+                </dt>
                 <dd>{{ t("settings.shortcutTabs") }}</dd>
+              </div>
+              <div class="settings-shortcuts__row">
+                <dt>
+                  <kbd>{{ primaryModifier }}</kbd
+                  ><kbd>PageDown</kbd>
+                  /
+                  <kbd>{{ primaryModifier }}</kbd
+                  ><kbd>PageUp</kbd>
+                </dt>
+                <dd>{{ t("settings.shortcutTabsOrder") }}</dd>
+              </div>
+              <div class="settings-shortcuts__row">
+                <dt><kbd>Left</kbd> <kbd>Right</kbd></dt>
+                <dd>{{ t("settings.shortcutTabList") }}</dd>
+              </div>
+              <div class="settings-shortcuts__row">
+                <dt><kbd>Alt</kbd><kbd>Left</kbd> <kbd>Alt</kbd><kbd>Right</kbd></dt>
+                <dd>{{ t("settings.shortcutMoveTab") }}</dd>
               </div>
               <div class="settings-shortcuts__row">
                 <dt><kbd>I</kbd></dt>

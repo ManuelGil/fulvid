@@ -494,8 +494,14 @@ export function hasCommandHandler(id: CommandId): boolean {
   return handlers.has(id);
 }
 
+/** How long a command waits for a lazily mounted page to claim it before giving up. */
+const COMMAND_HANDLER_WAIT_MS = 3_000;
+
 /** Wait for a lazy-loaded page to register its handler after navigation. */
-export async function waitForCommandHandler(id: CommandId, timeoutMs = 3000): Promise<boolean> {
+export async function waitForCommandHandler(
+  id: CommandId,
+  timeoutMs = COMMAND_HANDLER_WAIT_MS,
+): Promise<boolean> {
   if (handlers.has(id)) {
     return true;
   }

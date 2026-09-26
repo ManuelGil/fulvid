@@ -10,18 +10,18 @@ import type { ScannedNote } from "../../workspace/filesystem/workspaceTypes";
 import type { GraphViewState } from "./graphViewState";
 import type { ReferenceGraph, ReferenceGraphEdge } from "./graphTypes";
 
+function addNeighbor(adjacency: Map<string, Set<string>>, from: string, to: string): void {
+  const neighbors = adjacency.get(from) ?? new Set<string>();
+  neighbors.add(to);
+  adjacency.set(from, neighbors);
+}
+
 function buildUndirectedAdjacency(edges: ReferenceGraphEdge[]): Map<string, Set<string>> {
   const adjacency = new Map<string, Set<string>>();
 
   for (const edge of edges) {
-    if (!adjacency.has(edge.source)) {
-      adjacency.set(edge.source, new Set());
-    }
-    if (!adjacency.has(edge.target)) {
-      adjacency.set(edge.target, new Set());
-    }
-    adjacency.get(edge.source)!.add(edge.target);
-    adjacency.get(edge.target)!.add(edge.source);
+    addNeighbor(adjacency, edge.source, edge.target);
+    addNeighbor(adjacency, edge.target, edge.source);
   }
 
   return adjacency;

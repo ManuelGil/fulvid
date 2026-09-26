@@ -4,7 +4,7 @@ Who owns behavior in Fulvid.
 
 Vocabulary: [CONCEPTS.md](./CONCEPTS.md). Rules: [INVARIANTS.md](./INVARIANTS.md). Graph pipeline: [GRAPH.md](./GRAPH.md).
 
-Every user-visible behavior has **one owner**. Pages and the shell choose what is on screen; they do not own product rules. Reuse the document session, buffers, document-link parse/resolve (`documentLink` + `linkSemantics`), Preview renderer, and filesystem RPC. Do not add a second store, parser, renderer, resolver, or lifecycle.
+Every user-visible behavior has **one owner**. Pages and the shell choose what is on screen; they do not own product rules. Reuse the document session, buffers, document-link parse/resolve (`documentLink` + `linkSemantics`), Preview renderer, and filesystem RPC. Do not add a second store, parser, renderer, resolver, or lifecycle. **No new owner without a concrete new observable behavior.**
 
 ## Owners
 
@@ -88,7 +88,7 @@ The right sidebar shows one panel: Explorer, Search options (on `/search`), Docu
 
 ### Extension UI boundary
 
-Presentation may become extension-capable later; **authority does not**. An extension is never an owner.
+Presentation may be extension-capable; **authority does not**. An extension is never an owner.
 
 The Extension System orchestrates declared capabilities; it does not become the owner of filesystem, document, editor, window, search, graph, or renderer authority.
 
@@ -131,3 +131,47 @@ If a component owns a canvas, worker, observer, or subscription, that resource d
 Ignore superseded async results. Do not keep workers or renderers alive across routes without an owner, cache disposed renderers, or teleport GPU/worker components without matching dispose.
 
 Vite/Monaco HMR is `bun run dev:hmr`: [CONTRIBUTING.md](../CONTRIBUTING.md#desktop-toolchain).
+
+## Memory footprint and future considerations
+
+### Baseline
+
+Linux packaged Fulvid **1.0.0** (Electrobun 2.0.1, Bun 1.4.0, WebKitGTK 2.52.6, Ubuntu 24.04.5 / Wayland / x86_64), cold launch, **5-run median** across the Fulvid process tree (`smaps_rollup`):
+
+| Mark | Median RSS | Median PSS |
+| --- | --- | --- |
+| Early peak (~5 s) | ~596.8 MiB | ~369.4 MiB |
+| Idle (~60 s) | ~550.9 MiB | ~322.9 MiB |
+
+This is a **Linux packaged benchmark reference**, not a cross-platform guarantee and not a claim about Electrobun or WebKit in isolation.
+
+A diagnostic shell-floor build (Monaco removed from the running editor path) measured ~479.5 MiB RSS / ~256.0 MiB PSS idle. The Monaco stack therefore accounts for roughly **~67 MiB PSS** of the measured baseline.
+
+### Interpretation
+
+Prefer **PSS** over summed RSS when comparing physical footprint: shared library pages counted fully in each process make sum-RSS overstate unique usage. Do not treat virtual address space (`VmSize`) as RAM.
+
+The dominant measured idle cost is the **WebKitGTK content process** and the **Bun / native host**, not Graph, Preview, i18n catalogs, or empty-extension discovery. No evidence from this investigation established an application-level memory leak.
+
+Fulvid's current UX intentionally keeps the editor ready on launch. Deferring Monaco until first interaction may reduce idle memory, but that would be a product/UX change rather than a transparent implementation optimization.
+
+### Future engineering rules
+
+- Keep feature-specific functionality lazy when it is not required at startup.
+- Do not eagerly initialize Graph/Sigma, Preview, extension runtimes, or other optional subsystems.
+- Avoid loading large libraries on the critical startup path unless the feature is required for the initial editor experience.
+- Do not duplicate document content or create parallel caches/indexes solely for convenience.
+- Dispose listeners, timers, Monaco resources, WebView resources, and other lifecycle-bound objects at their existing owner boundary (see [Resources](#resources)).
+- Avoid retaining hidden views, editors, models, parsed documents, graph data, or other large structures after their lifecycle ends.
+- Prefer measuring before optimizing. Treat RSS and PSS separately.
+- Do not trade security or editor behavior for arbitrary memory targets.
+
+### When to investigate again
+
+Revisit only with evidence such as: unbounded growth under a normal workload; a significant regression from the baseline above; retention after closing/discarding large documents or views; a new feature with a substantial persistent allocation; a WebKit/Bun/runtime upgrade that materially changes the footprint; or reproducible user reports of excessive consumption.
+
+When investigating: reproduce first; use the **packaged** build; isolate the responsible process; measure RSS and PSS; compare to this baseline; attribute the increase to application code, WebKit, runtime, or native dependencies; avoid speculative optimization.
+
+### Runtime maintenance
+
+WebKitGTK evolves independently of Fulvid and can include memory-management and security fixes. Supported-distro/runtime upgrades should be **benchmarked**, not assumed to improve or worsen memory. Example: WebKitGTK 2.52.6 included a memory-usage improvement for pages using font variations; that does not imply a later version is better without measurement.

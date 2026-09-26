@@ -701,7 +701,11 @@ export default {
     shortcutSaveAs: "Guardar el documento activo como archivo nuevo",
     shortcutClose: "Cerrar la pestaña activa",
     shortcutCloseOthers: "Cerrar todas las demás pestañas",
-    shortcutTabs: "Moverse entre documentos abiertos",
+    shortcutTabs: "Activar la pestaña abierta siguiente o anterior en el orden de pestañas",
+    shortcutTabsOrder: "Activar la pestaña abierta siguiente o anterior en el orden de pestañas",
+    shortcutTabList:
+      "Activar la pestaña anterior o siguiente cuando la franja de pestañas tiene el foco",
+    shortcutMoveTab: "Mover a izquierda o derecha la pestaña del documento enfocada",
     shortcutContext: "Abrir el contexto del documento seleccionado (I).",
     shortcutGraph: "¿Dónde está este documento?",
     shortcutEscape:
@@ -729,7 +733,7 @@ export default {
     sponsorHint: "Abre la página de GitHub Sponsors en tu navegador.",
     locale: "Idioma",
     localeHint:
-      "Cambia al momento los menús, Ajustes y mensajes de Fulvid. Tus documentos se quedan en el idioma en que los escribiste.",
+      "Sistema sigue el idioma del sistema operativo si Fulvid lo admite; si no, inglés. Una elección aquí se conserva. Tus documentos se quedan en el idioma en que los escribiste.",
     english: "English",
     spanish: "Español",
     german: "Deutsch",
@@ -851,7 +855,7 @@ export default {
     missingAnchor: 'El encabezado "{anchor}" no existe en ese documento.',
     candidates: "Posibles coincidencias: {items}",
     alsoMatches: "También coincide con: {items}",
-    open: "Abrir {path}",
+    open: "Abrir",
     unresolvedTitle: "Este enlace no coincide con un documento",
     heading: "Encabezado #{anchor}: {status}",
     missingAnchorStatus: "ausente",

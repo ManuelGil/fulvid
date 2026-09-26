@@ -28,11 +28,13 @@ import {
   luaManifest,
   tempExtensionRoot,
   writeExtensionPack,
+  cleanupTempExtensionRoots,
 } from "./manifestTestHelpers.ts";
 
 const NOTIFY_FIXTURE = join(import.meta.dir, "fixtures/test.contract-lua-notify");
 
-afterEach(() => {
+afterEach(async () => {
+  await cleanupTempExtensionRoots();
   setLuaExecutionBudgetForTests(null);
   setLuaMemoryBudgetForTests(null);
   resetExtensionDiscoveryForTests();
@@ -135,22 +137,8 @@ describe("lua execution and memory budgets", () => {
 
     setLuaExecutionBudgetForTests(100);
     const root = await tempExtensionRoot("loop");
-    const loopLoad = await writeExtensionPack(
-      root,
-      "test.contract-lua-loop",
-      luaManifest("test.contract-lua-loop"),
-      {
-        "entry.lua": `
-commands.register({ id = "one", title = "One", run = function() end })
-while true do end
-`,
-      },
-    );
-    await expect(loadValidatedLuaPack(loopLoad)).rejects.toMatchObject({
-      reason: "execution limit exceeded",
-    });
-    expect(findLuaCommand("test.contract-lua-loop.one")).toBeNull();
-
+    // Load-time infinite loop is covered in extensionAdversarial. Keep invoke-time
+    // hang and discovery neighbor isolation here.
     const good = await writeExtensionPack(
       root,
       "test.contract-lua-good",

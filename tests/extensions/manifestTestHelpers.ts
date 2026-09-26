@@ -2,12 +2,14 @@
  * Shared helpers for extension unit tests - valid publisher.name manifests
  * and on-disk pack fixtures.
  */
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { loadLuaExtensionPack } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 import { validateExtensionManifest } from "../../src/mainview/extensions/extensionManifest.ts";
+
+const tempRoots = new Set<string>();
 
 export function splitExtensionId(id: string): { publisher: string; name: string } {
   const dot = id.indexOf(".");
@@ -41,7 +43,17 @@ export function luaManifest(
 export async function tempExtensionRoot(label: string): Promise<string> {
   const root = join(tmpdir(), `fulvid-ext-${label}-${crypto.randomUUID()}`);
   await mkdir(root, { recursive: true });
+  tempRoots.add(root);
   return root;
+}
+
+/** Remove roots created by {@link tempExtensionRoot} during this process. */
+export async function cleanupTempExtensionRoots(): Promise<void> {
+  const roots = [...tempRoots];
+  tempRoots.clear();
+  await Promise.all(
+    roots.map((root) => rm(root, { recursive: true, force: true }).catch(() => undefined)),
+  );
 }
 
 /** Write a pack under `root/<id>` and return the pack directory. */

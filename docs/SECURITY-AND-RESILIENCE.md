@@ -133,8 +133,8 @@ Unreadable or vanished entries during a scan are skipped and counted. That is a 
 Automated coverage that is actually in the repository:
 
 - **Unit tests** - Preview inertness and density timing; link resolution scale and semantics; RPC parameter shape and size; `selectDocument` paired with Focus; Writing Focus is independent of native Full Screen; Extension contract tests under `tests/extensions/` ([EXTENSIONS.md](./EXTENSIONS.md#tests-as-security-contracts))
-- **Integration tests** - folder containment (lexical and canonical, including symlinks); grants; External Open resolve path; scan skip of unreadable or vanished entries; scan ceilings; document I/O and exclusive create; RPC error containment
-- **Smoke** - real editing loop; optional packaged launch (`bun run smoke:compatibility`); Lua packaged runtime (`bun run smoke:lua-packaged`)
+- **Integration tests** - folder containment (lexical and canonical, including symlinks); grants; External Open resolve path; scan skip of unreadable or vanished entries; scan ceilings; document I/O and exclusive create; the composed editing loop (`documentLifecycle.integration.test.ts`); RPC error containment
+- **Smoke** - built shell checks and optional packaged launch (`bun run smoke` / `bun run smoke:compatibility`); Lua packaged runtime (`bun run smoke:lua-packaged`)
 - **Compatibility CI** - package and launch on the images in [compatibility.md](./compatibility.md). That is runtime compatibility, not a filesystem red team
 - **Contributor gate** - `bun run validate` (format, translations, lint, types, tests, web build, doctor)
 - **Dependency health** - frozen lockfile and advisory audit (`bun run deps:check`)

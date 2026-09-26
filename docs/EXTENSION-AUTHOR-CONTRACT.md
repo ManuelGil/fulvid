@@ -121,7 +121,7 @@ Guest has no `os` / `io` / `require` / `load` / `host.call`.
 | `editor.getSelection()` | bounded selection snapshot string |
 | `editor.replaceSelection(text)` | **only generic write primitive**; empty selection inserts at cursor; stale selection rejected |
 
-Possible today: insert at cursor, replace/transform selection, seed a new buffer via `document.createUntitled`.  
+Possible: insert at cursor, replace/transform selection, seed a new buffer via `document.createUntitled`.
 **Not** available: arbitrary range rewrite / multi-cursor / full-buffer `setText`. Prefer selection + untitled composition over wishing for a larger editor API.
 
 ### `document`

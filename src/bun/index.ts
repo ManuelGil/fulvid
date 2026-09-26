@@ -161,6 +161,11 @@ mainWindowHolder.window.on("will-close", (event: unknown) => {
   mainRPC.send.windowCloseRequested({});
 });
 
+// Electrobun 2.0.1 emits no move/resize event, so the frame is sampled instead.
+// Often enough that a normal quit keeps the last placement, rare enough that an
+// idle window is not writing to userData constantly.
+const WINDOW_FRAME_SAMPLE_MS = 2_500;
+
 setInterval(() => {
   try {
     const mainWindow = mainWindowHolder.window;
@@ -170,6 +175,6 @@ setInterval(() => {
   } catch {
     // Window may be closing.
   }
-}, 2500);
+}, WINDOW_FRAME_SAMPLE_MS);
 
 console.log("Fulvid started");

@@ -6,6 +6,13 @@
  */
 import type { ReferenceGraph, ReferenceGraphEdge } from "./graphTypes";
 
+/**
+ * Depth for a node the focus BFS never reached. Only the bands matter to
+ * `selectStructuralEdges` (focus is 0, neighbor 1, secondary 2), so any value
+ * past secondary behaves the same; naming it keeps that intent visible.
+ */
+const BEYOND_SECONDARY_DEPTH = 3;
+
 export function buildDepthMap(
   graph: ReferenceGraph,
   edges: ReferenceGraphEdge[],
@@ -49,7 +56,7 @@ export function buildDepthMap(
 
   for (const node of graph.nodes) {
     if (!depths.has(node.id)) {
-      depths.set(node.id, 3);
+      depths.set(node.id, BEYOND_SECONDARY_DEPTH);
     }
   }
 
@@ -70,8 +77,8 @@ export function selectStructuralEdges(
       return true;
     }
 
-    const sourceDepth = depthMap.get(edge.source) ?? 99;
-    const targetDepth = depthMap.get(edge.target) ?? 99;
+    const sourceDepth = depthMap.get(edge.source) ?? BEYOND_SECONDARY_DEPTH;
+    const targetDepth = depthMap.get(edge.target) ?? BEYOND_SECONDARY_DEPTH;
     const minDepth = Math.min(sourceDepth, targetDepth);
     const maxDepth = Math.max(sourceDepth, targetDepth);
 

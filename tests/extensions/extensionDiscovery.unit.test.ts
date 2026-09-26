@@ -8,7 +8,12 @@ import {
   resetExtensionDiscoveryForTests,
 } from "../../src/bun/extensions/discoverExtensions.ts";
 import { namespacedExtensionCommandId } from "../../src/mainview/extensions/extensionManifest.ts";
-import { luaManifest, tempExtensionRoot, writeExtensionPack } from "./manifestTestHelpers.ts";
+import {
+  luaManifest,
+  tempExtensionRoot,
+  writeExtensionPack,
+  cleanupTempExtensionRoots,
+} from "./manifestTestHelpers.ts";
 import {
   configureExtensionHostActions,
   listExtensionCommands,
@@ -28,7 +33,8 @@ commands.register({
 })
 `;
 
-afterEach(() => {
+afterEach(async () => {
+  await cleanupTempExtensionRoots();
   resetExtensionDiscoveryForTests();
   resetExtensionRegistryForTests();
 });

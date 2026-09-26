@@ -27,7 +27,9 @@ import {
   clearSessionDocuments,
   nextUntitledId,
   pendingReveal,
+  openIds,
   registerDocument,
+  reorderOpenDocuments as reorderSessionOpenDocuments,
   replaceDocumentId,
   unregisterDocument,
   untitledNumberFromId,
@@ -67,6 +69,7 @@ import type {
   DocumentWriteResult,
   GrantedDocumentSnapshot,
   GrantedDocumentWriteResult,
+  MarkdownFileType,
   SaveAsResult,
 } from "../../workspace/filesystem/workspaceTypes";
 
@@ -211,6 +214,37 @@ export const activeBuffer = computed(() => {
 
   return buffers.value.find((buffer) => buffer.id === activeId.value) ?? null;
 });
+
+/**
+ * Move an open document in tab order. Keeps `buffers` and session `openIds`
+ * aligned. Does not change `activeId`, dirty/save state, Focus, or MRU.
+ */
+export function reorderOpenDocuments(fromIndex: number, toIndex: number): boolean {
+  const list = buffers.value;
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= list.length ||
+    toIndex >= list.length ||
+    list.length !== openIds.value.length
+  ) {
+    return false;
+  }
+  if (fromIndex === toIndex) {
+    return true;
+  }
+  const next = [...list];
+  const [moved] = next.splice(fromIndex, 1);
+  if (!moved) {
+    return false;
+  }
+  next.splice(toIndex, 0, moved);
+  if (!reorderSessionOpenDocuments(fromIndex, toIndex)) {
+    return false;
+  }
+  buffers.value = next;
+  return true;
+}
 
 function bufferKey(rootPath: string, path: string): string {
   return `${rootPath.replace(/\\/g, "/")}${BUFFER_OPEN_KEY_SEP}${path.replace(/\\/g, "/")}`;
@@ -761,7 +795,7 @@ function reidentifyAsPersisted(
 export function saveAsDocument(
   buffer: DocumentBuffer,
   basename: string,
-  defaultExtension: "md" | "markdown" | "mdx" = "mdx",
+  defaultExtension: MarkdownFileType = "mdx",
   overwrite = false,
 ): Promise<{ result: SaveAsResult; buffer: DocumentBuffer }> {
   return queueBufferWrite(buffer, () =>
@@ -785,7 +819,7 @@ function monacoVersionStillOnDisk(
 async function saveAsDocumentNow(
   buffer: DocumentBuffer,
   basename: string,
-  defaultExtension: "md" | "markdown" | "mdx",
+  defaultExtension: MarkdownFileType,
   overwrite: boolean,
 ): Promise<{ result: SaveAsResult; buffer: DocumentBuffer }> {
   if (isAbandonedBuffer(buffer)) {

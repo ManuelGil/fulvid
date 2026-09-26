@@ -18,7 +18,7 @@ describe("untitled draft store", () => {
     resetUntitledDraftStoreForTests();
   });
 
-  test("persists latest content, rejects bad records, and deletes by recovery id", async () => {
+  test("persists latest content, rejects empty/bad records, and deletes by recovery id", async () => {
     resetUntitledDraftStoreForTests();
     await putUntitledDraft({ recoveryId: "", content: "x", updatedAt: 1 } as never);
     await putUntitledDraft({
@@ -26,6 +26,10 @@ describe("untitled draft store", () => {
       content: "x".repeat(MAX_UNTITLED_DRAFT_CHARS + 1),
       updatedAt: 1,
     });
+    await putUntitledDraft({ recoveryId: "empty", content: "", updatedAt: 1 });
+    await putUntitledDraft({ recoveryId: "ws", content: "\n\n  ", updatedAt: 2 });
+    scheduleUntitledDraftPersist("sched-empty", "   \n");
+    await flushUntitledDraftWrites();
     expect(await listUntitledDrafts()).toEqual([]);
 
     scheduleUntitledDraftPersist("r1", "first");
@@ -39,29 +43,16 @@ describe("untitled draft store", () => {
 
     await deleteUntitledDraft("r2");
     expect((await listUntitledDrafts()).map((draft) => draft.recoveryId)).toEqual(["r1"]);
-  });
 
-  test("empty and whitespace content never persists and clears an existing draft", async () => {
-    resetUntitledDraftStoreForTests();
-
-    await putUntitledDraft({ recoveryId: "empty", content: "", updatedAt: 1 });
-    await putUntitledDraft({ recoveryId: "ws", content: "\n\n  ", updatedAt: 2 });
-    scheduleUntitledDraftPersist("sched-empty", "   \n");
+    scheduleUntitledDraftPersist("r1", "");
     await flushUntitledDraftWrites();
     expect(await listUntitledDrafts()).toEqual([]);
 
-    await putUntitledDraft({ recoveryId: "r4", content: "hello", updatedAt: 1 });
-    expect((await listUntitledDrafts()).map((draft) => draft.recoveryId)).toEqual(["r4"]);
-
-    scheduleUntitledDraftPersist("r4", "");
-    await flushUntitledDraftWrites();
-    expect(await listUntitledDrafts()).toEqual([]);
-
-    scheduleUntitledDraftPersist("r4", "hello again");
+    scheduleUntitledDraftPersist("r1", "hello again");
     await flushUntitledDraftWrites();
     expect(await listUntitledDrafts()).toEqual([
       {
-        recoveryId: "r4",
+        recoveryId: "r1",
         content: "hello again",
         updatedAt: expect.any(Number),
       },

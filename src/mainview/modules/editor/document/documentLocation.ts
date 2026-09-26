@@ -30,6 +30,9 @@ export type DocumentLocationSource = {
 /** Default visual budget for compact relative paths in the editor header. */
 export const DOCUMENT_LOCATION_MAX_LENGTH = 52;
 
+/** Tighter budget for a tab label, which shares the strip with its siblings. */
+export const TAB_LABEL_MAX_LENGTH = 40;
+
 export const DOCUMENT_LOCATION_DESTINATIONS: readonly DocumentLocationDestination[] = [
   "main-panel",
   "window-title",
@@ -153,7 +156,7 @@ export function disambiguatedRelativePath(path: string, others: readonly string[
 export function tabLabelForBuffer(
   buffer: DocumentLocationSource,
   openBuffers: readonly DocumentLocationSource[],
-  maxLength: number = 40,
+  maxLength: number = TAB_LABEL_MAX_LENGTH,
 ): string {
   const collisions = openBuffers.filter((candidate) => candidate.title === buffer.title);
   if (collisions.length <= 1) {
@@ -179,7 +182,7 @@ export function tabLabelForBuffer(
 
 export function tabLabelsForBuffers(
   openBuffers: readonly DocumentLocationSource[],
-  maxLength: number = 40,
+  maxLength: number = TAB_LABEL_MAX_LENGTH,
 ): ReadonlyMap<string, string> {
   const labels = new Map<string, string>();
   for (const buffer of openBuffers) {

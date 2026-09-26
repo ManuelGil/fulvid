@@ -9,6 +9,7 @@
 import { ref, watch } from "vue";
 import { setDocumentLinkSettings, type LinkResolutionMode } from "../document/links/linkSemantics";
 import type { LinkSyntax } from "../document/links/documentLink";
+import type { MarkdownFileType } from "../workspace/filesystem/workspaceTypes";
 import {
   DOCUMENT_LOCATION_DESTINATIONS,
   type DocumentLocationDestination,
@@ -18,8 +19,14 @@ import {
   THEME_PREFERENCES,
   type ThemePreference,
 } from "../editor/monaco/monacoThemes";
+import {
+  DEFAULT_LOCALE_PREFERENCE,
+  LOCALE_PREFERENCES,
+  type Locale,
+  type LocalePreference,
+} from "../../i18n/resolveLocale";
 
-export type Locale = "de" | "en" | "es" | "fr" | "it" | "nl" | "pt";
+export type { Locale, LocalePreference };
 export type LinkMode = LinkSyntax;
 export type WorkspaceStartup = "none" | "last";
 export type StatusbarIndicator =
@@ -90,7 +97,8 @@ export interface EditorSettings {
 }
 
 export interface FulvidSettings {
-  locale: Locale;
+  /** Explicit catalog locale, or "system" to follow a supported OS language. */
+  locale: LocalePreference;
   appearance: {
     theme: ThemePreference;
     interfaceTextScale: InterfaceTextScale;
@@ -114,7 +122,7 @@ export interface FulvidSettings {
     linkMode: LinkMode;
     resolution: LinkResolutionMode;
     /** New file / Save As when the name has no extension. Never renames existing files. */
-    defaultExtension: "md" | "markdown" | "mdx";
+    defaultExtension: MarkdownFileType;
     /** Document Context lists only. Graph still uses every resolved link. */
     showIncomingLinks: boolean;
     showOutgoingLinks: boolean;
@@ -127,7 +135,7 @@ export interface FulvidSettings {
 
 /** Single source of defaults for load, sanitize fallbacks, and reset. */
 const DEFAULT_SETTINGS: FulvidSettings = {
-  locale: "en",
+  locale: DEFAULT_LOCALE_PREFERENCE,
   appearance: {
     theme: DEFAULT_THEME,
     interfaceTextScale: "normal",
@@ -189,7 +197,7 @@ const STORAGE_KEY = "fulvid.settings.v1";
 /** Storage key for tests and recovery tooling - not a second settings authority. */
 export const SETTINGS_STORAGE_KEY = STORAGE_KEY;
 
-const VALID_LOCALES: readonly Locale[] = ["de", "en", "es", "fr", "it", "nl", "pt"];
+const VALID_LOCALE_PREFERENCES: readonly LocalePreference[] = LOCALE_PREFERENCES;
 const VALID_EDITOR_FONT_FAMILIES: readonly EditorFontFamily[] = ["monospace", "system", "serif"];
 const VALID_EDITOR_LINE_HEIGHTS: readonly EditorLineHeight[] = ["auto", "compact", "comfortable"];
 const VALID_EDITOR_TAB_SIZES: readonly EditorTabSize[] = [2, 4, 8];
@@ -204,6 +212,12 @@ const VALID_INTERFACE_TEXT_SCALES: readonly InterfaceTextScale[] = ["small", "no
 const VALID_ICON_SCALES: readonly IconScale[] = ["small", "normal", "large"];
 const VALID_INTERFACE_DENSITIES: readonly InterfaceDensity[] = ["normal", "compact"];
 const VALID_READING_STATISTICS: readonly ReadingStatisticsMode[] = ["off", "words", "wordsAndTime"];
+
+/**
+ * Editor document font size range. Exported so the Settings control offers the
+ * same bounds this store clamps to - one rule, not a UI copy of it.
+ */
+export const EDITOR_FONT_SIZE_LIMITS = { min: 10, max: 24 } as const;
 
 /** A persisted value when it is one of `allowed`, otherwise the default. */
 function oneOf<T>(allowed: readonly T[], value: unknown, fallback: T): T {
@@ -251,7 +265,7 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
   const defaults = DEFAULT_SETTINGS;
 
   return {
-    locale: oneOf(VALID_LOCALES, source.locale, defaults.locale),
+    locale: oneOf(VALID_LOCALE_PREFERENCES, source.locale, defaults.locale),
     appearance: {
       theme: oneOf(THEME_PREFERENCES, appearance.theme, DEFAULT_THEME),
       interfaceTextScale: oneOf(
@@ -292,7 +306,10 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
     editor: {
       fontSize:
         typeof editor.fontSize === "number" && Number.isFinite(editor.fontSize)
-          ? Math.min(24, Math.max(10, editor.fontSize))
+          ? Math.min(
+              EDITOR_FONT_SIZE_LIMITS.max,
+              Math.max(EDITOR_FONT_SIZE_LIMITS.min, editor.fontSize),
+            )
           : defaults.editor.fontSize,
       fontFamily: oneOf(VALID_EDITOR_FONT_FAMILIES, editor.fontFamily, defaults.editor.fontFamily),
       lineHeight: oneOf(VALID_EDITOR_LINE_HEIGHTS, editor.lineHeight, defaults.editor.lineHeight),

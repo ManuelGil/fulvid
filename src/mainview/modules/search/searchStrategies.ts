@@ -61,6 +61,8 @@ const MAX_REGEX_LENGTH = 120;
 const MAX_STRATEGY_STEPS = 40_000;
 /** Wall-clock budget for one Search run (regex `exec` can hang beyond step counts). */
 const MAX_SEARCH_WALL_MS = 75;
+/** Result-row budget: enough context to recognize the match, short enough to scan. */
+const MAX_SNIPPET_CHARS = 180;
 
 export type SearchStrategyLimits = {
   maxPerDocument: number;
@@ -218,7 +220,7 @@ function positionAt(
   };
 }
 
-function snippetAt(text: string, offset: number, matchLength: number, maxLength = 180): string {
+function snippetAt(text: string, offset: number, matchLength: number): string {
   const matchEnd = Math.min(text.length, offset + Math.max(0, matchLength));
   const lineStart = text.lastIndexOf("\n", offset - 1) + 1;
   const firstLineEndIndex = text.indexOf("\n", offset);
@@ -228,13 +230,13 @@ function snippetAt(text: string, offset: number, matchLength: number, maxLength 
     ? text.slice(lineStart, matchEnd).replace(/\s+/g, " ")
     : text.slice(lineStart, firstLineEnd);
   const line = rawLine.trim();
-  if (line.length <= maxLength) {
+  if (line.length <= MAX_SNIPPET_CHARS) {
     return line;
   }
 
   const leadingWhitespace = rawLine.length - rawLine.trimStart().length;
   const matchIndex = Math.max(0, offset - lineStart - leadingWhitespace);
-  const windowLength = Math.max(maxLength, matchLength);
+  const windowLength = Math.max(MAX_SNIPPET_CHARS, matchLength);
   const contextBefore = Math.max(0, Math.floor((windowLength - matchLength) / 2));
   const start = Math.max(0, Math.min(matchIndex - contextBefore, line.length - windowLength));
   const end = Math.min(line.length, start + windowLength);

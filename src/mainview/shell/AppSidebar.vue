@@ -8,6 +8,7 @@ import ContextMenu, { type ContextMenuAction } from "./ContextMenu.vue";
 import { notify } from "../app/notify";
 import { describeFilesystemError } from "../modules/workspace/filesystem/workspaceScanner";
 import {
+  LAYOUT_RESIZE_STEP_PX,
   SIDEBAR_WIDTH_LIMITS,
   closeLeftSidebar,
   openLeftSidebar,
@@ -314,8 +315,8 @@ async function runWorkspaceMenu(id: string): Promise<void> {
         :aria-valuemax="SIDEBAR_WIDTH_LIMITS.max"
         tabindex="0"
         @pointerdown="startSidebarResize"
-        @keydown.left.prevent="setSidebarWidth(layout.sidebarWidth - 8)"
-        @keydown.right.prevent="setSidebarWidth(layout.sidebarWidth + 8)"
+        @keydown.left.prevent="setSidebarWidth(layout.sidebarWidth - LAYOUT_RESIZE_STEP_PX)"
+        @keydown.right.prevent="setSidebarWidth(layout.sidebarWidth + LAYOUT_RESIZE_STEP_PX)"
       />
     </template>
   </aside>

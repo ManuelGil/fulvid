@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -22,9 +22,12 @@ import {
 import { findLuaCommand } from "../../src/bun/extensions/lua/luaExtensionRuntime.ts";
 import { luaManifest } from "./manifestTestHelpers.ts";
 
+const lifecycleTempRoots = new Set<string>();
+
 async function tempUserData(label: string): Promise<string> {
   const root = join(tmpdir(), `fulvid-lifecycle-${label}-${crypto.randomUUID()}`);
   await mkdir(root, { recursive: true });
+  lifecycleTempRoots.add(root);
   return root;
 }
 
@@ -49,9 +52,14 @@ commands.register({
   return pack;
 }
 
-afterEach(() => {
+afterEach(async () => {
   resetExtensionDiscoveryForTests();
   resetExtensionAllowancesForTests();
+  const roots = [...lifecycleTempRoots];
+  lifecycleTempRoots.clear();
+  await Promise.all(
+    roots.map((root) => rm(root, { recursive: true, force: true }).catch(() => undefined)),
+  );
 });
 
 describe("extension install/uninstall lifecycle", () => {

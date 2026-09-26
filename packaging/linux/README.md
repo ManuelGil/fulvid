@@ -1,6 +1,10 @@
 # Linux packaging
 
-Manual Linux release scripts. GitHub Actions does not call this directory for the `.deb`; it inlines the same Debian steps. Procedure: [linux-release.md](../../docs/linux-release.md).
+Linux packaging scripts and desktop/metainfo stubs.
+
+- **Release workflow** (`release.yml`): inlines Debian packaging steps; uses `desktop/fulvid.desktop` and `runtime-libraries.tsv` from this tree. It does not call `make` or `package.sh`.
+- **Compatibility Linux** (`compatibility-linux.yml`): runs `package.sh` (which sources `lib.sh` and `deb.sh`) for package + smoke.
+- **Manual maintainer path**: `make` + scripts here. Procedure: [linux-release.md](../../docs/linux-release.md).
 
 ```text
 packaging/linux/

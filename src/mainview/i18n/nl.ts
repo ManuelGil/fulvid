@@ -703,7 +703,11 @@ export default {
     shortcutSaveAs: "Het actieve document als nieuw bestand opslaan",
     shortcutClose: "Het actieve tabblad sluiten",
     shortcutCloseOthers: "Alle andere tabbladen sluiten",
-    shortcutTabs: "Wisselen tussen geopende documenttabbladen",
+    shortcutTabs: "Activeer het volgende of vorige geopende tabblad in tabbladvolgorde",
+    shortcutTabsOrder: "Activeer het volgende of vorige geopende tabblad in tabbladvolgorde",
+    shortcutTabList:
+      "Activeer het vorige of volgende tabblad wanneer de tabbladbalk de focus heeft",
+    shortcutMoveTab: "Verplaats het gefocuste documenttabblad naar links of rechts",
     shortcutContext: "Documentcontext voor het geselecteerde document openen (I).",
     shortcutGraph: "Waar is dit document?",
     shortcutEscape:
@@ -729,7 +733,7 @@ export default {
     sponsorHint: "Opent de GitHub Sponsors-pagina in je browser.",
     locale: "Taal",
     localeHint:
-      "Wijzigt de menu's, instellingen en berichten van Fulvid direct. Je documenten blijven in de taal waarin je ze hebt geschreven.",
+      "Systeem volgt de taal van het besturingssysteem als Fulvid die ondersteunt; anders Engels. Een hier gekozen taal blijft behouden. Je documenten blijven in de taal waarin je ze hebt geschreven.",
     english: "English",
     spanish: "Español",
     german: "Deutsch",
@@ -851,7 +855,7 @@ export default {
     missingAnchor: 'Kop "{anchor}" bestaat niet in dat document.',
     candidates: "Mogelijke overeenkomsten: {items}",
     alsoMatches: "Komt ook overeen: {items}",
-    open: "{path} openen",
+    open: "Openen",
     unresolvedTitle: "Deze koppeling komt niet overeen met een document",
     heading: "Kop #{anchor}: {status}",
     missingAnchorStatus: "ontbreekt",

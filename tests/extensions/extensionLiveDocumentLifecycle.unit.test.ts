@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { cp, mkdir } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -44,12 +44,19 @@ const OFFICIAL_PACKS_AVAILABLE = existsSync(TODO_PACK) && existsSync(MDX_PACK);
 const TODO_REFRESH = "imgildev.todo-decorator.todoRefresh";
 const MDX_REFRESH = "imgildev.mdx-comments.mdxCommentsRefresh";
 
-afterEach(() => {
+const liveDocTempRoots = new Set<string>();
+
+afterEach(async () => {
   resetExtensionDiscoveryForTests();
   resetExtensionRegistryForTests();
   resetExtensionAllowancesForTests();
   resetEditorExtensionSeamForTests();
   resetLuaFactoryForTests();
+  const roots = [...liveDocTempRoots];
+  liveDocTempRoots.clear();
+  await Promise.all(
+    roots.map((root) => rm(root, { recursive: true, force: true }).catch(() => undefined)),
+  );
 });
 
 async function loadBothPacks(): Promise<void> {
@@ -57,6 +64,7 @@ async function loadBothPacks(): Promise<void> {
     throw new Error("official packs unavailable; test should have been skipped");
   }
   const userData = join(tmpdir(), `fulvid-live-doc-${crypto.randomUUID()}`);
+  liveDocTempRoots.add(userData);
   const root = join(userData, "extensions");
   await mkdir(root, { recursive: true });
   await cp(TODO_PACK, join(root, "imgildev.todo-decorator"), { recursive: true });

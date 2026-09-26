@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
 import {
   activeDialog,
@@ -10,6 +10,10 @@ import {
   submitFilename,
   submitQuickOpen,
 } from "../../../src/mainview/app/dialogs.ts";
+
+afterEach(() => {
+  cancelDialog();
+});
 
 // Intent: DialogHost owns dialog lifecycle through this module - replace dismisses
 // the prior request, cancel/submit resolve exactly once, empty submit is a no-op.

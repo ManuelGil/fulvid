@@ -1080,6 +1080,12 @@ function onPreviewMediaChange(event: MediaQueryListEvent): void {
  * Monaco's alternativeVersionId is not Vue-reactive - do not watch it. Live
  * edits are observed via MonacoHost `contentChange` (onDidChangeModelContent).
  */
+/**
+ * Coalesce always-on document packs while typing. Long enough that a pack is not
+ * re-invoked per keystroke, short enough that a pause refreshes before the reader
+ * looks away.
+ */
+const DOCUMENT_ACTIVATION_DEBOUNCE_MS = 180;
 let documentActivationTimer: ReturnType<typeof setTimeout> | null = null;
 let documentActivationGeneration = 0;
 
@@ -1119,7 +1125,7 @@ function scheduleDocumentActivationRefresh(): void {
         }
       }
     })();
-  }, 180);
+  }, DOCUMENT_ACTIVATION_DEBOUNCE_MS);
 }
 
 watch(

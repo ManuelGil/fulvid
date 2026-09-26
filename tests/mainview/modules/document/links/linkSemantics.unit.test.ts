@@ -163,5 +163,25 @@ describe("link semantics", () => {
     expect(documentLinkNavigationPath(link("Note"), candidates)).toBeNull();
     expect(documentLinkNavigationPath(link("missing"), candidates)).toBeNull();
     expect(documentLinkNavigationPath(link("alpha.md"), candidates)).toBe("alpha.md");
+
+    const tree = [
+      note("docs/a.md"),
+      note("docs/b.md"),
+      note("other/b.md", [], { name: "b.md", title: "Other B" }),
+    ];
+    expect(resolveDocumentPath("./b.md", tree, "both", "docs/a.md").path).toBe("docs/b.md");
+    expect(resolveDocumentPath("../other/b.md", tree, "both", "docs/a.md").path).toBe("other/b.md");
+    expect(resolveDocumentPath("../../escape.md", tree, "both", "docs/a.md").path).toBeNull();
+
+    expect(resolveDocumentPath("b.md", tree, "path").path).toBeNull();
+    expect(resolveDocumentPath("docs/b.md", tree, "path").path).toBe("docs/b.md");
+    expect(resolveDocumentPath("b", tree, "stem").path).toBe("docs/b.md");
+    expect(resolveDocumentPath("b", tree, "stem").alsoMatches).toEqual(["other/b.md"]);
+    // Stem mode still accepts path-shaped targets via stem/path index, not title/alias.
+    expect(resolveDocumentPath("docs/b.md", tree, "stem")).toEqual({
+      path: "docs/b.md",
+      reason: "stem",
+      alsoMatches: [],
+    });
   });
 });

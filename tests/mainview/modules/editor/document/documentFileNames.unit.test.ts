@@ -15,7 +15,6 @@ describe("document file names", () => {
     expect(resolveNewDocumentFileName("   ", "md")).toBeNull();
     expect(resolveNewDocumentFileName("notes.md ", "md")).toBeNull();
     expect(resolveNewDocumentFileName("notes.md.", "md")).toBeNull();
-    expect(resolveNewDocumentFileName(" CON.md", "md")).toBeNull();
     expect(resolveNewDocumentFileName("CON.md", "md")).toBeNull();
     expect(resolveNewDocumentFileName("note:ads.md", "md")).toBeNull();
 

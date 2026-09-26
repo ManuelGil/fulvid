@@ -704,7 +704,11 @@ export default {
     shortcutSaveAs: "Salva il documento attivo come nuovo file",
     shortcutClose: "Chiudi la scheda attiva",
     shortcutCloseOthers: "Chiudi tutte le altre schede",
-    shortcutTabs: "Spostati tra le schede dei documenti aperti",
+    shortcutTabs: "Attiva la scheda aperta successiva o precedente nell'ordine delle schede",
+    shortcutTabsOrder: "Attiva la scheda aperta successiva o precedente nell'ordine delle schede",
+    shortcutTabList:
+      "Attiva la scheda precedente o successiva quando la barra delle schede ha il focus",
+    shortcutMoveTab: "Sposta a sinistra o a destra la scheda del documento focalizzata",
     shortcutContext: "Apri il Contesto del documento selezionato (I).",
     shortcutGraph: "Dov'è questo documento?",
     shortcutEscape:
@@ -731,7 +735,7 @@ export default {
     sponsorHint: "Apre la pagina GitHub Sponsors nel browser.",
     locale: "Lingua",
     localeHint:
-      "Cambia subito menu, Impostazioni e messaggi di Fulvid. I documenti restano nella lingua in cui li hai scritti.",
+      "Sistema segue la lingua del sistema operativo se Fulvid la supporta; altrimenti l'inglese. Una scelta qui viene mantenuta. I documenti restano nella lingua in cui li hai scritti.",
     english: "English",
     spanish: "Español",
     german: "Deutsch",
@@ -852,7 +856,7 @@ export default {
     missingAnchor: 'Il titolo "{anchor}" non esiste in quel documento.',
     candidates: "Possibili corrispondenze: {items}",
     alsoMatches: "Corrisponde anche: {items}",
-    open: "Apri {path}",
+    open: "Apri",
     unresolvedTitle: "Questo collegamento non corrisponde a un documento",
     heading: "Titolo #{anchor}: {status}",
     missingAnchorStatus: "mancante",

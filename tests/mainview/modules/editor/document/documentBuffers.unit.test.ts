@@ -245,14 +245,20 @@ const {
   openBuffers,
   openDocument,
   renameDocumentBuffer,
+  reorderOpenDocuments,
   selectDocument,
   restoreUntitledDrafts,
 } = await import("../../../../../src/mainview/modules/editor/document/documentBuffers.ts");
-const { activeId, clearSessionDocuments, smallestAvailableUntitledNumber, untitledNumberFromId } =
-  await import("../../../../../src/mainview/modules/editor/document/documentSession.ts");
+const {
+  activeId,
+  clearSessionDocuments,
+  openIds,
+  smallestAvailableUntitledNumber,
+  untitledNumberFromId,
+} = await import("../../../../../src/mainview/modules/editor/document/documentSession.ts");
 const { bindFocusToWorkspace, clearFocusState, currentFocus } =
   await import("../../../../../src/mainview/modules/workspace/focus/focusState");
-const { patchSettings, settings } =
+const { patchSettings, resetSettingsToDefaults, settings } =
   await import("../../../../../src/mainview/modules/settings/settingsStore.ts");
 
 afterEach(() => {
@@ -284,6 +290,7 @@ afterEach(() => {
   lastWrittenContent = "";
   lastWrittenPath = "";
   nextReadContent = null;
+  resetSettingsToDefaults();
   patchSettings({ editor: { ...settings.value.editor, defaultEol: "lf" } });
 });
 
@@ -537,6 +544,164 @@ describe("document buffers", () => {
     expect(untitledNumberFromId("untitled:12")).toBe(12);
     expect(untitledNumberFromId("file:/tmp/note.md")).toBeNull();
     expect(untitledNumberFromId("untitled:0")).toBeNull();
+  });
+
+  test("reorderOpenDocuments moves strip order without changing active or dirty state", async () => {
+    bindFocusToWorkspace("/workspace");
+    const first = await openDocument("/workspace", "one.md");
+    const second = await openDocument("/workspace", "two.md");
+    const third = await openDocument("/workspace", "three.md");
+    second.model.setValue("# dirty two");
+    expect(selectDocument(second.id)).toBe(true);
+    expect(isDocumentDirty(second)).toBe(true);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([first.id, second.id, third.id]);
+
+    expect(reorderOpenDocuments(0, 2)).toBe(true);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([second.id, third.id, first.id]);
+    expect(openIds.value).toEqual([second.id, third.id, first.id]);
+    expect(activeId.value).toBe(second.id);
+    expect(isDocumentDirty(second)).toBe(true);
+    expect(second.model.getValue()).toBe("# dirty two");
+
+    expect(reorderOpenDocuments(-1, 0)).toBe(false);
+    expect(reorderOpenDocuments(0, 0)).toBe(true);
+  });
+
+  test("open-order wrap for adjacent tab chords follows strip order after reorder", async () => {
+    const { adjacentOpenDocumentIndex } =
+      await import("../../../../../src/mainview/modules/editor/editorTabNavigation.ts");
+
+    bindFocusToWorkspace("/workspace");
+    const one = await openDocument("/workspace", "1.md");
+    const two = await openDocument("/workspace", "2.md");
+    const three = await openDocument("/workspace", "3.md");
+    const four = await openDocument("/workspace", "4.md");
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([
+      one.id,
+      two.id,
+      three.id,
+      four.id,
+    ]);
+    expect(selectDocument(one.id)).toBe(true);
+
+    // Same walk used by Ctrl/Cmd+Tab, Ctrl/Cmd+Shift+Tab, PageDown, and PageUp.
+    const walk = (direction: -1 | 1, steps: number): string[] => {
+      const ids = [activeId.value!];
+      for (let step = 0; step < steps; step += 1) {
+        const currentIndex = openBuffers.value.findIndex((buffer) => buffer.id === activeId.value);
+        const nextIndex = adjacentOpenDocumentIndex(
+          currentIndex,
+          direction,
+          openBuffers.value.length,
+        );
+        expect(nextIndex).not.toBeNull();
+        const nextId = openBuffers.value[nextIndex!]!.id;
+        expect(selectDocument(nextId)).toBe(true);
+        ids.push(nextId);
+      }
+      return ids;
+    };
+
+    expect(walk(1, 4)).toEqual([one.id, two.id, three.id, four.id, one.id]);
+    expect(walk(-1, 4)).toEqual([one.id, four.id, three.id, two.id, one.id]);
+
+    expect(reorderOpenDocuments(0, 2)).toBe(true);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([
+      two.id,
+      three.id,
+      one.id,
+      four.id,
+    ]);
+    expect(selectDocument(two.id)).toBe(true);
+    expect(walk(1, 4)).toEqual([two.id, three.id, one.id, four.id, two.id]);
+    expect(walk(-1, 4)).toEqual([two.id, four.id, one.id, three.id, two.id]);
+
+    // With a single tab or no active tab the chord has nowhere to go.
+    expect(adjacentOpenDocumentIndex(0, 1, 1)).toBeNull();
+    expect(adjacentOpenDocumentIndex(0, 1, 0)).toBeNull();
+    expect(adjacentOpenDocumentIndex(-1, 1, openBuffers.value.length)).toBeNull();
+  });
+
+  test("closing the active tab activates the strip neighbor, not MRU", async () => {
+    bindFocusToWorkspace("/workspace");
+    const one = await openDocument("/workspace", "close-1.md");
+    const two = await openDocument("/workspace", "close-2.md");
+    const three = await openDocument("/workspace", "close-3.md");
+    expect(selectDocument(two.id)).toBe(true);
+    // Touch one last so MRU would prefer it if close used MRU.
+    expect(selectDocument(one.id)).toBe(true);
+    expect(selectDocument(two.id)).toBe(true);
+
+    expect(closeDocumentById(two.id, true)).toBe(true);
+    expect(activeId.value).toBe(three.id);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([one.id, three.id]);
+  });
+
+  test("keyboard and drop index math drive the same reorderOpenDocuments contract", async () => {
+    const { adjacentTabReorderIndex, tabDropReorderIndex } =
+      await import("../../../../../src/mainview/modules/editor/editorTabReorder.ts");
+
+    expect(adjacentTabReorderIndex(0, -1, 3)).toBeNull();
+    expect(adjacentTabReorderIndex(2, 1, 3)).toBeNull();
+    expect(adjacentTabReorderIndex(1, -1, 3)).toBe(0);
+    expect(adjacentTabReorderIndex(1, 1, 3)).toBe(2);
+
+    // Pointer drop equivalent to Alt+ArrowRight from index 0: insert after neighbor.
+    expect(tabDropReorderIndex(0, 1, true)).toBe(1);
+    expect(tabDropReorderIndex(1, 1, false)).toBe(1);
+
+    bindFocusToWorkspace("/workspace");
+    const first = await openDocument("/workspace", "a.md");
+    const second = await openDocument("/workspace", "b.md");
+    const third = await openDocument("/workspace", "c.md");
+    expect(selectDocument(first.id)).toBe(true);
+    const from = 0;
+    const to = adjacentTabReorderIndex(from, 1, openBuffers.value.length);
+    expect(to).toBe(1);
+    expect(reorderOpenDocuments(from, to!)).toBe(true);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([second.id, first.id, third.id]);
+    expect(activeId.value).toBe(first.id);
+
+    // Invalid / cancelled-equivalent: same index leaves order unchanged.
+    expect(reorderOpenDocuments(1, tabDropReorderIndex(1, 1, false))).toBe(true);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([second.id, first.id, third.id]);
+    expect(activeId.value).toBe(first.id);
+  });
+
+  test("tab strip reveal and middle-click close stay on existing chrome paths", async () => {
+    const { revealTabInOverflowStrip, shouldCloseTabOnAuxClick } =
+      await import("../../../../../src/mainview/modules/editor/editorTabStrip.ts");
+
+    const scrollCalls: unknown[] = [];
+    revealTabInOverflowStrip({
+      getClientRects: () => [{}, {}],
+      scrollIntoView: (options) => {
+        scrollCalls.push(options);
+      },
+    });
+    expect(scrollCalls).toEqual([{ inline: "nearest", block: "nearest" }]);
+    revealTabInOverflowStrip({
+      getClientRects: () => [],
+      scrollIntoView: () => {
+        throw new Error("hidden strip must not scroll");
+      },
+    });
+
+    const tabTarget = {
+      closest: () => null,
+    };
+    const closeTarget = {
+      closest: (selector: string) => (selector === ".editor-tabs__close" ? closeTarget : null),
+    };
+    expect(
+      shouldCloseTabOnAuxClick({ button: 1, target: tabTarget as unknown as EventTarget }),
+    ).toBe(true);
+    expect(
+      shouldCloseTabOnAuxClick({ button: 1, target: closeTarget as unknown as EventTarget }),
+    ).toBe(false);
+    expect(
+      shouldCloseTabOnAuxClick({ button: 0, target: tabTarget as unknown as EventTarget }),
+    ).toBe(false);
   });
 
   test("change markers reset on successful save and dispose on close", async () => {

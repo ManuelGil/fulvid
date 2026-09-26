@@ -4,6 +4,9 @@
  */
 import { isMarkdownFile, isSafeDocumentBasename } from "../../workspace/filesystem/workspaceTypes";
 
+/** Keep a suggested name short enough to read in the Save As field. */
+const MAX_SUGGESTED_SLUG_CHARS = 48;
+
 /**
  * Attach the default extension when missing; refuse unsupported or unsafe names.
  * Returns null when the name must not be written.
@@ -39,7 +42,7 @@ export function suggestUntitledSaveBasename(content: string, defaultExtension: s
     .replace(/[^\w\s-]+/g, "")
     .trim()
     .replace(/\s+/g, "-")
-    .slice(0, 48)
+    .slice(0, MAX_SUGGESTED_SLUG_CHARS)
     .replace(/^-+|-+$/g, "");
   if (!slug || !isSafeDocumentBasename(`${slug}.${extension}`)) {
     return `untitled.${extension}`;

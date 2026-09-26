@@ -1,6 +1,6 @@
 # Screenshots
 
-Window captures from Fulvid (product UI). Older product shots are from 0.1.0; annotation shots match the current Add/Edit Quick Action UX.
+Window captures from Fulvid (product UI). Some early product shots predate 1.0.0 chrome; annotation shots match the Add/Edit Quick Action UX. Treat this set as illustrative, not a full feature catalog.
 
 | File | Shows |
 | --- | --- |

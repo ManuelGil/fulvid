@@ -704,7 +704,11 @@ export default {
     shortcutSaveAs: "Das aktive Dokument als neue Datei speichern",
     shortcutClose: "Den aktiven Tab schließen",
     shortcutCloseOthers: "Alle anderen Tabs schließen",
-    shortcutTabs: "Zwischen geöffneten Dokument-Tabs wechseln",
+    shortcutTabs: "Den nächsten oder vorherigen geöffneten Tab in Tab-Reihenfolge aktivieren",
+    shortcutTabsOrder: "Den nächsten oder vorherigen geöffneten Tab in Tab-Reihenfolge aktivieren",
+    shortcutTabList:
+      "Den vorherigen oder nächsten Tab aktivieren, wenn der Tab-Streifen fokussiert ist",
+    shortcutMoveTab: "Den fokussierten Dokument-Tab nach links oder rechts verschieben",
     shortcutContext: "Dokumentkontext für das ausgewählte Dokument öffnen (I).",
     shortcutGraph: "Wo ist dieses Dokument?",
     shortcutEscape:
@@ -733,7 +737,7 @@ export default {
     sponsorHint: "Öffnet die GitHub-Sponsors-Seite in deinem Browser.",
     locale: "Sprache",
     localeHint:
-      "Ändert Menüs, Einstellungen und Meldungen in Fulvid sofort. Deine Dokumente bleiben in der Sprache, in der du sie geschrieben hast.",
+      "System folgt der Betriebssystemsprache, wenn Fulvid sie unterstützt; sonst Englisch. Eine hier gewählte Sprache bleibt erhalten. Deine Dokumente bleiben in der Sprache, in der du sie geschrieben hast.",
     english: "English",
     spanish: "Español",
     german: "Deutsch",
@@ -854,7 +858,7 @@ export default {
     missingAnchor: 'Die Überschrift "{anchor}" existiert in diesem Dokument nicht.',
     candidates: "Mögliche Treffer: {items}",
     alsoMatches: "Passt ebenfalls: {items}",
-    open: "{path} öffnen",
+    open: "Öffnen",
     unresolvedTitle: "Dieser Link passt zu keinem Dokument",
     heading: "Überschrift #{anchor}: {status}",
     missingAnchorStatus: "fehlt",

@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 const store = new Map<string, string>();
+const previousLocalStorage = (globalThis as { localStorage?: unknown }).localStorage;
 
 (globalThis as { localStorage?: unknown }).localStorage = {
   getItem: (key: string) => store.get(key) ?? null,
@@ -32,6 +33,14 @@ beforeEach(() => {
 
 afterEach(() => {
   store.clear();
+});
+
+afterAll(() => {
+  if (previousLocalStorage === undefined) {
+    delete (globalThis as { localStorage?: unknown }).localStorage;
+  } else {
+    (globalThis as { localStorage?: unknown }).localStorage = previousLocalStorage;
+  }
 });
 
 // Intent: persisted geometry stays safe at startup and within usable bounds.

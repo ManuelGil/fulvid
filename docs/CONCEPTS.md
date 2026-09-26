@@ -44,7 +44,7 @@ Product copy uses **Folder**, never Workspace. Host code may still use `workspac
 
 Settings choose one `linkMode`: `"markdown"` (default) or `"wikilink"`. That mode governs scan, resolution, editor providers, Preview, references, rename, and Graph.
 
-When several Folder documents match the same stem, alias, or title, resolution stays **first-wins** (deterministic scan order). Surfaces may show the other matches as honesty (`alsoMatches` on hover; Context notes that Fulvid opens the first match). That list is derived from the scan - not a second identity or persisted state. An unresolved link with exactly one near-match may offer that candidate as a soft open (definition / Inspector); it does not change first-wins for resolved links.
+When several Folder documents match the same stem, alias, or title, resolution stays **first-wins** (deterministic scan order). Surfaces may show the other matches as honesty (`alsoMatches` on hover; Context notes that Fulvid opens the first match). That list is derived from the scan - not a second identity or persisted state. An unresolved link with exactly one near-match may offer that candidate as a soft open (definition / Inspector); it does not change first-wins for resolved links. Editor link hover is an honesty/inspector surface (path, anchor status, matches) plus a short **source** Markdown peek of the target - not Preview, not HTML, and not a second renderer.
 
 **Find references** (`Shift+F12`) lists heading and fragment locations. **Rename heading** (`F2`) rewrites that heading and known fragment targets as text. F2 does not rename files.
 

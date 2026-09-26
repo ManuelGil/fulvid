@@ -341,7 +341,7 @@ verifyBuiltShell();
 console.log("  dist/index.html and bundled assets look usable.\n");
 
 console.log("-> Filesystem editing loop\n");
-run("bun", ["test", "tests/bun/filesystem/io/documentLifecycle.smoke.test.ts"]);
+run("bun", ["test", "tests/bun/filesystem/io/documentLifecycle.integration.test.ts"]);
 
 if (launchRequested) {
   console.log("\n-> Packaged launch\n");

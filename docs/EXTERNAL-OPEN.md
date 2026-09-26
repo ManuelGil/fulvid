@@ -7,7 +7,7 @@ This is the internal layer, plus the Linux desktop `Exec` field that feeds it.
 launcher arguments to the Bun host, and there is no browser extension. What
 exists is the contract, the single host-side handler, one argv adapter, and a
 desktop entry that is ready to pass local paths once the launcher does. See
-[Status](#status) for exactly what is wired today.
+[Status](#status) for exactly what is wired.
 
 ## What an external open request is
 

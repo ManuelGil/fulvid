@@ -9,7 +9,7 @@ Present: name, summary, description, developer, licenses, URLs, categories, icon
 Omitted on purpose:
 
 - Adopted Flatpak App ID
-- `<releases>` until a GitHub Release exists
+- `<releases>` (candidate file is not wired into shipping packaging; keep AppStream releases out until this file is an adopted install path)
 - `<screenshot>` URLs (files exist in [assets/screenshots/](../../../assets/screenshots/); do not invent a public URL)
 
 `appstreamcli validate --no-net` succeeds. Pedantic check reports `releases-info-missing`.

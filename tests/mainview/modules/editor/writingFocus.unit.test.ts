@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
 import {
   canPersistWindowFrame,
@@ -13,6 +13,10 @@ import {
   writingFocusLeaveEditorTarget,
   writingFocusMonacoOptions,
 } from "../../../../src/mainview/modules/editor/writingFocus.ts";
+
+afterEach(() => {
+  writingFocusActive.value = false;
+});
 
 // Intent: Writing Focus is session chrome on the editor route only, and stays
 // orthogonal to native Full Screen (all four combinations). Host fullscreen

@@ -7,7 +7,13 @@ export function toggleWritingFocus(): void {
   writingFocusActive.value = !writingFocusActive.value;
 }
 
-/** Focus chrome overlay applies only on the editor route. */
+/**
+ * Focus chrome overlay applies only on the editor route.
+ *
+ * The route name is compared as a literal rather than through `APP_ROUTE_NAMES`
+ * so this module stays independent of the router: callers pass whatever their
+ * route object reports, and nothing here needs vue-router to be loaded.
+ */
 export function writingFocusHidesEditorChrome(routeName: unknown): boolean {
   return writingFocusActive.value && routeName === "editor";
 }

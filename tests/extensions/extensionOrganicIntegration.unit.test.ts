@@ -10,7 +10,12 @@ import {
 } from "../../src/bun/extensions/discoverExtensions.ts";
 import { resetExtensionAllowancesForTests } from "../../src/bun/extensions/extensionAllowances.ts";
 import { validateExtensionManifest } from "../../src/mainview/extensions/extensionManifest.ts";
-import { luaManifest, tempExtensionRoot, writeExtensionPack } from "./manifestTestHelpers.ts";
+import {
+  luaManifest,
+  tempExtensionRoot,
+  writeExtensionPack,
+  cleanupTempExtensionRoots,
+} from "./manifestTestHelpers.ts";
 import { integrateExtensionActionsIntoMenus } from "../../src/mainview/shell/applicationMenu/applicationMenuModel.ts";
 import { resetExtensionRegistryForTests } from "../../src/mainview/extensions/extensionRegistry.ts";
 
@@ -33,7 +38,8 @@ async function writePack(
   await writeExtensionPack(root, id, manifest, { "entry.lua": entry });
 }
 
-afterEach(() => {
+afterEach(async () => {
+  await cleanupTempExtensionRoots();
   resetExtensionDiscoveryForTests();
   resetExtensionRegistryForTests();
   resetExtensionAllowancesForTests();

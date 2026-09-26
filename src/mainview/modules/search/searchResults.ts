@@ -7,6 +7,7 @@
  */
 import { documentFileType, type ScannedNote } from "../workspace/filesystem/workspaceTypes";
 import { runSearchStrategy } from "./searchStrategies";
+import type { SearchFileType } from "./searchOptions";
 import type {
   SearchDocumentGroup,
   SearchHit,
@@ -97,7 +98,7 @@ export function limitSearchGroups(
 
 export function filterNotesByFileType<T extends { path: string }>(
   notes: readonly T[],
-  fileType: "all" | "md" | "markdown" | "mdx",
+  fileType: SearchFileType,
 ): T[] {
   if (fileType === "all") {
     return [...notes];

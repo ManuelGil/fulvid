@@ -39,7 +39,7 @@ Electrobun's CLI (`electrobun.cjs`) and Vite's CLI start with `#!/usr/bin/env no
 | --- | --- |
 | Ubuntu 24.04 (`ubuntu-24.04`) | Tested. Build, `.deb`, launch under Xvfb, filesystem smoke |
 | Debian 13 (`debian:13` container) | Tested separately from Ubuntu. Same checks |
-| Ubuntu 26.04 | Current Ubuntu LTS. Supported as a WebKitGTK 4.1 host. **Not tested** here: the GitHub runner image is still preview |
+| Ubuntu 26.04 | Supported as a WebKitGTK 4.1 host. **Not tested** in this matrix (no GitHub-hosted job yet) |
 | Ubuntu 22.04, Debian 12 | Unsupported. Electrobun 2.0.1 ships Cottontail 0.5.0 (`GLIBC_2.38`, `GLIBCXX_3.4.32`) and `libNativeWrapper.so` (`GLIBC_2.38`, `GLIBCXX_3.4.32`). Ubuntu 22.04 is glibc 2.35; Debian 12 is glibc 2.36 |
 | Ubuntu 20.04, Debian 11, 32-bit | Unsupported |
 
@@ -51,7 +51,7 @@ Local smoke after a Linux package:
 FULVID_SMOKE_LAUNCH=1 bun run smoke:compatibility
 ```
 
-Without `FULVID_SMOKE_LAUNCH`, the script still checks `dist/` and the filesystem editing loop.
+Without `FULVID_SMOKE_LAUNCH`, the script still checks `dist/` and re-runs the filesystem editing-loop integration test.
 
 Linux compatibility CI launches under Xvfb with `GDK_BACKEND=x11` and `WEBKIT_DISABLE_COMPOSITING_MODE=1`. On a local Wayland desktop, Electrobun 2.0.1 still forces X11 (XWayland); `GLXBadWindow` and occasional WebKit `internallyFailedLoadTimerFired` lines during `bun run dev:hmr` are documented under [CONTRIBUTING.md](../CONTRIBUTING.md#linux-wayland--devhmr-console-noise). They are not treated as Fulvid application regressions.
 
@@ -91,7 +91,7 @@ No Apple signing secrets on these jobs.
 | Windows x64 | Tested | **Verified** (Compatibility Windows CI) |
 | macOS arm64 | Tested | **Verified** (Compatibility macOS CI - 26 Apple Silicon) |
 
-Evidence (Compatibility CI): [Windows run 34909418780](https://github.com/ManuelGil/fulvid/actions/runs/34909418780), [macOS run 34909421392](https://github.com/ManuelGil/fulvid/actions/runs/34909421392). Packaged Lua runtime is verified on the three supported desktop architectures above.
+Evidence: Compatibility Linux / Windows / macOS workflows on `main` (see When compatibility CI runs). Packaged Lua runtime is verified on the three supported desktop architectures above.
 
 The Lua smoke checks packaged `bun/glue.wasm`, Wasm init, discovery + `ui.notify`, invalid-pack isolation, and lightweight interrupt/memory probes against the packaged module. It does not launch the UI and does not replace `smoke:compatibility`.
 

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
 import {
   appearanceDatasetFor,
@@ -12,8 +12,11 @@ import {
 } from "../../../../src/mainview/modules/settings/settingsStore";
 
 const memoryStorage = new Map<string, string>();
+const previousLocalStorage = (globalThis as { localStorage?: Storage }).localStorage;
+let memoryLocalStorageInstalled = false;
 
 function installMemoryLocalStorage(): void {
+  memoryLocalStorageInstalled = true;
   (globalThis as { localStorage?: Storage }).localStorage = {
     get length() {
       return memoryStorage.size;
@@ -35,11 +38,26 @@ function installMemoryLocalStorage(): void {
     },
   } as Storage;
 }
+
+afterEach(() => {
+  memoryStorage.clear();
+  if (memoryLocalStorageInstalled) {
+    if (previousLocalStorage === undefined) {
+      delete (globalThis as { localStorage?: Storage }).localStorage;
+    } else {
+      (globalThis as { localStorage?: Storage }).localStorage = previousLocalStorage;
+    }
+    memoryLocalStorageInstalled = false;
+  }
+  settings.value = defaultSettings();
+});
 // Intent: persisted settings fail closed. Unknown concepts must not hydrate.
 describe("settings sanitize", () => {
   test("accepts current fields, rejects unsupported enums, and resets to defaults", () => {
     expect(defaultSettings().appearance.theme).toBe("system");
+    expect(defaultSettings().locale).toBe("system");
     expect(sanitizeSettings({}).appearance.theme).toBe("system");
+    expect(sanitizeSettings({}).locale).toBe("system");
 
     const next = sanitizeSettings({
       locale: "es",
@@ -73,7 +91,9 @@ describe("settings sanitize", () => {
     expect(next).not.toHaveProperty("templates");
     expect(next).not.toHaveProperty("contextRoot");
     expect(next).not.toHaveProperty("contextRoots");
-    expect(sanitizeSettings({ locale: "ja" }).locale).toBe("en");
+    expect(sanitizeSettings({ locale: "ja" }).locale).toBe("system");
+    expect(sanitizeSettings({ locale: "system" }).locale).toBe("system");
+    expect(sanitizeSettings({ locale: "en" }).locale).toBe("en");
     expect(sanitizeSettings({ appearance: { theme: "constructor" } }).appearance.theme).toBe(
       "system",
     );
