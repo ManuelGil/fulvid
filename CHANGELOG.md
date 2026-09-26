@@ -9,6 +9,27 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-26
+
+### Added
+
+- **Tab organization**: reorder open document tabs by dragging inside the tab strip, or with `Alt+Left` / `Alt+Right` while a tab has keyboard focus. Middle-click closes a tab, and the strip scrolls the active tab back into view when tabs overflow. Tab order is session chrome - it does not move files or change the Folder.
+- **Link hover source peek**: hovering a document link shows where it resolves (path, heading status, other matching documents) and a short excerpt of the target's Markdown source. The excerpt is shown as source, not as rendered HTML, and uses the document text that hover already reads. Not Preview and not a second renderer.
+
+### Changed
+
+- Tab navigation follows visible tab order: `Ctrl/Cmd+Tab` and `Ctrl/Cmd+Shift+Tab` activate the next or previous tab in the strip and wrap at the ends, instead of walking most-recently-used order. `Ctrl/Cmd+PageDown` / `Ctrl/Cmd+PageUp` keep doing the same and now appear as accelerators in Navigate and in Settings keyboard help.
+- Language defaults to **System**: Fulvid follows the operating system language when it has that language, and English otherwise. A language chosen in Settings -> Language still wins and is kept, and regional system tags (`de-DE`, `pt_BR`) match by primary language. Guide: [docs/I18N.md](docs/I18N.md).
+
+### Fixed
+
+- Saving a document keeps that file's own permissions. A save used to replace them with the process default, so a document kept private (`0600`) came back readable by other accounts on the machine.
+- Document text shown in editor hover tooltips (link labels, headings, paths, candidate matches) stays literal text. It could previously be read as Markdown, so a crafted heading or filename could turn a tooltip into a clickable external link or an image request.
+- A Folder scan stops at a ceiling on total document text as well as on document count and depth, so a very large tree degrades to a partial Folder - still reported as partial - instead of loading document bodies without bound.
+- Typing with Preview open no longer walks the whole Folder scan on every keystroke, which was noticeable in Folders with thousands of documents.
+- A Graph background worker that fails to start is terminated instead of being left running. The layout is still computed in-process in that case, as before.
+- `Ctrl/Cmd+Shift+Tab` and the Tab trap in dialogs register on WebKit builds that report the chord as `ISO_Left_Tab` (Linux).
+
 ## [1.0.0] - 2026-09-19
 
 First stable release of Fulvid.
@@ -190,7 +211,8 @@ First release of Fulvid, a standalone desktop editor for Markdown and MDX.
 - Inert Preview and Export HTML from the same renderer. Export writes a `.html` file and cannot overwrite a Markdown or MDX note.
 - English and Spanish application chrome. Document text, filenames, and link targets are not translated.
 
-[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/ManuelGil/fulvid/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/ManuelGil/fulvid/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ManuelGil/fulvid/releases/tag/v1.0.0
 [0.12.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.12.0
 [0.11.0]: https://github.com/ManuelGil/fulvid/releases/tag/v0.11.0

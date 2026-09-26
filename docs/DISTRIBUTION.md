@@ -97,7 +97,7 @@ if: startsWith(github.ref, 'refs/tags/v')
 
 Who can create or move `v*` tags is a GitHub repository permission.
 
-Release body notes live under [releases/](./releases/) (`v1.0.0.md` for the current release notes; use `vX.Y.Z.md` for the version you are shipping). Actions generates a commit list automatically; replace or append the curated notes on the Release when needed.
+Release body notes live under [releases/](./releases/) (`v1.1.0.md` for the current release notes; use `vX.Y.Z.md` for the version you are shipping). Actions generates a commit list automatically; replace or append the curated notes on the Release when needed.
 
 
 ## Verification

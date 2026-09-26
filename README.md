@@ -41,9 +41,11 @@ It is open source (MIT). The source in this repository is the product.
 
 Open a Markdown or MDX file and edit it. Untitled tabs work when you are still deciding where the file lives. Save and Save As write source, not a converted note format.
 
+Keep several documents open in the tab strip. `Ctrl/Cmd+Tab` and `Ctrl/Cmd+PageDown` activate the next tab in tab order, `Ctrl/Cmd+Shift+Tab` and `Ctrl/Cmd+PageUp` the previous one, and the strip scrolls the active tab back into view when the tabs overflow. Change the order by dragging a tab, or with `Alt+Left` / `Alt+Right` while a tab has keyboard focus. Middle-click closes a tab.
+
 Open a folder when you want Explorer, Quick Open, Global Search, Graph, and Document Context. Those views read the same files you are editing. They are optional. Writing still comes first.
 
-Follow links that are actually in the source. You choose one link mode for the session: Markdown (default) or Wikilink. Broken links stay visible. Fulvid does not create a file because a link points at a missing path.
+Follow links that are actually in the source. You choose one link mode for the session: Markdown (default) or Wikilink. Hovering a document link shows where it resolves: the path, the heading when the link points at one, and a short peek of its Markdown source, as source rather than a rendered page. Broken links stay visible, and the hover says the link matches no document and lists the documents that came close. Fulvid does not create a file because a link points at a missing path.
 
 Search in two places. Local find is the editor's own find (`Ctrl/Cmd+F`). Global Search (`Ctrl/Cmd+Shift+F`) looks through document content in the open folder. Quick Open (`Ctrl/Cmd+P`) jumps to a document by title, filename, or path in that folder - it does not search content.
 
@@ -57,7 +59,7 @@ Look at an Outline of headings, or at Document Context for references and facts 
 
 Install **local Extensions** when you want small add-ons - a menu command, a note template, or a bounded selection transform - without giving them the filesystem, network, or the live editor. Packs live under your user data folder as ordinary files you can inspect. Details: [docs/EXTENSIONS.md](docs/EXTENSIONS.md). Catalog: sibling [`fulvid-extensions`](../fulvid-extensions/).
 
-The chrome is translated for the locales listed in [docs/I18N.md](docs/I18N.md). Document text, filenames, and link targets are never translated.
+The chrome is translated for the locales listed in [docs/I18N.md](docs/I18N.md). It follows your operating system language when Fulvid has that language and English when it does not, or you can choose one in Settings. Document text, filenames, and link targets are never translated.
 
 ![MDX opened as source in Fulvid](assets/screenshots/editor-mdx.png)
 
@@ -114,7 +116,7 @@ A document on disk is a `.md`, `.markdown`, or `.mdx` file. Untitled buffers liv
 
 Folder reads and writes stay inside the folder you opened. Opening a single file, or using Save As, goes through the operating system's file dialog. Later saves of that standalone file use the grant issued at dialog time.
 
-A save that did not reach disk does not pretend it did. If the file's modification time changed since Fulvid last read or saved it, you get a conflict instead of a silent overwrite.
+A save that did not reach disk does not pretend it did. If the file's modification time changed since Fulvid last read or saved it, you get a conflict instead of a silent overwrite. A save replaces the text in the file and leaves the file's own permissions alone, so a document you keep private stays private.
 
 You can keep using git, another editor, or a static generator on the same tree. Fulvid is a guest on the filesystem, not the owner of it.
 
