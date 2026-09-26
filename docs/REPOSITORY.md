@@ -47,7 +47,7 @@ docs/                    Includes EXTENSIONS.md + EXTENSION-PRODUCT-CONTRACT.md
 | Outline | `modules/editor/outline/OutlinePanel.vue` |
 | Preview | `modules/editor/preview/PreviewPane.vue` |
 
-Tests mirror `src/` and `scripts/`. Names are `.unit.test.ts`, `.integration.test.ts`, and `.smoke.test.ts`. Unit tests are the exception; see [CONTRIBUTING.md](../CONTRIBUTING.md#testing). Smoke is `bun run smoke`, not part of `bun run test`.
+Tests mirror `src/` and `scripts/`. Names are `.unit.test.ts` and `.integration.test.ts` (what `bun run test` / `validate` run). `bun run smoke` checks the built shell and may re-run the lifecycle integration test; optional desktop launch is separate. See [CONTRIBUTING.md](../CONTRIBUTING.md#testing).
 
 Product copy uses **Folder**. Host code may keep `workspace*` identifiers.
 

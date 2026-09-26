@@ -8,6 +8,7 @@ import { join } from "node:path";
 
 import { LuaFactory, LuaTimeoutError, type LuaEngine } from "wasmoon";
 
+import { EXTENSION_PACK_LIMITS } from "../../../mainview/extensions/extensionManifest";
 import { luaExecutionBudgetMs, luaMemoryBudgetBytes } from "./luaLimits";
 
 const requireWasmoonAsset = createRequire(import.meta.url);
@@ -105,7 +106,8 @@ export function describeLuaRuntimeFailure(error: unknown): string {
   // wasmoon embeds the chunk text as [string "..."]:line: message - drop the source.
   const withoutChunk = firstLine.replace(/^\[string "[\s\S]*"\]:(\d+):\s*/, "lua:$1: ");
   const bounded = withoutChunk.trim() || "lua runtime failed";
-  return bounded.length > 300 ? `${bounded.slice(0, 300)}...` : bounded;
+  const limit = EXTENSION_PACK_LIMITS.maxFailureReasonChars;
+  return bounded.length > limit ? `${bounded.slice(0, limit)}...` : bounded;
 }
 
 /** Create a reduced guest engine with real execution and memory budgets. */

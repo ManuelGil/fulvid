@@ -9,18 +9,25 @@ import { computed, ref, watch } from "vue";
 
 const STORAGE_KEY = "fulvid.layout.v1";
 
-const SIDEBAR_MIN = 200;
-const SIDEBAR_MAX = 360;
-const SIDEBAR_DEFAULT = 252;
-const INSPECTOR_MIN = 260;
-const INSPECTOR_MAX = 440;
-const INSPECTOR_DEFAULT = 320;
-const CONTEXTUAL_MIN = 260;
-const CONTEXTUAL_MAX = 440;
-const CONTEXTUAL_DEFAULT = 320;
-const PREVIEW_MIN = 0.25;
-const PREVIEW_MAX = 0.65;
-const PREVIEW_DEFAULT = 0.42;
+/**
+ * One resizable dimension: the bounds it is clamped to and the width it starts
+ * at. Declared once so a sanitize fallback, a setter, and the slider a surface
+ * exposes cannot drift apart.
+ */
+type LayoutRange = {
+  readonly min: number;
+  readonly max: number;
+  readonly default: number;
+};
+
+export const SIDEBAR_WIDTH_LIMITS: LayoutRange = { min: 200, max: 360, default: 252 };
+export const INSPECTOR_WIDTH_LIMITS: LayoutRange = { min: 260, max: 440, default: 320 };
+export const CONTEXTUAL_WIDTH_LIMITS: LayoutRange = { min: 260, max: 440, default: 320 };
+/** Fraction of the editor pane given to Preview, not a pixel width. */
+export const PREVIEW_RATIO_LIMITS: LayoutRange = { min: 0.25, max: 0.65, default: 0.42 };
+
+/** Arrow-key step for every width resize handle. */
+export const LAYOUT_RESIZE_STEP_PX = 8;
 
 /** Shell collapses sidebars/overlays at this width. Keep CSS `@media` in sync. */
 export const NARROW_VIEWPORT_MAX_PX = 900;
@@ -41,28 +48,19 @@ function clamp(value: number, min: number, max: number): number {
   return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : min;
 }
 
-function clampedNumber(value: unknown, fallback: number, min: number, max: number): number {
-  return clamp(typeof value === "number" ? value : fallback, min, max);
+/** A persisted width or ratio held inside its range, otherwise the default. */
+function clampedNumber(value: unknown, range: LayoutRange): number {
+  return clamp(typeof value === "number" ? value : range.default, range.min, range.max);
 }
 
 function sanitize(value: unknown): LayoutIntent {
   const source = value && typeof value === "object" ? (value as Partial<LayoutIntent>) : {};
 
   return {
-    sidebarWidth: clampedNumber(source.sidebarWidth, SIDEBAR_DEFAULT, SIDEBAR_MIN, SIDEBAR_MAX),
-    inspectorWidth: clampedNumber(
-      source.inspectorWidth,
-      INSPECTOR_DEFAULT,
-      INSPECTOR_MIN,
-      INSPECTOR_MAX,
-    ),
-    contextualWidth: clampedNumber(
-      source.contextualWidth,
-      CONTEXTUAL_DEFAULT,
-      CONTEXTUAL_MIN,
-      CONTEXTUAL_MAX,
-    ),
-    previewRatio: clampedNumber(source.previewRatio, PREVIEW_DEFAULT, PREVIEW_MIN, PREVIEW_MAX),
+    sidebarWidth: clampedNumber(source.sidebarWidth, SIDEBAR_WIDTH_LIMITS),
+    inspectorWidth: clampedNumber(source.inspectorWidth, INSPECTOR_WIDTH_LIMITS),
+    contextualWidth: clampedNumber(source.contextualWidth, CONTEXTUAL_WIDTH_LIMITS),
+    previewRatio: clampedNumber(source.previewRatio, PREVIEW_RATIO_LIMITS),
     leftSidebarOpen: typeof source.leftSidebarOpen === "boolean" ? source.leftSidebarOpen : true,
     rightSidebar:
       source.rightSidebar === "explorer" ||
@@ -100,26 +98,6 @@ export const rightSidebar = computed<RightSidebar>({
   },
 });
 
-export const SIDEBAR_WIDTH_LIMITS = {
-  min: SIDEBAR_MIN,
-  max: SIDEBAR_MAX,
-} as const;
-
-export const INSPECTOR_WIDTH_LIMITS = {
-  min: INSPECTOR_MIN,
-  max: INSPECTOR_MAX,
-} as const;
-
-export const CONTEXTUAL_WIDTH_LIMITS = {
-  min: CONTEXTUAL_MIN,
-  max: CONTEXTUAL_MAX,
-} as const;
-
-export const PREVIEW_RATIO_LIMITS = {
-  min: PREVIEW_MIN,
-  max: PREVIEW_MAX,
-} as const;
-
 function applyLayout(intent: LayoutIntent): void {
   if (typeof document === "undefined") {
     return;
@@ -133,28 +111,28 @@ function applyLayout(intent: LayoutIntent): void {
 export function setSidebarWidth(width: number): void {
   layout.value = {
     ...layout.value,
-    sidebarWidth: clamp(width, SIDEBAR_MIN, SIDEBAR_MAX),
+    sidebarWidth: clamp(width, SIDEBAR_WIDTH_LIMITS.min, SIDEBAR_WIDTH_LIMITS.max),
   };
 }
 
 export function setInspectorWidth(width: number): void {
   layout.value = {
     ...layout.value,
-    inspectorWidth: clamp(width, INSPECTOR_MIN, INSPECTOR_MAX),
+    inspectorWidth: clamp(width, INSPECTOR_WIDTH_LIMITS.min, INSPECTOR_WIDTH_LIMITS.max),
   };
 }
 
 export function setContextualWidth(width: number): void {
   layout.value = {
     ...layout.value,
-    contextualWidth: clamp(width, CONTEXTUAL_MIN, CONTEXTUAL_MAX),
+    contextualWidth: clamp(width, CONTEXTUAL_WIDTH_LIMITS.min, CONTEXTUAL_WIDTH_LIMITS.max),
   };
 }
 
 export function setPreviewRatio(ratio: number): void {
   layout.value = {
     ...layout.value,
-    previewRatio: clamp(ratio, PREVIEW_MIN, PREVIEW_MAX),
+    previewRatio: clamp(ratio, PREVIEW_RATIO_LIMITS.min, PREVIEW_RATIO_LIMITS.max),
   };
 }
 

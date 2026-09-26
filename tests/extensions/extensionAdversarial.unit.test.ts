@@ -25,6 +25,7 @@ import {
   luaManifest,
   tempExtensionRoot,
   writeExtensionPack,
+  cleanupTempExtensionRoots,
 } from "./manifestTestHelpers.ts";
 import {
   configureExtensionHostActions,
@@ -38,7 +39,8 @@ import {
   resetEditorExtensionSeamForTests,
 } from "../../src/mainview/extensions/editorExtensionSeam.ts";
 
-afterEach(() => {
+afterEach(async () => {
+  await cleanupTempExtensionRoots();
   resetExtensionRegistryForTests();
   resetEditorExtensionSeamForTests();
   resetLuaCommandStore();

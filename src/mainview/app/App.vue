@@ -23,7 +23,7 @@ import {
   workspaceName,
   validatedFocus,
 } from "./workspaceState";
-import { APP_ROUTE_NAMES } from "./router";
+import { APP_ROUTE_NAMES, type AppRouteName } from "./router";
 import { notify } from "./notify";
 import ToastHost from "./ToastHost.vue";
 import DialogHost from "./DialogHost.vue";
@@ -42,6 +42,7 @@ import {
   openOrActivate,
   selectDocument,
 } from "../modules/editor/document/documentBuffers";
+import { adjacentOpenDocumentIndex } from "../modules/editor/editorTabNavigation";
 import {
   documentTemplateTitleFromParentPath,
   renderDocumentTemplate,
@@ -67,6 +68,7 @@ import {
   closeLeftSidebar,
   closeRightSidebar,
   CONTEXTUAL_WIDTH_LIMITS,
+  LAYOUT_RESIZE_STEP_PX,
   leftSidebarOpen,
   layout,
   openLeftSidebar,
@@ -349,11 +351,10 @@ function closeContextPanel(): void {
 
 function activateAdjacentDocument(direction: -1 | 1): void {
   const currentIndex = openBuffers.value.findIndex((buffer) => buffer.id === activeId.value);
-  if (currentIndex < 0 || openBuffers.value.length < 2) {
+  const nextIndex = adjacentOpenDocumentIndex(currentIndex, direction, openBuffers.value.length);
+  if (nextIndex === null) {
     return;
   }
-  const nextIndex =
-    (currentIndex + direction + openBuffers.value.length) % openBuffers.value.length;
   const nextBuffer = openBuffers.value[nextIndex];
   if (!nextBuffer) {
     return;
@@ -374,6 +375,9 @@ function overlayFocusableElements(): HTMLElement[] {
   );
 }
 
+/** Ctrl/Cmd chords the native application menu owns when it draws the bar itself. */
+const NATIVE_MENU_ACCELERATOR_KEYS = new Set(["n", "o", "s", "w", "f", "h", "p"]);
+
 function handleModifierShortcut(event: KeyboardEvent, insideMonaco: boolean): boolean {
   const modifier = event.metaKey || event.ctrlKey;
   if (!modifier) {
@@ -389,11 +393,14 @@ function handleModifierShortcut(event: KeyboardEvent, insideMonaco: boolean): bo
   }
 
   const key = event.key.toLowerCase();
+  // A native menu bar already delivers its own accelerators, so handling these
+  // here too would run the command twice. The HTML fallback bar draws no
+  // accelerators, so on that platform this handler stays the only route.
   if (
     usesNativeApplicationMenu() &&
     !event.shiftKey &&
     !event.altKey &&
-    ["n", "o", "s", "w", "f", "h", "p"].includes(key)
+    NATIVE_MENU_ACCELERATOR_KEYS.has(key)
   ) {
     return false;
   }
@@ -494,33 +501,28 @@ function trapOverlayTab(event: KeyboardEvent): boolean {
   return true;
 }
 
+/** Unmodified digits that jump straight to a route. */
+const ROUTE_BY_NAVIGATION_DIGIT = new Map<string, AppRouteName>([
+  ["1", APP_ROUTE_NAMES.editor],
+  ["2", APP_ROUTE_NAMES.search],
+  ["3", APP_ROUTE_NAMES.graph],
+]);
+
 function handleNavigationShortcut(event: KeyboardEvent): boolean {
-  const key = event.key.toLowerCase();
-  if (
-    event.metaKey ||
-    event.ctrlKey ||
-    event.altKey ||
-    isTextEntryTarget(event.target) ||
-    !["/", "1", "2", "3", "i", "g"].includes(key)
-  ) {
+  if (event.metaKey || event.ctrlKey || event.altKey || isTextEntryTarget(event.target)) {
     return false;
   }
 
+  const key = event.key.toLowerCase();
   if (key === "/") {
     event.preventDefault();
     openGlobalSearch();
     return true;
   }
-  if (key === "1" || key === "2" || key === "3") {
+  const digitRoute = ROUTE_BY_NAVIGATION_DIGIT.get(key);
+  if (digitRoute) {
     event.preventDefault();
-    void router.push({
-      name:
-        key === "1"
-          ? APP_ROUTE_NAMES.editor
-          : key === "2"
-            ? APP_ROUTE_NAMES.search
-            : APP_ROUTE_NAMES.graph,
-    });
+    void router.push({ name: digitRoute });
     return true;
   }
   if (key === "i") {
@@ -535,9 +537,12 @@ function handleNavigationShortcut(event: KeyboardEvent): boolean {
     }
     return true;
   }
-  event.preventDefault();
-  void router.push({ name: APP_ROUTE_NAMES.graph });
-  return true;
+  if (key === "g") {
+    event.preventDefault();
+    void router.push({ name: APP_ROUTE_NAMES.graph });
+    return true;
+  }
+  return false;
 }
 
 function closePanelsOnEscape(event: KeyboardEvent): boolean {
@@ -1290,8 +1295,10 @@ onBeforeUnmount(() => {
           :aria-valuemin="CONTEXTUAL_WIDTH_LIMITS.min"
           :aria-valuemax="CONTEXTUAL_WIDTH_LIMITS.max"
           @pointerdown="startContextualResize"
-          @keydown.left.prevent="setContextualWidth(layout.contextualWidth + 8)"
-          @keydown.right.prevent="setContextualWidth(layout.contextualWidth - 8)"
+          @keydown.left.prevent="setContextualWidth(layout.contextualWidth + LAYOUT_RESIZE_STEP_PX)"
+          @keydown.right.prevent="
+            setContextualWidth(layout.contextualWidth - LAYOUT_RESIZE_STEP_PX)
+          "
         />
         <header class="app-shell__panel-header">
           <span class="app-shell__panel-title">{{ contextPanelLabel }}</span>

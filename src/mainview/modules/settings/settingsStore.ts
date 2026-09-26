@@ -9,6 +9,7 @@
 import { ref, watch } from "vue";
 import { setDocumentLinkSettings, type LinkResolutionMode } from "../document/links/linkSemantics";
 import type { LinkSyntax } from "../document/links/documentLink";
+import type { MarkdownFileType } from "../workspace/filesystem/workspaceTypes";
 import {
   DOCUMENT_LOCATION_DESTINATIONS,
   type DocumentLocationDestination,
@@ -121,7 +122,7 @@ export interface FulvidSettings {
     linkMode: LinkMode;
     resolution: LinkResolutionMode;
     /** New file / Save As when the name has no extension. Never renames existing files. */
-    defaultExtension: "md" | "markdown" | "mdx";
+    defaultExtension: MarkdownFileType;
     /** Document Context lists only. Graph still uses every resolved link. */
     showIncomingLinks: boolean;
     showOutgoingLinks: boolean;
@@ -212,6 +213,12 @@ const VALID_ICON_SCALES: readonly IconScale[] = ["small", "normal", "large"];
 const VALID_INTERFACE_DENSITIES: readonly InterfaceDensity[] = ["normal", "compact"];
 const VALID_READING_STATISTICS: readonly ReadingStatisticsMode[] = ["off", "words", "wordsAndTime"];
 
+/**
+ * Editor document font size range. Exported so the Settings control offers the
+ * same bounds this store clamps to - one rule, not a UI copy of it.
+ */
+export const EDITOR_FONT_SIZE_LIMITS = { min: 10, max: 24 } as const;
+
 /** A persisted value when it is one of `allowed`, otherwise the default. */
 function oneOf<T>(allowed: readonly T[], value: unknown, fallback: T): T {
   return (allowed as readonly unknown[]).includes(value) ? (value as T) : fallback;
@@ -299,7 +306,10 @@ export function sanitizeSettings(value: unknown): FulvidSettings {
     editor: {
       fontSize:
         typeof editor.fontSize === "number" && Number.isFinite(editor.fontSize)
-          ? Math.min(24, Math.max(10, editor.fontSize))
+          ? Math.min(
+              EDITOR_FONT_SIZE_LIMITS.max,
+              Math.max(EDITOR_FONT_SIZE_LIMITS.min, editor.fontSize),
+            )
           : defaults.editor.fontSize,
       fontFamily: oneOf(VALID_EDITOR_FONT_FAMILIES, editor.fontFamily, defaults.editor.fontFamily),
       lineHeight: oneOf(VALID_EDITOR_LINE_HEIGHTS, editor.lineHeight, defaults.editor.lineHeight),

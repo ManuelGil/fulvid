@@ -69,6 +69,7 @@ import type {
   DocumentWriteResult,
   GrantedDocumentSnapshot,
   GrantedDocumentWriteResult,
+  MarkdownFileType,
   SaveAsResult,
 } from "../../workspace/filesystem/workspaceTypes";
 
@@ -794,7 +795,7 @@ function reidentifyAsPersisted(
 export function saveAsDocument(
   buffer: DocumentBuffer,
   basename: string,
-  defaultExtension: "md" | "markdown" | "mdx" = "mdx",
+  defaultExtension: MarkdownFileType = "mdx",
   overwrite = false,
 ): Promise<{ result: SaveAsResult; buffer: DocumentBuffer }> {
   return queueBufferWrite(buffer, () =>
@@ -818,7 +819,7 @@ function monacoVersionStillOnDisk(
 async function saveAsDocumentNow(
   buffer: DocumentBuffer,
   basename: string,
-  defaultExtension: "md" | "markdown" | "mdx",
+  defaultExtension: MarkdownFileType,
   overwrite: boolean,
 ): Promise<{ result: SaveAsResult; buffer: DocumentBuffer }> {
   if (isAbandonedBuffer(buffer)) {

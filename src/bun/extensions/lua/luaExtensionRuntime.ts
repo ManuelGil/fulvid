@@ -474,6 +474,14 @@ export async function loadLuaExtensionPack(
   }
 }
 
+/**
+ * Run one registered Lua command.
+ *
+ * The RPC handler always passes the request object; a bare `namespacedId` is
+ * accepted so a contract test can invoke a command that needs no editor or
+ * document snapshot. Either way the id and both snapshots are revalidated here -
+ * nothing about the shape of the argument grants anything.
+ */
 export async function invokeLuaExtensionCommand(
   request: LuaInvokeRequest | string,
 ): Promise<LuaInvokeResult> {

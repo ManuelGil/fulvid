@@ -28,11 +28,13 @@ import {
   luaManifest,
   tempExtensionRoot,
   writeExtensionPack,
+  cleanupTempExtensionRoots,
 } from "./manifestTestHelpers.ts";
 
 const NOTIFY_FIXTURE = join(import.meta.dir, "fixtures/test.contract-lua-notify");
 
-afterEach(() => {
+afterEach(async () => {
+  await cleanupTempExtensionRoots();
   setLuaExecutionBudgetForTests(null);
   setLuaMemoryBudgetForTests(null);
   resetExtensionDiscoveryForTests();

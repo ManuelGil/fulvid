@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  annotationTextAsHoverMarkdown,
   applyDocumentAnnotationPresentation,
   clearDocumentAnnotations,
   findDocumentAnnotationNear,
@@ -93,14 +92,14 @@ describe("document annotations", () => {
       annotations[1],
     );
 
-    // Annotation text comes from the user and is shown in Monaco hover Markdown.
-    // Escaping + isTrusted:false is the XSS boundary for that surface.
     expect(normalizeAnnotationText("  hello   world  ")).toBe("hello world");
     expect(normalizeAnnotationText("x".repeat(DOCUMENT_ANNOTATION_TEXT_MAX + 40))?.length).toBe(
       DOCUMENT_ANNOTATION_TEXT_MAX,
     );
-    expect(annotationTextAsHoverMarkdown("a <b>tag</b>")).toBe("a \\<b\\>tag\\</b\\>");
 
+    // Annotation text comes from the user and is shown in Monaco hover Markdown.
+    // Escaping + isTrusted:false is the XSS boundary for that surface, asserted
+    // below on the decoration Monaco actually receives.
     const model = createFakeModel();
     const api = fakeApi as never;
     const added = upsertDocumentAnnotationOnLine(api, model as never, 2, 1, "note <b>x</b>", true);

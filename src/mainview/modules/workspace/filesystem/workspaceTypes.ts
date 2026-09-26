@@ -7,6 +7,9 @@ import type { DocumentLink } from "../../document/links/documentLink";
 
 export type MarkdownFileType = "md" | "markdown" | "mdx";
 
+/** Longest single filename common filesystems accept. */
+const MAX_BASENAME_LENGTH = 255;
+
 /** Names Windows refuses regardless of extension (CON, PRN, COM1, ...). */
 export const RESERVED_DEVICE_NAMES = new Set([
   "con",
@@ -61,7 +64,7 @@ function isSafePathBasename(name: string): boolean {
   if (
     !basenameValue ||
     basenameValue !== name ||
-    basenameValue.length > 255 ||
+    basenameValue.length > MAX_BASENAME_LENGTH ||
     basenameValue === "." ||
     basenameValue === ".." ||
     basenameValue.includes("/") ||

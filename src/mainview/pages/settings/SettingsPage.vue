@@ -8,6 +8,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import PageShell from "../../shell/PageShell.vue";
 import {
+  EDITOR_FONT_SIZE_LIMITS,
   patchSettings,
   resetSettingsToDefaults,
   settings,
@@ -737,8 +738,8 @@ async function onOpenSponsorPage(): Promise<void> {
                 <input
                   class="settings-option__number"
                   type="number"
-                  min="10"
-                  max="24"
+                  :min="EDITOR_FONT_SIZE_LIMITS.min"
+                  :max="EDITOR_FONT_SIZE_LIMITS.max"
                   step="1"
                   :value="settings.editor.fontSize"
                   :aria-label="t('settings.editorFontSize')"

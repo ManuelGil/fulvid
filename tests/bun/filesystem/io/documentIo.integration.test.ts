@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -19,7 +19,7 @@ import {
   documentConflictMessage,
   filesystemErrorMessage,
 } from "../../../../src/mainview/modules/workspace/filesystem/workspaceErrors.ts";
-import { linkDirectory } from "../../../support/platform";
+import { linkDirectory, posixModeBitsDenyAccess } from "../../../support/platform";
 
 async function makeWorkspace(): Promise<string> {
   return mkdtemp(join(tmpdir(), "editor-document-io-"));
@@ -275,4 +275,45 @@ describe("filename identity", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  // Regression: temp+rename installs a new inode, so a save used to replace the
+  // document's own permissions with the process umask - a note kept private at
+  // 0600 came back 0644. Save writes content, never a wider mode.
+  test.skipIf(!posixModeBitsDenyAccess)(
+    "keeps the document's permissions across an atomic replace",
+    async () => {
+      const root = await makeWorkspace();
+      try {
+        const created = await createDocument(root, "private.md", "# secret\n", "markdown");
+        await chmod(created.absolutePath, 0o600);
+
+        const opened = await readDocument(root, "private.md");
+        const written = await writeDocument(
+          root,
+          "private.md",
+          "# secret edited\n",
+          opened.mtimeMs,
+          "markdown",
+        );
+
+        expect((await stat(written.absolutePath)).mode & 0o777).toBe(0o600);
+
+        // A mode wider than the umask default has to survive too: `open` clips
+        // the creation mode, so only the chmod after it keeps this bit.
+        await chmod(written.absolutePath, 0o666);
+        const reopened = await readDocument(root, "private.md");
+        const widened = await writeDocument(
+          root,
+          "private.md",
+          "# secret widened\n",
+          reopened.mtimeMs,
+          "markdown",
+        );
+        expect((await stat(widened.absolutePath)).mode & 0o777).toBe(0o666);
+        expect(await readFile(created.absolutePath, "utf8")).toBe("# secret widened\n");
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
 });

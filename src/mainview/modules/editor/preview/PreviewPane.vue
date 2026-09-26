@@ -138,12 +138,19 @@ function setScrollRatio(ratio: number): void {
 
 defineExpose({ setScrollRatio });
 
+/**
+ * Live inputs: the text being typed and the settings that change how it renders.
+ *
+ * `notes` is watched separately and never from here. It is the whole Folder scan
+ * (up to `MAX_SCANNED_DOCUMENTS` notes, each carrying its body), so traversing it
+ * on a watcher that also tracks `content` costs a deep walk of the corpus per
+ * keystroke: measured at ~300 ms per character with a 5,000-note folder.
+ */
 watch(
   () =>
     [
       props.path,
       props.content,
-      props.notes,
       props.linkMode,
       settings.value.links.resolution,
       locale.value,
@@ -155,7 +162,21 @@ watch(
     }
     scheduleRender();
   },
-  { deep: true, immediate: true },
+  { immediate: true },
+);
+
+/**
+ * Preview resolves link targets against the scan, so it re-renders when the scan
+ * changes. Depth 1 is enough: a scan update replaces whole note objects
+ * (`workspaceState.applyScannedNote` / `applyRenamedNote` splice the array, and a
+ * rescan replaces it), so a `ScannedNote` must not be mutated in place.
+ */
+watch(
+  () => props.notes,
+  () => {
+    scheduleRender();
+  },
+  { deep: 1 },
 );
 
 onBeforeUnmount(() => {

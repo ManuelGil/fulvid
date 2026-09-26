@@ -75,7 +75,28 @@ export function getDiscoveredExtensions(): ExtensionDiscoveryResult {
 
 function boundReason(raw: string): string {
   const reason = raw.split(/\r?\n/, 1)[0]?.trim() || raw;
-  return reason.length > 300 ? `${reason.slice(0, 300)}...` : reason;
+  const limit = EXTENSION_PACK_LIMITS.maxFailureReasonChars;
+  return reason.length > limit ? `${reason.slice(0, limit)}...` : reason;
+}
+
+/**
+ * The bounded reason a pack failed, from whichever error type reported it.
+ *
+ * `ExtensionPackError` and `LuaExtensionLoadError` both carry a written reason;
+ * anything else contributes only its message, and `fallback` covers a throw
+ * that is not an Error at all.
+ */
+function extensionFailureReason(error: unknown, fallback: string): string {
+  if (error instanceof ExtensionPackError) {
+    return boundReason(error.reason);
+  }
+  if (error instanceof LuaExtensionLoadError) {
+    return boundReason(error.reason);
+  }
+  if (error instanceof Error) {
+    return boundReason(error.message);
+  }
+  return boundReason(fallback);
 }
 
 function emptyResult(): ExtensionDiscoveryResult {
@@ -380,13 +401,7 @@ export async function installExtensionFromDirectory(
       manifest = await readManifest(sourceReal);
       await preflightEntry(sourceReal, manifest);
     } catch (error) {
-      const reason =
-        error instanceof ExtensionPackError
-          ? error.reason
-          : error instanceof Error
-            ? error.message
-            : "invalid extension pack";
-      return lifecycleError(boundReason(reason));
+      return lifecycleError(extensionFailureReason(error, "invalid extension pack"));
     }
 
     const destination = join(root, manifest.id);
@@ -409,15 +424,9 @@ export async function installExtensionFromDirectory(
     } catch (error) {
       await rm(staging, { recursive: true, force: true }).catch(() => undefined);
       await rm(destination, { recursive: true, force: true }).catch(() => undefined);
-      const reason =
-        error instanceof ExtensionPackError
-          ? error.reason
-          : error instanceof Error
-            ? error.message
-            : "extension install failed";
       return {
         status: "error",
-        reason: boundReason(reason),
+        reason: extensionFailureReason(error, "extension install failed"),
         discovery: await discoverExtensionsUnlocked(),
       };
     }
@@ -455,12 +464,9 @@ export async function uninstallExtensionPack(
     try {
       await rm(packPath, { recursive: true, force: false });
     } catch (error) {
-      const reason = boundReason(
-        error instanceof Error ? error.message : "could not delete extension pack",
-      );
       return {
         status: "error",
-        reason,
+        reason: extensionFailureReason(error, "could not delete extension pack"),
         discovery: await discoverExtensionsUnlocked(),
       };
     }
@@ -577,13 +583,7 @@ async function preloadExtensionPack(
     }
     await preflightEntry(packRoot, manifest);
   } catch (error) {
-    const reason = boundReason(
-      error instanceof ExtensionPackError
-        ? error.reason
-        : error instanceof Error
-          ? error.message
-          : "unknown extension load error",
-    );
+    const reason = extensionFailureReason(error, "unknown extension load error");
     const dot = directoryName.indexOf(".");
     return {
       id: directoryName,
@@ -633,15 +633,7 @@ async function preloadExtensionPack(
       commands,
     };
   } catch (error) {
-    const reason = boundReason(
-      error instanceof ExtensionPackError
-        ? error.reason
-        : error instanceof LuaExtensionLoadError
-          ? error.reason
-          : error instanceof Error
-            ? error.message
-            : "unknown extension load error",
-    );
+    const reason = extensionFailureReason(error, "unknown extension load error");
     return baseDiscovered(manifest, packRoot, "failed", reason);
   }
 }

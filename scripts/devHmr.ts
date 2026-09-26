@@ -5,13 +5,14 @@
  * WebKitGTK `internallyFailedLoadTimerFired` and HMR reconnect rates.
  * Vite `server.warmup.clientFiles` is the measured win for transform churn.
  *
- * On Linux, Electrobun 2.0.1 forces GDK_BACKEND=x11 (XWayland on Wayland
- * sessions). Accelerated compositing then often logs GLXBadWindow. Linux
- * compatibility CI already launches with WEBKIT_DISABLE_COMPOSITING_MODE=1.
- * Inherit an explicit value; otherwise default to the same profile for HMR
- * only. That env targets GLX/compositing, not the HMR WebSocket path. This
- * does not silence stderr and does not change packaged builds.
+ * On Linux, force `GDK_BACKEND=x11` (unless `FULVID_KEEP_GDK_BACKEND=1`) so
+ * an inherited Wayland GDK backend does not blank the window. Do **not** set
+ * `WEBKIT_DISABLE_COMPOSITING_MODE` here: with Vite HTTP that flag stops page
+ * JS from evaluating (no `[vite] connected`). Compositing disable stays on
+ * the `views://` path in `electrobunDev.ts` / Linux compatibility CI.
  */
+import { electrobunDevProcessEnv } from "./linuxWebViewEnv";
+
 const devServerUrl = "http://127.0.0.1:5173";
 const warmupPaths = ["/", "/@vite/client", "/main.ts"];
 const timeoutMs = 30_000;
@@ -44,25 +45,13 @@ async function waitForVite(): Promise<void> {
 
 await waitForVite();
 
-/** Linux HMR only: do not inject this env on Windows/macOS or into packaged builds. */
-function linuxWebKitCompositingEnv(
-  platform: NodeJS.Platform,
-  existing: string | undefined,
-): Record<string, string> {
-  if (platform !== "linux" || existing !== undefined) {
-    return {};
-  }
-  return { WEBKIT_DISABLE_COMPOSITING_MODE: "1" };
-}
-
 const electrobun = Bun.spawn(["bun", "x", "electrobun", "dev"], {
   stdin: "inherit",
   stdout: "inherit",
   stderr: "inherit",
-  env: {
-    ...process.env,
-    ...linuxWebKitCompositingEnv(process.platform, process.env.WEBKIT_DISABLE_COMPOSITING_MODE),
-  },
+  env: electrobunDevProcessEnv(process.platform, process.env, {
+    disableCompositing: false,
+  }),
 });
 
 const forwardSignal = (signal: NodeJS.Signals): void => {

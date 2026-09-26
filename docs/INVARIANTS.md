@@ -67,7 +67,7 @@ The renderer is untrusted. It may ask for a document inside a folder the person 
 | Desktop actions | Reveal and copy accept only an approved root, something inside an authorized root, or a granted document |
 | Grants | A grant token maps to one absolute path, is shaped like a UUID, and the grant table is bounded |
 | Error containment | Failures cross the boundary as codes from `filesystemErrors`. No host path, errno, or stack reaches the UI |
-| Scan ceilings | A folder scan is bounded in document count and depth, and per-file analysis is capped. A partial scan is reported, never silent |
+| Scan ceilings | A folder scan is bounded in document count and depth, per-file analysis is capped, and the total document text one scan carries is capped. A partial scan is reported, never silent |
 | External open | An external request is intent, never privilege. It earns exactly what the equivalent dialog earns, through the same authorities. See [EXTERNAL-OPEN.md](./EXTERNAL-OPEN.md) |
 | Save integrity | A save that did not reach disk never clears dirty. Creating a document is an exclusive create, so a concurrent create is reported rather than overwritten. In-flight writes capture path and content at start; abandoned buffers skip post-write mutation. Rename/delete/detach/quit drain that buffer's save queue before moving or removing the filesystem identity |
 

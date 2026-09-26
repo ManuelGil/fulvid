@@ -45,6 +45,22 @@ export function markdownBodyStartOffset(content: string): number {
 }
 
 /**
+ * Escape text so Monaco hover Markdown renders it literally.
+ *
+ * A hover body is Markdown, and the values composed into one come from
+ * documents: a link label, a heading in the target, a filename. Left raw, a
+ * heading such as `![](https://host/pixel.png)` becomes an image request from a
+ * tooltip, and `[text](https://host)` becomes a clickable external link -
+ * document content reaching the network, which `isTrusted: false` and
+ * `supportHtml: false` do not prevent because both are ordinary Markdown.
+ *
+ * The single rule for that escape lives here; annotation hovers use it too.
+ */
+export function escapeHoverMarkdownText(text: string): string {
+  return text.replace(/([\\`*_{}[\]()#+\-.!|<>~])/g, "\\$1");
+}
+
+/**
  * Fence source so Monaco hover Markdown cannot turn it into links/HTML.
  * Lengthens the fence if the excerpt already contains the same backtick run.
  */
@@ -59,6 +75,11 @@ export function linkHoverPeekAsHoverMarkdown(peek: string): string {
 /**
  * Compact hover body: identity, path only when it adds information, optional
  * honesty lines, then a secondary source peek in one Markdown block.
+ *
+ * Every part except `peek` is emitted as Markdown, so callers pass text that is
+ * already safe: run document-derived values through `escapeHoverMarkdownText`
+ * first. Detail lines arrive localized, with the untrusted values already
+ * escaped inside them, so this function cannot escape them itself.
  */
 export function linkHoverContentsMarkdown(parts: {
   title: string;

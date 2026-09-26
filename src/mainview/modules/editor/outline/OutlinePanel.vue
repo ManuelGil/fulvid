@@ -24,6 +24,8 @@ const { t } = useI18n();
 const rows = ref<OutlineRow[]>([]);
 const activeVersion = computed(() => activeBuffer.value?.changeVersion.value ?? 0);
 const rowElements = new Map<string, HTMLButtonElement>();
+/** Coalesce rebuilds while typing: the outline follows the model, not each keystroke. */
+const OUTLINE_REFRESH_DEBOUNCE_MS = 80;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 let focusedInitialRow = false;
 let refocusAfterRefresh = false;
@@ -109,7 +111,7 @@ function scheduleOutlineRefresh(): void {
   refreshTimer = setTimeout(() => {
     refreshTimer = null;
     refreshOutline();
-  }, 80);
+  }, OUTLINE_REFRESH_DEBOUNCE_MS);
 }
 
 watch(

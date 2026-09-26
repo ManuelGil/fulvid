@@ -43,7 +43,12 @@ import FactSection from "../facts/FactSection.vue";
 import FactStatement from "../facts/FactStatement.vue";
 import ContextMenu, { type ContextMenuAction } from "../../../shell/ContextMenu.vue";
 import { notify } from "../../../app/notify";
-import { INSPECTOR_WIDTH_LIMITS, layout, setInspectorWidth } from "../../../app/layoutStore";
+import {
+  INSPECTOR_WIDTH_LIMITS,
+  LAYOUT_RESIZE_STEP_PX,
+  layout,
+  setInspectorWidth,
+} from "../../../app/layoutStore";
 import {
   workspaceNotes,
   copyWorkspacePath,
@@ -398,8 +403,8 @@ onBeforeUnmount(() => {
       :aria-valuemax="INSPECTOR_WIDTH_LIMITS.max"
       tabindex="0"
       @pointerdown="startInspectorResize"
-      @keydown.left.prevent="setInspectorWidth(layout.inspectorWidth + 8)"
-      @keydown.right.prevent="setInspectorWidth(layout.inspectorWidth - 8)"
+      @keydown.left.prevent="setInspectorWidth(layout.inspectorWidth + LAYOUT_RESIZE_STEP_PX)"
+      @keydown.right.prevent="setInspectorWidth(layout.inspectorWidth - LAYOUT_RESIZE_STEP_PX)"
     />
 
     <header class="inspector-panel__header">

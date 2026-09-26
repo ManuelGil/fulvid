@@ -85,6 +85,33 @@ describe("filesystem Explorer listing and scan", () => {
     }
   }, 60_000);
 
+  // The document count alone does not bound what one scan hands the renderer:
+  // every note carries its body for Search. The test budget can only tighten the
+  // production ceiling, which is how this reaches it without writing 128 MiB.
+  test("stops at the aggregate content ceiling and keeps the notes it loaded whole", async () => {
+    const root = await makeWorkspace();
+    try {
+      const body = `# note\n${"x".repeat(4_000)}\n`;
+      for (let index = 0; index < 3; index += 1) {
+        await writeFile(join(root, `note-${index}.md`), body, "utf8");
+      }
+
+      const scan = await scanWorkspace(
+        root,
+        { linkMode: "markdown" },
+        { contentBudgetChars: body.length * 2 },
+      );
+      expect(scan.truncated).toBe(true);
+      expect(scan.scannedNotes).toHaveLength(2);
+      // Unreadable entries stay a separate signal from a folder cut short.
+      expect(scan.skipped).toBe(0);
+      // A partial scan never returns a partial note.
+      expect(scan.scannedNotes.map((note) => note.content)).toEqual([body, body]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("skips hostile entries without failing, and keeps empty vs skipped-only scans distinct", async () => {
     const deniedRoot = await makeWorkspace();
     const denied = resolve(join(deniedRoot, "denied"));

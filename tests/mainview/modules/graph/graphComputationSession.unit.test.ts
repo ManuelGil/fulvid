@@ -115,19 +115,52 @@ describe("graph computation session", () => {
     // First worker was terminated when superseded.
     expect(workers[0]?.terminated).toBe(true);
 
-    const firstResult = await first;
     // Discarded composition stays empty while preserving focusPath.
-    expect(firstResult).toEqual({
-      focusPath: "a.md",
-      nodes: [],
-      edges: [],
-    });
-    expect(firstResult).toEqual(discardedComposedGraph(reference("a.md")));
+    expect(await first).toEqual({ focusPath: "a.md", nodes: [], edges: [] });
 
     supersedeSession.terminate();
     const secondResult = await second;
     expect(secondResult).toEqual(discardedComposedGraph(reference("b.md")));
     expect(supersedeSession.hasActive()).toBe(false);
     expect(workers[1]?.terminated).toBe(true);
+  });
+
+  // Regression: a worker that was constructed but whose postMessage threw used
+  // to stay alive (and hasActive() kept reporting it) while compute already
+  // resolved through the sync fallback.
+  test("terminates a worker whose start throws before falling back", async () => {
+    const workers: Array<ReturnType<typeof silentWorker>> = [];
+    let failNextStart = true;
+    const session = createGraphComputationSession({
+      createWorker: () => {
+        const worker = silentWorker();
+        if (failNextStart) {
+          worker.postMessage = () => {
+            throw new Error("structured clone failed");
+          };
+        }
+        workers.push(worker);
+        return worker;
+      },
+      runSync: syncFallback,
+    });
+
+    await expect(session.compute(reference("boom.md"))).resolves.toEqual(
+      syncFallback(reference("boom.md")),
+    );
+    expect(workers[0]?.terminated).toBe(true);
+    expect(session.hasActive()).toBe(false);
+
+    // The next compute must still get a live worker: a stale `active` would make
+    // the following compute settle itself as discarded.
+    failNextStart = false;
+    const next = session.compute(reference("after.md"));
+    expect(session.hasActive()).toBe(true);
+    expect(workers).toHaveLength(2);
+    expect(workers[1]?.terminated).toBe(false);
+
+    // Settle the pending compute so the test leaves nothing in flight.
+    session.terminate();
+    await next;
   });
 });

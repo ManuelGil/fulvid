@@ -9,6 +9,7 @@ import type {
   GrantedDocumentWriteResult,
   FileSystemEntry,
   HtmlExportResult,
+  MarkdownFileType,
   SaveAsResult,
   WorkspaceScan,
 } from "./workspaceTypes";
@@ -78,7 +79,7 @@ export async function pickAndOpenDocument(): Promise<GrantedDocumentSnapshot | n
 export async function pickAndSaveDocument(
   basename: string,
   content: string,
-  defaultExtension: "md" | "markdown" | "mdx",
+  defaultExtension: MarkdownFileType,
   overwrite = false,
 ): Promise<SaveAsResult> {
   return desktopRequest().pickAndSaveDocument({

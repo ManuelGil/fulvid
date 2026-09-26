@@ -32,6 +32,11 @@ export const CHANGE_MARKER_ADDED_CLASS = "fulvid-change-marker-added";
 export const CHANGE_MARKER_DELETED_CLASS = "fulvid-change-marker-deleted";
 
 const CHANGE_MARKER_DEBOUNCE_MS = 200;
+/**
+ * Upper bound on one transient DiffEditor settling. Generous on purpose: it is a
+ * stuck-editor guard, not a responsiveness budget, and the queue is serialized.
+ */
+const DIFF_SETTLE_TIMEOUT_MS = 60_000;
 
 type MonacoApi = typeof Monaco;
 type TextModel = Monaco.editor.ITextModel;
@@ -102,7 +107,7 @@ function waitForLineChanges(
       settled = true;
       disposable.dispose();
       reject(new Error("change marker diff timed out"));
-    }, 60_000);
+    }, DIFF_SETTLE_TIMEOUT_MS);
 
     const finish = (): void => {
       if (settled) {

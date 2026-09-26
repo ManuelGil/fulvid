@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
 import {
   appearanceDatasetFor,
@@ -12,8 +12,11 @@ import {
 } from "../../../../src/mainview/modules/settings/settingsStore";
 
 const memoryStorage = new Map<string, string>();
+const previousLocalStorage = (globalThis as { localStorage?: Storage }).localStorage;
+let memoryLocalStorageInstalled = false;
 
 function installMemoryLocalStorage(): void {
+  memoryLocalStorageInstalled = true;
   (globalThis as { localStorage?: Storage }).localStorage = {
     get length() {
       return memoryStorage.size;
@@ -35,6 +38,19 @@ function installMemoryLocalStorage(): void {
     },
   } as Storage;
 }
+
+afterEach(() => {
+  memoryStorage.clear();
+  if (memoryLocalStorageInstalled) {
+    if (previousLocalStorage === undefined) {
+      delete (globalThis as { localStorage?: Storage }).localStorage;
+    } else {
+      (globalThis as { localStorage?: Storage }).localStorage = previousLocalStorage;
+    }
+    memoryLocalStorageInstalled = false;
+  }
+  settings.value = defaultSettings();
+});
 // Intent: persisted settings fail closed. Unknown concepts must not hydrate.
 describe("settings sanitize", () => {
   test("accepts current fields, rejects unsupported enums, and resets to defaults", () => {

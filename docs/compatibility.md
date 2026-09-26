@@ -51,7 +51,7 @@ Local smoke after a Linux package:
 FULVID_SMOKE_LAUNCH=1 bun run smoke:compatibility
 ```
 
-Without `FULVID_SMOKE_LAUNCH`, the script still checks `dist/` and the filesystem editing loop.
+Without `FULVID_SMOKE_LAUNCH`, the script still checks `dist/` and re-runs the filesystem editing-loop integration test.
 
 Linux compatibility CI launches under Xvfb with `GDK_BACKEND=x11` and `WEBKIT_DISABLE_COMPOSITING_MODE=1`. On a local Wayland desktop, Electrobun 2.0.1 still forces X11 (XWayland); `GLXBadWindow` and occasional WebKit `internallyFailedLoadTimerFired` lines during `bun run dev:hmr` are documented under [CONTRIBUTING.md](../CONTRIBUTING.md#linux-wayland--devhmr-console-noise). They are not treated as Fulvid application regressions.
 

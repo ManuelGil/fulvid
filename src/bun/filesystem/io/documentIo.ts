@@ -13,7 +13,7 @@
  * edited even when the folder scan truncated it.
  */
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, relative, resolve } from "node:path";
 
 import {
@@ -63,6 +63,9 @@ function assertStandaloneDocumentPath(targetPath: string): string {
   return absolutePath;
 }
 
+/** Longest single filename common filesystems accept. */
+const MAX_BASENAME_LENGTH = 255;
+
 function requireSafeBasename(value: string): string {
   if (typeof value !== "string") {
     throw new WorkspaceBoundaryError("unsafeName");
@@ -70,7 +73,7 @@ function requireSafeBasename(value: string): string {
   // Refuse padded/illegal/reserved names rather than repair them.
   if (
     !value ||
-    value.length > 255 ||
+    value.length > MAX_BASENAME_LENGTH ||
     value.includes("/") ||
     value.includes("\\") ||
     value.includes("\0") ||
@@ -190,6 +193,19 @@ async function assertExpectedMtime(
   }
 }
 
+/** Permission bits of an existing file, or null when nothing is there yet. */
+async function fileModeOrNull(targetPath: string): Promise<number | null> {
+  try {
+    const information = await stat(targetPath);
+    return information.mode & 0o777;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+}
+
 /**
  * Replace `targetPath` by writing a unique temp file (`wx`) then renaming over
  * it. Same-filesystem rename is atomic; it is not compare-and-replace.
@@ -205,12 +221,31 @@ async function assertExpectedMtime(
  */
 async function writeAtomically(targetPath: string, content: string): Promise<void> {
   const temporaryPath = `${targetPath}.${randomUUID()}.tmp`;
+  // The rename installs a new inode, so without this the saved document would
+  // carry the process umask instead of its own permissions: a note kept at 0600
+  // came back 0644, readable by every other account on the machine.
+  //
+  // The mode is set twice on purpose. At creation, so the temp file next to the
+  // document is never wider than the document itself, not even for the moment
+  // before the rename. After, because `open` also subtracts the umask, which
+  // would drop a bit the document legitimately had.
+  const existingMode = await fileModeOrNull(targetPath);
 
   try {
     await writeFile(temporaryPath, content, {
       encoding: "utf8",
       flag: "wx",
+      ...(existingMode === null ? {} : { mode: existingMode }),
     });
+    if (existingMode !== null) {
+      try {
+        await chmod(temporaryPath, existingMode);
+      } catch {
+        // Filesystems that fix permissions at mount time (FAT, some network
+        // shares) refuse chmod, and there the mode was never the document's to
+        // keep. The content still has to reach disk.
+      }
+    }
     await rename(temporaryPath, targetPath);
   } finally {
     await rm(temporaryPath, { force: true });

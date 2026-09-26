@@ -64,6 +64,22 @@ export type ScanOptions = {
  */
 export const MAX_SCANNED_DOCUMENTS = 5_000;
 const MAX_SCAN_DEPTH = 24;
+/**
+ * Total document body one scan may hand the renderer, in UTF-16 code units of
+ * `ScannedNote.content`.
+ *
+ * The document count alone does not bound memory: every note carries its body
+ * for Search, capped per file at `MAX_ANALYZED_BYTES` (2 MiB), so the count
+ * ceiling on its own permits gigabytes across one RPC reply. This keeps the
+ * aggregate in the same order as the folders Fulvid is for, and a folder past it
+ * is reported as partial through `truncated` instead of loading silently.
+ *
+ * It bounds body text, which is what dominates a reply; the parsed metadata
+ * beside it stays bounded by the per-file analysis cap and the document count.
+ * The budget is checked before each note, so the notes that load are always
+ * whole and a reply can exceed it by at most one note's body.
+ */
+const MAX_SCANNED_CONTENT_CHARS = 128 * 1024 * 1024;
 
 type MarkdownPathCollection = {
   paths: string[];
@@ -179,6 +195,12 @@ export async function scanWorkspace(
   testFaults?: {
     beforeReadDirectory?: (directory: string) => void | Promise<void>;
     beforeAnalyzeFile?: (filePath: string) => void | Promise<void>;
+    /**
+     * Lower the content budget so a test can reach it without writing 128 MiB.
+     * Clamped with `Math.min`: this seam can only tighten the ceiling, never
+     * widen it, and no RPC handler passes this argument.
+     */
+    contentBudgetChars?: number;
   },
 ): Promise<{ scannedNotes: ScannedNote[]; truncated: boolean; skipped: number }> {
   const linkMode = options.linkMode ?? "markdown";
@@ -193,11 +215,25 @@ export async function scanWorkspace(
   collected.paths.sort(compareDocumentPaths);
   const scannedNotes: ScannedNote[] = [];
   let skipped = collected.skipped;
+  let truncated = collected.truncated;
+  let analyzedChars = 0;
+  const contentBudget = Math.min(
+    MAX_SCANNED_CONTENT_CHARS,
+    testFaults?.contentBudgetChars ?? MAX_SCANNED_CONTENT_CHARS,
+  );
 
   for (const entryPath of collected.paths) {
+    if (analyzedChars >= contentBudget) {
+      // The folder holds more text than one scan may carry. Stop here and say
+      // so: the notes already collected stay usable.
+      truncated = true;
+      break;
+    }
     try {
       await testFaults?.beforeAnalyzeFile?.(entryPath);
-      scannedNotes.push(await scannedNoteFromFile(rootPath, entryPath, linkMode));
+      const note = await scannedNoteFromFile(rootPath, entryPath, linkMode);
+      analyzedChars += note.content?.length ?? 0;
+      scannedNotes.push(note);
     } catch (error) {
       if (!isSkippableScanError(error)) {
         throw error;
@@ -208,7 +244,7 @@ export async function scanWorkspace(
     }
   }
 
-  return { scannedNotes, truncated: collected.truncated, skipped };
+  return { scannedNotes, truncated, skipped };
 }
 
 /** List the supported filesystem entries directly under a workspace folder. */

@@ -258,7 +258,7 @@ const {
 } = await import("../../../../../src/mainview/modules/editor/document/documentSession.ts");
 const { bindFocusToWorkspace, clearFocusState, currentFocus } =
   await import("../../../../../src/mainview/modules/workspace/focus/focusState");
-const { patchSettings, settings } =
+const { patchSettings, resetSettingsToDefaults, settings } =
   await import("../../../../../src/mainview/modules/settings/settingsStore.ts");
 
 afterEach(() => {
@@ -290,6 +290,7 @@ afterEach(() => {
   lastWrittenContent = "";
   lastWrittenPath = "";
   nextReadContent = null;
+  resetSettingsToDefaults();
   patchSettings({ editor: { ...settings.value.editor, defaultEol: "lf" } });
 });
 
@@ -562,15 +563,14 @@ describe("document buffers", () => {
     expect(isDocumentDirty(second)).toBe(true);
     expect(second.model.getValue()).toBe("# dirty two");
 
-    // Adjacent navigation (Ctrl+Tab / Ctrl+Shift+Tab / PageUp/Down) walks openBuffers order.
-    const currentIndex = openBuffers.value.findIndex((buffer) => buffer.id === activeId.value);
-    const nextIndex = (currentIndex + 1) % openBuffers.value.length;
-    expect(openBuffers.value[nextIndex]?.id).toBe(third.id);
     expect(reorderOpenDocuments(-1, 0)).toBe(false);
     expect(reorderOpenDocuments(0, 0)).toBe(true);
   });
 
-  test("Ctrl+Tab / Ctrl+Shift+Tab open-order wrap follows strip order after reorder", async () => {
+  test("open-order wrap for adjacent tab chords follows strip order after reorder", async () => {
+    const { adjacentOpenDocumentIndex } =
+      await import("../../../../../src/mainview/modules/editor/editorTabNavigation.ts");
+
     bindFocusToWorkspace("/workspace");
     const one = await openDocument("/workspace", "1.md");
     const two = await openDocument("/workspace", "2.md");
@@ -584,13 +584,18 @@ describe("document buffers", () => {
     ]);
     expect(selectDocument(one.id)).toBe(true);
 
+    // Same walk used by Ctrl/Cmd+Tab, Ctrl/Cmd+Shift+Tab, PageDown, and PageUp.
     const walk = (direction: -1 | 1, steps: number): string[] => {
       const ids = [activeId.value!];
       for (let step = 0; step < steps; step += 1) {
         const currentIndex = openBuffers.value.findIndex((buffer) => buffer.id === activeId.value);
-        const nextIndex =
-          (currentIndex + direction + openBuffers.value.length) % openBuffers.value.length;
-        const nextId = openBuffers.value[nextIndex]!.id;
+        const nextIndex = adjacentOpenDocumentIndex(
+          currentIndex,
+          direction,
+          openBuffers.value.length,
+        );
+        expect(nextIndex).not.toBeNull();
+        const nextId = openBuffers.value[nextIndex!]!.id;
         expect(selectDocument(nextId)).toBe(true);
         ids.push(nextId);
       }
@@ -610,6 +615,26 @@ describe("document buffers", () => {
     expect(selectDocument(two.id)).toBe(true);
     expect(walk(1, 4)).toEqual([two.id, three.id, one.id, four.id, two.id]);
     expect(walk(-1, 4)).toEqual([two.id, four.id, one.id, three.id, two.id]);
+
+    // With a single tab or no active tab the chord has nowhere to go.
+    expect(adjacentOpenDocumentIndex(0, 1, 1)).toBeNull();
+    expect(adjacentOpenDocumentIndex(0, 1, 0)).toBeNull();
+    expect(adjacentOpenDocumentIndex(-1, 1, openBuffers.value.length)).toBeNull();
+  });
+
+  test("closing the active tab activates the strip neighbor, not MRU", async () => {
+    bindFocusToWorkspace("/workspace");
+    const one = await openDocument("/workspace", "close-1.md");
+    const two = await openDocument("/workspace", "close-2.md");
+    const three = await openDocument("/workspace", "close-3.md");
+    expect(selectDocument(two.id)).toBe(true);
+    // Touch one last so MRU would prefer it if close used MRU.
+    expect(selectDocument(one.id)).toBe(true);
+    expect(selectDocument(two.id)).toBe(true);
+
+    expect(closeDocumentById(two.id, true)).toBe(true);
+    expect(activeId.value).toBe(three.id);
+    expect(openBuffers.value.map((buffer) => buffer.id)).toEqual([one.id, three.id]);
   });
 
   test("keyboard and drop index math drive the same reorderOpenDocuments contract", async () => {

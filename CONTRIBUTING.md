@@ -22,6 +22,8 @@ Keep pull requests focused.
 - Preview and Export HTML share `renderMarkdownPreview`. Do not add a second Markdown renderer.
 - Dispose canvas, workers, and observers with their owner ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#resources)). Packaged Linux memory baseline and when to re-measure: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#memory-footprint-and-future-considerations).
 - Presentation tokens: [`src/mainview/styles/`](src/mainview/styles/). Chrome icons: [`AppIcon.vue`](src/mainview/shell/AppIcon.vue). Quick Actions rules (groups, overflow tiers, a11y): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#quick-actions-toolbar). Do not fork Monaco or edit `node_modules` for icons; widget Codicons are remapped in `monacoLucideIcons.ts`. Launcher icon: [`assets/README.md`](assets/README.md).
+- A bound the reader can see belongs to one owner: the store that clamps a value also exports the range its control offers (`EDITOR_FONT_SIZE_LIMITS`, `layoutStore`'s `*_LIMITS`, `LAYOUT_RESIZE_STEP_PX`). Do not restate a min/max on an input.
+- Name timer delays and size caps where they are enforced (`*_MS`, `MAX_*`) rather than inlining the number at the call. A number a reader cannot explain is the thing the next contributor changes by accident.
 - UI wording: [docs/I18N.md](docs/I18N.md). Settings hints should say what changes, when it applies, and give a concrete example.
 - Releases: [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). Actions is the main path. The Linux Makefile is a local helper.
 - User-facing changes: add an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) in the same change. When a version is released, move those entries under that version, open a new empty `Unreleased` section, bump `package.json` / `electrobun.config.ts`, and add `docs/releases/vX.Y.Z.md`. Do not reconstruct a version from git history at the last minute, log every commit, or rewrite a published version except to fix a factual error.
@@ -66,7 +68,8 @@ Controlled mitigation matrix (about 55s each, same machine/WebKitGTK 2.52.6/Vite
 | minimal HTTP wait (`/`, `/@vite/client`, `/main.ts`) | readiness gate only | keep small |
 | `forwardConsole: false` | no change in reconnect rate | keep for Cursor-agent console hygiene (Vite auto-enables forwardConsole when an agent is detected) |
 | `__electrobun` stub | not an HMR metric | keep for rare Vite-HTTP preload race |
-| `WEBKIT_DISABLE_COMPOSITING_MODE=1` | separate from HMR; targets `GLXBadWindow` | Linux HMR only |
+| `WEBKIT_DISABLE_COMPOSITING_MODE=1` | helps `views://` / GLXBadWindow; **breaks Vite HMR HTTP** (no `[vite] connected`, white window) | `bun run start` / `bun run dev` and Linux compatibility CI only - **not** `dev:hmr` |
+| `GDK_BACKEND=x11` | avoids Wayland GDK blank paint | Linux local runners (`electrobunDev.ts`, `devHmr.ts`) unless `FULVID_KEEP_GDK_BACKEND=1` |
 
 What Fulvid does:
 
@@ -74,10 +77,10 @@ What Fulvid does:
 - `scripts/devHmr.ts` waits only for `/`, `/@vite/client`, and `/main.ts` before `electrobun dev` (do not expand this list without new measurements).
 - `vite.config.ts` sets `server.forwardConsole: false` so Cursor-agent sessions do not pipe console over the HMR socket (Vite's default is agent-detected `true`, otherwise `false`). This is not a proven reconnect fix.
 - `electrobunClient.ts` installs a minimal `window.__electrobun` bridge if preload has not yet, so Electroview.init does not throw under Vite HTTP.
-- `scripts/devHmr.ts` defaults `WEBKIT_DISABLE_COMPOSITING_MODE=1` on Linux when unset (same profile as Linux compatibility CI) for `GLXBadWindow`, not for `WebLoaderStrategy` failures.
+- Shared `scripts/linuxWebViewEnv.ts`: both runners use `electrobunDevProcessEnv`. On Linux, force `GDK_BACKEND=x11` unless `FULVID_KEEP_GDK_BACKEND=1`. Only the `views://` profile defaults `WEBKIT_DISABLE_COMPOSITING_MODE=1` when unset. The HMR profile clears an inherited compositing disable on Linux only. Windows and macOS runners do not set or clear these variables.
 - Does **not** filter or hide WebKit/GLX messages.
 - Does **not** switch to CEF, add a WebView watchdog, or auto-restart the renderer.
-- Does **not** set compositing env in packaged production code; override locally if needed: `WEBKIT_DISABLE_COMPOSITING_MODE=1`.
+- Does **not** set compositing env in packaged production code; override locally if needed: `WEBKIT_DISABLE_COMPOSITING_MODE=1` (avoid on `dev:hmr`).
 
 Upstream direction: Electrobun native Wayland support (remove forced `GDK_BACKEND=x11`) plus WebKitGTK NetworkProcess stability under heavy ESM load. Re-test HMR after Electrobun/WebKitGTK upgrades. No exact upstream bug matching this Vite+Electrobun HMR scenario was identified; related WebKit work exists around NetworkProcess kills under load (RealtimeKit).
 
@@ -105,13 +108,13 @@ Static checks and integration carry most of the signal. A unit test is an except
 | Format / lint / types | `bun run format:check`, `bun run lint`, `bun run typecheck` | Prettier, ESLint, `vue-tsc` |
 | Unit | `bun run test:unit` | `*.unit.test.ts` |
 | Integration | `bun run test:integration` | `*.integration.test.ts` |
-| Smoke | `bun run smoke` | `*.smoke.test.ts` plus built shell; optional desktop launch |
+| Smoke | `bun run smoke` | Built shell; also re-runs the lifecycle integration test; optional desktop launch |
 | Compatibility smoke | `bun run smoke:compatibility` | Packaged-app CI check (`FULVID_SMOKE_LAUNCH=1` to start the binary) |
 | Aggregate | `bun run test` | Unit plus integration (what CI validate runs) |
 
 Write a unit test when the property is deterministic, lives in one module, and integration would bury it. Do not add a unit test to raise coverage, restate TypeScript, freeze private structure, wrap a trivial helper, or duplicate an integration test.
 
-Use integration when the behavior crosses modules, the filesystem, document lifecycle, or the RPC trust boundary. `documentLifecycle.smoke.test.ts` is the reference for a real editing loop. Graph canvas behavior is smoke or manual.
+Use integration when the behavior crosses modules, the filesystem, document lifecycle, or the RPC trust boundary. `documentLifecycle.integration.test.ts` is the reference for a real editing loop and runs in `bun run test` / `validate`. Graph canvas behavior is smoke or manual.
 
 ### Cross-platform contract
 

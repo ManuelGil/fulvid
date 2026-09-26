@@ -13,6 +13,7 @@ import type {
   GrantedDocumentSnapshot,
   GrantedDocumentWriteResult,
   HtmlExportResult,
+  MarkdownFileType,
   SaveAsResult,
   WorkspaceScan,
 } from "./workspaceTypes";
@@ -33,7 +34,7 @@ export type FilesystemRPC = {
         params: {
           basename: string;
           content: string;
-          defaultExtension: "md" | "markdown" | "mdx";
+          defaultExtension: MarkdownFileType;
           overwrite?: boolean;
         };
         response: SaveAsResult;

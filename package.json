@@ -33,9 +33,9 @@
     "url": "https://github.com/ManuelGil/fulvid/issues"
   },
   "scripts": {
-    "dev": "bun run build && electrobun dev --watch",
+    "dev": "bun run build && bun run scripts/electrobunDev.ts dev --watch",
     "dev:hmr": "bun run prepare:electrobun && concurrently --kill-others-on-fail \"vite --port 5173\" \"bun run scripts/devHmr.ts\"",
-    "start": "bun run build && electrobun dev",
+    "start": "bun run build && bun run scripts/electrobunDev.ts dev",
     "prepare:electrobun": "electrobun prepare --env=dev",
     "build": "bun run prepare:electrobun && vite build",
     "build:canary": "electrobun prepare --env=canary && vite build && electrobun build --env=canary",

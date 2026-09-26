@@ -32,6 +32,7 @@ import {
   type DocumentLink,
 } from "../../document/links/documentLink";
 import {
+  escapeHoverMarkdownText,
   linkHoverContentsMarkdown,
   linkHoverSourcePeek,
 } from "../../document/links/linkHoverSourcePeek";
@@ -74,6 +75,8 @@ const markerSchedulers = new Set<() => void>();
 let stopContextWatch: (() => void) | null = null;
 let providersRegistered = false;
 const FRONTMATTER_MARKER_OWNER = "editor-frontmatter";
+/** Coalesce marker recomputation while typing so diagnostics trail edits, not keystrokes. */
+const MARKER_DEBOUNCE_MS = 80;
 
 function scheduleAllMarkers(): void {
   for (const schedule of markerSchedulers) {
@@ -736,7 +739,7 @@ export function registerFrontmatterDiagnostics(
     markerTimer = setTimeout(() => {
       markerTimer = null;
       update();
-    }, 80);
+    }, MARKER_DEBOUNCE_MS);
   };
   const disposable = model.onDidChangeContent(scheduleUpdate);
   update();
@@ -1156,23 +1159,30 @@ function createProviders(api: typeof monaco): void {
         resolved.path && link.anchor && targetContent
           ? findMarkdownHeading(targetContent, link.anchor)
           : undefined;
+      // Anchors, heading text and paths are document content. They are escaped
+      // before entering the localized message, because the hover body is
+      // rendered as Markdown (see `escapeHoverMarkdownText`).
       const headingText = link.anchor
         ? i18n.global.t("links.heading", {
-            anchor: link.anchor,
-            status: targetHeading ? targetHeading.text : i18n.global.t("links.missingAnchorStatus"),
+            anchor: escapeHoverMarkdownText(link.anchor),
+            status: targetHeading
+              ? escapeHoverMarkdownText(targetHeading.text)
+              : i18n.global.t("links.missingAnchorStatus"),
           })
         : "";
       const alsoMatchesText =
         resolved.path && resolved.alsoMatches.length > 0
           ? i18n.global.t("links.alsoMatches", {
-              items: resolved.alsoMatches.join(", "),
+              items: resolved.alsoMatches.map(escapeHoverMarkdownText).join(", "),
             })
           : "";
       const candidates = resolved.path ? [] : candidateNotesForLink(link.target, context.notes);
       const candidateText =
         candidates.length > 0
           ? i18n.global.t("links.candidates", {
-              items: candidates.map((candidate) => candidate.path).join(", "),
+              items: candidates
+                .map((candidate) => escapeHoverMarkdownText(candidate.path))
+                .join(", "),
             })
           : "";
       const peek =
@@ -1183,14 +1193,14 @@ function createProviders(api: typeof monaco): void {
           : null;
       const value = resolved.path
         ? linkHoverContentsMarkdown({
-            title: link.label ?? link.target,
-            path: resolved.path,
+            title: escapeHoverMarkdownText(link.label ?? link.target),
+            path: escapeHoverMarkdownText(resolved.path),
             detailLines: [headingText, alsoMatchesText],
             peek,
           })
         : linkHoverContentsMarkdown({
             title: i18n.global.t("links.unresolvedTitle"),
-            detailLines: [link.target, candidateText],
+            detailLines: [escapeHoverMarkdownText(link.target), candidateText],
           });
       return {
         range: rangeForTextRange(model, link.range),
@@ -1446,7 +1456,7 @@ export function registerDocumentLanguage(
     markerTimer = setTimeout(() => {
       markerTimer = null;
       updateMarkers(model);
-    }, 80);
+    }, MARKER_DEBOUNCE_MS);
   };
   markerSchedulers.add(scheduleMarkers);
   const contentDisposable = model.onDidChangeContent(scheduleAllMarkers);

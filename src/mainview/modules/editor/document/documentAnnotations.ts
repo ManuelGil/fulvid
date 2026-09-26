@@ -13,6 +13,8 @@
  */
 import type * as Monaco from "monaco-editor/editor";
 
+import { escapeHoverMarkdownText } from "../../document/links/linkHoverSourcePeek";
+
 export const DOCUMENT_ANNOTATION_GLYPH_CLASS = "fulvid-document-annotation-glyph";
 
 /** Soft cap: a handful of temporary notes, not an archive. */
@@ -50,9 +52,11 @@ const annotationsByModel = new WeakMap<TextModel, AnnotationRecord[]>();
  * Monaco hover uses Markdown. Escape so annotation text stays plain and
  * cannot become emphasis, links, or HTML. Paired with isTrusted/supportHtml
  * false on the hover payload in annotationDecoration.
+ *
+ * One rule for every hover body: `escapeHoverMarkdownText`.
  */
 export function annotationTextAsHoverMarkdown(text: string): string {
-  return text.replace(/([\\`*_{}[\]()#+\-.!|<>~])/g, "\\$1");
+  return escapeHoverMarkdownText(text);
 }
 
 /** Collapse whitespace, drop C0/DEL controls, cap length. Empty -> null. */

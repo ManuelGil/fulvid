@@ -36,6 +36,7 @@ import {
   luaManifest,
   tempExtensionRoot,
   writeExtensionPack,
+  cleanupTempExtensionRoots,
 } from "./manifestTestHelpers.ts";
 
 const EDITOR_FIXTURE = join(import.meta.dir, "fixtures/test.contract-lua-editor");
@@ -119,7 +120,8 @@ function registerEditorFixture(): void {
   });
 }
 
-afterEach(() => {
+afterEach(async () => {
+  await cleanupTempExtensionRoots();
   resetEditorExtensionSeamForTests();
   resetExtensionRegistryForTests();
   resetLuaCommandStore();

@@ -1,8 +1,9 @@
 /**
- * Integration and runtime smoke checks for critical Fulvid flows.
+ * Runtime smoke checks for critical Fulvid flows.
  *
- * Runs real filesystem integration tests, verifies the built shell, and when a
- * display server is available launches the desktop app briefly on Linux.
+ * Re-runs the filesystem editing-loop integration test, verifies the built
+ * shell, and when a display server is available launches the desktop app
+ * briefly on Linux.
  *
  * Run with: bun run smoke
  */
@@ -98,8 +99,8 @@ async function launchDesktopSmoke(): Promise<void> {
 
 console.log("\nFulvid smoke\n");
 
-console.log("-> Integration tests\n");
-run("bun", ["test", "tests/bun/filesystem/io/documentLifecycle.smoke.test.ts"]);
+console.log("-> Filesystem editing loop (integration)\n");
+run("bun", ["test", "tests/bun/filesystem/io/documentLifecycle.integration.test.ts"]);
 
 console.log("\n-> Built shell\n");
 verifyBuiltShell();

@@ -66,6 +66,19 @@ export const EXTENSION_PACK_LIMITS = {
   maxKeywordChars: 32,
   maxLicenseChars: 64,
   maxUrlChars: 500,
+  /** Author string, or each field of the author object. */
+  maxAuthorChars: 200,
+  /** Menu placements one pack may declare - matches `maxCommandsPerExtension`. */
+  maxActions: 16,
+  /** Placement title override - matches the Lua `maxCommandTitleChars` budget. */
+  maxActionTitleChars: 200,
+  /** Placement sort key: a bounded integer, not an arbitrary number. */
+  maxActionOrder: 10_000,
+  /**
+   * Load/invoke failure reason shown in Settings. Bounded so a guest error, a
+   * traceback, or a pasted source line cannot become the inventory row.
+   */
+  maxFailureReasonChars: 300,
 } as const;
 
 /**
@@ -287,7 +300,7 @@ function parseAuthor(
 ): { ok: true; author: ExtensionAuthor } | { ok: false; reason: string } {
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (trimmed.length === 0 || trimmed.length > 200) {
+    if (trimmed.length === 0 || trimmed.length > EXTENSION_PACK_LIMITS.maxAuthorChars) {
       return { ok: false, reason: "invalid author" };
     }
     return { ok: true, author: trimmed };
@@ -295,7 +308,7 @@ function parseAuthor(
   if (!isRecord(value) || typeof value.name !== "string" || value.name.trim().length === 0) {
     return { ok: false, reason: "invalid author" };
   }
-  if (value.name.length > 200) {
+  if (value.name.length > EXTENSION_PACK_LIMITS.maxAuthorChars) {
     return { ok: false, reason: "author exceeds size limit" };
   }
   const author: { name: string; email?: string; url?: string } = { name: value.name.trim() };
@@ -303,7 +316,7 @@ function parseAuthor(
     if (
       typeof value.email !== "string" ||
       value.email.trim().length === 0 ||
-      value.email.length > 200
+      value.email.length > EXTENSION_PACK_LIMITS.maxAuthorChars
     ) {
       return { ok: false, reason: "invalid author email" };
     }
@@ -477,7 +490,7 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
     if (!Array.isArray(value.actions)) {
       return { reason: "actions must be an array" };
     }
-    if (value.actions.length > 16) {
+    if (value.actions.length > EXTENSION_PACK_LIMITS.maxActions) {
       return { reason: "too many actions" };
     }
     const seenActionIds = new Set<string>();
@@ -512,7 +525,7 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
           typeof rawAction.order !== "number" ||
           !Number.isInteger(rawAction.order) ||
           rawAction.order < 0 ||
-          rawAction.order > 10_000
+          rawAction.order > EXTENSION_PACK_LIMITS.maxActionOrder
         ) {
           return { reason: "invalid action order: integer 0..10000 required" };
         }
@@ -522,7 +535,7 @@ export function validateExtensionManifest(value: unknown): ManifestValidationRes
         if (typeof rawAction.title !== "string" || rawAction.title.trim().length === 0) {
           return { reason: "invalid action title: non-empty string required" };
         }
-        if (rawAction.title.length > 200) {
+        if (rawAction.title.length > EXTENSION_PACK_LIMITS.maxActionTitleChars) {
           return { reason: "action title exceeds size limit" };
         }
         placement.title = rawAction.title.trim();

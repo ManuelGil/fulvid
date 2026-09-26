@@ -1,7 +1,7 @@
 /**
  * Ownership for extension decorations: packs pick colors; Fulvid paints safely.
  */
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
 import { LUA_EXTENSION_LIMITS } from "../../src/bun/extensions/lua/luaLimits.ts";
 import {
@@ -16,6 +16,10 @@ import {
   parseExtensionDecorationRanges,
   resetExtensionAppearanceStylesForTests,
 } from "../../src/mainview/extensions/decorationCapability.ts";
+
+afterEach(() => {
+  resetExtensionAppearanceStylesForTests();
+});
 
 describe("extension-owned decoration appearance", () => {
   test("decoration parse rejects injection; apply maps closed styles and distinct appearance classes", () => {
