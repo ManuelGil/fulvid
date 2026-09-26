@@ -858,7 +858,7 @@ export default {
     missingAnchor: 'Die Überschrift "{anchor}" existiert in diesem Dokument nicht.',
     candidates: "Mögliche Treffer: {items}",
     alsoMatches: "Passt ebenfalls: {items}",
-    open: "{path} öffnen",
+    open: "Öffnen",
     unresolvedTitle: "Dieser Link passt zu keinem Dokument",
     heading: "Überschrift #{anchor}: {status}",
     missingAnchorStatus: "fehlt",

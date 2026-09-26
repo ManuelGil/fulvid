@@ -855,7 +855,7 @@ export default {
     missingAnchor: 'Kop "{anchor}" bestaat niet in dat document.',
     candidates: "Mogelijke overeenkomsten: {items}",
     alsoMatches: "Komt ook overeen: {items}",
-    open: "{path} openen",
+    open: "Openen",
     unresolvedTitle: "Deze koppeling komt niet overeen met een document",
     heading: "Kop #{anchor}: {status}",
     missingAnchorStatus: "ontbreekt",

@@ -856,7 +856,7 @@ export default {
     missingAnchor: 'Il titolo "{anchor}" non esiste in quel documento.',
     candidates: "Possibili corrispondenze: {items}",
     alsoMatches: "Corrisponde anche: {items}",
-    open: "Apri {path}",
+    open: "Apri",
     unresolvedTitle: "Questo collegamento non corrisponde a un documento",
     heading: "Titolo #{anchor}: {status}",
     missingAnchorStatus: "mancante",

@@ -855,7 +855,7 @@ export default {
     missingAnchor: 'El encabezado "{anchor}" no existe en ese documento.',
     candidates: "Posibles coincidencias: {items}",
     alsoMatches: "También coincide con: {items}",
-    open: "Abrir {path}",
+    open: "Abrir",
     unresolvedTitle: "Este enlace no coincide con un documento",
     heading: "Encabezado #{anchor}: {status}",
     missingAnchorStatus: "ausente",

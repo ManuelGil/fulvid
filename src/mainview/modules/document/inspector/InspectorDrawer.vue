@@ -568,7 +568,7 @@ onBeforeUnmount(() => {
                 v-if="entry.candidates.length === 1"
                 type="button"
                 class="inspector-panel__unresolved inspector-panel__unresolved--action"
-                :title="t('links.open', { path: entry.candidates[0].relativePath })"
+                :title="t('links.open')"
                 @click="openConnectedDocument(entry.candidates[0].path)"
               >
                 {{ formatUnresolvedLink(entry.link) }}

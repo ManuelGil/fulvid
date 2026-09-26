@@ -838,7 +838,7 @@ export default {
     missingAnchor: 'Heading "{anchor}" does not exist in that document.',
     candidates: "Possible matches: {items}",
     alsoMatches: "Also matches: {items}",
-    open: "Open {path}",
+    open: "Open",
     unresolvedTitle: "This link does not match a document",
     heading: "Heading #{anchor}: {status}",
     missingAnchorStatus: "missing",

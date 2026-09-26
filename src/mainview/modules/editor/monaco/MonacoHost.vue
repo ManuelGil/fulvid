@@ -1090,6 +1090,27 @@ onBeforeUnmount(() => {
 @use "../../../styles/colors" as *;
 @use "../../../styles/variables" as *;
 
+/*
+ * Content hover (links, glyphs): floating inspector chrome.
+ * Monaco already paints border/background via editorHoverWidget tokens and
+ * box-shadow via --vscode-shadow-lg, but Fulvid never sets that shadow var,
+ * and dark themes often use the same token for editor and elevated surface.
+ * Scope stays on .monaco-hover only - not suggest/find/peek widgets.
+ */
+.monaco-editor .monaco-hover,
+.monaco-editor .monaco-resizable-hover {
+  background-color: color-mix(in srgb, $surface-elevated 75%, $surface);
+  border: 1px solid $border;
+  box-shadow: $shadow-soft;
+}
+
+/* Keep the source peek secondary inside the same hover body. */
+.monaco-editor .monaco-hover .markdown-hover .hover-contents pre,
+.monaco-editor .monaco-hover .markdown-hover .hover-contents .code {
+  margin-top: 0.35em;
+  margin-bottom: 0;
+}
+
 /* Overlay widgets live under Monaco's DOM, outside Vue scoped attributes. */
 .fulvid-monaco-back-to-top {
   display: inline-flex;

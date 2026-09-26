@@ -13,6 +13,10 @@
  * - outline and folding
  * - Monaco providers (links, definition, hover, references, rename)
  * - registerDocumentLanguage (per-model attach)
+ *
+ * Link hover is honesty (path / anchor / matches) plus an optional short
+ * Markdown-source peek of the target. It is not PreviewPane and must not
+ * call `renderMarkdownPreview`.
  */
 import * as monaco from "monaco-editor/editor";
 import { watch } from "vue";
@@ -27,6 +31,10 @@ import {
   resolveDocumentLink,
   type DocumentLink,
 } from "../../document/links/documentLink";
+import {
+  linkHoverContentsMarkdown,
+  linkHoverSourcePeek,
+} from "../../document/links/linkHoverSourcePeek";
 import { readDocument } from "../../workspace/filesystem/workspaceScanner";
 import { settings } from "../../settings/settingsStore";
 import { i18n } from "../../../i18n";
@@ -1035,9 +1043,7 @@ function createProviders(api: typeof monaco): void {
                   fragment: link.anchor,
                 })
               : api.Uri.file(absolutePath(context.rootPath, targetPath)),
-            tooltip: i18n.global.t("links.open", {
-              path: targetPath,
-            }),
+            tooltip: i18n.global.t("links.open"),
           };
         }),
       };
@@ -1151,31 +1157,48 @@ function createProviders(api: typeof monaco): void {
           ? findMarkdownHeading(targetContent, link.anchor)
           : undefined;
       const headingText = link.anchor
-        ? `\n\n${i18n.global.t("links.heading", {
+        ? i18n.global.t("links.heading", {
             anchor: link.anchor,
             status: targetHeading ? targetHeading.text : i18n.global.t("links.missingAnchorStatus"),
-          })}`
+          })
         : "";
       const alsoMatchesText =
         resolved.path && resolved.alsoMatches.length > 0
-          ? `\n\n${i18n.global.t("links.alsoMatches", {
+          ? i18n.global.t("links.alsoMatches", {
               items: resolved.alsoMatches.join(", "),
-            })}`
+            })
           : "";
       const candidates = resolved.path ? [] : candidateNotesForLink(link.target, context.notes);
       const candidateText =
         candidates.length > 0
-          ? `\n\n${i18n.global.t("links.candidates", {
+          ? i18n.global.t("links.candidates", {
               items: candidates.map((candidate) => candidate.path).join(", "),
-            })}`
+            })
           : "";
+      const peek =
+        resolved.path && targetContent
+          ? linkHoverSourcePeek(targetContent, {
+              startLineNumber: targetHeading?.lineNumber,
+            })
+          : null;
+      const value = resolved.path
+        ? linkHoverContentsMarkdown({
+            title: link.label ?? link.target,
+            path: resolved.path,
+            detailLines: [headingText, alsoMatchesText],
+            peek,
+          })
+        : linkHoverContentsMarkdown({
+            title: i18n.global.t("links.unresolvedTitle"),
+            detailLines: [link.target, candidateText],
+          });
       return {
         range: rangeForTextRange(model, link.range),
         contents: [
           {
-            value: resolved.path
-              ? `**${link.label ?? link.target}**\n\n${resolved.path}${headingText}${alsoMatchesText}`
-              : `**${i18n.global.t("links.unresolvedTitle")}**\n\n${link.target}${candidateText}`,
+            value,
+            isTrusted: false,
+            supportHtml: false,
           },
         ],
       };
