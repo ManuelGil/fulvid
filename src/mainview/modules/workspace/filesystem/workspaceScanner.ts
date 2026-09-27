@@ -2,7 +2,9 @@
  * UI-facing filesystem access: Electrobun RPC client for scan and desktop actions.
  */
 import { desktopRequest } from "../../../desktop/electrobunClient";
+import { DEFAULT_DOCUMENT_ENCODING } from "./workspaceTypes";
 import type {
+  DocumentEncoding,
   DocumentSnapshot,
   DocumentWriteResult,
   GrantedDocumentSnapshot,
@@ -81,12 +83,14 @@ export async function pickAndSaveDocument(
   content: string,
   defaultExtension: MarkdownFileType,
   overwrite = false,
+  encoding: DocumentEncoding = DEFAULT_DOCUMENT_ENCODING,
 ): Promise<SaveAsResult> {
   return desktopRequest().pickAndSaveDocument({
     basename,
     content,
     defaultExtension,
     overwrite,
+    encoding,
   });
 }
 
@@ -110,11 +114,13 @@ export async function writeGrantedDocument(
   grantToken: string,
   content: string,
   expectedMtimeMs: number,
+  encoding: DocumentEncoding = DEFAULT_DOCUMENT_ENCODING,
 ): Promise<GrantedDocumentWriteResult> {
   return desktopRequest().writeGrantedDocument({
     grantToken,
     content,
     expectedMtimeMs,
+    encoding,
   });
 }
 
@@ -187,6 +193,7 @@ export async function writeDocument(
   content: string,
   expectedMtimeMs: number,
   linkMode: LinkSyntax = "markdown",
+  encoding: DocumentEncoding = DEFAULT_DOCUMENT_ENCODING,
 ): Promise<DocumentWriteResult> {
   return desktopRequest().writeDocument({
     rootPath,
@@ -194,6 +201,7 @@ export async function writeDocument(
     content,
     expectedMtimeMs,
     linkMode,
+    encoding,
   });
 }
 

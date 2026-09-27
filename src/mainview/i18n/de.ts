@@ -132,6 +132,8 @@ export default {
     showLeftSidebar: "Navigation und Ordner anzeigen",
   },
   menu: {
+    encoding: "Codierung",
+    convertEncoding: "Codierung konvertieren",
     application: "Anwendungsmenü",
     applicationFallback: "Anwendungsmenü (Bildschirmmenü)",
     new: "Neu",
@@ -146,7 +148,7 @@ export default {
     panels: "Panels",
     sidebars: "Seitenleisten",
     tabs: "Tabs",
-    format: "Format",
+    markdown: "Markdown",
     revealInFolder: "Im Ordner anzeigen",
     copyPath: "Pfad kopieren",
     nextTab: "Nächster Tab",
@@ -190,11 +192,21 @@ export default {
     documentExists: "Dieser Name wird in diesem Ordner bereits verwendet.",
     outsideOpenedFolders: "Dieser Speicherort liegt außerhalb der geöffneten Ordner.",
     documentTooLarge: "Dieses Dokument ist zu groß, um es mit Fulvid zu öffnen oder zu speichern.",
+    unrepresentableInEncoding:
+      "Fulvid konnte dieses Dokument nicht in seiner Codierung speichern, ohne den Text zu ändern, daher wurde nichts gespeichert.",
+    undecodableDocument:
+      "Diese Datei ist kein UTF-8-Text, daher hat Fulvid sie nicht geöffnet. Auf dem Datenträger wurde nichts geändert.",
     invalidRequest: "Fulvid konnte diese Anfrage nicht abschließen.",
     operationFailed:
       "Fulvid konnte diese Aktion nicht abschließen. Deine geöffneten Dokumente wurden nicht geändert.",
   },
   workspace: {
+    documentEncoding:
+      "Dieses Dokument wird als {encoding} geschrieben. Codierung konvertieren ändert das.",
+    encodingConverted: "Dieses Dokument wird beim nächsten Speichern als {encoding} geschrieben.",
+    encodingUnchanged: "Dieses Dokument wird bereits als {encoding} geschrieben.",
+    encodingUnrepresentable:
+      "Dieses Dokument enthält Text, der nicht als {encoding} geschrieben werden kann. Es wurde nichts geändert.",
     title: "Fulvid",
     editorArea: "Dokumenteditor",
     backToTop: "Nach oben",
@@ -797,7 +809,14 @@ export default {
     close: "Schließen",
   },
 
+  encodings: {
+    utf8: "UTF-8",
+    utf8Bom: "UTF-8 BOM",
+    utf16le: "UTF-16 LE",
+    utf16be: "UTF-16 BE",
+  },
   status: {
+    encoding: "Codierung: {encoding}",
     label: "Dokumentstatus",
     document: "{status} Dokument",
     language: "{language}-Dokument",

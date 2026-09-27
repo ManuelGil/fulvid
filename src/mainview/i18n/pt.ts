@@ -132,6 +132,8 @@ export default {
     showLeftSidebar: "Mostrar navegação e pasta",
   },
   menu: {
+    encoding: "Codificação",
+    convertEncoding: "Converter codificação",
     application: "Menu da aplicação",
     applicationFallback: "Menu da aplicação (no ecrã)",
     new: "Novo",
@@ -146,7 +148,7 @@ export default {
     panels: "Painéis",
     sidebars: "Barras laterais",
     tabs: "Separadores",
-    format: "Formato",
+    markdown: "Markdown",
     revealInFolder: "Mostrar na pasta",
     copyPath: "Copiar caminho",
     nextTab: "Separador seguinte",
@@ -190,11 +192,21 @@ export default {
     documentExists: "Esse nome já é utilizado nesta pasta.",
     outsideOpenedFolders: "Esta localização está fora das pastas que abriu.",
     documentTooLarge: "Este documento é demasiado grande para ser aberto ou guardado pelo Fulvid.",
+    unrepresentableInEncoding:
+      "O Fulvid não conseguiu guardar este documento na sua codificação sem alterar o texto, por isso nada foi guardado.",
+    undecodableDocument:
+      "Este ficheiro não é texto UTF-8, por isso o Fulvid não o abriu. Nada foi alterado no disco.",
     invalidRequest: "O Fulvid não conseguiu concluir esse pedido.",
     operationFailed:
       "O Fulvid não conseguiu concluir essa ação. Os seus documentos abertos não foram alterados.",
   },
   workspace: {
+    documentEncoding:
+      "Este documento é escrito como {encoding}. Converter codificação altera isso.",
+    encodingConverted: "Este documento será escrito como {encoding} na próxima vez que guardar.",
+    encodingUnchanged: "Este documento já é escrito como {encoding}.",
+    encodingUnrepresentable:
+      "Este documento contém texto que não pode ser escrito como {encoding}. Nada foi alterado.",
     title: "Fulvid",
     editorArea: "Editor de documentos",
     backToTop: "Voltar ao início",
@@ -795,7 +807,14 @@ export default {
     close: "Fechar",
   },
 
+  encodings: {
+    utf8: "UTF-8",
+    utf8Bom: "UTF-8 BOM",
+    utf16le: "UTF-16 LE",
+    utf16be: "UTF-16 BE",
+  },
   status: {
+    encoding: "Codificação: {encoding}",
     label: "Estado do documento",
     document: "Documento {status}",
     language: "Documento {language}",

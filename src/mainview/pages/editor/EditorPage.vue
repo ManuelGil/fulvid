@@ -109,6 +109,7 @@ import {
   attachDocumentBuffer,
   activeBuffer,
   closeAllDocuments,
+  convertDocumentEncoding,
   closeDocumentById,
   getDocumentBuffer,
   getDocumentBufferByAbsolutePath,
@@ -120,6 +121,11 @@ import {
   saveDocument,
   selectDocument,
 } from "../../modules/editor/document/documentBuffers";
+import {
+  CONVERT_ENCODING_COMMANDS,
+  ENCODING_LABEL_KEYS,
+} from "../../modules/editor/document/documentEncodingCommands";
+import type { DocumentEncoding } from "../../modules/workspace/filesystem/workspaceTypes";
 import {
   DOCUMENT_ANNOTATION_MAX,
   DOCUMENT_ANNOTATION_TEXT_MAX,
@@ -422,6 +428,37 @@ function suggestedHtmlExportBasename(title: string, isVirtual: boolean): string 
   }
   const stem = title.replace(/\.(mdx|markdown|md)$/i, "").trim() || "untitled";
   return /\.html$/i.test(stem) ? stem : `${stem}.html`;
+}
+
+/** Say which encoding the document uses. Reading it never changes the file. */
+function reportDocumentEncoding(): void {
+  const buffer = activeBuffer.value;
+  if (!buffer) {
+    return;
+  }
+  notify(t("workspace.documentEncoding", { encoding: t(ENCODING_LABEL_KEYS[buffer.encoding]) }));
+}
+
+/**
+ * Convert Encoding: the bytes a later save writes change, the text does not.
+ * A conversion Fulvid could not write is reported and nothing changes.
+ */
+function convertEditorDocumentEncoding(encoding: DocumentEncoding): void {
+  const buffer = activeBuffer.value;
+  if (!buffer) {
+    return;
+  }
+  const name = t(ENCODING_LABEL_KEYS[encoding]);
+  const outcome = convertDocumentEncoding(buffer, encoding);
+  if (outcome === "unrepresentable") {
+    notify(t("workspace.encodingUnrepresentable", { encoding: name }));
+    return;
+  }
+  notify(
+    outcome === "unchanged"
+      ? t("workspace.encodingUnchanged", { encoding: name })
+      : t("workspace.encodingConverted", { encoding: name }),
+  );
 }
 
 async function exportEditorDocumentHtml(): Promise<void> {
@@ -993,6 +1030,10 @@ const unregisterCommands = [
   registerCommandHandler("nextAnnotation", goToNextDocumentAnnotation),
   registerCommandHandler("previousAnnotation", goToPreviousDocumentAnnotation),
   registerCommandHandler("clearAnnotations", clearDocumentAnnotationsInEditor),
+  registerCommandHandler("showDocumentEncoding", reportDocumentEncoding),
+  ...CONVERT_ENCODING_COMMANDS.map((command) =>
+    registerCommandHandler(command.id, () => convertEditorDocumentEncoding(command.encoding)),
+  ),
   ...MARKDOWN_COMMANDS.map((command) =>
     registerCommandHandler(command.id, () => {
       monacoHostRef.value?.runMarkdownAction(command.action);

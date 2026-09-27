@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   MAX_DOCUMENT_BYTES,
   requireDocumentContent,
+  requireDocumentEncoding,
   requireGrantToken,
   requireMtime,
   requireString,
@@ -21,6 +22,17 @@ describe("RPC parameter validation", () => {
     expect(() => requireString({ rootPath: "a".repeat(5000) }, "rootPath")).toThrow(INVALID);
     expect(() => requireString({ rootPath: "/a\0/b" }, "rootPath")).toThrow(INVALID);
     expect(() => requireString(null, "rootPath")).toThrow(INVALID);
+
+    // The encoding decides which bytes reach the filesystem, so an unknown value
+    // is a refused request rather than a fall back to UTF-8.
+    expect(requireDocumentEncoding({ encoding: "utf8" })).toBe("utf8");
+    expect(requireDocumentEncoding({ encoding: "utf16be" })).toBe("utf16be");
+    for (const encoding of ["latin1", "UTF-8", "", null, 7, ["utf8"], { encoding: "utf8" }]) {
+      expect(() => requireDocumentEncoding({ encoding })).toThrow(INVALID);
+    }
+    expect(() => requireDocumentEncoding({})).toThrow(INVALID);
+    expect(() => requireDocumentEncoding(null)).toThrow(INVALID);
+    expect(() => requireDocumentEncoding(["utf8"])).toThrow(INVALID);
 
     expect(requireDocumentContent({ content: "" })).toBe("");
     expect(() => requireDocumentContent({ content: null })).toThrow(INVALID);

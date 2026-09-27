@@ -7,6 +7,7 @@
  */
 
 import { type MarkdownCommandId } from "../modules/editor/markdown/markdownFormat";
+import { type ConvertEncodingCommandId } from "../modules/editor/document/documentEncodingCommands";
 
 export type CommandId =
   | "newDocument"
@@ -37,6 +38,8 @@ export type CommandId =
   | "outdentLines"
   | "duplicateSelection"
   | "trimTrailingWhitespace"
+  | "showDocumentEncoding"
+  | ConvertEncodingCommandId
   | "find"
   | "replace"
   | "findReferences"

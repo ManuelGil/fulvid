@@ -9,6 +9,20 @@ This file is updated as part of the change, not reconstructed when a version is 
 
 ## [Unreleased]
 
+### Added
+
+- **Document encoding**: File -> Encoding names the encoding of the open document, and the status bar shows it as `Encoding: UTF-8` beside the language. Fulvid supports UTF-8, UTF-8 BOM, UTF-16 LE and UTF-16 BE - the encodings it can also recognise when the document is opened again.
+- **Convert Encoding** (File): write the open document in another supported encoding. It changes the bytes a save produces, never the text, so it leaves the document unsaved until you save it and never appears as a session change. A conversion that could not be written faithfully is refused and the file stays as it was.
+
+### Changed
+
+- The Markdown authoring actions (Bold, Italic, lists, Link, Image, ...) are now under **Edit -> Markdown** instead of Edit -> Format. Same actions, same shortcuts: the menu name says what they are, and document encoding lives with the File operations that decide what is written.
+
+### Fixed
+
+- Opening and saving a document no longer changes bytes nobody edited. A UTF-8 BOM is kept instead of being dropped on the first save, UTF-16 documents open as text and keep their encoding, and a file whose bytes are not one of the supported encodings is reported instead of being opened with replacement characters where its bytes were.
+- Folder scan reads a document the same way the editor does, so a document that starts with a BOM keeps its frontmatter title, aliases and tags. A file the scan cannot read as text is reported as skipped, as unreadable entries already were.
+
 ## [1.1.0] - 2026-09-26
 
 ### Added

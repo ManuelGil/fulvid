@@ -7,6 +7,7 @@
 import type { RPCSchema } from "electrobun";
 
 import type {
+  DocumentEncoding,
   DocumentSnapshot,
   DocumentWriteResult,
   FileSystemEntry,
@@ -36,6 +37,7 @@ export type FilesystemRPC = {
           content: string;
           defaultExtension: MarkdownFileType;
           overwrite?: boolean;
+          encoding: DocumentEncoding;
         };
         response: SaveAsResult;
       };
@@ -52,6 +54,7 @@ export type FilesystemRPC = {
           grantToken: string;
           content: string;
           expectedMtimeMs: number;
+          encoding: DocumentEncoding;
         };
         response: GrantedDocumentWriteResult;
       };
@@ -94,6 +97,7 @@ export type FilesystemRPC = {
           content: string;
           expectedMtimeMs?: number;
           linkMode: LinkSyntax;
+          encoding: DocumentEncoding;
         };
         response: DocumentWriteResult;
       };

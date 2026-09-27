@@ -65,7 +65,12 @@ import {
   parseFilesystemErrorCode,
   SupersededOpenError,
 } from "../../workspace/filesystem/workspaceErrors";
+import {
+  DEFAULT_DOCUMENT_ENCODING,
+  hasUnpairedSurrogate,
+} from "../../workspace/filesystem/workspaceTypes";
 import type {
+  DocumentEncoding,
   DocumentWriteResult,
   GrantedDocumentSnapshot,
   GrantedDocumentWriteResult,
@@ -133,6 +138,13 @@ export interface DocumentBuffer {
   model: MonacoModel;
   savedVersionId: number;
   mtimeMs: number;
+  /**
+   * How this document is written. Detected when the bytes were read, or chosen
+   * by Convert Encoding. Not part of the text: Monaco stays the only place the
+   * content lives, and the BOM follows from this value rather than from the
+   * model.
+   */
+  encoding: DocumentEncoding;
   /** Vue signal for consumers whose source of truth is the Monaco model. */
   changeVersion: Ref<number>;
   contentDisposable: monaco.IDisposable;
@@ -282,6 +294,7 @@ async function createBuffer(
     rootPath,
     path,
     grantToken: null,
+    encoding: snapshot.encoding,
   });
   buffers.value = [...buffers.value, buffer];
   registerDocument(buffer.id);
@@ -303,6 +316,7 @@ function createPersistedBuffer(options: {
   rootPath: string | null;
   path: string | null;
   grantToken: string | null;
+  encoding: DocumentEncoding;
 }): DocumentBuffer {
   const api = initializeMonaco();
   const modelPath = options.path ?? options.absolutePath;
@@ -326,6 +340,7 @@ function createPersistedBuffer(options: {
     model,
     savedVersionId: model.getAlternativeVersionId(),
     mtimeMs: options.mtimeMs,
+    encoding: options.encoding,
     changeVersion,
     contentDisposable: trackModelChanges(model, changeVersion),
   };
@@ -362,6 +377,7 @@ export function createUntitledDocument(
     model,
     savedVersionId: content ? FORCE_DIRTY_SAVED_VERSION_ID : model.getAlternativeVersionId(),
     mtimeMs: 0,
+    encoding: DEFAULT_DOCUMENT_ENCODING,
     changeVersion,
     contentDisposable: model.onDidChangeContent(() => {
       changeVersion.value += 1;
@@ -540,6 +556,7 @@ export function openGrantedDocument(
     rootPath: attachment?.rootPath ?? null,
     path: attachment?.path ?? null,
     grantToken: attachment ? null : snapshot.grantToken,
+    encoding: snapshot.encoding,
   });
   buffers.value = [...buffers.value, buffer];
   registerDocument(buffer.id);
@@ -595,6 +612,36 @@ export function openDocument(rootPath: string, path: string): Promise<DocumentBu
  * write. `changeVersion` is only a Vue invalidation signal; it is not the
  * dirty bit.
  */
+/** What `convertDocumentEncoding` did, so the caller can say it in one sentence. */
+export type EncodingConversionResult = "converted" | "unchanged" | "unrepresentable";
+
+/**
+ * Change how a document will be written, not what it says.
+ *
+ * The Unicode text stays exactly as Monaco holds it; only the bytes a later save
+ * produces change. That is why this does not touch the model: an encoding is not
+ * an edit, so it is not on the undo stack and it creates no session change
+ * marker. It marks the buffer dirty instead, and the ordinary save writes it.
+ *
+ * A conversion that could not be written is refused here, before the document or
+ * the file changes at all.
+ */
+export function convertDocumentEncoding(
+  buffer: DocumentBuffer,
+  encoding: DocumentEncoding,
+): EncodingConversionResult {
+  if (buffer.encoding === encoding) {
+    return "unchanged";
+  }
+  if (hasUnpairedSurrogate(buffer.model.getValue())) {
+    return "unrepresentable";
+  }
+  buffer.encoding = encoding;
+  buffer.savedVersionId = FORCE_DIRTY_SAVED_VERSION_ID;
+  buffer.changeVersion.value += 1;
+  return "converted";
+}
+
 export function isDocumentDirty(buffer: DocumentBuffer): boolean {
   void buffer.changeVersion.value;
   return buffer.model.getAlternativeVersionId() !== buffer.savedVersionId;
@@ -608,6 +655,7 @@ async function saveDocumentNow(
   }
   const versionWritten = buffer.model.getAlternativeVersionId();
   const contentToWrite = buffer.model.getValue();
+  const encodingWritten = buffer.encoding;
   let writeOutcome: DocumentWriteResult | GrantedDocumentWriteResult;
   if (buffer.rootPath && buffer.path) {
     writeOutcome = await writeDocument(
@@ -616,9 +664,15 @@ async function saveDocumentNow(
       contentToWrite,
       buffer.mtimeMs,
       settings.value.links.linkMode,
+      encodingWritten,
     );
   } else if (buffer.grantToken && buffer.absolutePath) {
-    writeOutcome = await writeGrantedDocument(buffer.grantToken, contentToWrite, buffer.mtimeMs);
+    writeOutcome = await writeGrantedDocument(
+      buffer.grantToken,
+      contentToWrite,
+      buffer.mtimeMs,
+      encodingWritten,
+    );
   } else {
     throw new LocalizedError(i18n.global.t("workspace.needsSaveAs"));
   }
@@ -627,9 +681,10 @@ async function saveDocumentNow(
   if (isAbandonedBuffer(buffer)) {
     return writeOutcome;
   }
-  // If the user typed while the write was in flight, the newer model version
-  // remains dirty and will be saved by the next command.
-  buffer.savedVersionId = versionWritten;
+  // Typing or converting while the write was in flight leaves the buffer dirty,
+  // and the next save writes what it now describes.
+  buffer.savedVersionId =
+    savedVersionAfterWrite(buffer, versionWritten, encodingWritten) ?? FORCE_DIRTY_SAVED_VERSION_ID;
   buffer.mtimeMs = writeOutcome.mtimeMs;
   if ("absolutePath" in writeOutcome) {
     buffer.absolutePath = writeOutcome.absolutePath;
@@ -731,6 +786,7 @@ function reidentifyAsPersisted(
       throw new LocalizedError(i18n.global.t("workspace.saveConflict"));
     }
     existing.model.setValue(buffer.model.getValue());
+    existing.encoding = buffer.encoding;
     setModelEol(existing.model, buffer.model.getEndOfLineSequence());
     existing.savedVersionId = isCurrentVersionSaved
       ? existing.model.getAlternativeVersionId()
@@ -807,11 +863,22 @@ export function saveAsDocument(
  * Monaco alternativeVersionId known to match the last successful disk write,
  * or null when the model moved again and the buffer must stay dirty.
  */
-function monacoVersionStillOnDisk(
+/**
+ * The version a finished write may record as saved, or null when the buffer moved
+ * on while that write was in flight.
+ *
+ * Typing changes the model version. Convert Encoding changes the bytes a save has
+ * to produce without touching the model at all, so the version alone cannot tell
+ * whether the file still holds what the buffer describes - the encoding has to
+ * match too, or a conversion made during the write would be dropped.
+ */
+function savedVersionAfterWrite(
   buffer: DocumentBuffer,
   versionCapturedForWrite: number,
+  encodingCapturedForWrite: DocumentEncoding,
 ): number | null {
-  return buffer.model.getAlternativeVersionId() === versionCapturedForWrite
+  return buffer.model.getAlternativeVersionId() === versionCapturedForWrite &&
+    buffer.encoding === encodingCapturedForWrite
     ? versionCapturedForWrite
     : null;
 }
@@ -829,11 +896,13 @@ async function saveAsDocumentNow(
   // Stamp before the dialog: the native write captures this model version's text.
   const versionAtDialogOpen = buffer.model.getAlternativeVersionId();
   const contentAtDialogOpen = buffer.model.getValue();
+  const encodingAtDialogOpen = buffer.encoding;
   const saveAsOutcome = await pickAndSaveDocument(
     basename,
     contentAtDialogOpen,
     defaultExtension,
     overwrite,
+    encodingAtDialogOpen,
   );
   if (saveAsOutcome.status !== "saved") {
     return { result: saveAsOutcome, buffer };
@@ -848,16 +917,19 @@ async function saveAsDocumentNow(
   // Monaco version whose text the last successful write intended to persist.
   let versionCapturedOnDisk = versionAtDialogOpen;
   let contentOnDisk = contentAtDialogOpen;
+  let encodingCapturedOnDisk = encodingAtDialogOpen;
 
   // Edits during the dialog mean the first write is stale; rewrite through the
   // new grant with the current model before reidentifying the buffer.
   if (buffer.model.getAlternativeVersionId() !== versionAtDialogOpen) {
     const versionAtRewrite = buffer.model.getAlternativeVersionId();
     contentOnDisk = buffer.model.getValue();
+    encodingCapturedOnDisk = buffer.encoding;
     const rewritten = await writeGrantedDocument(
       saveAsOutcome.grantToken,
       contentOnDisk,
       saveAsOutcome.mtimeMs,
+      encodingCapturedOnDisk,
     );
     savedMtimeMs = rewritten.mtimeMs;
     versionCapturedOnDisk = versionAtRewrite;
@@ -872,7 +944,7 @@ async function saveAsDocumentNow(
     saveAsOutcome.absolutePath,
     savedMtimeMs,
     saveAsOutcome.grantToken,
-    monacoVersionStillOnDisk(buffer, versionCapturedOnDisk),
+    savedVersionAfterWrite(buffer, versionCapturedOnDisk, encodingCapturedOnDisk),
     contentOnDisk,
   );
   return { result: saveAsOutcome, buffer: nextBuffer };

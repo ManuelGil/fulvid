@@ -13,6 +13,7 @@ import {
   cycleDocumentEol,
 } from "../modules/editor/document/documentBuffers";
 import { settings } from "../modules/settings/settingsStore";
+import { ENCODING_LABEL_KEYS } from "../modules/editor/document/documentEncodingCommands";
 import { workspace, workspaceName } from "../app/workspaceState";
 import { APP_ROUTE_NAMES } from "../app/router";
 
@@ -29,6 +30,18 @@ const activeLanguageLabel = computed(() => {
     return t("status.markdown");
   }
   return activeLanguage.value;
+});
+
+/** How the open document's bytes are written, beside what its text is. */
+const activeEncodingLabel = computed(() => {
+  const buffer = activeBuffer.value;
+  if (!buffer) {
+    return null;
+  }
+  // Buffers live in a shallow ref, so reading `encoding` alone would never see
+  // Convert Encoding change it. The buffer's own change signal is the dependency.
+  void buffer.changeVersion.value;
+  return t(ENCODING_LABEL_KEYS[buffer.encoding]);
 });
 
 const linkModeLabel = computed(() =>
@@ -126,6 +139,14 @@ const showContextGroup = computed(() =>
           :aria-label="t('status.language', { language: activeLanguageLabel })"
         >
           {{ activeLanguageLabel }}
+        </span>
+        <span
+          v-if="indicators.language && activeEncodingLabel"
+          class="statusbar__item"
+          :title="t('status.encoding', { encoding: activeEncodingLabel })"
+          :aria-label="t('status.encoding', { encoding: activeEncodingLabel })"
+        >
+          {{ t("status.encoding", { encoding: activeEncodingLabel }) }}
         </span>
       </span>
       <span

@@ -34,7 +34,9 @@ let nextSaveAsResult: {
 };
 let lastWrittenContent = "";
 let lastWrittenPath = "";
+let lastWrittenEncoding: string | null = null;
 let nextReadContent: string | null = null;
+let nextReadEncoding = "utf8";
 let rewriteHook: (() => void) | null = null;
 let writeGate: Promise<void> | null = null;
 let saveAsGate: Promise<void> | null = null;
@@ -49,11 +51,20 @@ mock.module("../../../../../src/mainview/modules/workspace/filesystem/workspaceS
       absolutePath: `/workspace/${path}`,
       content: nextReadContent ?? `# ${path}`,
       mtimeMs: 1,
+      encoding: nextReadEncoding,
     };
   },
-  writeDocument: async (_rootPath: string, path: string, content: string) => {
+  writeDocument: async (
+    _rootPath: string,
+    path: string,
+    content: string,
+    _expectedMtimeMs: number,
+    _linkMode: string,
+    encoding: string,
+  ) => {
     lastWrittenContent = content;
     lastWrittenPath = path;
+    lastWrittenEncoding = encoding;
     const hook = writeHook;
     writeHook = null;
     hook?.();
@@ -238,6 +249,7 @@ const {
   closeDocument,
   closeDocumentById,
   activeBuffer,
+  convertDocumentEncoding,
   createUntitledDocument,
   cycleDocumentEol,
   getDocumentBuffer,
@@ -289,7 +301,9 @@ afterEach(() => {
   readHook = null;
   lastWrittenContent = "";
   lastWrittenPath = "";
+  lastWrittenEncoding = null;
   nextReadContent = null;
+  nextReadEncoding = "utf8";
   resetSettingsToDefaults();
   patchSettings({ editor: { ...settings.value.editor, defaultEol: "lf" } });
 });
@@ -391,6 +405,66 @@ describe("document buffers", () => {
     expect(isDocumentDirty(opened)).toBe(true);
     await saveDocument(opened);
     expect(lastWrittenContent).toBe("alpha\nbeta\n");
+  });
+
+  // Regression: a save used to decide the BOM for itself, which dropped the one
+  // the file had. The BOM is not text - it follows the document's encoding, which
+  // the write carries to the host. Convert Encoding changes that encoding and
+  // nothing else: same text, no marker baseline change, dirty until saved.
+  test("a document keeps its encoding across save, and Convert Encoding changes only that", async () => {
+    const body = "---\ntitle: X\n---\n\n# Body\n";
+    nextReadContent = body;
+    nextReadEncoding = "utf8-bom";
+    const opened = await openDocument("/workspace", "bom.md");
+
+    expect(opened.model.getValue()).toBe(body);
+    expect(opened.encoding).toBe("utf8-bom");
+    expect(isDocumentDirty(opened)).toBe(false);
+
+    await saveDocument(opened);
+    expect(lastWrittenContent).toBe(body);
+    expect(lastWrittenEncoding).toBe("utf8-bom");
+    expect(changeMarkerCalls.reset.at(-1)?.content).toBe(body);
+
+    expect(convertDocumentEncoding(opened, "utf8")).toBe("converted");
+    expect(opened.model.getValue()).toBe(body);
+    expect(isDocumentDirty(opened)).toBe(true);
+    await saveDocument(opened);
+    expect(lastWrittenEncoding).toBe("utf8");
+    expect(lastWrittenContent).toBe(body);
+    expect(convertDocumentEncoding(opened, "utf8")).toBe("unchanged");
+
+    // Text that no supported encoding can write is refused before anything moves.
+    opened.model.setValue("broken \uD800 surrogate");
+    expect(convertDocumentEncoding(opened, "utf16le")).toBe("unrepresentable");
+    expect(opened.encoding).toBe("utf8");
+  });
+
+  // Regression: a finished save cleared dirty by model version alone. Converting
+  // does not touch the model, so a conversion made while the write was in flight
+  // was dropped: the buffer looked saved while the file kept the old encoding.
+  test("a conversion during an in-flight save is not lost by that save", async () => {
+    bindFocusToWorkspace("/workspace");
+    const buffer = await openDocument("/workspace", "racing.md");
+
+    let releaseWrite!: () => void;
+    writeGate = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    const saving = saveDocument(buffer);
+    await Promise.resolve();
+
+    expect(convertDocumentEncoding(buffer, "utf16le")).toBe("converted");
+    releaseWrite();
+    await saving;
+
+    expect(lastWrittenEncoding).toBe("utf8");
+    expect(isDocumentDirty(buffer)).toBe(true);
+
+    await saveDocument(buffer);
+    expect(lastWrittenEncoding).toBe("utf16le");
+    expect(isDocumentDirty(buffer)).toBe(false);
+    await awaitAllBufferWrites();
   });
 
   test("background rename keeps dirty text and does not steal the active tab or Focus", async () => {

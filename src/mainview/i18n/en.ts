@@ -132,6 +132,8 @@ export default {
     showLeftSidebar: "Show navigation and folder",
   },
   menu: {
+    encoding: "Encoding",
+    convertEncoding: "Convert Encoding",
     application: "Application menu",
     applicationFallback: "Application menu (on-screen)",
     new: "New",
@@ -146,7 +148,7 @@ export default {
     panels: "Panels",
     sidebars: "Sidebars",
     tabs: "Tabs",
-    format: "Format",
+    markdown: "Markdown",
     revealInFolder: "Reveal in Folder",
     copyPath: "Copy Path",
     nextTab: "Next Tab",
@@ -189,10 +191,19 @@ export default {
     documentExists: "That name is already used in this folder.",
     outsideOpenedFolders: "That location is outside the folders you opened.",
     documentTooLarge: "This document is too large for Fulvid to open or save.",
+    unrepresentableInEncoding:
+      "Fulvid could not write this document in its encoding without changing the text, so nothing was saved.",
+    undecodableDocument:
+      "This file is not UTF-8 text, so Fulvid did not open it. Nothing on disk was changed.",
     invalidRequest: "Fulvid could not complete that request.",
     operationFailed: "Fulvid could not complete that action. Your open documents are unchanged.",
   },
   workspace: {
+    documentEncoding: "This document is written as {encoding}. Convert Encoding changes that.",
+    encodingConverted: "This document will be written as {encoding} the next time you save.",
+    encodingUnchanged: "This document is already written as {encoding}.",
+    encodingUnrepresentable:
+      "This document contains text that cannot be written as {encoding}. Nothing was changed.",
     title: "Fulvid",
     editorArea: "Document editor",
     backToTop: "Back to top",
@@ -777,7 +788,14 @@ export default {
     diff: "Session change comparison",
     close: "Close",
   },
+  encodings: {
+    utf8: "UTF-8",
+    utf8Bom: "UTF-8 BOM",
+    utf16le: "UTF-16 LE",
+    utf16be: "UTF-16 BE",
+  },
   status: {
+    encoding: "Encoding: {encoding}",
     label: "Document status",
     document: "{status} document",
     language: "{language} document",

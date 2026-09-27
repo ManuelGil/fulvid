@@ -17,8 +17,10 @@ import { chmod, mkdir, readFile, rename, rm, stat, unlink, writeFile } from "nod
 import { basename, dirname, extname, isAbsolute, relative, resolve } from "node:path";
 
 import {
+  DEFAULT_DOCUMENT_ENCODING,
   isMarkdownFile,
   RESERVED_DEVICE_NAMES,
+  type DocumentEncoding,
   type DocumentSnapshot,
   type DocumentWriteResult,
   type MarkdownFileType,
@@ -34,6 +36,7 @@ import {
   WorkspaceBoundaryError,
 } from "../security/workspacePaths";
 import { MAX_DOCUMENT_BYTES } from "../rpc/rpcInput";
+import { decodeDocumentText, detectDocumentEncoding, encodeDocumentText } from "./documentText";
 import {
   documentConflictMessage,
   filesystemErrorMessage,
@@ -219,7 +222,7 @@ async function fileModeOrNull(targetPath: string): Promise<number | null> {
  * mismatch still detects the usual external-edit case; it cannot make
  * check+replace indivisible.
  */
-async function writeAtomically(targetPath: string, content: string): Promise<void> {
+async function writeAtomically(targetPath: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
   const temporaryPath = `${targetPath}.${randomUUID()}.tmp`;
   // The rename installs a new inode, so without this the saved document would
   // carry the process umask instead of its own permissions: a note kept at 0600
@@ -232,8 +235,7 @@ async function writeAtomically(targetPath: string, content: string): Promise<voi
   const existingMode = await fileModeOrNull(targetPath);
 
   try {
-    await writeFile(temporaryPath, content, {
-      encoding: "utf8",
+    await writeFile(temporaryPath, bytes, {
       flag: "wx",
       ...(existingMode === null ? {} : { mode: existingMode }),
     });
@@ -260,9 +262,12 @@ async function writeAtomically(targetPath: string, content: string): Promise<voi
  * An exclusive create closes the window: the filesystem itself decides, and a
  * loser gets `EEXIST` rather than someone else's document replaced.
  */
-async function createExclusively(targetPath: string, content: string): Promise<boolean> {
+async function createExclusively(
+  targetPath: string,
+  bytes: Uint8Array<ArrayBuffer>,
+): Promise<boolean> {
   try {
-    await writeFile(targetPath, content, { encoding: "utf8", flag: "wx" });
+    await writeFile(targetPath, bytes, { flag: "wx" });
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {
@@ -274,21 +279,25 @@ async function createExclusively(targetPath: string, content: string): Promise<b
 
 async function readFileContentWithMtimeCheck(
   targetPath: string,
-): Promise<{ content: string; mtimeMs: number }> {
+): Promise<{ content: string; mtimeMs: number; encoding: DocumentEncoding }> {
   const initialMtimeMs = await fileMtimeOrNull(targetPath);
   if (initialMtimeMs === null) {
     throw new Error(filesystemErrorMessage("documentMissing"));
   }
   await assertReadableSize(targetPath);
 
-  const content = await readFile(targetPath, "utf8");
+  // Bytes, then a strict decode: a document Fulvid cannot represent as text is
+  // refused instead of opened with U+FFFD where its bytes used to be.
+  const bytes = await readFile(targetPath);
+  const encoding = detectDocumentEncoding(bytes);
+  const content = decodeDocumentText(bytes, encoding);
   const finalMtimeMs = await existingFileMtime(targetPath);
   // Reject a torn read when the file changed under us between the two stats.
   if (finalMtimeMs !== initialMtimeMs) {
     throw new Error(filesystemErrorMessage("operationFailed"));
   }
 
-  return { content, mtimeMs: finalMtimeMs };
+  return { content, mtimeMs: finalMtimeMs, encoding };
 }
 
 /**
@@ -300,13 +309,14 @@ export async function readDocument(
   relativePath: string,
 ): Promise<DocumentSnapshot> {
   const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
-  const { content, mtimeMs } = await readFileContentWithMtimeCheck(targetPath);
+  const { content, mtimeMs, encoding } = await readFileContentWithMtimeCheck(targetPath);
 
   return {
     path: workspaceRelativePath(rootPath, targetPath),
     absolutePath: targetPath,
     content,
     mtimeMs,
+    encoding,
   };
 }
 
@@ -323,11 +333,15 @@ export async function writeDocument(
   content: string,
   expectedMtimeMs?: number,
   linkMode: LinkSyntax = "markdown",
+  encoding: DocumentEncoding = DEFAULT_DOCUMENT_ENCODING,
 ): Promise<DocumentWriteResult> {
   const targetPath = await resolveWorkspaceFileTarget(rootPath, relativePath);
+  // Encode before touching the filesystem: text that cannot be written in this
+  // encoding has to leave the document on disk exactly as it was.
+  const bytes = encodeDocumentText(content, encoding);
   await assertExpectedMtime(targetPath, relativePath, expectedMtimeMs);
 
-  await writeAtomically(targetPath, content);
+  await writeAtomically(targetPath, bytes);
   const note = await scannedNoteFromFile(rootPath, targetPath, linkMode);
   const mtimeMs = await existingFileMtime(targetPath);
 
@@ -347,7 +361,10 @@ export async function createDocument(
   }
 
   await mkdir(dirname(targetPath), { recursive: true });
-  if (!(await createExclusively(targetPath, content))) {
+  // A new document is UTF-8: nothing has told Fulvid otherwise, and the other
+  // encodings exist here only because a file already used one.
+  const bytes = encodeDocumentText(content, DEFAULT_DOCUMENT_ENCODING);
+  if (!(await createExclusively(targetPath, bytes))) {
     throw new Error(filesystemErrorMessage("documentExists"));
   }
   const note = await scannedNoteFromFile(rootPath, targetPath, linkMode);
@@ -409,7 +426,7 @@ export async function renameDocument(
   await mkdir(dirname(nextTargetPath), { recursive: true });
   // Claim the destination exclusively before rename so a concurrent create
   // cannot be silently overwritten by POSIX/Windows rename-replace.
-  if (!(await createExclusively(nextTargetPath, ""))) {
+  if (!(await createExclusively(nextTargetPath, new Uint8Array()))) {
     throw new Error(filesystemErrorMessage("documentExists"));
   }
   try {
@@ -431,13 +448,16 @@ export async function renameDocument(
  * containment; `assertStandaloneDocumentPath` only rejects unsupported names
  * and null bytes. Later saves require a grant of this same canonical path.
  */
-export async function readSelectedDocument(
-  selectedPath: string,
-): Promise<{ absolutePath: string; content: string; mtimeMs: number }> {
+export async function readSelectedDocument(selectedPath: string): Promise<{
+  absolutePath: string;
+  content: string;
+  mtimeMs: number;
+  encoding: DocumentEncoding;
+}> {
   const targetPath = assertStandaloneDocumentPath(selectedPath);
-  const { content, mtimeMs } = await readFileContentWithMtimeCheck(targetPath);
+  const { content, mtimeMs, encoding } = await readFileContentWithMtimeCheck(targetPath);
 
-  return { absolutePath: targetPath, content, mtimeMs };
+  return { absolutePath: targetPath, content, mtimeMs, encoding };
 }
 
 type SelectedWriteResult =
@@ -449,6 +469,7 @@ async function writeSelectedBasename(
   filename: string,
   content: string,
   overwrite: boolean,
+  encoding: DocumentEncoding,
 ): Promise<SelectedWriteResult> {
   const folderPath = resolve(selectedFolder);
   // The folder came from a native dialog, but the name came from the renderer:
@@ -456,14 +477,15 @@ async function writeSelectedBasename(
   const targetPath = containedPath(folderPath, filename);
   await assertCanonicallyContained(folderPath, filename);
 
+  const bytes = encodeDocumentText(content, encoding);
   if (!overwrite) {
     // Let the filesystem decide whether this name is free, so a file that
     // appears between the check and the write is reported, not replaced.
-    if (!(await createExclusively(targetPath, content))) {
+    if (!(await createExclusively(targetPath, bytes))) {
       return { status: "exists", absolutePath: targetPath };
     }
   } else {
-    await writeAtomically(targetPath, content);
+    await writeAtomically(targetPath, bytes);
   }
   const mtimeMs = await existingFileMtime(targetPath);
   return { status: "saved", absolutePath: targetPath, mtimeMs };
@@ -475,12 +497,14 @@ export async function saveSelectedDocument(
   content: string,
   defaultExtension: MarkdownFileType = "mdx",
   overwrite = false,
+  encoding: DocumentEncoding = DEFAULT_DOCUMENT_ENCODING,
 ): Promise<SelectedWriteResult> {
   return writeSelectedBasename(
     selectedFolder,
     validateDocumentBasename(requestedBasename, defaultExtension),
     content,
     overwrite,
+    encoding,
   );
 }
 
@@ -501,6 +525,7 @@ export async function saveSelectedHtmlExport(
     validateHtmlBasename(requestedBasename),
     content,
     overwrite,
+    DEFAULT_DOCUMENT_ENCODING,
   );
 }
 
@@ -514,12 +539,14 @@ export async function writeGrantedDocument(
   selectedPath: string,
   content: string,
   expectedMtimeMs: number,
+  encoding: DocumentEncoding = DEFAULT_DOCUMENT_ENCODING,
 ): Promise<{ absolutePath: string; mtimeMs: number }> {
   const targetPath = assertStandaloneDocumentPath(selectedPath);
+  const bytes = encodeDocumentText(content, encoding);
   // Report the document by name: the grant already proves which file it is, and
   // the absolute path does not belong in a message the renderer renders.
   await assertExpectedMtime(targetPath, basename(targetPath), expectedMtimeMs);
-  await writeAtomically(targetPath, content);
+  await writeAtomically(targetPath, bytes);
   const mtimeMs = await existingFileMtime(targetPath);
   return { absolutePath: targetPath, mtimeMs };
 }

@@ -7,6 +7,52 @@ import type { DocumentLink } from "../../document/links/documentLink";
 
 export type MarkdownFileType = "md" | "markdown" | "mdx";
 
+/**
+ * How a document's bytes are read and written.
+ *
+ * The set is closed on purpose, and every member is here for the same reason:
+ * Fulvid can decode it, encode it back, and recognise it again on the next open.
+ * An encoding Fulvid could write but not detect would turn a saved document into
+ * one it refuses to reopen, so it does not belong on this list.
+ *
+ * `utf16le` and `utf16be` always carry their BOM: it is what identifies them.
+ */
+export const DOCUMENT_ENCODINGS = ["utf8", "utf8-bom", "utf16le", "utf16be"] as const;
+
+export type DocumentEncoding = (typeof DOCUMENT_ENCODINGS)[number];
+
+/** What a document with no evidence of anything else is read and written as. */
+export const DEFAULT_DOCUMENT_ENCODING: DocumentEncoding = "utf8";
+
+/**
+ * True when text cannot be written in any supported encoding.
+ *
+ * Every supported encoding is a Unicode encoding, so the only text that cannot
+ * be represented is text that is not valid Unicode: an unpaired surrogate. Both
+ * `TextEncoder` and `Buffer` would quietly turn one into U+FFFD, which is the
+ * silent substitution this boundary exists to prevent, so writing is refused
+ * instead. Shared so the renderer can refuse a conversion before touching the
+ * document and the host can refuse the write it is asked to perform.
+ */
+export function hasUnpairedSurrogate(text: string): boolean {
+  for (let index = 0; index < text.length; index += 1) {
+    const unit = text.charCodeAt(index);
+    if (unit < 0xd800 || unit > 0xdfff) {
+      continue;
+    }
+    // A high surrogate is only valid immediately before a low one.
+    if (unit > 0xdbff) {
+      return true;
+    }
+    const next = index + 1 < text.length ? text.charCodeAt(index + 1) : 0;
+    if (next < 0xdc00 || next > 0xdfff) {
+      return true;
+    }
+    index += 1;
+  }
+  return false;
+}
+
 /** Longest single filename common filesystems accept. */
 const MAX_BASENAME_LENGTH = 255;
 
@@ -138,6 +184,8 @@ export interface DocumentSnapshot {
   absolutePath: string;
   content: string;
   mtimeMs: number;
+  /** How these bytes were read, and how a later save must write them. */
+  encoding: DocumentEncoding;
 }
 
 export interface DocumentWriteResult {
@@ -151,6 +199,8 @@ export interface GrantedDocumentSnapshot {
   content: string;
   mtimeMs: number;
   grantToken: string;
+  /** How these bytes were read, and how a later save must write them. */
+  encoding: DocumentEncoding;
 }
 
 export interface GrantedDocumentWriteResult {
