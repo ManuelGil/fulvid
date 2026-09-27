@@ -8,7 +8,7 @@
       regressed: no plugins, no frames, no form submission, no `<base>` rewrite.
 
       `script-src`, `style-src`, `img-src`, and `worker-src` are unset on
-      purpose. Fulvid pins monaco-editor 0.56.0 and Vite 8. Workers are Vite
+      purpose. Fulvid pins monaco-editor 0.57.0 and Vite 8. Workers are Vite
       `?worker` constructors (Monaco in monacoSetup.ts, Graph in
       computeComposedGraph.ts), so Monaco's default blob-worker loader is not
       the reason these stay open. They stay open because:
@@ -16,7 +16,7 @@
       - Vite HMR (`bun run dev:hmr`) injects inline module scripts. A
         `script-src` without a nonce or 'unsafe-inline' would break that
         session. Packaged pages load from `views://mainview/index.html`.
-      - Monaco 0.56 injects `<style>` at runtime; `style-src` without
+      - Monaco 0.57 injects `<style>` at runtime; `style-src` without
         'unsafe-inline' or a nonce would likely break editor chrome.
       - Whether `script-src 'self'` / `worker-src 'self'` hold for `views://`
         in Electrobun 2.0.1 system webviews (WKWebView / WebView2 / WebKitGTK)

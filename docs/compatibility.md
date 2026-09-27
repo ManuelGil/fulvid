@@ -45,6 +45,8 @@ Electrobun's CLI (`electrobun.cjs`) and Vite's CLI start with `#!/usr/bin/env no
 
 Build compatibility (Electrobun + Vite + Bun 1.4.2 host/CI) and runtime compatibility (those shared libraries present at launch) are different. The packaged Bun runtime remains Electrobun's Hutch pin (1.4.0 with Electrobun 2.0.1). The Linux jobs install the libraries, then package, then launch.
 
+The encoding boundary (`src/bun/filesystem/io/documentText.ts`) runs on that packaged Bun, not the host one, so the Web APIs it depends on were checked against the packaged binary itself (`build/<env>-linux-x64/Fulvid*/bin/bun`, Bun 1.4.0). `TextDecoder("utf-16le")`, `TextDecoder("utf-16be")`, `TextDecoder("utf-8", { fatal: true })` with `ignoreBOM`, and `TextEncoder` all behave there as they do on the host: the four supported encodings round-trip and re-detect, and malformed UTF-8 and UTF-16 are refused rather than replaced with U+FFFD. Verified on Linux x64. The macOS and Windows packaged runtimes use the same Bun version but different binaries and have not been checked this way.
+
 Local smoke after a Linux package:
 
 ```bash
