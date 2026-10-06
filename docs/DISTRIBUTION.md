@@ -54,6 +54,8 @@ Those last three are not install paths. Durable constraints live next to the stu
 
 GitHub Actions calls [packaging/windows/](../packaging/windows/). Authenticode is optional and only runs when certificate secrets are present.
 
+The Release workflow also builds a Microsoft Store MSIX (`fulvid_<version>_win-x64.msix`) as the workflow artifact `fulvid-windows-msix`. It is not a GitHub Release asset and has not been submitted yet. See [windows-store.md](./windows-store.md).
+
 ### macOS
 
 GitHub Actions calls [packaging/macos/](../packaging/macos/). Apple signing and notarization are optional and only run when Apple secrets are present.

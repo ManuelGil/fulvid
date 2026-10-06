@@ -64,6 +64,28 @@ $updateData = Get-Content (Join-Path $Artifacts $update) -Raw | ConvertFrom-Json
 if ([string] $updateData.version -ne $version) { Fail "update.json version does not match package.json" }
 if ([string] $updateData.artifact.file -ne $bundle) { Fail "update.json artifact.file is not the canonical bundle name" }
 
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [IO.Compression.ZipFile]::OpenRead($installerPath)
+try {
+  $setup = $zip.Entries | Where-Object { $_.Name -eq "Fulvid-Setup.exe" } | Select-Object -First 1
+  if (-not $setup) { Fail "Setup zip does not contain Fulvid-Setup.exe" }
+  $bytes = New-Object byte[] 4096
+  $stream = $setup.Open()
+  try {
+    $read = 0
+    while ($read -lt $bytes.Length) {
+      $n = $stream.Read($bytes, $read, $bytes.Length - $read)
+      if ($n -le 0) { break }
+      $read += $n
+    }
+  }
+  finally { $stream.Dispose() }
+}
+finally { $zip.Dispose() }
+$pe = [BitConverter]::ToInt32($bytes, 0x3C)
+if ([BitConverter]::ToUInt32($bytes, $pe) -ne 0x00004550) { Fail "Fulvid-Setup.exe is not a PE image" }
+if ([BitConverter]::ToUInt16($bytes, $pe + 4) -ne 0x8664) { Fail "Fulvid-Setup.exe is not x64" }
+
 Get-ChildItem $Artifacts -File | ForEach-Object {
   $text = Get-Content $_.FullName -Raw -ErrorAction SilentlyContinue
   if ($text -match "BEGIN PGP PRIVATE KEY BLOCK" -or $text -match "BEGIN OPENSSH PRIVATE KEY") {

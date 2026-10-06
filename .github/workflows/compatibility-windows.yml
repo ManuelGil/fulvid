@@ -62,6 +62,11 @@ jobs:
       - name: Lua packaged smoke
         run: bun run smoke:lua-packaged
 
+      # Checks the Store package still builds from the bundle (not uploaded).
+      # After the smokes: its staging tree under build/ would otherwise be what the Lua smoke finds.
+      - name: Package MSIX
+        run: pwsh -File packaging/windows/package-msix.ps1 -SkipPrerelease
+
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

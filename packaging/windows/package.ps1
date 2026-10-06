@@ -214,7 +214,8 @@ foreach ($path in @((Join-Path $Root "build"), (Join-Path $Root "dist"))) {
 New-Item -ItemType Directory -Force -Path $Artifacts | Out-Null
 Get-ChildItem -Path $Artifacts -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 
-$env:PATH = "$(Join-Path $Root 'node_modules\.bin');$env:PATH"
+# System32 first: Git for Windows' GNU tar reads "D:\..." as a remote host and breaks electrobun build.
+$env:PATH = "$(Join-Path $Root 'node_modules\.bin');$(Join-Path $env:SystemRoot 'System32');$env:PATH"
 Write-Host "==> windows package: electrobun stable build"
 Push-Location $Root
 try {
