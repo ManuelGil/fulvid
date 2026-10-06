@@ -337,6 +337,22 @@ jobs:
           path: artifacts/*
           if-no-files-found: error
 
+      # Microsoft Store package. Uploaded to Partner Center by hand; not a GitHub Release asset.
+      # Store identity is public, so it lives in repository variables, not secrets. See docs/windows-store.md.
+      - name: Package MSIX (Microsoft Store)
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+          MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
+        run: pwsh -File packaging/windows/package-msix.ps1 -SkipPrerelease
+
+      - name: Upload MSIX
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fulvid-windows-msix
+          path: artifacts-msix/*
+          if-no-files-found: warn
+
   macos:
     name: macOS
     runs-on: macos-26

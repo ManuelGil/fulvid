@@ -132,6 +132,8 @@ export default {
     showLeftSidebar: "Mostra navigazione e cartella",
   },
   menu: {
+    encoding: "Codifica",
+    convertEncoding: "Converti codifica",
     application: "Menu applicazione",
     applicationFallback: "Menu applicazione (su schermo)",
     new: "Nuovo",
@@ -146,7 +148,7 @@ export default {
     panels: "Pannelli",
     sidebars: "Barre laterali",
     tabs: "Schede",
-    format: "Formato",
+    markdown: "Markdown",
     revealInFolder: "Mostra nella cartella",
     copyPath: "Copia percorso",
     nextTab: "Scheda successiva",
@@ -190,11 +192,20 @@ export default {
     documentExists: "Questo nome è già usato in questa cartella.",
     outsideOpenedFolders: "Questa posizione è fuori dalle cartelle aperte.",
     documentTooLarge: "Questo documento è troppo grande per essere aperto o salvato da Fulvid.",
+    unrepresentableInEncoding:
+      "Fulvid non ha potuto salvare questo documento nella sua codifica senza cambiare il testo, quindi non è stato salvato nulla.",
+    undecodableDocument:
+      "Questo file non è testo UTF-8, quindi Fulvid non lo ha aperto. Sul disco non è cambiato nulla.",
     invalidRequest: "Fulvid non ha potuto completare la richiesta.",
     operationFailed:
       "Fulvid non ha potuto completare l'azione. I documenti aperti non sono stati modificati.",
   },
   workspace: {
+    documentEncoding: "Questo documento è scritto come {encoding}. Converti codifica lo cambia.",
+    encodingConverted: "Questo documento verrà scritto come {encoding} al prossimo salvataggio.",
+    encodingUnchanged: "Questo documento è già scritto come {encoding}.",
+    encodingUnrepresentable:
+      "Questo documento contiene testo che non può essere scritto come {encoding}. Non è stato cambiato nulla.",
     title: "Fulvid",
     editorArea: "Editor del documento",
     backToTop: "Torna in cima",
@@ -793,7 +804,14 @@ export default {
     close: "Chiudi",
   },
 
+  encodings: {
+    utf8: "UTF-8",
+    utf8Bom: "UTF-8 BOM",
+    utf16le: "UTF-16 LE",
+    utf16be: "UTF-16 BE",
+  },
   status: {
+    encoding: "Codifica: {encoding}",
     label: "Stato documento",
     document: "Documento {status}",
     language: "Documento {language}",

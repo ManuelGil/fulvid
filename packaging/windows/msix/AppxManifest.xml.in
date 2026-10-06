@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSIX manifest template for the Microsoft Store build of Fulvid.
+  Rendered by packaging/windows/package-msix.ps1, which replaces the at-sign tokens.
+  Identity Name, Publisher, and PublisherDisplayName must match the values
+  Partner Center shows under Product identity. See docs/windows-store.md.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <Identity
+    Name="@IDENTITY_NAME@"
+    Publisher="@PUBLISHER@"
+    Version="@VERSION@"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Fulvid</DisplayName>
+    <PublisherDisplayName>@PUBLISHER_DISPLAY_NAME@</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <Description>Standalone desktop editor for Markdown and MDX</Description>
+  </Properties>
+
+  <Dependencies>
+    <!-- Store edition targets Windows 11 x64 only; WebView2 Evergreen ships with it. See docs/windows-store.md. -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="@MIN_VERSION@" MaxVersionTested="@MAX_VERSION_TESTED@" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <!-- Electrobun 2.0.1 does not forward launcher argv, so no file type associations are declared. -->
+    <Application Id="Fulvid" Executable="bin\launcher.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Fulvid"
+        Description="Standalone desktop editor for Markdown and MDX"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

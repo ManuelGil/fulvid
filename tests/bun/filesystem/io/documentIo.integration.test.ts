@@ -14,6 +14,7 @@ import {
   validateHtmlBasename,
   writeDocument,
 } from "../../../../src/bun/filesystem/io/documentIo";
+import { encodeDocumentText } from "../../../../src/bun/filesystem/io/documentText";
 import { scanWorkspace } from "../../../../src/bun/filesystem/scanning/scanDirectory";
 import {
   documentConflictMessage,
@@ -137,6 +138,130 @@ describe("document I/O", () => {
       );
       expect(relocated.note.path).toBe("notes/moved.mdx");
       expect(await readdir(join(root, "notes", "inbox"))).toEqual([]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  // Regression: the read used `readFile(path, "utf8")`, which turns an invalid
+  // byte into U+FFFD, and the save wrote that replacement back. A document's
+  // encoding is now detected when its bytes are read, travels with the snapshot,
+  // and is what the next write uses - so open and save do not change the bytes
+  // the person did not edit.
+  test("detects a document's encoding, keeps it across save, and refuses what it cannot write", async () => {
+    const root = await makeWorkspace();
+    const body = "---\ntitle: Kept\n---\n\n# Caf\u00e9 \u{1D11E}\n";
+    const bom = {
+      utf8: [],
+      "utf8-bom": [0xef, 0xbb, 0xbf],
+      utf16le: [0xff, 0xfe],
+      utf16be: [0xfe, 0xff],
+    };
+    try {
+      for (const encoding of ["utf8", "utf8-bom", "utf16le", "utf16be"] as const) {
+        const name = `${encoding}.md`;
+        const bytes = encodeDocumentText(body, encoding);
+        expect([...bytes.subarray(0, bom[encoding].length)]).toEqual(bom[encoding]);
+        await writeFile(join(root, name), bytes);
+
+        // Open: the encoding is evidence from the bytes, and no BOM reaches the text.
+        const opened = await readDocument(root, name);
+        expect(opened.encoding).toBe(encoding);
+        expect(opened.content).toBe(body);
+
+        // Save without editing: the same bytes, down to the BOM.
+        const saved = await writeDocument(
+          root,
+          name,
+          opened.content,
+          opened.mtimeMs,
+          "markdown",
+          opened.encoding,
+        );
+        expect(saved.note.title).toBe("Kept");
+        expect([...(await readFile(join(root, name)))]).toEqual([...bytes]);
+
+        // Save after editing: new text, same encoding.
+        const edited = `${body}Edited\n`;
+        const reopened = await readDocument(root, name);
+        await writeDocument(root, name, edited, reopened.mtimeMs, "markdown", reopened.encoding);
+        const afterEdit = await readDocument(root, name);
+        expect(afterEdit.encoding).toBe(encoding);
+        expect(afterEdit.content).toBe(edited);
+      }
+
+      // What Convert Encoding ends up doing: same text, other encoding's bytes,
+      // and the document reopens as that encoding.
+      const converted = await readDocument(root, "utf8.md");
+      await writeDocument(
+        root,
+        "utf8.md",
+        converted.content,
+        converted.mtimeMs,
+        "markdown",
+        "utf16le",
+      );
+      const afterConvert = await readDocument(root, "utf8.md");
+      expect(afterConvert.encoding).toBe("utf16le");
+      expect(afterConvert.content).toBe(converted.content);
+
+      // Invalid UTF-8: refused with a code the renderer can say, file untouched.
+      const brokenBytes = Uint8Array.from([0x23, 0x20, 0x61, 0xc3, 0x28, 0x62, 0x0a]);
+      await writeFile(join(root, "broken.md"), brokenBytes);
+      await expect(readDocument(root, "broken.md")).rejects.toThrow(
+        filesystemErrorMessage("undecodableDocument"),
+      );
+      expect([...(await readFile(join(root, "broken.md")))]).toEqual([...brokenBytes]);
+
+      // Bytes that are not one of the four supported encodings are refused with the
+      // file intact. None of these may reach the editor as text with U+FFFD where
+      // its bytes used to be, because the next save would write that replacement.
+      const hostile: Array<readonly [string, readonly number[]]> = [
+        ["utf16le-odd.md", [0xff, 0xfe, 0x61, 0x00, 0x62]],
+        ["utf16le-lone-high.md", [0xff, 0xfe, 0x00, 0xd8, 0x61, 0x00]],
+        ["utf16le-lone-low.md", [0xff, 0xfe, 0x00, 0xdc, 0x61, 0x00]],
+        ["utf16be-lone-high.md", [0xfe, 0xff, 0xd8, 0x00, 0x00, 0x61]],
+        ["utf32le-bom.md", [0xff, 0xfe, 0x00, 0x00, 0x61, 0x00, 0x00, 0x00]],
+        ["utf32be-bom.md", [0x00, 0x00, 0xfe, 0xff, 0x00, 0x00, 0x00, 0x61]],
+        ["utf8-bom-truncated.md", [0xef, 0xbb, 0x61]],
+        ["utf8-overlong.md", [0xc0, 0xaf]],
+        ["utf8-surrogate.md", [0xed, 0xa0, 0x80]],
+      ];
+      for (const [name, byteValues] of hostile) {
+        await writeFile(join(root, name), Uint8Array.from(byteValues));
+        await expect(readDocument(root, name)).rejects.toThrow(
+          filesystemErrorMessage("undecodableDocument"),
+        );
+        expect([...(await readFile(join(root, name)))]).toEqual([...byteValues]);
+      }
+
+      // A BOM with nothing after it is a real empty document, not a refusal.
+      for (const [name, byteValues, encoding] of [
+        ["empty-utf8-bom.md", [0xef, 0xbb, 0xbf], "utf8-bom"],
+        ["empty-utf16le.md", [0xff, 0xfe], "utf16le"],
+        ["empty-utf16be.md", [0xfe, 0xff], "utf16be"],
+        ["empty.md", [], "utf8"],
+      ] as const) {
+        await writeFile(join(root, name), Uint8Array.from(byteValues));
+        const empty = await readDocument(root, name);
+        expect(empty.encoding).toBe(encoding);
+        expect(empty.content).toBe("");
+      }
+
+      // Text that no supported encoding can write: refused before the write, so
+      // the document on disk is exactly what it was.
+      const intact = await readDocument(root, "utf8-bom.md");
+      await expect(
+        writeDocument(
+          root,
+          "utf8-bom.md",
+          "lone \ud800 surrogate",
+          intact.mtimeMs,
+          "markdown",
+          "utf8-bom",
+        ),
+      ).rejects.toThrow(filesystemErrorMessage("unrepresentableInEncoding"));
+      expect((await readDocument(root, "utf8-bom.md")).content).toBe(intact.content);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

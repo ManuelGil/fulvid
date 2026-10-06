@@ -10,11 +10,10 @@ import {
   conf as markdownConfiguration,
   language as markdownTokens,
 } from "monaco-editor/languages/definitions/markdown/markdown";
-// monaco-editor 0.56.0 `exports` rewrites `monaco-editor/esm/vs/...` onto a
-// doubled `esm/vs` path. The filesystem import avoids that map. Prefer a
-// package export (`monaco-editor/editor/editor.worker`) only after an upgrade
-// where Vite 8 + WebKitGTK still load the worker.
-import MonacoEditorWorker from "../../../../../node_modules/monaco-editor/esm/vs/editor/editor.worker.js?worker";
+// `monaco-editor/esm/vs/...` is not importable: the `exports` map sends it
+// through a doubled `esm/vs` path. `monaco-editor/editor/editor.worker` is the
+// supported specifier for the same file.
+import MonacoEditorWorker from "monaco-editor/editor/editor.worker?worker";
 import { monacoThemeBase, type ThemePreference, resolveMonacoThemeId } from "./monacoThemes";
 
 type MonacoEnvironment = {

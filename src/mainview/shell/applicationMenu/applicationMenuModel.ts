@@ -3,6 +3,10 @@
  * Commands stay in `commands.ts`; this file only describes presentation.
  */
 import { MARKDOWN_COMMANDS } from "../../modules/editor/markdown/markdownFormat";
+import {
+  CONVERT_ENCODING_COMMANDS,
+  ENCODING_LABEL_KEYS,
+} from "../../modules/editor/document/documentEncodingCommands";
 import type { DesktopPlatform } from "../../desktop/desktopRpc";
 import type { CommandId } from "../commands";
 
@@ -118,13 +122,46 @@ export type PresentedMenuBar = {
   items: readonly PresentedMenuItem[];
 };
 
-const FORMAT_ITEMS: ApplicationMenuNode[] = MARKDOWN_COMMANDS.map((command) => ({
+/**
+ * Markdown authoring: edits to the document's text, under Edit.
+ *
+ * Not the same concern as how the file is written, which lives under File with
+ * the other operations that decide what reaches disk.
+ */
+const MARKDOWN_ITEMS: ApplicationMenuNode[] = MARKDOWN_COMMANDS.map((command) => ({
   type: "command" as const,
   id: command.id,
   label: `markdown.${command.action}`,
   shortcut: "shortcut" in command ? command.shortcut : undefined,
   availability: "hasDocument" as const,
 }));
+
+/**
+ * How the open document is written, beside Save / Save As / Export.
+ *
+ * Encoding reports the current encoding; Convert Encoding changes what the next
+ * save produces. Two entries because they are two operations, and neither is an
+ * edit of the text. Line endings stay where they already are, on the status bar.
+ */
+const ENCODING_ITEMS: ApplicationMenuNode[] = [
+  {
+    type: "command",
+    id: "showDocumentEncoding",
+    label: "menu.encoding",
+    availability: "hasDocument",
+  },
+  {
+    type: "submenu",
+    id: "convert-encoding",
+    label: "menu.convertEncoding",
+    items: CONVERT_ENCODING_COMMANDS.map((command) => ({
+      type: "command" as const,
+      id: command.id,
+      label: ENCODING_LABEL_KEYS[command.encoding],
+      availability: "hasDocument" as const,
+    })),
+  },
+];
 
 export function menuItemEnabled(
   availability: MenuAvailability,
@@ -305,6 +342,8 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
       label: "actions.exportHtml",
       availability: "canSaveAs",
     },
+    { type: "separator", id: "file-separator-encoding" },
+    ...ENCODING_ITEMS,
     { type: "separator", id: "file-separator-save" },
     {
       type: "command",
@@ -460,9 +499,9 @@ export function applicationMenuTemplate(platform: DesktopPlatform): readonly App
         },
         {
           type: "submenu",
-          id: "format",
-          label: "menu.format",
-          items: FORMAT_ITEMS,
+          id: "markdown",
+          label: "menu.markdown",
+          items: MARKDOWN_ITEMS,
         },
         { type: "separator", id: "edit-separator-format" },
         {

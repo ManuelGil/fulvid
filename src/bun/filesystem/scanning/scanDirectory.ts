@@ -10,6 +10,7 @@ import {
 } from "../security/workspacePaths";
 
 import { isMarkdownFile } from "../../../mainview/modules/workspace/filesystem/workspaceTypes";
+import { parseFilesystemErrorCode } from "../../../mainview/modules/workspace/filesystem/workspaceErrors";
 import type {
   FileSystemEntry,
   ScannedNote,
@@ -84,7 +85,7 @@ const MAX_SCANNED_CONTENT_CHARS = 128 * 1024 * 1024;
 type MarkdownPathCollection = {
   paths: string[];
   truncated: boolean;
-  /** Entries the scan could not read: denied, vanished, or not a directory. */
+  /** Entries the scan could not read: denied, vanished, not a directory, not UTF-8. */
   skipped: number;
 };
 
@@ -97,6 +98,12 @@ type MarkdownPathCollection = {
  * scan and leaving the person with no folder at all.
  */
 function isSkippableScanError(error: unknown): boolean {
+  // A file whose bytes are not UTF-8 is readable but not representable as text.
+  // Opening it is refused for the same reason, so the scan reports it as skipped
+  // rather than failing the folder or indexing replacement characters.
+  if (parseFilesystemErrorCode(error) === "undecodableDocument") {
+    return true;
+  }
   const code = (error as NodeJS.ErrnoException | null)?.code;
   return (
     code === "EACCES" ||

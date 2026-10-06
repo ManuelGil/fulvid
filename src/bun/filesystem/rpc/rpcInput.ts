@@ -11,7 +11,11 @@ import {
   filesystemErrorMessage,
   type FilesystemErrorCode,
 } from "../../../mainview/modules/workspace/filesystem/workspaceErrors";
-import type { MarkdownFileType } from "../../../mainview/modules/workspace/filesystem/workspaceTypes";
+import {
+  DOCUMENT_ENCODINGS,
+  type DocumentEncoding,
+  type MarkdownFileType,
+} from "../../../mainview/modules/workspace/filesystem/workspaceTypes";
 
 /** Largest document body accepted from, or returned to, the renderer. Scan/search use the smaller `MAX_ANALYZED_BYTES`. */
 export const MAX_DOCUMENT_BYTES = 32 * 1024 * 1024;
@@ -121,6 +125,20 @@ export function requireLinkMode(params: unknown): LinkSyntax {
     reject();
   }
   return value as LinkSyntax;
+}
+
+const DOCUMENT_ENCODING_VALUES = new Set<DocumentEncoding>(DOCUMENT_ENCODINGS);
+
+/**
+ * The encoding a write must use. The renderer names it, the host validates it:
+ * an unknown value is a refused request, never a silent fall back to UTF-8.
+ */
+export function requireDocumentEncoding(params: unknown): DocumentEncoding {
+  const value = record(params).encoding;
+  if (typeof value !== "string" || !DOCUMENT_ENCODING_VALUES.has(value as DocumentEncoding)) {
+    reject();
+  }
+  return value as DocumentEncoding;
 }
 
 const DOCUMENT_EXTENSIONS = new Set<MarkdownFileType>(["md", "markdown", "mdx"]);

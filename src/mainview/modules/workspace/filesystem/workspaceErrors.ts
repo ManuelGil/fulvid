@@ -34,6 +34,10 @@ export const FILESYSTEM_ERROR_CODES = [
   "outsideOpenedFolders",
   /** The document exceeds what the editor will load or write. */
   "documentTooLarge",
+  /** The bytes on disk are not text in an encoding Fulvid supports. */
+  "undecodableDocument",
+  /** The text cannot be written in the document's encoding without changing it. */
+  "unrepresentableInEncoding",
   /** The request did not match its contract. */
   "invalidRequest",
   /** The operation failed for a reason the host kept to itself. */

@@ -5,6 +5,7 @@ build/
 dist/
 # Generated packaging output. Not committed.
 artifacts/
+artifacts-msix/
 # Detached PGP signatures from a local release. The project public key stays tracked.
 *.asc
 !security/signing-key.asc

@@ -45,6 +45,8 @@ Electrobun's CLI (`electrobun.cjs`) and Vite's CLI start with `#!/usr/bin/env no
 
 Build compatibility (Electrobun + Vite + Bun 1.4.2 host/CI) and runtime compatibility (those shared libraries present at launch) are different. The packaged Bun runtime remains Electrobun's Hutch pin (1.4.0 with Electrobun 2.0.1). The Linux jobs install the libraries, then package, then launch.
 
+The encoding boundary (`src/bun/filesystem/io/documentText.ts`) runs on that packaged Bun, not the host one, so the Web APIs it depends on were checked against the packaged binary itself (`build/<env>-linux-x64/Fulvid*/bin/bun`, Bun 1.4.0). `TextDecoder("utf-16le")`, `TextDecoder("utf-16be")`, `TextDecoder("utf-8", { fatal: true })` with `ignoreBOM`, and `TextEncoder` all behave there as they do on the host: the four supported encodings round-trip and re-detect, and malformed UTF-8 and UTF-16 are refused rather than replaced with U+FFFD. Verified on Linux x64. The macOS and Windows packaged runtimes use the same Bun version but different binaries and have not been checked this way.
+
 Local smoke after a Linux package:
 
 ```bash
@@ -57,16 +59,17 @@ Linux compatibility CI launches under Xvfb with `GDK_BACKEND=x11` and `WEBKIT_DI
 
 ## Windows
 
-Packaging is 64-bit only (`win-x64`). Fulvid targets Windows 10/11 x64 desktop (WebView2). There is no Windows Server product target and no Windows Server compatibility matrix.
+Packaging is 64-bit only (`win-x64`). Fulvid targets Windows 11 x64 desktop (WebView2), for both the Microsoft Store MSIX and the GitHub Release download. Windows 10 and Windows Server are not targets, and there is no compatibility matrix for them.
 
 GitHub-hosted CI for Windows uses the `windows-2025` runner label (the current GitHub image for Windows jobs). That label names the runner image, not a Fulvid platform. Job titles are simply **Windows**.
 
 | Image / target | Role |
 | --- | --- |
-| Windows 10 x64, Windows 11 x64 | Supported desktop targets. Compatibility and Validate run Windows packaging/smoke on the `windows-2025` GitHub runner as a stand-in |
+| Windows 11 x64 | Supported desktop target. Compatibility and Validate run Windows packaging/smoke on the `windows-2025` GitHub runner as a stand-in |
+| Windows 10, Windows Server | Not targets |
 | Windows 11 Arm, 32-bit | Unsupported |
 
-No Authenticode and no secrets on Compatibility Windows jobs.
+No Authenticode and no secrets on Compatibility Windows jobs. Compatibility Windows also builds the Store MSIX (not uploaded). WebView2, ARM64, and the Store path: [windows-store.md](./windows-store.md).
 
 ## macOS
 

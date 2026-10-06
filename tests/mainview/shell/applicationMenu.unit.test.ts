@@ -74,6 +74,62 @@ describe("application menu", () => {
       expect(presentedMenuAction(winQuit)).toBe("quit");
     }
 
+    // Markdown authoring and document encoding are different concerns, so they do
+    // not share a menu: Markdown edits the text under Edit, Encoding decides what
+    // a save writes and sits under File with Save / Save As / Export. Line endings
+    // belong to neither and stay on the status bar. Both menu renderers read this
+    // same presented tree, so asserting it covers native and the HTML bar.
+    const documentState: ApplicationMenuState = { ...idleState, hasActiveDocument: true };
+    for (const platform of ["linux", "darwin", "win32"] as const) {
+      const menus = presentApplicationMenu(platform, documentState, (key) => key);
+
+      const markdown = menus
+        .find((menu) => menu.id === "edit")
+        ?.items.find((item) => item.type === "submenu" && item.id === "markdown");
+      expect(markdown?.type).toBe("submenu");
+      if (markdown?.type === "submenu") {
+        expect(markdown.label).toBe("menu.markdown");
+        const bold = markdown.items.find(
+          (item) => item.type === "command" && item.id === "markdownBold",
+        );
+        expect(bold?.type).toBe("command");
+        if (bold?.type === "command") {
+          expect(bold.shortcut).toBe("Ctrl/Cmd+B");
+        }
+        const markdownIds = markdown.items.map((item) => item.id);
+        expect(markdownIds).toContain("markdownImage");
+        expect(markdownIds).not.toContain("showDocumentEncoding");
+        expect(markdownIds).not.toContain("convert-encoding");
+        expect(markdownIds.some((id) => id.toLowerCase().includes("eol"))).toBe(false);
+      }
+
+      const fileItems = menus.find((menu) => menu.id === "file")?.items ?? [];
+      const encoding = fileItems.find(
+        (item) => item.type === "command" && item.id === "showDocumentEncoding",
+      );
+      expect(encoding?.type).toBe("command");
+      if (encoding?.type === "command") {
+        expect(encoding.label).toBe("menu.encoding");
+        expect(encoding.enabled).toBe(true);
+        expect(presentedMenuAction(encoding)).toBe("showDocumentEncoding");
+      }
+      const convert = fileItems.find(
+        (item) => item.type === "submenu" && item.id === "convert-encoding",
+      );
+      expect(convert?.type).toBe("submenu");
+      if (convert?.type === "submenu") {
+        expect(convert.label).toBe("menu.convertEncoding");
+        expect(convert.items.map((item) => item.id)).toEqual([
+          "convertEncodingUtf8",
+          "convertEncodingUtf8Bom",
+          "convertEncodingUtf16Le",
+          "convertEncodingUtf16Be",
+        ]);
+        expect(convert.items.every((item) => item.type === "command" && item.enabled)).toBe(true);
+      }
+      expect(fileItems.some((item) => item.id.toLowerCase().includes("eol"))).toBe(false);
+    }
+
     const linuxMenus = presentApplicationMenu("linux", idleState, (key) => key);
     expect(linuxMenus.some((menu) => menu.id === "extensions")).toBe(false);
     const linuxFile = linuxMenus.find((menu) => menu.id === "file");

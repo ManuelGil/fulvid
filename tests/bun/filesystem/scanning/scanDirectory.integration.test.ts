@@ -159,6 +159,23 @@ describe("filesystem Explorer listing and scan", () => {
       await rm(midRoot, { recursive: true, force: true });
     }
 
+    const undecodableRoot = await makeWorkspace();
+    try {
+      await writeFile(join(undecodableRoot, "readable.md"), "# Readable\n");
+      // Readable bytes that are not UTF-8: the folder still opens, and the file
+      // is reported as skipped rather than indexed with replacement characters.
+      await writeFile(
+        join(undecodableRoot, "broken.md"),
+        Uint8Array.from([0x23, 0x20, 0x61, 0xc3, 0x28, 0x0a]),
+      );
+      const undecodableScan = await scanWorkspace(undecodableRoot, { linkMode: "markdown" });
+      expect(undecodableScan.scannedNotes.map((note) => note.path)).toEqual(["readable.md"]);
+      expect(undecodableScan.skipped).toBe(1);
+      expect(undecodableScan.truncated).toBe(false);
+    } finally {
+      await rm(undecodableRoot, { recursive: true, force: true });
+    }
+
     const emptyRoot = await makeWorkspace();
     try {
       await writeFile(join(emptyRoot, "readme.txt"), "not a document\n");

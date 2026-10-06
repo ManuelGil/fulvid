@@ -7,6 +7,7 @@ import {
   analyzeMarkdownFile,
   MAX_ANALYZED_BYTES,
 } from "../../../../src/bun/filesystem/scanning/noteAnalyzer";
+import { encodeDocumentText } from "../../../../src/bun/filesystem/io/documentText";
 
 // Intent: file-analysis metadata and byte-safe truncation.
 // Link shape/syntax contracts live in documentLink unit tests.
@@ -44,6 +45,28 @@ describe("analyzeMarkdownFile", () => {
       });
     } finally {
       await rm(directory, { recursive: true, force: true });
+    }
+
+    // Regression: a BOM left in the analyzed text pushed the document one
+    // character along, so frontmatter stopped matching and scan disagreed with
+    // the editor about where the document starts.
+    const bomDir = await mkdtemp(join(tmpdir(), "editor-note-bom-"));
+    const bomPath = join(bomDir, "bom.md");
+    try {
+      await writeFile(bomPath, "\uFEFF---\ntitle: From Frontmatter\n---\n\n# Body\n", "utf8");
+      const analyzed = await analyzeMarkdownFile(bomPath);
+      expect(analyzed.title).toBe("From Frontmatter");
+      expect(analyzed.content.startsWith("\uFEFF")).toBe(false);
+
+      // A UTF-16 document is analysed too, so scan and editor agree about it
+      // instead of the scan skipping what the editor can open.
+      const utf16Path = join(bomDir, "utf16.md");
+      await writeFile(utf16Path, encodeDocumentText(analyzed.content, "utf16le"));
+      const utf16 = await analyzeMarkdownFile(utf16Path);
+      expect(utf16.title).toBe("From Frontmatter");
+      expect(utf16.content).toBe(analyzed.content);
+    } finally {
+      await rm(bomDir, { recursive: true, force: true });
     }
 
     const utf8Dir = await mkdtemp(join(tmpdir(), "editor-note-utf8-"));

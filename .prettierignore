@@ -3,6 +3,7 @@ node_modules/
 .hutch/
 build/
 artifacts/
+artifacts-msix/
 coverage/
 .cottontail-tmp/
 bun.lock

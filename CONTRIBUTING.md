@@ -17,6 +17,7 @@ Keep pull requests focused.
 
 ## Practical rules
 
+- Document bytes become text, and text becomes bytes, only in `src/bun/filesystem/io/documentText.ts`. Everything else works with the decoded string and the document's `encoding`; do not add a second decode, a second BOM rule, or an encoding that Fulvid cannot detect when the document is opened again.
 - UI selection goes through `selectDocument`. `activateDocument` is session-internal. Surfaces open a document through `openOrActivate`. Do not wire editor buffers to Focus changes.
 - Folder I/O uses `assertWithinWorkspace` (lexical) plus `assertCanonicallyContained` (symlink/realpath). Standalone Open and Save As use host dialogs and grants. No generic absolute-path read/write RPC.
 - Preview and Export HTML share `renderMarkdownPreview`. Do not add a second Markdown renderer.

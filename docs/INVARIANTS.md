@@ -12,6 +12,7 @@ Domain: [CONCEPTS.md](./CONCEPTS.md). Ownership: [ARCHITECTURE.md](./ARCHITECTUR
 | Determinism | Same folder scan and settings produce the same derived facts |
 | Document identity | Virtual IDs are `untitled:N`. Persisted identity is one canonical `absolutePath`; the buffer `id` is `file:${absolutePath}` |
 | Document writes | Folder writes stay contained. Replace uses temp+rename. Standalone writes require a dialog-issued grant |
+| Document encoding | Bytes are decoded and encoded only at document I/O, in one of four supported encodings, each detectable on reopen. Detection is evidence (BOM, or valid UTF-8), never a guess. A BOM is bytes, not document text. Open and save never change bytes the person did not edit: an undecodable file is refused, and so is text the document's encoding cannot write. Only Convert Encoding changes a document's encoding, and it changes no text |
 | Document links | Exactly one active link mode; Markdown is the default, Wikilink the alternative |
 | Session ownership | `DocumentSession.activeId` owns the editor selection. The active buffer never derives from Focus |
 | Selection seam | UI selection uses `selectDocument`. `activateDocument` is session-internal |

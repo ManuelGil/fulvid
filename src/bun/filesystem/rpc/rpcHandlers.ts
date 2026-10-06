@@ -45,6 +45,7 @@ import {
   requireBasename,
   requireDefaultExtension,
   requireDocumentContent,
+  requireDocumentEncoding,
   requireGrantToken,
   requireLinkMode,
   requireMtime,
@@ -99,6 +100,7 @@ export const filesystemRpcHandlers = {
       content,
       defaultExtension,
       overwrite,
+      requireDocumentEncoding(params),
     );
     if (result.status === "exists") {
       return result;
@@ -127,6 +129,7 @@ export const filesystemRpcHandlers = {
       grantedPath(grantToken),
       requireDocumentContent(params),
       requireMtime(params),
+      requireDocumentEncoding(params),
     );
     return { ...result, grantToken };
   }),
@@ -183,6 +186,7 @@ export const filesystemRpcHandlers = {
       // Saves always carry the open buffer's mtime so external edits conflict.
       requireMtime(params),
       requireLinkMode(params),
+      requireDocumentEncoding(params),
     ),
   ),
   createDocument: containHostError("createDocument", async (params: unknown) =>

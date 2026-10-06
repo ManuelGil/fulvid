@@ -67,6 +67,23 @@ Language id and `linkMode` are independent. New documents default to `.mdx`. **N
 
 Title, aliases, tags, and links come from the document body and optional frontmatter. Same inputs produce the same facts.
 
+## Encoding
+
+A document's **encoding** is how its bytes are read and written. Fulvid supports four, and every one of them it can also detect on the next open:
+
+| Encoding | Detected by | Notes |
+| --- | --- | --- |
+| UTF-8 | valid UTF-8 without a BOM | What Fulvid writes for a new document |
+| UTF-8 BOM | `EF BB BF` | The BOM is bytes, never document text |
+| UTF-16 LE | `FF FE` | Written with its BOM: that is what identifies it |
+| UTF-16 BE | `FE FF` | Written with its BOM |
+
+Nothing is guessed: without a BOM the bytes are read as UTF-8, and a file that is not one of these is refused with a message instead of being opened with replacement characters where its bytes were. Other encodings, including Latin-1 and the Windows code pages, are not supported: Fulvid could write them but could not recognise them again, so a document saved that way would become one it refuses to open.
+
+**Encoding** (File -> Encoding) says which encoding the open document uses; the status bar names it as `Encoding: UTF-8` beside the language. Both sit with the operations that decide what reaches disk, not with Markdown authoring, which is Edit -> Markdown. **Convert Encoding** (File) is the only way to change the encoding: it changes the bytes a later save writes, never the Unicode text, so it makes the document dirty and the ordinary save writes it. An encoding is not an edit, so it is not on the undo stack and creates no session change marker. A conversion that could not be written faithfully is refused and the file stays as it was.
+
+Line endings are a separate concern (see the status bar EOL item). A document with mixed line endings is still normalized to one ending by the editor.
+
 ## Settings
 
 Seventeen narrow categories under Application, Editor, Appearance, Folder, Markdown, Extensions, and Information: Language; Editor text, Editing, Files, Editor display, Writing; Theme, Interface, Accessibility, Status bar; Folder; Links, Document context, Preview; Extensions; Keyboard shortcuts, About. Interface scale never changes Monaco document typography. About includes Reset settings under Maintenance, which restores persisted preferences to built-in defaults without changing documents, tabs, Folder, or files. Layout widths stay in layout state, not settings. Settings Search finds preferences on this page by label, description, and category in the current language; it does not search documents or the folder. Legacy Settings section query aliases still resolve to the matching narrow category.

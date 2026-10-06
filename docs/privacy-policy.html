@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Fulvid Privacy Policy</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1f2328; --muted: #59636e; --bg: #ffffff; --line: #d1d9e0; --link: #0969da; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6edf3; --muted: #9198a1; --bg: #0d1117; --line: #3d444d; --link: #4493f8; }
+  }
+  html { background: var(--bg); }
+  body { margin: 0 auto; max-width: 46rem; padding: 2.5rem 1.25rem 4rem; color: var(--fg); background: var(--bg);
+    font: 1rem/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .5rem; }
+  h2 { font-size: 1.25rem; margin: 2.25rem 0 .5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 1.5rem 0 .25rem; }
+  p, ul { margin: .5rem 0 1rem; }
+  li { margin: .25rem 0; }
+  a { color: var(--link); }
+  code { font: .9em/1.4 ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; overflow-wrap: anywhere; }
+  .dates { color: var(--muted); margin-bottom: 2rem; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; font-size: .95rem; }
+  th, td { text-align: left; vertical-align: top; padding: .5rem .6rem; border: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<main>
+<h1>Fulvid Privacy Policy</h1>
+<p class="dates">Effective date: October 6, 2026<br>Last updated: October 6, 2026</p>
+
+<h2 id="introduction">Introduction</h2>
+<p>Fulvid is a standalone desktop editor for Markdown and MDX files. It is developed by Manuel Gil and published on the Microsoft Store under the publisher name imgildev. This policy explains what information Fulvid handles, where that information stays, and when Fulvid communicates over a network.</p>
+<p>In short: Fulvid has no user accounts, no advertising, no analytics, no telemetry, and no crash or error reporting. The files you open and edit are read and written on your own computer. Fulvid does not send your documents, your settings, or information about how you use the app to the developer or to anyone else.</p>
+
+<h2 id="scope">Scope</h2>
+<p>This policy applies to the Fulvid desktop application in all of its distributions: the Microsoft Store version for Windows, and the versions published on <a href="https://github.com/ManuelGil/fulvid">GitHub</a> for Windows, macOS, and Linux. It does not cover the Microsoft Store, GitHub, or any website you open from Fulvid; those services have their own privacy policies.</p>
+
+<h2 id="information-processed">Information Fulvid processes</h2>
+<p>Fulvid processes only what you give it while you use it:</p>
+<ul>
+  <li><strong>Documents and folders you open.</strong> Fulvid reads the Markdown and MDX files in the folders you choose, so it can show, edit, search, link, and preview them. It writes changes back to those files when you save, create, rename, or delete documents, and it writes an HTML file when you use Export.</li>
+  <li><strong>Settings and preferences</strong> you choose in the app, such as language, theme, and editor options.</li>
+  <li><strong>Extensions you install.</strong> Fulvid can load extension packs that you choose to install. They run inside Fulvid on your computer, and the extension format does not include any network capability.</li>
+</ul>
+<p>Previews and exports are produced on your computer. Images referenced by a document are shown as text placeholders instead of being loaded, so a document cannot make Fulvid download an image or contact a web address on its own.</p>
+
+<h2 id="not-collected">Information Fulvid does not collect</h2>
+<p>Fulvid does not collect, transmit, or sell personal information. In particular, Fulvid does not:</p>
+<ul>
+  <li>require an account, sign-in, or registration;</li>
+  <li>include analytics, usage tracking, telemetry, advertising, or advertising identifiers;</li>
+  <li>send crash reports, error reports, or logs to the developer or to any service;</li>
+  <li>upload, synchronize, or back up your documents to any server;</li>
+  <li>use cookies for tracking.</li>
+</ul>
+
+<h2 id="local-storage">Local storage and your content</h2>
+<p>Your documents stay where you keep them. In addition, Fulvid stores a small amount of information on your computer so it can work and remember your preferences. None of it is sent anywhere.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Stored on your computer</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>Your settings and the editor layout</td><td>Restore your preferences the next time you open Fulvid.</td></tr>
+    <tr><td>A list of up to 10 recently opened folders (their paths)</td><td>Let you reopen recent folders quickly.</td></tr>
+    <tr><td>The folders you have approved (their paths)</td><td>Remember which folders you allowed Fulvid to read and write.</td></tr>
+    <tr><td>Unsaved "Untitled" drafts, including their text</td><td>Recover new documents that have not been saved to a file yet.</td></tr>
+    <tr><td>Window size and position</td><td>Reopen the window where you left it.</td></tr>
+    <tr><td>Installed extensions and your choices about which extensions may run</td><td>Load the extensions you installed.</td></tr>
+    <tr><td>Data kept by the system web view (for example, its cache)</td><td>Display the app's interface.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>On Windows this information is kept in your user profile (under <code>%LOCALAPPDATA%\fulvid.imgil.dev</code>). For the Microsoft Store version, Windows keeps it in the app's private storage. On macOS and Linux it is kept in the per-user application data location used by the operating system. On Windows, the version downloaded from GitHub also keeps a technical log, written by the application framework, next to the program files; the Microsoft Store version does not write this log.</p>
+
+<h2 id="network">Network communications</h2>
+<p>Fulvid does not need an internet connection, and during normal use it does not contact any server. It does not check for updates, download code, or load remote content by itself.</p>
+<p>Fulvid connects to a website only when you explicitly choose to open a link, for example the Sponsor link in Settings, which opens in your default web browser. When you open a link, the website you visit, and your browser, can receive information such as your IP address, under their own privacy policies. Fulvid does not add your documents, settings, or any identifier to the request.</p>
+
+<h2 id="third-party">Third-party components</h2>
+<p>Fulvid includes open-source components that run on your computer as part of the app, such as the Bun runtime, the Electrobun application framework, the Monaco editor, and a Lua engine compiled to WebAssembly. They are bundled with Fulvid and are not used to send information over the network.</p>
+<p>To display its interface, Fulvid uses the web view provided by your operating system: Microsoft Edge WebView2 on Windows, WebKit on macOS, and WebKitGTK on Linux. These are operating system components maintained by their vendors and follow the system's own settings and privacy terms. Fulvid does not configure them to send information about you or your documents.</p>
+
+<h2 id="microsoft-store">Microsoft Store distribution</h2>
+<p>When you get Fulvid from the Microsoft Store, Microsoft handles the download, installation, licensing, and updates under the <a href="https://www.microsoft.com/privacy/privacystatement">Microsoft Privacy Statement</a>. Microsoft may make aggregated information available to the developer through its developer dashboard, such as download counts, ratings and reviews, and app health reports that Windows collects according to your Windows diagnostic data settings. Fulvid itself does not send any of this information.</p>
+<p>The versions published on GitHub are downloaded from GitHub, which handles those downloads under the <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a>.</p>
+
+<h2 id="updates">Updates</h2>
+<p>The Microsoft Store version is updated by the Microsoft Store. Fulvid does not include an automatic updater that contacts an update server: the versions published on GitHub are updated by downloading a new release yourself.</p>
+
+<h2 id="security">Security</h2>
+<p>Fulvid only reads and writes the files and folders you choose or approve, and the preview does not run code from documents. Because your documents and app data stay on your computer, their protection depends on your device, such as your operating system account and disk encryption. Security issues can be reported privately to the contact address below.</p>
+
+<h2 id="retention">Data retention and deletion</h2>
+<p>The information Fulvid stores stays on your computer until you delete it. You can clear recent folders and change settings in the app, and you can delete the app data folder described above at any time.</p>
+<ul>
+  <li>Uninstalling the Microsoft Store version removes its app data from your computer.</li>
+  <li>Uninstalling a version downloaded from GitHub may leave the app data folder in place; you can delete it yourself.</li>
+  <li>Your documents are never deleted by uninstalling Fulvid.</li>
+</ul>
+
+<h2 id="your-choices">Your rights and requests</h2>
+<p>Because the developer does not receive information from Fulvid, there is no personal data about you held by the developer as a result of using the app. You remain in control of the data stored on your computer, as described above.</p>
+<p>If you contact the developer by email, your email address and the content of your message are used only to reply to you. You can ask questions about this policy, or ask about any message you have sent, at the address below.</p>
+
+<h2 id="changes">Changes to this policy</h2>
+<p>If Fulvid's handling of information changes, this policy will be updated and the "Last updated" date above will change. The history of this page is public in the <a href="https://github.com/ManuelGil/fulvid">Fulvid repository</a>.</p>
+
+<h2 id="contact">Contact</h2>
+<p>Manuel Gil<br>Email: <a href="mailto:support@imgil.dev">support@imgil.dev</a></p>
+</main>
+</body>
+</html>

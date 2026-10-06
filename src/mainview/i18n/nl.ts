@@ -132,6 +132,8 @@ export default {
     showLeftSidebar: "Navigatie en map tonen",
   },
   menu: {
+    encoding: "Codering",
+    convertEncoding: "Codering converteren",
     application: "Applicatiemenu",
     applicationFallback: "Applicatiemenu (op scherm)",
     new: "Nieuw",
@@ -146,7 +148,7 @@ export default {
     panels: "Panelen",
     sidebars: "Zijbalken",
     tabs: "Tabbladen",
-    format: "Opmaak",
+    markdown: "Markdown",
     revealInFolder: "In map tonen",
     copyPath: "Pad kopiëren",
     nextTab: "Volgend tabblad",
@@ -190,11 +192,21 @@ export default {
     documentExists: "Die naam wordt al in deze map gebruikt.",
     outsideOpenedFolders: "Deze locatie ligt buiten de mappen die je hebt geopend.",
     documentTooLarge: "Dit document is te groot om door Fulvid te openen of op te slaan.",
+    unrepresentableInEncoding:
+      "Fulvid kon dit document niet in zijn codering opslaan zonder de tekst te wijzigen, dus er is niets opgeslagen.",
+    undecodableDocument:
+      "Dit bestand is geen UTF-8-tekst, dus Fulvid heeft het niet geopend. Er is niets op de schijf gewijzigd.",
     invalidRequest: "Fulvid kon dat verzoek niet voltooien.",
     operationFailed:
       "Fulvid kon die actie niet voltooien. Je geopende documenten zijn niet gewijzigd.",
   },
   workspace: {
+    documentEncoding:
+      "Dit document wordt opgeslagen als {encoding}. Codering converteren verandert dat.",
+    encodingConverted: "Dit document wordt bij de volgende keer opslaan als {encoding} geschreven.",
+    encodingUnchanged: "Dit document wordt al als {encoding} geschreven.",
+    encodingUnrepresentable:
+      "Dit document bevat tekst die niet als {encoding} kan worden geschreven. Er is niets gewijzigd.",
     title: "Fulvid",
     editorArea: "Documenteditor",
     backToTop: "Terug naar boven",
@@ -792,7 +804,14 @@ export default {
     close: "Sluiten",
   },
 
+  encodings: {
+    utf8: "UTF-8",
+    utf8Bom: "UTF-8 BOM",
+    utf16le: "UTF-16 LE",
+    utf16be: "UTF-16 BE",
+  },
   status: {
+    encoding: "Codering: {encoding}",
     label: "Documentstatus",
     document: "{status} document",
     language: "{language}-document",
